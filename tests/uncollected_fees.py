@@ -953,11 +953,11 @@ def test_uncollected_fees_comparison_formulas_onchain(configuration:dict, thread
 
 
         # define totalfees
-        gammawire_totalFees0 = gammawire_base_fees0 + gammawire_limit_fees0 + pool_position_base["tokensOwed0"] + pool_position_limit["tokensOwed0"] 
-        gammawire_totalFees1 = gammawire_base_fees1 + gammawire_limit_fees1 + pool_position_base["tokensOwed1"] + pool_position_limit["tokensOwed1"]
+        gammawire_totalFees0 = gammawire_base_fees0 + gammawire_limit_fees0 + pool_position_base["tokensOwed0"]/(10**decimals_token0) + pool_position_limit["tokensOwed0"]/(10**decimals_token0)
+        gammawire_totalFees1 = gammawire_base_fees1 + gammawire_limit_fees1 + pool_position_base["tokensOwed1"]/(10**decimals_token1) + pool_position_limit["tokensOwed1"]/(10**decimals_token1)
         
-        alternative_totalFees0 = base_fees0 + limit_fees0 + pool_position_base["tokensOwed0"] + pool_position_limit["tokensOwed0"] 
-        alternative_totalFees1 = base_fees1 + limit_fees1 + pool_position_base["tokensOwed1"] + pool_position_limit["tokensOwed1"]
+        alternative_totalFees0 = base_fees0 + limit_fees0 + pool_position_base["tokensOwed0"]/(10**decimals_token0) + pool_position_limit["tokensOwed0"]/(10**decimals_token0)
+        alternative_totalFees1 = base_fees1 + limit_fees1 + pool_position_base["tokensOwed1"]/(10**decimals_token1) + pool_position_limit["tokensOwed1"]/(10**decimals_token1)
 
         # differences situations
         if gammawire_totalFees0 == 0 and alternative_totalFees0>0:
@@ -1051,11 +1051,11 @@ if __name__ == "__main__":
 
 
 
-    test_uncollected_fees_comparison_api_onchain(configuration=configuration,threaded=True)
+    #test_uncollected_fees_comparison_api_onchain(configuration=configuration,threaded=True)
     
-    test_uncollected_fees_comparison_api_thegraph(configuration=configuration,threaded=True)
+    #test_uncollected_fees_comparison_api_thegraph(configuration=configuration,threaded=True)
 
-    test_uncollected_fees_comparison_formulas_thegraph(configuration=configuration,threaded=True)
+    #test_uncollected_fees_comparison_formulas_thegraph(configuration=configuration,threaded=True)
 
     test_uncollected_fees_comparison_formulas_onchain(configuration=configuration,threaded=True)
 
