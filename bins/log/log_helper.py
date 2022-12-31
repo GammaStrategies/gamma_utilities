@@ -1,0 +1,75 @@
+import os
+import yaml
+import logging.config
+import logging
+
+
+def setup_logging(customconf, default_level=logging.INFO, env_key='LOG_CFG'):
+    """ Setup logging configuration
+    
+     Arguments:
+        config {json} -- custom configuration json file
+    
+     Keyword Arguments:
+        default_path {str} -- path to yaml config log file (default: {'logging.yaml'})
+        default_level {int} --  (default: {logging.INFO})
+        env_key {str} --     (default: {'LOG_CFG'})
+     """
+
+
+    # create logs dir if not exists
+    if not os.path.exists(customconf["logs"]["save_path"]):
+        os.makedirs(name=customconf["logs"]["save_path"], exist_ok=True)
+
+    # load log configuration file
+    if os.path.exists(customconf["logs"]["path"]):
+        with open(customconf["logs"]["path"], 'rt', encoding='utf8') as f:
+            try:
+                # load yaml to var
+                config = yaml.safe_load(f.read())
+
+                # modify all filenames in handlers with the choosen path
+                for k,v in config["handlers"].items():
+                    try:
+                        config["handlers"][k]["filename"] = os.path.join( customconf["logs"]["save_path"], v["filename"])
+                        # if not customconf["logs"]["save_path"].endswith("/"):
+                        #     config["handlers"][k]["filename"] = "{}/{}".format(customconf["logs"]["save_path"],v["filename"])
+                        # else:
+                        #     config["handlers"][k]["filename"] = "{}{}".format(customconf["logs"]["save_path"],v["filename"])
+                    except:
+                        # many handlers do not have filename key
+                        pass
+
+                logging.config.dictConfig(config)
+                
+                # setup color
+                #coloredlogs.install()
+            except Exception as e:
+                print(e)
+                print('Error in Logging Configuration. Using default configs')
+                logging.basicConfig(level=default_level)
+                #coloredlogs.install(level=default_level)
+            
+    else:
+        logging.basicConfig(level=default_level)
+        #coloredlogs.install(level=default_level)
+        print('Failed to load Logging configuration file. Using default configs')
+
+    # setup custom duplicate filter
+    logging.getLogger().addFilter(DuplicateFilter())  # add the filter to it
+
+
+class infoFilter(logging.Filter):
+    def filter(self, rec):
+        return rec.levelno == logging.INFO
+    
+
+class DuplicateFilter(logging.Filter):
+
+    def filter(self, record):
+        # add other fields if you need more granular comparison, depends on your app
+        current_log = (record.module, record.levelno, record.msg)
+        if current_log != getattr(self, "last_log", None):
+            self.last_log = current_log
+            return True
+        return False
