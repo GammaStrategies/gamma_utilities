@@ -9,17 +9,27 @@ from bins.general import net_utilities
 from bins.cache import cache_utilities
 
 
+
+RATE_LIMIT_THEGRAPH = net_utilities.rate_limit(rate_max_sec=4) # thegraph global rate limiter
+
+
 #TODO: implement aiometer ... in async env
 
 
 ## GLOBAL ##
 class thegraph_scraper_helper():
 
-    __RATE_LIMIT = net_utilities.rate_limit(rate_max_sec=4) # rate limiter
     __URLS = {} # of <network name>:<url>
 
 
     def __init__(self, cache:bool=True, cache_savePath:str="", convert=True):
+        """ 
+
+        Args:
+            cache (bool, optional): use cache?. Defaults to True.
+            cache_savePath (str, optional): path dir to save cache file to. Defaults to "".
+            convert (bool, optional): should data be converted? . Defaults to True.
+        """        
         
         self._CONVERT = convert
 
@@ -58,7 +68,7 @@ class thegraph_scraper_helper():
             
             try:
                 # wait till sufficient time has been passed between queries
-                self.__RATE_LIMIT.continue_when_safe()
+                RATE_LIMIT_THEGRAPH.continue_when_safe()
             
                 _query, path_to_data = self._query_constructor(skip=_skip, name=query_name, filter=_filter)
                 _data = net_utilities.post_request(url=_url, query=_query, retry=0, max_retry=2, wait_secs=5)
@@ -124,7 +134,7 @@ class thegraph_scraper_helper():
         return "",[]  # return query, list of keys to follow to find root_path to data
 
     def _converter(self, itm:dict, query_name:str, network:str):
-        """ Convert string data received from thegraph to int or float or date ...
+        """ Convert string data received from thegraph to ... as defined
 
          Args:
             itm (dict): data item to convert
@@ -134,11 +144,13 @@ class thegraph_scraper_helper():
         pass
 
     def _filter_constructor(self, **kwargs)->str:
-        """
-            where example:  ' id='0x0000000000' '
-            orderby example:  ' timestamp ' 
-            orderDirection example: ' asc'
-            block example: number: 12932633
+        """ build thegraph filter
+        
+            kwargs=
+                where :  ' id='0x0000000000' '
+                orderby :  ' timestamp ' 
+                orderDirection : ' asc'
+                block : number: 12932633
         """
 
         _filter = "first: 1000"  # max 1 time query 
@@ -2018,6 +2030,26 @@ class uniswapv3_scraper(thegraph_scraper_helper):
                     }}
                     }}""".format(filter,skip), ["data","positions"]
 
+        elif name == "tokens":
+            return """{{ tokens({}, skip: {}) {{
+                        decimals
+                        derivedETH
+                        feesUSD
+                        id
+                        name
+                        poolCount
+                        symbol
+                        totalSupply
+                        totalValueLocked
+                        totalValueLockedUSD
+                        totalValueLockedUSDUntracked
+                        txCount
+                        untrackedVolumeUSD
+                        volume
+                        volumeUSD
+                    }}
+                    }}""".format(filter,skip), ["data","tokens"]
+
         else:
             logging.getLogger(__name__).error("No univ3 query found with name {}".format(name))
             raise ValueError("No univ3 query constructor found for: {} ".format(name))
@@ -2130,7 +2162,22 @@ class uniswapv3_scraper(thegraph_scraper_helper):
             itm["tickUpper"]["feeGrowthOutside1X128"] = int(itm["tickUpper"]["feeGrowthOutside1X128"])
             itm["tickUpper"]["liquidityGross"] = int(itm["tickUpper"]["liquidityGross"])
             itm["tickUpper"]["liquidityNet"] = int(itm["tickUpper"]["liquidityNet"]) 
-            
+
+        elif query_name == "tokens":
+
+            itm["decimals"] = int(itm["decimals"])
+            itm["derivedETH"] = float(itm["derivedETH"])
+            itm["feesUSD"] = float(itm["feesUSD"]) 
+            itm["poolCount"] = int(itm["poolCount"])
+            itm["totalSupply"] = int(itm["totalSupply"])
+            itm["totalValueLocked"] = float(itm["totalValueLocked"])
+            itm["totalValueLockedUSD"] = float(itm["totalValueLockedUSD"])
+            itm["totalValueLockedUSDUntracked"] = float(itm["totalValueLockedUSDUntracked"])
+            itm["txCount"] = int(itm["txCount"])
+            itm["untrackedVolumeUSD"] = float(itm["untrackedVolumeUSD"])
+            itm["volume"] = float(itm["volume"])
+            itm["volumeUSD"] = float(itm["volumeUSD"])
+  
         else:
             logging.getLogger(__name__).error("No univ3 converter found with name {}".format(query_name))
             raise ValueError("No univ3 query converter found for: {} ".format(query_name))

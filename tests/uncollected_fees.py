@@ -3,6 +3,7 @@ import os
 import datetime as dt
 import logging
 from web3 import Web3
+from web3.middleware import geth_poa_middleware
 from pathlib import Path
 import tqdm
 import concurrent.futures
@@ -26,6 +27,8 @@ from bins.formulas import univ3_formulas
 
 
 # this comparison contains many differences ( check  tegraph_vs_onchain tests  )
+# be aware that gammawire API getsinfo from subgraph so block is behind "latest" onchain.. 
+# so differences are xpected ..  
 def test_uncollected_fees_comparison_api_onchain(configuration:dict, threaded:bool=False):
     """ Comparison between uncollected fees data sourced from the gammawire.net endpoint and 
         custom calculation method using onchain queries
@@ -48,10 +51,11 @@ def test_uncollected_fees_comparison_api_onchain(configuration:dict, threaded:bo
         
         # get onchain data ( need to force abi path bc current workinfolder is tests)
         w3help = onchain_utilities.gamma_hypervisor_cached(address=hyp_id, web3Provider=web3Provider)
-        dta = w3help.tvl_price_fee()
+        dta_tvl = w3help.get_tvl()
+        dta_uncollected = w3help.get_fees_uncollected()
 
-        onchain_totalFees0 = dta["fees_uncollected_token0"]+dta["fees_owed_token0"]
-        onchain_totalFees1 = dta["fees_uncollected_token1"]+dta["fees_owed_token1"]
+        onchain_totalFees0 = dta_uncollected["qtty_token0"] + dta_tvl["fees_owed_token0"]
+        onchain_totalFees1 = dta_uncollected["qtty_token1"] + dta_tvl["fees_owed_token1"]
 
         # differences situations
         if hypervisor["totalFees0"] == 0 and onchain_totalFees0>0:
@@ -123,12 +127,8 @@ def test_uncollected_fees_comparison_api_onchain(configuration:dict, threaded:bo
     file_utilities.SaveCSV(filename=csv_filename, columns=result[0].keys(), rows=result)
 
 
-
-
-
 # passed
-# equal 99.8%
-# this comparison has super small differences ( negligible, may be due to code execution [gammawire uses only one query and alternative method uses many] )
+# this comparison has small differences ( negligible, may be due to code execution [gammawire uses only one query and alternative method uses many] )
 def test_uncollected_fees_comparison_api_thegraph(configuration:dict, threaded:bool=False):
     """ Comparison between uncollected fees data sourced from the gammawire.net endpoint and 
         custom calculation method using GAMMA's subgraph  
@@ -1026,6 +1026,155 @@ def test_uncollected_fees_comparison_formulas_onchain(configuration:dict, thread
     file_utilities.SaveCSV(filename=csv_filename, columns=result[0].keys(), rows=result)
 
 
+from bins.mixed import price_utilities 
+def test_uncollected_fees_onchain(protocol:str, network:str, web3Provider_url:str, hypervisor_ids:list, blocks:list=[], threaded:bool=False, max_workers:int=5):
+    """ get multiple onchain fields and save em to csv file
+
+     Args:
+        protocol (str): "gamma"
+        network (str): "ethereum", "polygon" ...
+        web3Provider_url (str): full url to web3 provider
+        hypervisor_ids (list): 
+        blocks (list, optional): if no blocks specified, current block is used. Defaults to [].
+        threaded (bool, optional): . Defaults to False.
+        max_workers (int, optional): . Defaults to 5.
+
+     Returns:
+            saves csv file with rows:
+                        "hypervisor_id",
+                        "name",
+                        "block",
+                        "timestamp",
+                        "tvl0",
+                        "tvl1",
+                        "tvlUSD",
+                        "deployed_token0",
+                        "deployed_token1",
+                        "fees_owed_token0",
+                        "fees_owed_token1",
+                        "parked_token0",
+                        "parked_token1",
+                        "uncollected_fees0",
+                        "uncollected_fees1",
+                        "price0",
+                        "price1",
+                        "elapsedTime",
+                        "subgraph_errors"
+     """
+    
+    web3Provider = Web3(Web3.HTTPProvider(web3Provider_url, request_kwargs={'timeout': 60})) 
+    # add middleware as needed
+    if network != "ethereum":
+        web3Provider.middleware_onion.inject(geth_poa_middleware, layer=0)
+
+    # define blocks to be scraped ( for each hypervisor id)
+    if len(blocks) == 0:
+        blocks= list()
+        bk = web3Provider.eth.getBlock("latest").number
+        for i in range(len(hypervisor_ids)):
+            blocks.append(bk)
+        
+    # create price scrape helper
+    price_helper = price_utilities.price_scraper(cache=True, cache_filename="uniswapv3_price_cache", cache_folderName="data/cache")
+
+    # define a result var
+    result = list()
+
+    # create the func to loop thru  
+    def do_loop_work(hyp_id, web3Provider, block, price_helper, network):
+        
+        error = False
+
+        # setup helper
+        gamma_web3Helper = onchain_utilities.gamma_hypervisor_cached(address=hyp_id, web3Provider=web3Provider, block=block)
+
+        # get name
+        hypervisor_name = gamma_web3Helper.symbol
+
+        timestamp = web3Provider.eth.getBlock(block).timestamp
+
+        # TVL direct contract call 
+        totalAmounts = gamma_web3Helper.getTotalAmounts
+        tvl0_direct = totalAmounts["total0"]
+        tvl1_direct = totalAmounts["total1"]
+        # TVL indirect univ3 calculation calls
+        tvl_indirect = gamma_web3Helper.get_tvl()
+        tvl0_indirect = tvl_indirect["tvl_token0"]
+        tvl1_indirect = tvl_indirect["tvl_token1"]
+        # TVL solidity/python deviation
+        diff0 = ((tvl0_direct - tvl0_indirect)/tvl0_direct) if tvl0_direct != 0 else 0
+        diff1 = ((tvl1_direct - tvl1_indirect)/tvl1_direct) if tvl1_direct != 0 else 0
+        if abs(diff0) > 0.0001:
+            print("{} {} token0 total difference of {:,.4%} btween direct call to totalAmounts and indirect calls 2 univ3".format(network,hypervisor_name,diff0))
+        if abs(diff1) > 0.0001:
+            print("{} {} token1 total difference of {:,.4%} btween direct call to totalAmounts and indirect calls 2 univ3".format(network,hypervisor_name,diff1))
+
+        # PRICE get prices from thegraph or coingecko
+        price0 = price_helper.get_price(network=network, token_id=gamma_web3Helper.token0.address, block=block)
+        price1 = price_helper.get_price(network=network, token_id=gamma_web3Helper.token1.address, block=block)
+        # calc USD TVL
+        tvlUSD = tvl0_indirect*price0 + tvl1_indirect*price1
+
+        # UNCOLLECTED
+        fees_uncollected = gamma_web3Helper.get_fees_uncollected(inDecimal=True)
+
+        # add data to result
+        return {
+            "hypervisor_id":hyp_id,
+            "name": hypervisor_name,
+            "block":block,
+            "timestamp":timestamp,
+            "tvl0": tvl0_indirect,
+            "tvl1": tvl1_indirect,
+            "tvlUSD":tvlUSD,
+            "deployed_token0":tvl_indirect["deployed_token0"],
+            "deployed_token1":tvl_indirect["deployed_token1"],
+            "fees_owed_token0":tvl_indirect["fees_owed_token0"],
+            "fees_owed_token1":tvl_indirect["fees_owed_token1"],
+            "parked_token0":tvl_indirect["parked_token0"],
+            "parked_token1":tvl_indirect["parked_token1"],
+            "uncollected_fees0":fees_uncollected["qtty_token0"],
+            "uncollected_fees1":fees_uncollected["qtty_token1"],
+            "price0":price0,
+            "price1":price1,
+            "elapsedTime":0,
+            "subgraph_errors": error
+            }
+
+    # progress 
+    with tqdm.tqdm(total=len(hypervisor_ids)*len(blocks)) as progress_bar:
+
+        if not threaded:
+            # not threaded  (slow )          
+            for hypervisor_id in hypervisor_ids:
+                
+                for block in blocks:
+
+                    progress_bar.set_description("processed {}'s {}".format(network, hypervisor_id))
+                    
+                    # add data to result
+                    result.append( do_loop_work(hypervisor_id,web3Provider,block,price_helper,network))
+                
+                    # update progress
+                    progress_bar.update(1)
+        else:
+            # threaded
+            args = ((hypervisor_id,web3Provider, block, price_helper,network) for hypervisor_id in hypervisor_ids for block in blocks)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
+                for result_item in ex.map(lambda p: do_loop_work(*p), args):
+                    # progress
+                    progress_bar.set_description("processed {}'s {}".format(network, result_item["name"]))
+                    
+                    # add data to result
+                    result.append(result_item)
+            
+                    # update progress
+                    progress_bar.update(1)
+    
+    # resuklt
+    return result
+
+
 
 
 # START ####################################################################################################################
@@ -1051,15 +1200,32 @@ if __name__ == "__main__":
 
 
 
-    #test_uncollected_fees_comparison_api_onchain(configuration=configuration,threaded=True)
+    test_uncollected_fees_comparison_api_onchain(configuration=configuration,threaded=True)
     
-    #test_uncollected_fees_comparison_api_thegraph(configuration=configuration,threaded=True)
+    test_uncollected_fees_comparison_api_thegraph(configuration=configuration,threaded=True)
 
-    #test_uncollected_fees_comparison_formulas_thegraph(configuration=configuration,threaded=True)
+    test_uncollected_fees_comparison_formulas_thegraph(configuration=configuration,threaded=True)
 
     test_uncollected_fees_comparison_formulas_onchain(configuration=configuration,threaded=True)
 
-
+    
+    # test_uncollected_fees_onchain
+    network="arbitrum"
+    csv_filename = "{}_test_uncollected_fees_onchain.csv".format(network)
+    csv_filename = os.path.join(CURRENT_FOLDER,csv_filename) # save to test folder
+    # list of hypervisors
+    hypervisor_ids=["0xf21df991caafebc242c7e5be17892d3b0453bc0f"] 
+    # list of blocks to analyze
+    blocks = [50973544,51055282,51055283,51055824,51055825,51056549,51056550,51057291,51057292,51058269,51058270,51113588,51113589,51114535,51114536,51125916,51125917]
+    result= test_uncollected_fees_onchain(protocol="gamma",network=network,
+        web3Provider_url=configuration["sources"]["web3Providers"][network],
+        hypervisor_ids=hypervisor_ids, blocks=blocks, threaded=True, max_workers=5)
+    # remove file
+    try:
+        os.remove(csv_filename)
+    except:
+        pass
+    file_utilities.SaveCSV(filename=csv_filename, columns=result[0].keys(), rows=result)
 
     # end time log
     _timelapse = dt.datetime.utcnow() - _startime

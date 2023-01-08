@@ -143,8 +143,10 @@ cython_debug/
 # custom
 local_data/
 data/cache/
+data/protocol_analysis/
 logs/
 *.csv
+*.csv#
 *.ods
 *.ods#
 tests/*.json

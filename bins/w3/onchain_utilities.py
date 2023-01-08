@@ -11,6 +11,20 @@ from bins.cache import cache_utilities
 
 from bins.formulas import univ3_formulas
 
+# TODO: redesign cached to cascade inclusive
+class cached_wraper():
+    _cache = None 
+    _save2file = True
+
+    def get_data(self, chain_id:int, address:str, block:int, prop_name:str):
+        try:
+            return self._cache.get_data(chain_id=chain_id, address=address, block=block, key=prop_name)
+        except:
+            return None
+
+    def set_data(self, chain_id:int, address:str, block:int, prop_name:str, data):
+        self._cache.add_data(chain_id=chain_id, address=address, block=block, key=prop_name, data=data, save2file=self._save2file)
+
 
 
 # GENERAL
@@ -83,16 +97,13 @@ class web3wrap():
     def address(self)->str:
         return self._address
 
-    
     @property
     def w3(self)->Web3:
         return self._w3
 
-
     @property
     def contract(self)->str:
         return self._contract
-
 
     @property
     def block(self)->int:
@@ -308,36 +319,34 @@ class web3wrap():
                 yield event
 
 
+
+
 class erc20(web3wrap):
     _abi_filename = "erc20"
     _abi_path = "data/abi"
 
-
    # PROPERTIES
-
     @property
     def decimals(self)->int:
         return self._contract.functions.decimals().call()
 
-
     def balanceOf(self, address:str)->float:
-        return self._contract.functions.balanceOf(Web3.toChecksumAddress(address)).call(block_identifier=self.block)/(10**self.decimals)
+        return self._contract.functions.balanceOf(Web3.toChecksumAddress(address)).call(block_identifier=self.block)
     
-
     @property
-    def totalSupply(self)->float:
-        return self._contract.functions.totalSupply().call(block_identifier=self.block)/(10**self.decimals)
+    def totalSupply(self)->int:
+        return self._contract.functions.totalSupply().call(block_identifier=self.block)
     
-
     @property
     def symbol(self)->str:
         return self._contract.functions.symbol().call()
     
-
-    def allowance(self, owner:str, spender:str)->float:
-        return self._contract.functions.allowance(Web3.toChecksumAddress(owner), Web3.toChecksumAddress(spender)).call(block_identifier=self.block)/(10**self.decimals)
+    def allowance(self, owner:str, spender:str)->int:
+        return self._contract.functions.allowance(Web3.toChecksumAddress(owner), Web3.toChecksumAddress(spender)).call(block_identifier=self.block)
 
 class erc20_cached(erc20):
+
+    SAVE2FILE = True
 
    # PROPERTIES
     @property
@@ -346,7 +355,7 @@ class erc20_cached(erc20):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -355,7 +364,7 @@ class erc20_cached(erc20):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -364,7 +373,7 @@ class erc20_cached(erc20):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
 
@@ -372,6 +381,7 @@ class erc20_cached(erc20):
 
 
 # COLLECTORs
+
 class data_collector():
     """ Scrapes the chain once to gather 
         all configured topics from the contracts addresses supplied (hypervisor list)
@@ -389,7 +399,7 @@ class data_collector():
 
     _token_helpers = dict() # univ3_pool helpers simulating contract functionality just to be able to use the tokenX decimal part
 
-    def __init__( topics:dict, topics_data_decoders:dict, web3Provider:Web3=None, web3Provider_url:str=""):
+    def __init__(self, topics:dict, topics_data_decoders:dict, web3Provider:Web3=None, web3Provider_url:str=""):
         
         # setup Web3 
         self.setup_w3(web3Provider=web3Provider, web3Provider_url=web3Provider_url)
@@ -458,7 +468,7 @@ class data_collector():
             topic = self._topics_reversed[event.topics[0].hex()]
             # first topic is topic id 
             custom_abi_data = self._topics_data_decoders[topic]
-            #topics = abi.decode(custom_abi_topics, event.topics )
+            # decode 
             data = abi.decode(custom_abi_data, HexBytes(event.data))
             # save topic data to cache
             self._save_topic(topic,event,data)
@@ -470,7 +480,6 @@ class data_collector():
    # HELPERS
     def _save_topic(self, topic:str, event, data):
 
-        
         # init result
         itm = dict()
         
@@ -585,14 +594,12 @@ class univ3_pool(erc20):
     def factory(self)->str:
         return self._contract.functions.factory().call(block_identifier=self.block)
 
-
     @property
     def fee(self)->int:
         """ The pool's fee in hundredths of a bip, i.e. 1e-6  
 
         """
         return self._contract.functions.fee().call(block_identifier=self.block)
-
 
     @property
     def feeGrowthGlobal0X128(self)->int:
@@ -602,7 +609,6 @@ class univ3_pool(erc20):
          """
         return self._contract.functions.feeGrowthGlobal0X128().call(block_identifier=self.block)
     
-
     @property
     def feeGrowthGlobal1X128(self)->int:
         """ The fee growth as a Q128.128 fees of token1 collected per unit of liquidity for the entire life of the pool
@@ -611,20 +617,16 @@ class univ3_pool(erc20):
          """
         return self._contract.functions.feeGrowthGlobal1X128().call(block_identifier=self.block)
 
-
     @property
     def liquidity(self)->int:
         return self._contract.functions.liquidity().call(block_identifier=self.block)
-
 
     @property
     def maxLiquidityPerTick(self)->int:
         return self._contract.functions.maxLiquidityPerTick().call(block_identifier=self.block)
     
-
     def observations(self, input:int):
         return self._contract.functions.observations(input).call(block_identifier=self.block)
-    
 
     def observe(self, secondsAgo:int):
         """observe _summary_
@@ -638,7 +640,6 @@ class univ3_pool(erc20):
             
          """        
         return self._contract.functions.observe(secondsAgo).call(block_identifier=self.block)
-
 
     def positions(self, position_key:str)->dict:
         """ 
@@ -662,7 +663,6 @@ class univ3_pool(erc20):
                 "tokensOwed1":result[4],
                 }
 
-
     @property  
     def protocolFees(self):
         """ The amounts of token0 and token1 that are owed to the protocol
@@ -672,7 +672,6 @@ class univ3_pool(erc20):
                     token1   uint128 :  0
          """
         return self._contract.functions.protocolFees().call(block_identifier=self.block)
-
 
     @property
     def slot0(self)->dict:
@@ -699,19 +698,15 @@ class univ3_pool(erc20):
                 }
         return result
     
-
     def snapshotCumulativeInside(self, tickLower:int, tickUpper:int): 
         return self._contract.functions.snapshotCumulativeInside(tickLower,tickUpper).call(block_identifier=self.block)
-
 
     def tickBitmap(self, input:int)->int:
         return self._contract.functions.tickBitmap(input).call(block_identifier=self.block)
 
-
     @property
     def tickSpacing(self)->int:
         return self._contract.functions.tickSpacing().call(block_identifier=self.block)
-
 
     def ticks(self, tick:int)->dict:
         """  
@@ -740,7 +735,6 @@ class univ3_pool(erc20):
                 "initialized":result[7],
             }
 
-
     @property
     def token0(self)->erc20:
         """ The first of the two tokens of the pool, sorted by address
@@ -750,10 +744,9 @@ class univ3_pool(erc20):
          """        
         if self._token0 == None:
             self._token0 = erc20(address=self._contract.functions.token0().call(block_identifier=self.block),
-                                 web3Provider=self._w3)
+                                 web3Provider=self._w3, block=self.block)
         return self._token0
     
-
     @property
     def token1(self)->erc20:
         """The second of the two tokens of the pool, sorted by address_
@@ -763,7 +756,7 @@ class univ3_pool(erc20):
          """        
         if self._token1 == None:
             self._token1 = erc20(address=self._contract.functions.token1().call(block_identifier=self.block),
-                                 web3Provider=self._w3)
+                                 web3Provider=self._w3, block=self.block)
         return self._token1
     
     # write function without state change ( not wrkin)
@@ -783,61 +776,114 @@ class univ3_pool(erc20):
 
    # CUSTOM FUNCTIONS
     def position(self, ownerAddress:str, tickLower:int, tickUpper:int)->dict:
-        return self.positions(univ3_formulas.get_positionKey(ownerAddress=ownerAddress, tickLower=tickLower, tickUpper=tickUpper,))
-
-    def get_tvlPriceFees(self, ownerAddress:str, tickUpper:int, tickLower:int)->dict:
-        """ Calculate current TVL, price and uncollected fees, including owed, for each token in the pool
-
-         Args:
-            ownerAddress (str): address of the pool position owner
-            tickUpper (int): 
-            tickLower (int): 
+        """ 
 
          Returns:
-            dict:  {"qtty_token0": ,
-                    "qtty_token1": ,
-                    "price_token0": ,
-                    "price_token1": ,
-                    "feesUncollected_token0": ,
-                    "feesUncollected_token1": ,
-                    "feesOwed_token0": ,
-                    "feesOwed_token1": ,
-                    }
+            dict: 
+                    liquidity   uint128 :  99225286851746
+                    feeGrowthInside0LastX128   uint256 :  0
+                    feeGrowthInside1LastX128   uint256 :  0
+                    tokensOwed0   uint128 :  0
+                    tokensOwed1   uint128 :  0
+         """
+        return self.positions(univ3_formulas.get_positionKey(ownerAddress=ownerAddress, tickLower=tickLower, tickUpper=tickUpper,))
+
+    def get_qtty_depoloyed(self, ownerAddress:str, tickUpper:int, tickLower:int, inDecimal:bool=True)->dict:
+        """ Retrieve the quantity of tokens currently deployed 
+            
+         Args:
+            ownerAddress (str): 
+            tickUpper (int): 
+            tickLower (int): 
+            inDecimal (bool): return result in a decimal format?
+
+         Returns:
+            dict: {
+                    "qtty_token0":0,        (float) # quantity of token 0 deployed in dex
+                    "qtty_token1":0,        (float) # quantity of token 1 deployed in dex
+                    "fees_owed_token0":0,   (float) # quantity of token 0 fees owed to the position ( not included in qtty_token0 and this is not uncollected fees)
+                    "fees_owed_token1":0,   (float) # quantity of token 1 fees owed to the position ( not included in qtty_token1 and this is not uncollected fees)
+                  }
          """        
-        
-        result = dict()
+
+        result =  {
+            "qtty_token0":0,        # quantity of token 0 deployed in dex
+            "qtty_token1":0,        # quantity of token 1 deployed in dex
+            "fees_owed_token0":0,   # quantity of token 0 fees owed to the position ( not included in qtty_token0 and this is not uncollected fees)
+            "fees_owed_token1":0,   # quantity of token 1 fees owed to the position ( not included in qtty_token1 and this is not uncollected fees)
+         }
 
         # get position data
         pos = self.position(ownerAddress=Web3.toChecksumAddress(ownerAddress.lower()),
             tickLower=tickLower,
             tickUpper=tickUpper,)
+        # get slot data
+        slot0 = self.slot0
 
         # get current tick from slot
+        tickCurrent = slot0["tick"]
+        sqrtRatioX96 = slot0["sqrtPriceX96"]
+        sqrtRatioAX96 = univ3_formulas.TickMath.getSqrtRatioAtTick(tickLower)
+        sqrtRatioBX96 = univ3_formulas.TickMath.getSqrtRatioAtTick(tickUpper)
+        # calc quantity from liquidity
+        result["qtty_token0"],result["qtty_token1"] = univ3_formulas.LiquidityAmounts.getAmountsForLiquidity(sqrtRatioX96,sqrtRatioAX96,sqrtRatioBX96,pos["liquidity"])
+
+        # add owed tokens
+        result["fees_owed_token0"] = pos["tokensOwed0"]
+        result["fees_owed_token1"] = pos["tokensOwed1"]
+
+        # convert to decimal as needed
+        if inDecimal:
+            # get token decimals 
+            decimals_token0 = self.token0.decimals
+            decimals_token1 = self.token1.decimals
+
+            result["qtty_token0"] /= (10**decimals_token0)
+            result["qtty_token1"] /= (10**decimals_token1)
+            result["fees_owed_token0"] /= (10**decimals_token0)
+            result["fees_owed_token1"] /= (10**decimals_token1)
+
+        # return result
+        return result
+
+    def get_fees_uncollected(self, ownerAddress:str, tickUpper:int, tickLower:int, inDecimal:bool=True)->dict:
+        """ Retrieve the quantity of fees not collected nor yet owed ( but certain) to the deployed position
+            
+            Args:
+                ownerAddress (str): 
+                tickUpper (int): 
+                tickLower (int): 
+                inDecimal (bool): return result in a decimal format?
+
+            Returns:
+                dict: {
+                        "qtty_token0":0,   (float)     # quantity of uncollected token 0 
+                        "qtty_token1":0,   (float)     # quantity of uncollected token 1 
+                    }
+         """        
+
+        result =  {
+            "qtty_token0":0,       
+            "qtty_token1":0,   
+            }
+
+        # get position data
+        pos = self.position(ownerAddress=Web3.toChecksumAddress(ownerAddress.lower()),
+            tickLower=tickLower,
+            tickUpper=tickUpper,)
+        
+        # get ticks
         tickCurrent = self.slot0["tick"]
-
-        # catch most used vars 
-        decimals_token0 = self.token0.decimals
-        decimals_token1 = self.token1.decimals
-
-
-        # QUANTITY & PRICE
-        result.update(univ3_formulas.get_position_quantity_and_price(
-            liquidity= pos["liquidity"], 
-            tickCurrent= tickCurrent, 
-            tickUpper= tickUpper, 
-            tickLower= tickLower, 
-            decimals_token0= decimals_token0, 
-            decimals_token1= decimals_token1))
-
-        # UNCOLLECTED FEES        
         ticks_lower = self.ticks(tickLower)
         ticks_upper = self.ticks(tickUpper)
-        #   token0 fee
+
+
+        # calc token0 uncollected fees
         feeGrowthOutside0X128_lower = ticks_lower["feeGrowthOutside0X128"]
         feeGrowthOutside0X128_upper = ticks_upper["feeGrowthOutside0X128"]
         feeGrowthInside0LastX128 = pos["feeGrowthInside0LastX128"]
-        #       add fee0 to result
-        result.update({"fees_uncollected_token0": univ3_formulas.get_uncollected_fees(
+        # add to result
+        result["qtty_token0"] = univ3_formulas.get_uncollected_fees(
             feeGrowthGlobal=self.feeGrowthGlobal0X128, 
             feeGrowthOutsideLower=feeGrowthOutside0X128_lower,
             feeGrowthOutsideUpper=feeGrowthOutside0X128_upper,
@@ -846,14 +892,14 @@ class univ3_pool(erc20):
             liquidity=pos["liquidity"],
             tickLower=tickLower, 
             tickUpper=tickUpper
-            ) / (10**decimals_token0)
-            })
-        #   token1 fee
+            )
+        
+        # calc token1 uncollected fees
         feeGrowthOutside1X128_lower = ticks_lower["feeGrowthOutside1X128"]
         feeGrowthOutside1X128_upper = ticks_upper["feeGrowthOutside1X128"]
         feeGrowthInside1LastX128 = pos["feeGrowthInside1LastX128"]
         #       add fee1 to result
-        result.update({"fees_uncollected_token1": univ3_formulas.get_uncollected_fees(
+        result["qtty_token1"] = univ3_formulas.get_uncollected_fees(
             feeGrowthGlobal=self.feeGrowthGlobal1X128, 
             feeGrowthOutsideLower=feeGrowthOutside1X128_lower,
             feeGrowthOutsideUpper=feeGrowthOutside1X128_upper,
@@ -862,20 +908,24 @@ class univ3_pool(erc20):
             liquidity=pos["liquidity"],
             tickLower=tickLower, 
             tickUpper=tickUpper
-            ) / (10**decimals_token1)
-            })
+            )
+    
 
-        # OWED FEES
-        result.update({
-            "fees_owed_token0":  pos["tokensOwed0"] / (10**decimals_token0),
-            "fees_owed_token1": pos["tokensOwed1"] / (10**decimals_token1),
-        })
+        # convert to decimal as needed
+        if inDecimal:
+            # get token decimals 
+            decimals_token0 = self.token0.decimals
+            decimals_token1 = self.token1.decimals
 
+            result["qtty_token0"] /= (10**decimals_token0)
+            result["qtty_token1"] /= (10**decimals_token1)
 
         # return result
         return result
 
 class univ3_pool_cached(univ3_pool):
+
+    SAVE2FILE = True
 
    # PROPERTIES
     @property
@@ -884,7 +934,7 @@ class univ3_pool_cached(univ3_pool):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -896,7 +946,7 @@ class univ3_pool_cached(univ3_pool):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -909,7 +959,7 @@ class univ3_pool_cached(univ3_pool):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
     
     @property
@@ -922,7 +972,7 @@ class univ3_pool_cached(univ3_pool):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -931,7 +981,7 @@ class univ3_pool_cached(univ3_pool):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -940,7 +990,7 @@ class univ3_pool_cached(univ3_pool):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
     
     @property  
@@ -955,7 +1005,7 @@ class univ3_pool_cached(univ3_pool):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -975,7 +1025,7 @@ class univ3_pool_cached(univ3_pool):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
   
     @property
@@ -984,7 +1034,7 @@ class univ3_pool_cached(univ3_pool):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None: 
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -996,7 +1046,7 @@ class univ3_pool_cached(univ3_pool):
          """        
         if self._token0 == None:
             self._token0 = erc20_cached(address=self._contract.functions.token0().call(block_identifier=self.block),
-                                 web3Provider=self._w3)
+                                 web3Provider=self._w3, block=self.block)
         return self._token0
     
     @property
@@ -1008,7 +1058,7 @@ class univ3_pool_cached(univ3_pool):
          """        
         if self._token1 == None:
             self._token1 = erc20_cached(address=self._contract.functions.token1().call(block_identifier=self.block),
-                                 web3Provider=self._w3)
+                                 web3Provider=self._w3, block=self.block)
         return self._token1
 
 
@@ -1023,43 +1073,35 @@ class gamma_hypervisor(erc20):
     _token0:erc20 = None
     _token1:erc20 = None
 
-
    # PROPERTIES
 
     @property
     def baseLower(self):
         return self._contract.functions.baseLower().call(block_identifier=self.block)
 
-
     @property
     def baseUpper(self):
         return self._contract.functions.baseUpper().call(block_identifier=self.block)
-
 
     @property
     def currentTick(self)->int:
         return self._contract.functions.currentTick().call(block_identifier=self.block)
     
-
     @property
     def deposit0Max(self)->float:
         return self._contract.functions.deposit0Max().call(block_identifier=self.block)
-
 
     @property
     def deposit1Max(self)->float:
         return self._contract.functions.deposit1Max().call(block_identifier=self.block)
 
-
     @property
     def directDeposit(self)->bool:
         return self._contract.functions.directDeposit().call(block_identifier=self.block)
 
-
     @property
     def fee(self)->int:
         return self._contract.functions.fee().call(block_identifier=self.block)
-
 
     @property
     def getBasePosition(self)->dict:
@@ -1078,7 +1120,6 @@ class gamma_hypervisor(erc20):
                 }
         return result
     
-
     @property
     def getLimitPosition(self)->dict:
         """
@@ -1096,7 +1137,6 @@ class gamma_hypervisor(erc20):
             }
         return result
     
-
     @property
     def getTotalAmounts(self)->dict:
         """ _
@@ -1110,74 +1150,56 @@ class gamma_hypervisor(erc20):
                 "total1":tmp[1]/(10**self.token1.decimals),}    
         return result
     
-
     @property
     def limitLower(self):
         return self._contract.functions.limitLower().call(block_identifier=self.block)
     
-
     @property
     def limitUpper(self):
         return self._contract.functions.limitUpper().call(block_identifier=self.block)
     
-
     @property
     def maxTotalSupply(self)->int:
         return self._contract.functions.maxTotalSupply().call(block_identifier=self.block)/(10**self.decimals)
-
 
     @property
     def name(self)->str:
         return self._contract.functions.name().call(block_identifier=self.block)
 
-
     def nonces(self, owner:str):
         return self._contract.functions.nonces()(Web3.toChecksumAddress(owner)).call(block_identifier=self.block)
-
 
     @property
     def owner(self)->str:
         return self._contract.functions.owner().call(block_identifier=self.block)
 
-
     @property
     def pool(self)->str:
         if self._pool == None:
-            self._pool = univ3_pool(address=self._contract.functions.pool().call(block_identifier=self.block), web3Provider=self._w3)
+            self._pool = univ3_pool(address=self._contract.functions.pool().call(block_identifier=self.block), web3Provider=self._w3, block=self.block)
         return self._pool
-
 
     @property
     def tickSpacing(self)->int:
         return self._contract.functions.tickSpacing().call(block_identifier=self.block)
 
-
     @property
     def token0(self)->erc20:
         if self._token0 == None:
             self._token0 = erc20(address=self._contract.functions.token0().call(block_identifier=self.block),
-                                 web3Provider=self._w3)
+                                 web3Provider=self._w3, block=self.block)
         return self._token0
     
-
     @property
     def token1(self)->erc20:
         if self._token1 == None:
             self._token1 = erc20(address=self._contract.functions.token1().call(block_identifier=self.block),
-                                 web3Provider=self._w3)
+                                 web3Provider=self._w3, block=self.block)
         return self._token1
-    
 
     @property
-    def witelistedAddress(self)->str:
-        return self._contract.functions.witelistedAddress().call(block_identifier=self.block)
-
-   # CUSTOM PROPERTIES
-    @property
-    def block(self):
-        """ """
+    def block(self)->int:
         return self._block
-
     @block.setter
     def block(self, value):
         self._block = value
@@ -1186,41 +1208,88 @@ class gamma_hypervisor(erc20):
         self.token1.block = value
 
    # CUSTOM FUNCTIONS
-    def tvl_price_fee(self)->dict:
-        """ Return Value locked, prices, uncollected and owed fees 
+    def get_qtty_depoloyed(self, inDecimal:bool=True)->dict:
+        """ Retrieve the quantity of tokens currently deployed 
+            
+         Returns:
+            dict: {
+                    "qtty_token0":0,         # quantity of token 0 deployed in dex
+                    "qtty_token1":0,         # quantity of token 1 deployed in dex
+                    "fees_owed_token0":0,    # quantity of token 0 fees owed to the position ( not included in qtty_token0 and this is not uncollected fees)
+                    "fees_owed_token1":0,    # quantity of token 1 fees owed to the position ( not included in qtty_token1 and this is not uncollected fees)
+                  }
+         """        
+        # positions
+        base = self.pool.get_qtty_depoloyed(ownerAddress=self.address, tickUpper=self.baseUpper, tickLower=self.baseLower, inDecimal=inDecimal)
+        limit = self.pool.get_qtty_depoloyed(ownerAddress=self.address, tickUpper=self.limitUpper, tickLower=self.limitLower, inDecimal=inDecimal)
 
-        Returns:
-            dict: {"qtty_token0": ,
-                    "qtty_token1": ,
-                    "price_token0": ,
-                    "price_token1": ,
-                    "fees_uncollected_token0": ,
-                    "fees_uncollected_token1": ,
-                    "fees_owed_token0": ,
-                    "fees_owed_token1": ,
+        # add up
+        return {k: base.get(k, 0) + limit.get(k, 0) for k in set(base) & set(limit)}
+
+    def get_fees_uncollected(self, inDecimal:bool=True)->dict:
+        """ Retrieve the quantity of fees not collected nor yet owed ( but certain) to the deployed position
+            
+            Returns:
+                dict: {
+                        "qtty_token0":0,  # quantity of uncollected token 0 
+                        "qtty_token1":0,  # quantity of uncollected token 1 
                     }
-        """      
-        # UNISWAP positions  
-        result = self.pool.get_tvlPriceFees(ownerAddress=self.address, tickUpper=self.baseUpper, tickLower=self.baseLower)
-        limit = self.pool.get_tvlPriceFees(ownerAddress=self.address, tickUpper=self.limitUpper, tickLower=self.limitLower)
-        # sumup position keys
-        for k in result.keys():
-            if not k in ["price_token0","price_token1"]:
-                result[k] += limit[k]
+         """
+        # positions
+        base = self.pool.get_fees_uncollected(ownerAddress=self.address, tickUpper=self.baseUpper, tickLower=self.baseLower, inDecimal=inDecimal)
+        limit = self.pool.get_fees_uncollected(ownerAddress=self.address, tickUpper=self.limitUpper, tickLower=self.limitLower,inDecimal=inDecimal)
+
+        return {k: base.get(k, 0) + limit.get(k, 0) for k in set(base) & set(limit)}
+
+
+
+    def get_tvl(self)->dict:
+        """ get total value locked of both positions
+            TVL = deployed + parked + owed
+
+         Returns:
+            dict: {" tvl_token0": ,      (float) Total quantity locked of token 0
+                    "tvl_token1": ,      (float) Total quantity locked of token 1
+                    "deployed_token0": , (float)
+                    "deployed_token1": , (float)
+                    "fees_owed_token0": ,(float)
+                    "fees_owed_token1": ,(float)
+                    "parked_token0": ,   (float) quantity of token 0 parked at contract (not deployed)
+                    "parked_token1": ,   (float)  quantity of token 1 parked at contract (not deployed)
+                    }
+         """
+        # get deployed fees as int
+        deployed = self.get_qtty_depoloyed(inDecimal=False)
+
+        result = dict()
+
+        # get parked tokens as int
+        result["parked_token0"] = self.pool.token0.balanceOf(self.address)
+        result["parked_token1"] = self.pool.token1.balanceOf(self.address)
+
+        result["deployed_token0"] = deployed["qtty_token0"]
+        result["deployed_token1"] = deployed["qtty_token1"]
+        result["fees_owed_token0"] = deployed["fees_owed_token0"]
+        result["fees_owed_token1"] = deployed["fees_owed_token1"]
+
+        # sumup
+        result["tvl_token0"] = (result["deployed_token0"] + result["fees_owed_token0"] + result["parked_token0"])
+        result["tvl_token1"] = (result["deployed_token1"] + result["fees_owed_token1"] + result["parked_token1"])
+    
+        # transform everythin to deicmal
+        for key in result.keys():
+            if "token0" in key:
+                result[key]/=(10**self.token0.decimals)
+            elif "token1" in key:
+                result[key]/=(10**self.token1.decimals)
             else:
-                result[k] += limit[k]
-                result[k] /= 2
+                raise ValueError("Cant convert '{}' field to decimal".format(key))
 
-        # CONTRACT parked tokens (tvl)
-        qttyParked_token0 = self.pool.token0.balanceOf(self.address)
-        qttyParked_token1 = self.pool.token1.balanceOf(self.address)
-        result["qtty_token0"] += qttyParked_token0
-        result["qtty_token1"] += qttyParked_token1
-
-        # return result
         return result
 
 class gamma_hypervisor_cached(gamma_hypervisor):
+
+    SAVE2FILE = True
 
    # PROPERTIES
     @property
@@ -1229,7 +1298,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -1238,7 +1307,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -1247,7 +1316,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
     
     @property
@@ -1256,7 +1325,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -1265,7 +1334,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -1274,7 +1343,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -1283,7 +1352,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -1300,7 +1369,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
     
     @property
@@ -1317,7 +1386,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:   
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
     
     @property
@@ -1332,7 +1401,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:    
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         
         return result
     
@@ -1342,7 +1411,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
     
     @property
@@ -1351,7 +1420,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
     
     @property
@@ -1360,7 +1429,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -1369,7 +1438,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -1378,13 +1447,13 @@ class gamma_hypervisor_cached(gamma_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
     def pool(self)->str:
         if self._pool == None:
-            self._pool = univ3_pool_cached(address=self._contract.functions.pool().call(block_identifier=self.block), web3Provider=self._w3)
+            self._pool = univ3_pool_cached(address=self._contract.functions.pool().call(block_identifier=self.block), web3Provider=self._w3, block=self.block)
         return self._pool
 
     @property
@@ -1393,21 +1462,21 @@ class gamma_hypervisor_cached(gamma_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
     def token0(self)->erc20:
         if self._token0 == None:
             self._token0 = erc20_cached(address=self._contract.functions.token0().call(block_identifier=self.block),
-                                 web3Provider=self._w3)
+                                 web3Provider=self._w3, block=self.block)
         return self._token0
     
     @property
     def token1(self)->erc20:
         if self._token1 == None:
             self._token1 = erc20_cached(address=self._contract.functions.token1().call(block_identifier=self.block),
-                                 web3Provider=self._w3)
+                                 web3Provider=self._w3, block=self.block)
         return self._token1
     
     @property
@@ -1416,7 +1485,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
 
@@ -1536,21 +1605,21 @@ class arrakis_hypervisor(erc20):
     @property
     def pool(self)->str:
         if self._pool == None:
-            self._pool = univ3_pool(address=self._contract.functions.pool().call(block_identifier=self.block), web3Provider=self._w3)
+            self._pool = univ3_pool(address=self._contract.functions.pool().call(block_identifier=self.block), web3Provider=self._w3, block=self.block)
         return self._pool
     
     @property
     def token0(self)->erc20:
         if self._token0 == None:
             self._token0 = erc20(address=self._contract.functions.token0().call(block_identifier=self.block),
-                                 web3Provider=self._w3)
+                                 web3Provider=self._w3, block=self.block)
         return self._token0
     
     @property
     def token1(self)->erc20:
         if self._token1 == None:
             self._token1 = erc20(address=self._contract.functions.token1().call(block_identifier=self.block),
-                                 web3Provider=self._w3)
+                                 web3Provider=self._w3, block=self.block)
         return self._token1
 
     @property
@@ -1574,33 +1643,79 @@ class arrakis_hypervisor(erc20):
         self.token1.block = value
 
    # CUSTOM FUNCTIONS
-    def tvl_price_fee(self)->dict:
-        """ Return Value locked, prices, uncollected and owed fees 
+    def get_qtty_depoloyed(self, inDecimal:bool=True)->dict:
+        """ Retrieve the quantity of tokens currently deployed 
+            
+         Returns:
+            dict: {
+                    "qtty_token0":0,         # quantity of token 0 deployed in dex
+                    "qtty_token1":0,         # quantity of token 1 deployed in dex
+                    "fees_owed_token0":0,    # quantity of token 0 fees owed to the position ( not included in qtty_token0 and this is not uncollected fees)
+                    "fees_owed_token1":0,    # quantity of token 1 fees owed to the position ( not included in qtty_token1 and this is not uncollected fees)
+                  }
+         """        
+        # position
+        return self.pool.get_qtty_depoloyed(ownerAddress=self.address, tickUpper=self.upperTick, tickLower=self.lowerTick, inDecimal=inDecimal)
+         
+    def get_fees_uncollected(self, inDecimal:bool=True)->dict:
+        """ Retrieve the quantity of fees not collected nor yet owed ( but certain) to the deployed position
+            
+            Returns:
+                dict: {
+                        "qtty_token0":0,  # quantity of uncollected token 0 
+                        "qtty_token1":0,  # quantity of uncollected token 1 
+                    }
+         """
+        # positions
+        return self.pool.get_fees_uncollected(ownerAddress=self.address, tickUpper=self.upperTick, tickLower=self.lowerTick, inDecimal=inDecimal)
+
+    def get_tvl(self)->dict:
+        """ get total value locked of both positions
+            TVL = deployed + parked + owed
 
          Returns:
-            dict: {"qtty_token0": ,
-                    "qtty_token1": ,
-                    "price_token0": ,
-                    "price_token1": ,
-                    "feesUncollected_token0": ,
-                    "feesUncollected_token1": ,
-                    "feesOwed_token0": ,
-                    "feesOwed_token1": ,
+            dict: {" tvl_token0": ,      (float) Total quantity locked of token 0
+                    "tvl_token1": ,      (float) Total quantity locked of token 1
+                    "deployed_token0": , (float)
+                    "deployed_token1": , (float)
+                    "fees_owed_token0": ,(float)
+                    "fees_owed_token1": ,(float)
+                    "parked_token0": ,   (float) quantity of token 0 parked at contract (not deployed)
+                    "parked_token1": ,   (float)  quantity of token 1 parked at contract (not deployed)
                     }
-         """       
+         """
+        # get deployed fees as int
+        deployed = self.get_qtty_depoloyed(inDecimal=False)
 
-        # UNISWAP position data
-        result = self.pool.get_tvlPriceFees(ownerAddress=self.address, tickUpper=self.upperTick, tickLower=self.lowerTick)
-        # CONTRACT parked tokens (tvl)
-        qttyParked_token0 = self.pool.token0.balanceOf(self.address)
-        qttyParked_token1 = self.pool.token1.balanceOf(self.address)
-        result["qtty_token0"] += qttyParked_token0
-        result["qtty_token1"] += qttyParked_token1
+        result = dict()
 
-        # return result
+        # get parked tokens as int
+        result["parked_token0"] = self.pool.token0.balanceOf(self.address)
+        result["parked_token1"] = self.pool.token1.balanceOf(self.address)
+
+        result["deployed_token0"] = deployed["qtty_token0"]
+        result["deployed_token1"] = deployed["qtty_token1"]
+        result["fees_owed_token0"] = deployed["fees_owed_token0"]
+        result["fees_owed_token1"] = deployed["fees_owed_token1"]
+
+        # sumup
+        result["tvl_token0"] = (result["deployed_token0"] + result["fees_owed_token0"] + result["parked_token0"])
+        result["tvl_token1"] = (result["deployed_token1"] + result["fees_owed_token1"] + result["parked_token1"])
+    
+        # transform everythin to deicmal
+        for key in result.keys():
+            if "token0" in key:
+                result[key]/=(10**self.token0.decimals)
+            elif "token1" in key:
+                result[key]/=(10**self.token1.decimals)
+            else:
+                raise ValueError("Cant convert '{}' field to decimal".format(key))
+
         return result
 
 class arrakis_hypervisor_cached(arrakis_hypervisor):
+
+    SAVE2FILE = True
 
    # PROPERTIES
     @property
@@ -1609,7 +1724,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -1618,7 +1733,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -1627,7 +1742,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
     
     @property
@@ -1636,7 +1751,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -1645,7 +1760,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -1654,7 +1769,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -1663,7 +1778,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
   
     @property
@@ -1672,7 +1787,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -1687,7 +1802,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
 
         return result
 
@@ -1697,7 +1812,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
     
     @property
@@ -1706,7 +1821,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
     
     @property
@@ -1715,7 +1830,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result 
 
     @property
@@ -1724,7 +1839,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
     
     @property
@@ -1733,7 +1848,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
     
     @property
@@ -1742,7 +1857,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -1751,7 +1866,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
     @property
@@ -1760,7 +1875,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
     
     @property
@@ -1769,13 +1884,28 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
         result = self._cache.get_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name)
         if result == None:
             result = getattr(super(), prop_name)
-            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result)
+            self._cache.add_data(chain_id=self._chain_id, address=self.address, block=self.block, key=prop_name, data=result, save2file=self.SAVE2FILE)
         return result
 
+    @property
+    def token0(self)->erc20:
+        if self._token0 == None:
+            self._token0 = erc20_cached(address=self._contract.functions.token0().call(block_identifier=self.block),
+                                 web3Provider=self._w3, block=self.block)
+        return self._token0
+    
+    @property
+    def token1(self)->erc20:
+        if self._token1 == None:
+            self._token1 = erc20_cached(address=self._contract.functions.token1().call(block_identifier=self.block),
+                                 web3Provider=self._w3, block=self.block)
+        return self._token1
 
-
-
-
+    @property
+    def pool(self)->str:
+        if self._pool == None:
+            self._pool = univ3_pool_cached(address=self._contract.functions.pool().call(block_identifier=self.block), web3Provider=self._w3, block=self.block)
+        return self._pool
 
 
 

@@ -75,7 +75,7 @@ class standard_property_cache():
         #     "          {:,.0f} loaded from {}  cache file ".format(
         #         _loaded, self.file_name))
 
-    def add_data(self, chain_id:int, address:str, block:int, key:str, data)->bool:
+    def add_data(self, chain_id, address:str, block:int, key:str, data, save2file=False)->bool:
         """             
          Args:
             data (dict): data to cache
@@ -87,7 +87,7 @@ class standard_property_cache():
         # convert to lower 
         address = address.lower()
         key = key.lower()
-        chain_id = int(chain_id)
+        chain_id = chain_id
         block = int(block)
 
         with CACHE_LOCK:
@@ -102,13 +102,14 @@ class standard_property_cache():
             # save data to var
             self._cache[chain_id][address][block][key] = data
 
-        # save file to disk
-        self.save_tofile()
+        if save2file:
+            # save file to disk
+            self.save_tofile()
             
 
         return True
    
-    def get_data(self, chain_id:int, address:str, block:int, key:str):
+    def get_data(self, chain_id, address:str, block:int, key:str):
         """ Retrieves data from cache
 
          Returns:
@@ -317,16 +318,16 @@ class price_cache(standard_property_cache):
                                 if value >0:
                                     
                                     # init cache network id
-                                    if not int(chainId) in self._cache:
-                                        self._cache[int(chainId)] = dict()
+                                    if not chainId in self._cache:
+                                        self._cache[chainId] = dict()
                                     # init cache address
-                                    if not address in self._cache[int(chainId)]:
-                                        self._cache[int(chainId)][address] = dict()
+                                    if not address in self._cache[chainId]:
+                                        self._cache[chainId][address] = dict()
                                     # init block 
-                                    if not int(block) in self._cache[int(chainId)][address]:
-                                        self._cache[int(chainId)][address][int(block)] = dict()
+                                    if not int(block) in self._cache[chainId][address]:
+                                        self._cache[chainId][address][int(block)] = dict()
                                     # set token value
-                                    self._cache[int(chainId)][address][int(block)][token] = value
+                                    self._cache[chainId][address][int(block)][token] = value
                                     _loaded += 1
 
 

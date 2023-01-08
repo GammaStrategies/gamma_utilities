@@ -151,10 +151,9 @@ def do_loop_work(hypervisor, web3Provider, uniswapv3_helper, block, protocol, ne
 
 
     ## WEB3 INFO ## 
-    # get onchain data
-    gamma_web3Helper = onchain_utilities.gamma_hypervisor(address=hypervisor["id"], web3Provider=web3Provider)
-    # fix the block num. on all queries from now on
-    gamma_web3Helper.block = block
+    # get onchain dataand fix the block num. on all queries from now on
+    gamma_web3Helper = onchain_utilities.gamma_hypervisor_cached(address=hypervisor["id"], web3Provider=web3Provider, block=block)
+
 
     ## THEGRAPH INFO ###
     # general vars
@@ -240,8 +239,8 @@ def do_loop_work(hypervisor, web3Provider, uniswapv3_helper, block, protocol, ne
         result_item["{}_{}_feeGrowthInsideLast0X128".format(pos,typname)] = w3pool_position["feeGrowthInside0LastX128"]
         result_item["{}_{}_feeGrowthInsideLast1X128".format(pos,typname)] = w3pool_position["feeGrowthInside1LastX128"]
 
-        result_item["{}_{}_tokensOwed0".format(pos,typname)] = w3pool_position["tokensOwed0"]
-        result_item["{}_{}_tokensOwed1".format(pos,typname)] = w3pool_position["tokensOwed1"]
+        result_item["{}_{}_tokensOwed0".format(pos,typname)] = w3pool_position["tokensOwed0"]/(10**decimals_token0)
+        result_item["{}_{}_tokensOwed1".format(pos,typname)] = w3pool_position["tokensOwed1"]/(10**decimals_token1)
 
 
     # compare all fields (% change -->   [theGraph - onChain / theGraph ]  )
