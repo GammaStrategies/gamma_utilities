@@ -2,12 +2,14 @@ import tqdm
 import datetime as dt
 import concurrent.futures
 import math
+import logging
 
 from web3 import Web3
 from web3.middleware import geth_poa_middleware
 
 from bins.w3 import onchain_utilities
 from bins.mixed import price_utilities
+from bins.general import general_utilities
 
 
 
@@ -440,9 +442,9 @@ class comparator_v1():
         # apply filters, if needed
         if "force_timeframe" in filters:
             if "start_time" in filters["force_timeframe"]:
-                date_ini = dt.datetime.strptime(filters["force_timeframe"]["start_time"], "%Y-%m-%dT%H:%M:%S")
+                date_ini = general_utilities.convert_string_datetime(filters["force_timeframe"]["start_time"])
             if "end_time" in filters["force_timeframe"]:
-                date_end = dt.datetime.strptime(filters["force_timeframe"]["end_time"], "%Y-%m-%dT%H:%M:%S")
+                date_end = general_utilities.convert_string_datetime(filters["force_timeframe"]["end_time"])
 
         return self.create_status_ofBlocks(address=address, network=network, block_list=self.get_blocklist_fromDates(date_ini=date_ini, date_end=date_end, network=network),progress_callback=progress_callback)
         
@@ -472,8 +474,8 @@ class comparator_v1():
         filters = self.configuration["script"]["protocols"][self.protocol]["filters"]
         if "force_timeframe" in filters and "start_time" in filters["force_timeframe"] and "end_time" in filters["force_timeframe"]:
             # use only the blocks of the specified timeframe
-            date_ini = dt.datetime.strptime(filters["force_timeframe"]["start_time"], "%Y-%m-%dT%H:%M:%S")
-            date_end = dt.datetime.strptime(filters["force_timeframe"]["end_time"], "%Y-%m-%dT%H:%M:%S")
+            date_ini = general_utilities.convert_string_datetime(filters["force_timeframe"]["start_time"])
+            date_end = general_utilities.convert_string_datetime(filters["force_timeframe"]["end_time"])
             block_list_dates = sorted(self.get_blocklist_fromDates(date_ini=date_ini, date_end=date_end, network=network))
         
             # filter blocks
@@ -1066,7 +1068,7 @@ class comparator_v1():
             if key in _defs.keys():
                 # build arguments
                 if key in ["deposits","withdraws"]:
-                    args = ((key.replace("s",""),itm, w3helper) for itm in data_item[key])
+                    args = ((key[:-1], itm, w3helper) for itm in data_item[key]) # remove "s" char at key for operation string var
                 else:
                     args = ((itm, w3helper) for itm in data_item[key])
                 # init progress vars
@@ -1111,8 +1113,8 @@ class comparator_v1():
         block_ini = block_end = 0
         if "force_timeframe" in filters.keys():
             try:    
-                start_timestamp = dt.datetime.timestamp(dt.datetime.strptime(filters["force_timeframe"]["start_time"], "%Y-%m-%dT%H:%M:%S"))
-                end_timestamp = dt.datetime.timestamp(dt.datetime.strptime(filters["force_timeframe"]["end_time"], "%Y-%m-%dT%H:%M:%S"))
+                start_timestamp = dt.datetime.timestamp(general_utilities.convert_string_datetime(filters["force_timeframe"]["start_time"]))
+                end_timestamp = dt.datetime.timestamp(general_utilities.convert_string_datetime(filters["force_timeframe"]["end_time"]))
                 
                 # search block number timestamp (bruteforce)                
                 block_end = dummy_helper.blockNumberFromTimestamp(timestamp=end_timestamp, inexact_mode="before", eq_timestamp_position="last")

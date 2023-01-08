@@ -33,7 +33,7 @@ from bins.log import log_helper
     #               WBTC  renBTC 500
     #               agEUR USDC   100
     # - feeGrowthOutsideX128 is predominantly BAD(different): sourced thru a direct univ3 contract call ( no formulas involved)
-def test_thegraph_vs_onchain_data_fees(configuration:dict, block:int=0, threaded:bool=False):
+def test_thegraph_vs_onchain_data_fees(configuration:dict, protocol:str = "gamma", network:str = "ethereum", block:int=0, threaded:bool=False):
     """ Compares subgraph data vs direct chain queries
         Using a web3 provider and a subgraph endpoint, compare both at fees level:  
             all fields involved in uncollected fees, including owed fees
@@ -47,9 +47,7 @@ def test_thegraph_vs_onchain_data_fees(configuration:dict, block:int=0, threaded
 
      """
     
-    # Setup vars
-    protocol = "gamma"
-    network = "ethereum"
+    # Setup vars    
     web3Provider_url = configuration["sources"]["web3Providers"][network]
     csv_filename = "{}_test_thegraph_vs_onchain_data_fees{}.csv".format(network, "_threaded" if threaded else "")
     csv_filename = os.path.join(CURRENT_FOLDER,csv_filename)
@@ -291,7 +289,7 @@ if __name__ == "__main__":
     _startime = dt.datetime.utcnow()
 
 
-    test_thegraph_vs_onchain_data_fees(configuration=configuration,block=16285148,threaded=True)
+    test_thegraph_vs_onchain_data_fees(configuration=configuration, network="ethereum", block=16285148, threaded=True)
 
 
     # end time log

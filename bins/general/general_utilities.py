@@ -5,6 +5,7 @@ import datetime as dt
 from pathlib import Path
 
 
+# SCRIPT UTIL
 def check_configuration_file(config_file):
     """ Checks if self.configuration file has all fields correctly formateed
      Raises:
@@ -46,8 +47,6 @@ def check_configuration_file(config_file):
         raise Exception(
             "Configuration file is not configured correctly. 'polygonscan' field is missing in sources.api_keys")
     
-
-
 def load_configuration(cfg_name="config.yaml"):
     """ Load and return configuration object
         "config.yaml" file should be placed in root 
@@ -63,7 +62,6 @@ def load_configuration(cfg_name="config.yaml"):
                 print("Error in Logging Configuration: {}".format(e))
     else:
         print(" {} configuration file not found".format(cfg_name))
-
 
 def convert_commandline_arguments(argv) -> dict:
     """ converts command line arguments to a dictionary of those 
@@ -105,7 +103,6 @@ def convert_commandline_arguments(argv) -> dict:
 
 
 
-
 ## LIST STUFF 
 def differences(list1: list, list2: list) -> list:
     """ Return differences between lists
@@ -139,6 +136,22 @@ def equalities(list1: list, list2: list) -> list:
 
 
 
+# DATETIME
+def convert_string_datetime(string:str)->dt.datetime:
+    
+    if string.lower().strip() == "now":
+        return dt.datetime.utcnow()
+    else:
+        # POSIBILITY 01
+        try:
+            return dt.datetime.strptime(string, "%Y-%m-%dT%H:%M:%S")
+        except:
+            pass
+        # POSIBILITY 02
+        try:
+            return dt.datetime.strptime(string, "%Y-%m-%dT%H:%M:%S.%fZ")
+        except:
+            pass
 
 class time_controller():
     def __init__(self, seconds_frame:int=60):
@@ -174,4 +187,5 @@ class time_controller():
          """
         return (dt.datetime.utcnow()-self.lastupdate).total_seconds() > self.timespan_secs
     
+
 

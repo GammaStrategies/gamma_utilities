@@ -44,12 +44,12 @@ class price_scraper:
         except:
             _price = None
 
-        if _price == None:
+        if _price == None or _price == 0:
             # GET FROM UNIV3 THEGRAPH
             logging.getLogger(__name__).debug(" Trying to get {}'s token {} price at block {} from uniswapv3 subgraph".format(network, token_id, block))
             _price = self._get_price_from_univ3_thegraph(network, token_id, block, of)
         
-        if _price == None:
+        if _price == None or _price == 0:
             # GET FROM COINGECKO
             logging.getLogger(__name__).debug(" Trying to get {}'s token {} price at block {} from coingecko".format(network, token_id, block))
             _price = self._get_price_from_coingecko(network, token_id, block, of)

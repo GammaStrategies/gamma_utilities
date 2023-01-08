@@ -41,8 +41,8 @@ script:
             - "0x14e42871d90282ec0439f01347178d6331fc1873"
             - "0xaed05fdd471a4eecee48b34d38c59cc76681a6c8"
         force_timeframe:
-          start_time: "2022-11-01T00:00:00"   # all scraping will be
-          end_time: "2022-11-14T23:59:59"     #                     limited to this timeframe
+          start_time: "2022-11-01T00:00:00"   # all scraping will be limited to this timeframe 
+          end_time: "2022-11-14T23:59:59"     # 'now' can be used     
         hypervisors_not_included:
           ethereum:
             - "0xd930ab15c8078ebae4ac8da1098a81583603f7ce"
@@ -104,8 +104,8 @@ script:
             - "0x96fecbdc4ff071779cd82da7ba23da76b0e37acb"
             - "0x632336474f5bf11aebecd63b84a0a2800b99a490"
         force_timeframe:
-          start_time: "2022-10-26T00:00:00"   # all scraping will be 
-          end_time: "2022-11-09T23:59:59"     #                     limited to this timeframe
+          start_time: "2022-10-26T00:00:00"   # all scraping will be limited to this timeframe 
+          end_time: "2022-11-09T23:59:59"     # 'now' can be used     
 
       output:
         files: # save resulting data to files in json

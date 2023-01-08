@@ -70,8 +70,8 @@ def test_comparator_phase1(configuration):
                     # TODO: check if loaded files datetimes are inside the configured force_timeframe field, if exists
                     # if "force_timeframe" in filters.keys():
                     #     # 
-                    #     start_timestamp = dt.datetime.timestamp(dt.datetime.strptime(filters["force_timeframe"]["start_time"], "%Y-%m-%dT%H:%M:%S"))
-                    #     end_timestamp = dt.datetime.timestamp(dt.datetime.strptime(filters["force_timeframe"]["end_time"], "%Y-%m-%dT%H:%M:%S"))
+                    #     start_timestamp = dt.datetime.timestamp(general_utilities.convert_string_datetime(filters["force_timeframe"]["start_time"]))
+                    #     end_timestamp = dt.datetime.timestamp(general_utilities.convert_string_datetime(filters["force_timeframe"]["end_time"]))
                     #     _mfkeys = list(main_frame.keys())
                     #     for hypervisor_id in _mfkeys:
                     #         timestamp_list = [x["timestamp"] for x in main_frame[hypervisor_id][operation] for operation in ["deposits","withdraws","rebalances","fees"]]
