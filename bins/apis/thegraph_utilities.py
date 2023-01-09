@@ -9,7 +9,6 @@ from bins.general import net_utilities
 from bins.cache import cache_utilities
 
 
-
 RATE_LIMIT_THEGRAPH = net_utilities.rate_limit(rate_max_sec=4) # thegraph global rate limiter
 
 
@@ -50,7 +49,7 @@ class thegraph_scraper_helper():
                 block:str = "number: { 15432282 } "
 
          """
-        result = list()
+        result = None
         _skip = kwargs["skip"] if "skip" in kwargs else 0 # define pagination var
         _url = self._url_constructor(network, query_name)
         _filter = self._filter_constructor(**kwargs)
@@ -58,75 +57,82 @@ class thegraph_scraper_helper():
         # check cache, if enabled 
         if not self._CACHE == None:
             result = self._CACHE.get_data(network=network, query_name=query_name, **kwargs)
-            if result != None:
-                return result
-            else:
-                result = list()
+        
+        if result == None:
+            # get  data from thegraph
+            result = list()
 
-        # loop till no more results are retrieved
-        while True:
-            
-            try:
-                # wait till sufficient time has been passed between queries
-                RATE_LIMIT_THEGRAPH.continue_when_safe()
-            
-                _query, path_to_data = self._query_constructor(skip=_skip, name=query_name, filter=_filter)
-                _data = net_utilities.post_request(url=_url, query=_query, retry=0, max_retry=2, wait_secs=5)
-            
-                # add it to result
-                try:
-                    _data = _data[path_to_data[0]]
- 
-                    for i in range(1,len(path_to_data)):
-                        _data = _data[path_to_data[i]]
-                except KeyError as err:
-                    if "errors" in err.args:
-                        if "message" in err.args["errors"]:
-                            if err.args["errors"]["message"].lower().contains("database unavailable"):
-                                # connection error: wait and loop again
-                                logging.getLogger(__name__).error(" Seems like subgraph isnt available temporarily. Retrying in 5sec.  .error: {}".format(sys.exc_info()[0]))
-                                time.sleep(5)
-                                continue
-                        
-                        # todo: use err arguments passed to log something
-                    logging.getLogger(__name__).error(" Unexpected error retrieving data path  query name:{}   data:{}       .error: {}".format(
-                    query_name, _data, sys.exc_info()[0]))
-                except:
-                    logging.getLogger(__name__).error(" Unexpected error retrieving data path  query name:{}   data:{}       .error: {}".format(
-                    query_name, _data, sys.exc_info()[0]))
-               
-
-                if len(_data) > 0:
-                    # modify pagination var 
-                    _skip += len(_data)
-                    for itm in _data:
-                        # convert data
-                        if self._CONVERT:
-                            self._converter(itm, query_name, network)
-                        # add to result
-                        result.append(itm)
-                    
-                    # check if we are done
-                    if len(_data) < 1000: 
-                        # qtty is less than window ("first" var at query)
-                        break # exit loop
-                else:
-                    # exit loop
-                    break
+            # loop till no more results are retrieved
+            while True:
                 
-            except:
-                logging.getLogger(__name__).exception("Unexpected error while retrieving query {}      .error: {}".format(query_name, sys.exc_info()[0]))
-                break # exit loop
+                try:
+                    # wait till sufficient time has been passed between queries
+                    RATE_LIMIT_THEGRAPH.continue_when_safe()
+                
+                    _query, path_to_data = self._query_constructor(skip=_skip, name=query_name, filter=_filter)
+                    _data = net_utilities.post_request(url=_url, query=_query, retry=0, max_retry=2, wait_secs=5)
+                
+                    # add it to result
+                    try:
+                        _data = _data[path_to_data[0]]
+    
+                        for i in range(1,len(path_to_data)):
+                            _data = _data[path_to_data[i]]
+                    except KeyError as err:
+                        if "errors" in err.args:
+                            if "message" in err.args["errors"]:
+                                if err.args["errors"]["message"].lower().contains("database unavailable"):
+                                    # connection error: wait and loop again
+                                    logging.getLogger(__name__).error(" Seems like subgraph isnt available temporarily. Retrying in 5sec.  .error: {}".format(sys.exc_info()[0]))
+                                    time.sleep(5)
+                                    continue
+                            
+                            # todo: use err arguments passed to log something
+                        logging.getLogger(__name__).error(" Unexpected error retrieving data path  query name:{}   data:{}       .error: {}".format(
+                        query_name, _data, sys.exc_info()[0]))
+                    except:
+                        logging.getLogger(__name__).error(" Unexpected error retrieving data path  query name:{}   data:{}       .error: {}".format(
+                        query_name, _data, sys.exc_info()[0]))
+                
 
-        # save it to cache, if enabled  
-        if not self._CACHE == None:
-            if not self._CACHE.add_data(data=result, network=network, query_name=query_name, **kwargs):
-                # not saved to cache
-                pass
+                    if len(_data) > 0:
+                        # modify pagination var 
+                        _skip += len(_data)
+                        # add to result
+                        result.extend(_data)                    
+                        # check if we are done
+                        if len(_data) < 1000: 
+                            # qtty is less than window ("first" var at query)
+                            break # exit loop
+                    else:
+                        # exit loop
+                        break
+                    
+                except:
+                    logging.getLogger(__name__).exception("Unexpected error while retrieving query {}      .error: {}".format(query_name, sys.exc_info()[0]))
+                    
+                    break # exit loop
+
+            # return empty list if result contains error
+            if "errors" in result:
+                logging.getLogger(__name__).warning("Errors found in thegraph query result--> network:{}  query:{}  result:{}   . Empty list is returned. ".format(network, query_name, sys.exc_info()[0]))
+                return list()
+
+            # save it to cache, if enabled  
+            if not self._CACHE == None:
+                if not self._CACHE.add_data(data=result, network=network, query_name=query_name, **kwargs):
+                    # not saved to cache
+                    logging.getLogger(__name__).warning("Could not save thegraph data to cache ->  network:{} query:{}     .error: {}".format(network, query_name, sys.exc_info()[0]))
+                    
+                
+        # convert result
+        if self._CONVERT:
+            for itm in result:
+                self._converter(itm, query_name, network)
 
         # return 
         return result
-
+    
    # HELPERS
     
     def _query_constructor(self, skip:int, name:str, filter:str)->tuple:

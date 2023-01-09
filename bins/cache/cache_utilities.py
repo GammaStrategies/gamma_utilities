@@ -46,7 +46,9 @@ class standard_property_cache():
 
         # init price cache
         self._cache = dict()
-        temp_loaded_cache = file_utilities.load_json(filename=self.file_name, folder_path=self.folder_name)
+        temp_loaded_cache = None
+        with CACHE_LOCK:
+            temp_loaded_cache = file_utilities.load_json(filename=self.file_name, folder_path=self.folder_name)
         _loaded = 0
         if temp_loaded_cache != None:
             for chainId, val1 in temp_loaded_cache.items():

@@ -1,6 +1,6 @@
 
 from web3 import Web3
-
+from decimal import Decimal
 
 X32 = 2**32
 X96 = 2**96
@@ -16,7 +16,7 @@ def subIn256(x, y):
     return difference
 
 def get_uncollected_fees( feeGrowthGlobal, feeGrowthOutsideLower, feeGrowthOutsideUpper, feeGrowthInsideLast,
-              tickCurrent, liquidity, tickLower, tickUpper):
+              tickCurrent, liquidity, tickLower, tickUpper)->float:
     """ Precise method to calc uncollected fees
 
      Args:
@@ -32,7 +32,13 @@ def get_uncollected_fees( feeGrowthGlobal, feeGrowthOutsideLower, feeGrowthOutsi
      Returns:
         fees
     """    
-            
+
+    # convert to decimal for later operations accuracy
+    liquidity = Decimal(liquidity)
+    feeGrowthOutsideLower = Decimal(feeGrowthOutsideLower)
+    feeGrowthOutsideUpper = Decimal(feeGrowthOutsideUpper)
+    feeGrowthInsideLast = Decimal(feeGrowthInsideLast)
+
     feeGrowthBelow = 0
     if (tickCurrent >= tickLower):
         feeGrowthBelow = feeGrowthOutsideLower
@@ -47,7 +53,8 @@ def get_uncollected_fees( feeGrowthGlobal, feeGrowthOutsideLower, feeGrowthOutsi
     
     feeGrowthInside = subIn256(subIn256(feeGrowthGlobal, feeGrowthBelow), feeGrowthAbove)
 
-    return (subIn256(feeGrowthInside, feeGrowthInsideLast)*(liquidity))/X128
+    # return a float ( lower accuracy )
+    return float((subIn256(feeGrowthInside, feeGrowthInsideLast)*(liquidity))/Decimal(X128))
 
 def get_positionKey(ownerAddress:str, tickLower:int, tickUpper:int)->str:
     """ Position key 
@@ -85,61 +92,6 @@ def convert_tick_to_price_float(tick:int, token0_decimal:int, token1_decimal:int
         float: price (not decimal adjusted)
      """ 
     return convert_tick_to_price(tick) * 10 ** (token0_decimal - token1_decimal)
-
-def get_position_quantity_and_price(liquidity, tickCurrent, tickUpper, tickLower, decimals_token0, decimals_token1)->dict:
-    """  Calculate the position's locked token quantity and its prices ( token0 in token1 prices... not usd )
-
-     Args:
-        liquidity (int): _description_
-        tickCurrent (int): _description_
-        tickUpper (int): _description_
-        tickLower (int): _description_
-        decimals_token0 (int): _description_
-        decimals_token1 (int): _description_
-
-     Returns:
-        dict: { "qtty_token0": (float)
-                "qtty_token1": (float)
-                "price_token0": (float)
-                "price_token1":  (float)
-                }
-     """
-
-    # get decimal difference btween tokens
-    decimal_diff = decimals_token1-decimals_token0
-
-    # Tick PRICEs
-    # calc tick prices (not decimal adjusted)
-    prices = {"priceCurrent": convert_tick_to_price(tickCurrent),
-              "priceUpper": convert_tick_to_price(tickUpper),
-              "priceLower": convert_tick_to_price(tickLower)
-            }
-    # prepare price related vars 
-    prices_sqrt = dict()
-    prices_adj = dict()
-    for k,v in prices.items():
-        # Square root prices 
-        prices_sqrt[k] = v**2
-        # adjust decimals and reverse bc price in Uniswap is defined to be equal to token1/token0
-        prices_adj[k] = 1/(v/ (10 ** decimal_diff))
-    
-
-    if (prices["priceCurrent"] <= prices["priceLower"]):
-        amount0 = float(liquidity * float(1 / prices_sqrt["priceLower"] - 1 / prices_sqrt["priceUpper"]))
-        amount1 = 0
-    elif (prices["priceCurrent"] < prices["priceUpper"]):
-        amount0 = float(liquidity * float(1 / prices_sqrt["priceCurrent"] - 1 / prices_sqrt["priceUpper"]))
-        amount1 = float(liquidity * float(prices_sqrt["priceCurrent"] - prices_sqrt["priceLower"]))
-    else:
-        amount1 = float(liquidity * float(prices_sqrt["priceUpper"] - prices_sqrt["priceLower"]))
-        amount0 = 0
-
-    # return result
-    return {"qtty_token0": amount0/(10**decimals_token0),
-            "qtty_token1": amount1/(10**decimals_token1),
-            "price_token0": prices["priceCurrent"]/ (10**decimal_diff),
-            "price_token1": prices_adj["priceCurrent"]
-            }
 
 def sqrtPriceX96_to_price_float(sqrtPriceX96:int, token0_decimals:int, token1_decimals:int)->float:
     return ((sqrtPriceX96**2) / 2 ** (96 * 2)) * 10 ** (token0_decimal - token1_decimal)
@@ -237,12 +189,12 @@ class LiquidityAmounts:
     def getAmount0ForLiquidity(sqrtRatioAX96, sqrtRatioBX96, liquidity)->int:
         """ Computes the amount of token0 for a given amount of liquidity and a price range
 
-        Args:
+         Args:
             sqrtRatioAX96 (_type_): A sqrt price representing the first tick boundary
             sqrtRatioBX96 (_type_): A sqrt price representing the second tick boundary
             liquidity (_type_): The liquidity being valued
 
-        Returns:
+         Returns:
             int: The amount of token0
         """    
         if sqrtRatioAX96 > sqrtRatioBX96:

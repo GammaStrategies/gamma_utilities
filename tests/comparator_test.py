@@ -66,7 +66,10 @@ def test_comparator_phase1(configuration):
                 main_frame = None
                 try:
                     main_frame = load_files(folder_path=current_folder, addresses=addresses, network=network, progress_callback=_update_progress)
-                    
+                    # integer dict keys are transformed to string when json file is saved. Flip it on load
+                    for mkey in main_frame.keys():
+                        main_frame[mkey]["status"] = {int(k):v for k,v in main_frame[mkey]["status"].items()}
+
                     # TODO: check if loaded files datetimes are inside the configured force_timeframe field, if exists
                     # if "force_timeframe" in filters.keys():
                     #     # 

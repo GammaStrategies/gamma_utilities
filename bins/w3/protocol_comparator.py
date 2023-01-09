@@ -493,13 +493,14 @@ class comparator_v1():
         # main check
         if not "status" in hypervisor:
             hypervisor["status"] = dict()
-
+        else:
+            #integer dict keys are transformed to string when saving json
+            hypervisor["status"] = {int(k):v for k,v in hypervisor["status"].items()}
         # ["status"][<BLOCK>][<status data>]
         for block in hypervisor["status"].keys():
 
             if isinstance(block, str):
-                #TODO: DELETEME
-                po="stop"
+                raise ValueError(" Status dictionary has string keys that should be int. Check if they were loaded from a json file without conversion")
 
             if not block in hypervisor["status"]:
                 # init status template at specified block

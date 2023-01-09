@@ -143,10 +143,10 @@ class price_scraper:
                 timestamp = self._convert_block_to_timestamp(network=network, block=block)
                 if timestamp != 0:
                     # get price at block
-                    _price = self.coingecko_price_connector.get_price_historic(network, contract_address, timestamp)
+                    _price = self.coingecko_price_connector.get_price_historic(network, token_id, timestamp)
             else:
                 # get current block price
-                _price = self.coingecko_price_connector.get_price(network, contract_address, "usd")
+                _price = self.coingecko_price_connector.get_price(network, token_id, "usd")
 
         else:
             raise NotImplementedError(" Cannot find {} price method to be gathered from".format(of))

@@ -1,6 +1,6 @@
 
 from pycoingecko import CoinGeckoAPI
-
+import datetime as dt
 
 
 class coingecko_price_helper:
@@ -105,7 +105,7 @@ class coingecko_price_helper:
         # check if result has actually a price in it
         try:
             if len(_data["prices"][0]) > 0:    
-                return tema["prices"][0][1]
+                return _data["prices"][0][1]
             else:
                 # price not found
                 logging.getLogger(__name__).debug(
