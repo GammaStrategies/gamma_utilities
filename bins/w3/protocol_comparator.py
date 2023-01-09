@@ -242,7 +242,6 @@ def template(oftype:str)->dict:
 
 
 
-
 class comparator_v1():
     
    # SETUP

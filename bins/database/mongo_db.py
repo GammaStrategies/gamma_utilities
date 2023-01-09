@@ -1,5 +1,6 @@
 
 
+
 from pymongo import MongoClient
 
 class MongoDbManager():
@@ -25,7 +26,7 @@ class MongoDbManager():
         self.database = mongo_client[db_name]
 
         # Retrieve database collection names
-        self.database_collections = self.database.collection_names(include_system_collections=False)
+        self.database_collections = self.database.list_collection_names(include_system_collections=False)
 
         # define collection configurations
         self.collections_config = collections
@@ -51,7 +52,7 @@ class MongoDbManager():
                 self.database[coll_name].create_index(field, unique=unique)
 
             # refresh database collection names 
-            self.database_collections = self.database.collection_names(include_system_collections=False)
+            self.database_collections = self.database.list_collection_names(include_system_collections=False)
 
 
     def add_item(self, coll_name:str, item_id:str, data:dict, upsert=True):
@@ -126,4 +127,7 @@ class MongoDbManager():
                 return self.database[coll_name].aggregate(kwargs["aggregate"],allowDiskUse=kwargs["allowDiskUse"])
             else:
                 return self.database[coll_name].aggregate(kwargs["aggregate"])
+
+
+
 
