@@ -1,6 +1,5 @@
 
 
-
 from pymongo import MongoClient
 
 class MongoDbManager():
@@ -75,7 +74,7 @@ class MongoDbManager():
         self.create_collection(coll_name=coll_name, **self.collections_config[coll_name])
 
         # add/ update to database (add or replace)
-        self.database[coll_name].update_one({"id": item_id},{"$set": data}, upsert=upsert)
+        self.database[coll_name].update_one({"_id": item_id},{"$set": data}, upsert=upsert)
 
     def get_item(self, coll_name:str, **kwargs):
         """ get items cursor from database
@@ -129,5 +128,6 @@ class MongoDbManager():
                 return self.database[coll_name].aggregate(kwargs["aggregate"])
 
 
-
-
+    # TODO: push_item ( add_item without id involved )
+    # TODO: push_items ( add/update multiple items )
+    # TODO: add_items ( add/update multiple items )
