@@ -1,4 +1,3 @@
-
 from pycoingecko import CoinGeckoAPI
 import datetime as dt
 
@@ -9,15 +8,17 @@ class coingecko_price_helper:
     def __init__(self):
         # todo: coded coingecko's network id conversion
         self.COINGECKO_netids = {
-        "polygon": "polygon-pos",
-        "ethereum": "ethereum",
-        "optimism": "optimistic-ethereum",
-        "arbitrum": "arbitrum-one",  # "arbitrum-nova" is targeted for gaming and donowhat ...
-        "celo": "celo",
+            "polygon": "polygon-pos",
+            "ethereum": "ethereum",
+            "optimism": "optimistic-ethereum",
+            "arbitrum": "arbitrum-one",  # "arbitrum-nova" is targeted for gaming and donowhat ...
+            "celo": "celo",
         }
-  
-   ## PUBLIC ##
-    def get_price(self, network:str, contract_address:str, vs_currency:str="usd") -> float:
+
+    ## PUBLIC ##
+    def get_price(
+        self, network: str, contract_address: str, vs_currency: str = "usd"
+    ) -> float:
         """Get current token price"""
 
         # get price from coingecko
@@ -44,21 +45,23 @@ class coingecko_price_helper:
                     contract_address, sys.exc_info()[0]
                 )
             )
-  
+
         return 0
 
-    def get_price_historic(self, network: str, contract_address: str, timestamp: int, vs_currency="usd")->float:
-        """ historic prices
+    def get_price_historic(
+        self, network: str, contract_address: str, timestamp: int, vs_currency="usd"
+    ) -> float:
+        """historic prices
 
-         Args:
-            network (str): _description_
-            contract_address (str): _description_
-            timestamp (int): _description_
-            vs_currency (str, optional): _description_. Defaults to "usd".
+        Args:
+           network (str): _description_
+           contract_address (str): _description_
+           timestamp (int): _description_
+           vs_currency (str, optional): _description_. Defaults to "usd".
 
-         Returns:
-            float: price (zero when not found)
-         """        
+        Returns:
+           float: price (zero when not found)
+        """
         # check that timestamp is formated correctly
         if isinstance(timestamp, float):
             timestamp = int(timestamp)
@@ -91,8 +94,10 @@ class coingecko_price_helper:
                 _data = {"prices": [list()], "error": "not found"}
             else:
                 logging.getLogger(__name__).exception(
-                "Unexpected error while getting price  of {} at {} from coinGecko       .error: {}".format(
-                    contract_address, network, sys.exc_info()[0]))
+                    "Unexpected error while getting price  of {} at {} from coinGecko       .error: {}".format(
+                        contract_address, network, sys.exc_info()[0]
+                    )
+                )
                 _data = {"prices": [list()], "error": "dontknow"}
         except:
             logging.getLogger(__name__).exception(
@@ -104,14 +109,15 @@ class coingecko_price_helper:
 
         # check if result has actually a price in it
         try:
-            if len(_data["prices"][0]) > 0:    
+            if len(_data["prices"][0]) > 0:
                 return _data["prices"][0][1]
             else:
                 # price not found
                 logging.getLogger(__name__).debug(
                     " Price not found for contract {} at {}  for timestamp {}".format(
                         contract_address, self.COINGECKO_netids[network], timestamp
-                    ))
+                    )
+                )
                 # TODO: should we try to increase timeframe window??
                 return 0
         except IndexError:
@@ -119,29 +125,32 @@ class coingecko_price_helper:
             logging.getLogger(__name__).debug(
                 " Price not found for contract {}  at {}  for timestamp {}".format(
                     contract_address, self.COINGECKO_netids[network], timestamp
-                ))
+                )
+            )
             return 0
-     
-    def get_prices(self, network:str, contract_addresses:list, vs_currencies:list=["usd"])->dict:
-        """ get multiple prices at once (current)
 
-         Args:
-            network (str): _description_
-            contract_addresses (list): _description_
-            vs_currencies (list, optional): _description_. Defaults to ["usd"].
+    def get_prices(
+        self, network: str, contract_addresses: list, vs_currencies: list = ["usd"]
+    ) -> dict:
+        """get multiple prices at once (current)
 
-         Returns:
-            dict:   {"0x2260fac5e5542a773aa44fbcfedf7c193bc2c599": {
-                        "usd": 20656,
-                        "eur": 20449,
-                        "eth": 12.115137,
-                        "btc": 1.000103
-                        },
-                     "0x222222...":
-                    }
-         """        
+        Args:
+           network (str): _description_
+           contract_addresses (list): _description_
+           vs_currencies (list, optional): _description_. Defaults to ["usd"].
 
-        result  = dict()
+        Returns:
+           dict:   {"0x2260fac5e5542a773aa44fbcfedf7c193bc2c599": {
+                       "usd": 20656,
+                       "eur": 20449,
+                       "eth": 12.115137,
+                       "btc": 1.000103
+                       },
+                    "0x222222...":
+                   }
+        """
+
+        result = dict()
         # get price from coingecko
         cg = CoinGeckoAPI()
 
@@ -164,8 +173,5 @@ class coingecko_price_helper:
             #         }
             #  }
             result.update(prices)
-        
-        
+
         return result
-
-
