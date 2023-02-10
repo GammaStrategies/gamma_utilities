@@ -13,24 +13,23 @@ CURRENT_FOLDER = os.path.dirname(os.path.realpath(__file__))
 PARENT_FOLDER = os.path.dirname(CURRENT_FOLDER)
 sys.path.append(PARENT_FOLDER)
 
+from bins.configuration import CONFIGURATION
 
 from bins.w3 import protocol_comparator
 from bins.general import general_utilities, file_utilities
 from bins.log import log_helper
 
 
-def test_comparator_phase1(configuration):
+def test_comparator_phase1():
 
-    protocols = list(configuration["script"]["protocols"].keys())
+    protocols = list(CONFIGURATION["script"]["protocols"].keys())
 
     for protocol in protocols:
 
-        helper = protocol_comparator.comparator_v1(
-            configuration=configuration, protocol=protocol
-        )
-        networks = configuration["script"]["protocols"][protocol]["networks"]
-        filters = configuration["script"]["protocols"][protocol]["filters"]
-        output = configuration["script"]["protocols"][protocol]["output"]
+        helper = protocol_comparator.comparator_v1(protocol=protocol)
+        networks = CONFIGURATION["script"]["protocols"][protocol]["networks"]
+        filters = CONFIGURATION["script"]["protocols"][protocol]["filters"]
+        output = CONFIGURATION["script"]["protocols"][protocol]["output"]
 
         for network in list(networks.keys()):
 
@@ -48,7 +47,7 @@ def test_comparator_phase1(configuration):
 
             # set current working folder
             current_folder = os.path.join(
-                configuration["script"]["protocols"][protocol]["output"]["files"][
+                CONFIGURATION["script"]["protocols"][protocol]["output"]["files"][
                     "save_path"
                 ],
                 protocol,
@@ -275,22 +274,7 @@ def load_files(
 # START ####################################################################################################################
 if __name__ == "__main__":
     os.chdir(PARENT_FOLDER)
-    # convert command line arguments to dict variables
-    cml_parameters = general_utilities.convert_commandline_arguments(sys.argv[1:])
-    # load configuration
-    configuration = (
-        general_utilities.load_configuration(cfg_name=cml_parameters["config_file"])
-        if "config_file" in cml_parameters
-        else general_utilities.load_configuration()
-    )
-    # check configuration
-    general_utilities.check_configuration_file(configuration)
-    # setup logging
-    log_helper.setup_logging(customconf=configuration)
-    # add cml_parameters into loaded config ( this is used later on to load again the config file to be able to update on-the-fly vars)
-    if not "_custom_" in configuration.keys():
-        configuration["_custom_"] = dict()
-    configuration["_custom_"]["cml_parameters"] = cml_parameters
+
     ##### main ######
     __module_name = Path(os.path.abspath(__file__)).stem
     logging.getLogger(__name__).info(
@@ -299,7 +283,7 @@ if __name__ == "__main__":
     # start time log
     _startime = dt.datetime.utcnow()
 
-    test_comparator_phase1(configuration=configuration)
+    test_comparator_phase1()
 
     # end time log
     _timelapse = dt.datetime.utcnow() - _startime

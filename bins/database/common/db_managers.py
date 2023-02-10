@@ -130,7 +130,7 @@ class MongoDbManager:
                                                      }
                                        }
                                    batch_size=100
-                                   sort={<field_01>:1, <field_02>:-1 }
+                                   sort=[(<field_01>,1), (<field_02>,-1) ]
 
                                    --AGGREGATE-------------------
                                    aggregate=[{  "$match": {
@@ -178,6 +178,19 @@ class MongoDbManager:
             else:
                 return self.database[coll_name].aggregate(kwargs["aggregate"])
 
-    # TODO: push_item ( add_item without id involved )
-    # TODO: push_items ( add/update multiple items )
-    # TODO: add_items ( add/update multiple items )
+    def get_distinct(self, coll_name: str, field: str, condition: dict = {}):
+        """get distinct items of a database field
+
+        Args:
+            coll_name (str): collection name
+            field (str): field to get distinct values from
+            condition (dict): like {"dept" : "B"}
+        """
+        if len(condition.keys()) == 0:
+            return self.database[coll_name].distinct(field)
+        else:
+            return self.database[coll_name].distinct(field, condition)
+
+    @staticmethod
+    def create_database_name(network: str, protocol: str) -> str:
+        return "{}_{}".format(protocol, network)

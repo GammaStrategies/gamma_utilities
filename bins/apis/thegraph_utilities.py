@@ -13,9 +13,6 @@ RATE_LIMIT_THEGRAPH = net_utilities.rate_limit(
 )  # thegraph global rate limiter
 
 
-# TODO: implement aiometer ... in async env
-
-
 ## GLOBAL ##
 class thegraph_scraper_helper:
 
@@ -27,7 +24,7 @@ class thegraph_scraper_helper:
         Args:
             cache (bool, optional): use cache?. Defaults to True.
             cache_savePath (str, optional): path dir to save cache file to. Defaults to "".
-            convert (bool, optional): should data be converted? . Defaults to True.
+            convert (bool, optional): should data be converted after queried ? . Defaults to True.
         """
 
         self._CONVERT = convert
@@ -45,7 +42,7 @@ class thegraph_scraper_helper:
         query_name:str = "uniswapV3Hypervisors" or "accounts"
 
         kwargs=
-            where:str = " id = '0x0000000000' "
+            where:str = " id : '0x0000000000' "
             orderby:str= "timestamp"
             orderDirection:str= "asc" or "desc"
             block:str = "number: { 15432282 } "
@@ -168,7 +165,6 @@ class thegraph_scraper_helper:
         return result
 
     # HELPERS
-
     def _query_constructor(self, skip: int, name: str, filter: str) -> tuple:
         # query name
         return "", []  # return query, list of keys to follow to find root_path to data
@@ -225,6 +221,9 @@ class gamma_scraper(thegraph_scraper_helper):
         "polygon": "https://api.thegraph.com/subgraphs/name/messari/gamma-polygon",
         "optimism": "",
     }
+    __URLS_quickswap = {
+        "polygon": "https://api.thegraph.com/subgraphs/name/gammastrategies/algebra-polygon",
+    }
 
     def _query_constructor(self, skip: int, name: str, filter: str) -> tuple:
         """Create query
@@ -234,6 +233,8 @@ class gamma_scraper(thegraph_scraper_helper):
            skip (int): pagination var
            filter (str): filter composed with filter func
         """
+        name = name.split("_")[0]
+
         # try:
         if name == "uniswapV3Hypervisors":
             return """
@@ -242,6 +243,7 @@ class gamma_scraper(thegraph_scraper_helper):
                     accountCount
                     created
                     id
+                    symbol
                     lastUpdated
                     totalSupply
                     tvl0
@@ -709,6 +711,9 @@ class gamma_scraper(thegraph_scraper_helper):
            name (str): what to convert
            network
         """
+        # quickswap or univ3
+        query_name = query_name.split("_")[0]
+
         if query_name == "uniswapV3Hypervisors":
             # prepare vars
             c0 = 10 ** itm["pool"]["token0"]["decimals"]
@@ -1047,8 +1052,13 @@ class gamma_scraper(thegraph_scraper_helper):
         return itm
 
     def _url_constructor(self, network, query_name: str = ""):
-        if "messari" in query_name:
+        if "uniswapv3" in query_name:
+            return self.__URLS[network]
+        elif "quickswap" in query_name:
+            return self.__URLS_quickswap[network]
+        elif "messari" in query_name:
             return self.__URLS_messari[network]
+
         else:
             return self.__URLS[network]
 
@@ -2663,6 +2673,419 @@ class uniswapv3_scraper(thegraph_scraper_helper):
             )
             raise ValueError(
                 "No univ3 query converter found for: {} ".format(query_name)
+            )
+
+        # retrun result
+        return itm
+
+    def _url_constructor(self, network, query_name: str = ""):
+        return self.__URLS[network]
+
+
+class quickswap_scraper(thegraph_scraper_helper):
+
+    __URLS = {
+        "polygon": "https://api.thegraph.com/subgraphs/name/sameepsi/quickswap-v3",
+    }
+    __URLS_loc = {
+        "polygon": "https://api.thegraph.com/subgraphs/name/l0c4t0r/hype-pool-quickswap-polygon",
+    }
+
+    def _query_constructor(self, skip: int, name: str, filter: str):
+        """Create query
+
+        Args:
+           name (str): query function name at thegraph
+           skip (int): pagination var
+           filter (str): filter composed with filter func
+        """
+
+        if name == "pools":
+            return """{{pools({}, skip: {}) {{
+                        id
+                        token1Price
+                        token0Price
+                        fee
+                        token0 {{
+                            name
+                            id
+                            decimals
+                            symbol
+                            }}
+                        token1 {{
+                            decimals
+                            id
+                            name
+                            symbol
+                            }}
+                        totalValueLockedUSD
+                        totalValueLockedToken1
+                        totalValueLockedToken0
+                        totalValueLockedMatic
+                        totalValueLockedUSDUntracked
+                        untrackedVolumeUSD
+                        volumeToken0
+                        volumeToken1
+                        volumeUSD
+                        txCount
+                        liquidityProviderCount
+                        liquidity
+                        createdAtTimestamp
+                        createdAtBlockNumber
+                        feeGrowthGlobal0X128
+                        feeGrowthGlobal1X128
+                        tick
+
+                    }}
+                    }}""".format(
+                filter, skip
+            ), [
+                "data",
+                "pools",
+            ]
+
+        elif name == "ticks":
+            return """{{ ticks({}, skip: {}) {{
+                        id
+                        tickIdx
+                        feeGrowthOutside0X128
+                        feeGrowthOutside1X128
+                        collectedFeesToken0
+                        collectedFeesToken1
+                        collectedFeesUSD
+                        createdAtBlockNumber
+                        createdAtTimestamp
+                        feesUSD
+                        liquidityGross
+                        liquidityNet
+                        liquidityProviderCount
+                        poolAddress
+                        price0
+                        price1
+                        untrackedVolumeUSD
+                        volumeToken0
+                        volumeToken1
+                        volumeUSD
+                        pool {{
+                            id
+                            token0 {{
+                                id
+                                decimals
+                                symbol
+                            }}
+                            token1 {{
+                                id
+                                decimals
+                                symbol
+                            }}
+                        }}
+                    }}
+                    }}""".format(
+                filter, skip
+            ), [
+                "data",
+                "ticks",
+            ]
+
+        elif name == "tokens":
+            return """{{ tokens({}, skip: {}) {{
+                        decimals
+                        derivedMatic
+                        feesUSD
+                        id
+                        name
+                        poolCount
+                        symbol
+                        totalSupply
+                        totalValueLocked
+                        totalValueLockedUSD
+                        totalValueLockedUSDUntracked
+                        txCount
+                        untrackedVolumeUSD
+                        volume
+                        volumeUSD
+                    }}
+                    }}""".format(
+                filter, skip
+            ), [
+                "data",
+                "tokens",
+            ]
+
+        elif name == "hypervisors_loc":
+            return """{{ hypervisors({}, skip: {}) {{
+                           id
+                            pool {
+                            currentTick
+                            feeGrowthGlobal0X128
+                            feeGrowthGlobal1X128
+                            }
+                            basePosition {
+                            liquidity
+                            tokensOwed0
+                            tokensOwed1
+                            feeGrowthInside0X128
+                            feeGrowthInside1X128
+                            tickLower {
+                                tickIdx
+                                feeGrowthOutside0X128
+                                feeGrowthOutside1X128
+                            }
+                            tickUpper {
+                                tickIdx
+                                feeGrowthOutside0X128
+                                feeGrowthOutside1X128
+                            }
+                            }
+                            limitPosition {
+                            liquidity
+                            tokensOwed0
+                            tokensOwed1
+                            feeGrowthInside0X128
+                            feeGrowthInside1X128
+                            tickLower {
+                                tickIdx
+                                feeGrowthOutside0X128
+                                feeGrowthOutside1X128
+                            }
+                            tickUpper {
+                                tickIdx
+                                feeGrowthOutside0X128
+                                feeGrowthOutside1X128
+                            }
+                            }
+                    }}
+                    }}""".format(
+                filter, skip
+            ), [
+                "data",
+                "hypervisors",
+            ]
+
+        else:
+            logging.getLogger(__name__).error(
+                "No quickswap query found with name {}".format(name)
+            )
+            raise ValueError(
+                "No quickswap query constructor found for: {} ".format(name)
+            )
+
+    def _converter(self, itm: dict, query_name: str, network: str):
+        """Convert string data received from thegraph to int or float or date ...
+
+        Args:
+           itm (dict): data to convert
+           query_name (str): what to convert
+           network
+        """
+        if query_name == "pools":
+
+            itm["token0"]["decimals"] = int(itm["token0"]["decimals"])
+            itm["token1"]["decimals"] = int(itm["token1"]["decimals"])
+            # prepare vars
+            c0 = 10 ** itm["token0"]["decimals"]
+            c1 = 10 ** itm["token1"]["decimals"]
+
+            # convert objects
+            itm["token0Price"] = float(itm["token0Price"])
+            itm["token1Price"] = float(itm["token1Price"])
+            itm["fee"] = int(itm["fee"])  # /1000000
+
+            itm["totalValueLockedUSD"] = float(itm["totalValueLockedUSD"])
+            itm["totalValueLockedToken0"] = float(itm["totalValueLockedToken0"])
+            itm["totalValueLockedToken1"] = float(itm["totalValueLockedToken1"])
+            itm["totalValueLockedMatic"] = float(itm["totalValueLockedMatic"])
+            itm["totalValueLockedUSDUntracked"] = float(
+                itm["totalValueLockedUSDUntracked"]
+            )
+            itm["untrackedVolumeUSD"] = float(itm["untrackedVolumeUSD"])
+
+            itm["volumeToken0"] = float(itm["volumeToken0"])
+            itm["volumeToken1"] = float(itm["volumeToken1"])
+            itm["volumeUSD"] = float(itm["volumeUSD"])
+            itm["txCount"] = int(itm["txCount"])
+            itm["liquidityProviderCount"] = int(itm["liquidityProviderCount"])
+            itm["liquidity"] = int(itm["liquidity"])
+            itm["createdAtTimestamp"] = dt.datetime.fromtimestamp(
+                int(itm["createdAtTimestamp"])
+            )
+            itm["createdAtBlockNumber"] = int(itm["createdAtBlockNumber"])
+
+            itm["feeGrowthGlobal0X128"] = int(itm["feeGrowthGlobal0X128"])
+            itm["feeGrowthGlobal1X128"] = int(itm["feeGrowthGlobal1X128"])
+            itm["tick"] = int(itm["tick"])
+
+        elif query_name == "ticks":
+
+            itm["pool"]["token0"]["decimals"] = int(itm["pool"]["token0"]["decimals"])
+            itm["pool"]["token1"]["decimals"] = int(itm["pool"]["token1"]["decimals"])
+            # prepare vars
+            c0 = 10 ** itm["pool"]["token0"]["decimals"]
+            c1 = 10 ** itm["pool"]["token1"]["decimals"]
+
+            itm["feeGrowthOutside0X128"] = int(itm["feeGrowthOutside0X128"])
+            itm["feeGrowthOutside1X128"] = int(itm["feeGrowthOutside1X128"])
+            itm["collectedFeesToken0"] = int(itm["collectedFeesToken0"]) / c0
+            itm["collectedFeesToken1"] = int(itm["collectedFeesToken1"]) / c1
+            itm["collectedFeesUSD"] = float(itm["collectedFeesUSD"])
+            itm["createdAtBlockNumber"] = int(itm["createdAtBlockNumber"])
+            itm["createdAtTimestamp"] = dt.datetime.fromtimestamp(
+                int(itm["createdAtTimestamp"])
+            )
+            itm["feesUSD"] = float(itm["feesUSD"])
+            itm["liquidityGross"] = int(itm["liquidityGross"])
+            itm["liquidityNet"] = int(itm["liquidityNet"])
+            itm["liquidityProviderCount"] = int(itm["liquidityProviderCount"])
+            itm["price0"] = float(itm["price0"])
+            itm["price1"] = float(itm["price1"])
+            itm["untrackedVolumeUSD"] = float(itm["untrackedVolumeUSD"])
+            itm["volumeToken0"] = int(itm["volumeToken0"]) / c0
+            itm["volumeToken1"] = int(itm["volumeToken1"]) / c1
+            itm["volumeUSD"] = float(itm["volumeUSD"])
+
+        elif query_name == "positions":
+
+            itm["pool"]["token0"]["decimals"] = int(itm["pool"]["token0"]["decimals"])
+            itm["pool"]["token1"]["decimals"] = int(itm["pool"]["token1"]["decimals"])
+
+            # prepare vars
+            c0 = 10 ** itm["pool"]["token0"]["decimals"]
+            c1 = 10 ** itm["pool"]["token1"]["decimals"]
+
+            itm["liquidity"] = int(itm["liquidity"])
+
+            itm["collectedFeesToken0"] = float(itm["collectedFeesToken0"])
+            itm["collectedFeesToken1"] = float(itm["collectedFeesToken1"])
+
+            itm["depositedToken0"] = float(itm["depositedToken0"])
+            itm["depositedToken1"] = float(itm["depositedToken1"])
+
+            itm["feeGrowthInside0LastX128"] = int(itm["feeGrowthInside0LastX128"])
+            itm["feeGrowthInside1LastX128"] = int(itm["feeGrowthInside1LastX128"])
+
+            itm["withdrawnToken0"] = float(itm["withdrawnToken0"])
+            itm["withdrawnToken1"] = float(itm["withdrawnToken1"])
+
+            itm["pool"]["fee"] = int(itm["pool"]["fee"])
+            itm["pool"]["feeGrowthGlobal0X128"] = int(
+                itm["pool"]["feeGrowthGlobal0X128"]
+            )
+            itm["pool"]["feeGrowthGlobal1X128"] = int(
+                itm["pool"]["feeGrowthGlobal1X128"]
+            )
+            itm["pool"]["observationIndex"] = int(itm["pool"]["observationIndex"])
+            itm["pool"]["sqrtPrice"] = int(itm["pool"]["sqrtPrice"])
+            itm["pool"]["tick"] = int(itm["pool"]["tick"])
+
+            itm["tickLower"]["tickIdx"] = int(itm["tickLower"]["tickIdx"])
+            itm["tickLower"]["feeGrowthOutside0X128"] = int(
+                itm["tickLower"]["feeGrowthOutside0X128"]
+            )
+            itm["tickLower"]["feeGrowthOutside1X128"] = int(
+                itm["tickLower"]["feeGrowthOutside1X128"]
+            )
+            itm["tickLower"]["liquidityGross"] = int(itm["tickLower"]["liquidityGross"])
+            itm["tickLower"]["liquidityNet"] = int(itm["tickLower"]["liquidityNet"])
+
+            itm["tickUpper"]["tickIdx"] = int(itm["tickUpper"]["tickIdx"])
+            itm["tickUpper"]["feeGrowthOutside0X128"] = int(
+                itm["tickUpper"]["feeGrowthOutside0X128"]
+            )
+            itm["tickUpper"]["feeGrowthOutside1X128"] = int(
+                itm["tickUpper"]["feeGrowthOutside1X128"]
+            )
+            itm["tickUpper"]["liquidityGross"] = int(itm["tickUpper"]["liquidityGross"])
+            itm["tickUpper"]["liquidityNet"] = int(itm["tickUpper"]["liquidityNet"])
+
+        elif query_name == "tokens":
+
+            itm["decimals"] = int(itm["decimals"])
+            itm["derivedMatic"] = float(itm["derivedMatic"])
+            itm["feesUSD"] = float(itm["feesUSD"])
+            itm["poolCount"] = int(itm["poolCount"])
+            itm["totalSupply"] = int(itm["totalSupply"])
+            itm["totalValueLocked"] = float(itm["totalValueLocked"])
+            itm["totalValueLockedUSD"] = float(itm["totalValueLockedUSD"])
+            itm["totalValueLockedUSDUntracked"] = float(
+                itm["totalValueLockedUSDUntracked"]
+            )
+            itm["txCount"] = int(itm["txCount"])
+            itm["untrackedVolumeUSD"] = float(itm["untrackedVolumeUSD"])
+            itm["volume"] = float(itm["volume"])
+            itm["volumeUSD"] = float(itm["volumeUSD"])
+
+        elif query_name == "hypervisors_loc":
+            pass
+            itm["pool"]["currentTick"] = int(itm["pool"]["currentTick"])
+            itm["pool"]["feeGrowthGlobal0X128"] = int(
+                itm["pool"]["feeGrowthGlobal0X128"]
+            )
+            itm["pool"]["feeGrowthGlobal1X128"] = int(
+                itm["pool"]["feeGrowthGlobal1X128"]
+            )
+
+            itm["basePosition"]["liquidity"] = int(itm["basePosition"]["liquidity"])
+            # itm["basePosition"]["tokensOwed0"] = itm["basePosition"]["tokensOwed0"]
+            # itm["basePosition"]["tokensOwed1"] = itm["basePosition"]["tokensOwed0"]
+            itm["basePosition"]["feeGrowthInside0X128"] = int(
+                itm["basePosition"]["feeGrowthInside0X128"]
+            )
+            itm["basePosition"]["feeGrowthInside1X128"] = int(
+                itm["basePosition"]["feeGrowthInside1X128"]
+            )
+            itm["basePosition"]["tickLower"]["tickIdx"] = int(
+                itm["basePosition"]["tickLower"]["tickIdx"]
+            )
+            itm["basePosition"]["tickLower"]["feeGrowthOutside0X128"] = int(
+                itm["basePosition"]["tickLower"]["feeGrowthOutside0X128"]
+            )
+            itm["basePosition"]["tickLower"]["feeGrowthOutside1X128"] = int(
+                itm["basePosition"]["tickLower"]["feeGrowthOutside1X128"]
+            )
+            itm["basePosition"]["tickUpper"]["tickIdx"] = int(
+                itm["basePosition"]["tickUpper"]["tickIdx"]
+            )
+            itm["basePosition"]["tickUpper"]["feeGrowthOutside0X128"] = int(
+                itm["basePosition"]["tickUpper"]["feeGrowthOutside0X128"]
+            )
+            itm["basePosition"]["tickUpper"]["feeGrowthOutside1X128"] = int(
+                itm["basePosition"]["tickUpper"]["feeGrowthOutside1X128"]
+            )
+
+            itm["limitPosition"]["liquidity"] = int(itm["limitPosition"]["liquidity"])
+            # itm["limitPosition"]["tokensOwed0"] = itm["limitPosition"]["tokensOwed0"]
+            # itm["limitPosition"]["tokensOwed1"] = itm["limitPosition"]["tokensOwed0"]
+            itm["limitPosition"]["feeGrowthInside0X128"] = int(
+                itm["limitPosition"]["feeGrowthInside0X128"]
+            )
+            itm["limitPosition"]["feeGrowthInside1X128"] = int(
+                itm["limitPosition"]["feeGrowthInside1X128"]
+            )
+            itm["limitPosition"]["tickLower"]["tickIdx"] = int(
+                itm["limitPosition"]["tickLower"]["tickIdx"]
+            )
+            itm["limitPosition"]["tickLower"]["feeGrowthOutside0X128"] = int(
+                itm["limitPosition"]["tickLower"]["feeGrowthOutside0X128"]
+            )
+            itm["limitPosition"]["tickLower"]["feeGrowthOutside1X128"] = int(
+                itm["limitPosition"]["tickLower"]["feeGrowthOutside1X128"]
+            )
+            itm["limitPosition"]["tickUpper"]["tickIdx"] = int(
+                itm["limitPosition"]["tickUpper"]["tickIdx"]
+            )
+            itm["limitPosition"]["tickUpper"]["feeGrowthOutside0X128"] = int(
+                itm["limitPosition"]["tickUpper"]["feeGrowthOutside0X128"]
+            )
+            itm["limitPosition"]["tickUpper"]["feeGrowthOutside1X128"] = int(
+                itm["limitPosition"]["tickUpper"]["feeGrowthOutside1X128"]
+            )
+
+        else:
+            logging.getLogger(__name__).error(
+                "No quickswap converter found with name {}".format(query_name)
+            )
+            raise ValueError(
+                "No quickswap query converter found for: {} ".format(query_name)
             )
 
         # retrun result

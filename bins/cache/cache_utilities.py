@@ -4,15 +4,12 @@ import logging
 import threading
 
 from bins.general import file_utilities, net_utilities
-
+from bins.database.common.db_collections_common import db_collections_common
 
 CACHE_LOCK = threading.Lock()
 
 
-class standard_property_cache:
-
-    _cache = dict()  # {  network_id: "<contract address>": value, ...}
-
+class file_backend:
     def __init__(self, filename: str, folder_name: str, reset: bool = False):
         """Cache class properties
 
@@ -24,39 +21,137 @@ class standard_property_cache:
         self.file_name = filename
         self.folder_name = folder_name
 
+        self._cache = dict()  # {  network_id: "<contract address>": value, ...}
+
         # init object
-        self.init_cache(reset)
+        self._pre_init_cache(reset)
+        self._init_cache()
 
-    def init_cache(self, reset: bool):
+    def _pre_init_cache(self, reset: bool):
 
-        # check if folder exists
-        if not os.path.exists(self.folder_name):
-            # Create a new directory because it does not exist
-            os.makedirs(name=self.folder_name, exist_ok=True)
+        if self.folder_name != "":
+
+            # check if folder exists
+            if not os.path.exists(self.folder_name):
+                # Create a new directory because it does not exist
+                os.makedirs(name=self.folder_name, exist_ok=True)
+
+            if reset:
+                # delete file
+                try:
+                    if os.path.isfile(
+                        "{}/{}.json".format(self.folder_name, self.file_name)
+                    ):
+                        os.remove("{}/{}.json".format(self.folder_name, self.file_name))
+                except:
+                    # error could not delete file
+                    logging.getLogger("special").exception(
+                        " Could not delete cache file:  {}     .error: {}".format(
+                            "{}/{}.json".format(self.folder_name, self.file_name),
+                            sys.exc_info()[0],
+                        )
+                    )
+
+        # init price cache
+        self._cache = dict()
+
+    def _load_cache_file(self) -> dict:
+        with CACHE_LOCK:
+            temp_loaded_cache = file_utilities.load_json(
+                filename=self.file_name, folder_path=self.folder_name
+            )
+        return temp_loaded_cache
+
+    def _save_tofile(self):
+        with CACHE_LOCK:
+            # save file
+            file_utilities.save_json(
+                filename=self.file_name, data=self._cache, folder_path=self.folder_name
+            )
+
+    def _init_cache(self):
+        # place some loading logic
+        #  _cache = _load_cache_file()
+        # ...
+        pass
+
+    # PUBLIC
+    def add_data(self, data, **kwargs) -> bool:
+        pass
+
+    def get_data(self, **kwargs):
+        pass
+
+
+class db_collections_cache(db_collections_common):
+    def __init__(
+        self,
+        mongo_url: str,
+        db_name: str,
+        db_collections: dict = {"static": {"id": True}},
+    ):
+        super().__init__(
+            mongo_url=mongo_url, db_name=db_name, db_collections=db_collections
+        )
+
+
+class database_backend:
+    def __init__(self, collection: db_collections_cache, reset: bool = False):
+        """Cache class properties
+
+        Args:
+           collection (db_collections_common):
+           reset (bool, optional): create a clean cache file ( deleting the present one ) . Defaults to False.
+        """
+        self.db_collection = collection
+
+        self._cache = dict()  # {  network_id: "<contract address>": value, ...}
+
+        # init object
+        self._pre_init_cache(reset)
+        self._init_cache()
+
+    def _pre_init_cache(self, reset: bool):
 
         if reset:
-            # delete file
+            # wipe database
             try:
-                if os.path.isfile(
-                    "{}/{}.json".format(self.folder_name, self.file_name)
-                ):
-                    os.remove("{}/{}.json".format(self.folder_name, self.file_name))
+                # TODO: remove collection from database
+                pass
             except:
                 # error could not delete file
-                logging.getLogger("special").exception(
-                    " Could not delete cache file:  {}     .error: {}".format(
-                        "{}/{}.json".format(self.folder_name, self.file_name),
-                        sys.exc_info()[0],
+                logging.getLogger(__name__).exception(
+                    " Could not remove collection   .error: {}".format(
+                        sys.exc_info()[0]
                     )
                 )
 
         # init price cache
         self._cache = dict()
-        temp_loaded_cache = None
-        with CACHE_LOCK:
-            temp_loaded_cache = file_utilities.load_json(
-                filename=self.file_name, folder_path=self.folder_name
-            )
+
+    def _load_cache_file(self) -> dict:
+        # TODO: get from database
+        # self.db_collection.get_all_items()
+        return temp_loaded_cache
+
+    def _init_cache(self):
+        # place some loading logic
+        #  _cache = _load_cache_file()
+        # ...
+        pass
+
+    # PUBLIC
+    def add_data(self, data, **kwargs) -> bool:
+        pass
+
+    def get_data(self, **kwargs):
+        pass
+
+
+class standard_property_cache(file_backend):
+    def _init_cache(self):
+
+        temp_loaded_cache = self._load_cache_file()
         _loaded = 0
         if temp_loaded_cache != None:
             for chainId, val1 in temp_loaded_cache.items():
@@ -115,7 +210,7 @@ class standard_property_cache:
 
         if save2file:
             # save file to disk
-            self.save_tofile()
+            self._save_tofile()
 
         return True
 
@@ -139,73 +234,21 @@ class standard_property_cache:
         # not in cache
         return None
 
-    def save_tofile(self):
-        with CACHE_LOCK:
-            # save file
-            file_utilities.save_json(
-                filename=self.file_name, data=self._cache, folder_path=self.folder_name
-            )
 
-
-class standard_thegraph_cache:
+class standard_thegraph_cache(file_backend):
     """
     Save historic block queries indefinitely to disk
     ( queries without the block argument defined will not be saved )
     """
 
-    _cache = dict()
-    ## {  network:
-    #        block:
-    #           key__is__long__query
-    #           }
+    # THE GRAPH VARS & HELPERS
+    RATE_LIMIT = net_utilities.rate_limit(rate_max_sec=4)  # thegraph rate limiter
 
-    def __init__(self, filename: str, folder_name: str, reset: bool = False):
-        """Save historic block queries indefinitely to disk
-           ( queries without the block argument defined will not be saved )
-        Args:
-           filename (str): like "price_cache_uniswap"
-           folder_name (str): like "data/cache"
-           reset (bool, optional): create a clean cache file ( deleting the present one ) . Defaults to False.
-        """
-
-        self.file_name = filename + "_cache"
-        self.folder_name = folder_name
-
-        # THE GRAPH VARS & HELPERS
-        self.RATE_LIMIT = net_utilities.rate_limit(
-            rate_max_sec=4
-        )  # thegraph rate limiter
-
-        # init object
-        self.init_cache(reset)
-
-    def init_cache(self, reset: bool):
-
-        # check if folder exists
-        if not os.path.exists(self.folder_name):
-            # Create a new directory because it does not exist
-            os.makedirs(name=self.folder_name, exist_ok=True)
-
-        if reset:
-            # delete file
-            try:
-                if os.path.isfile(
-                    "{}/{}.json".format(self.folder_name, self.file_name)
-                ):
-                    os.remove("{}/{}.json".format(self.folder_name, self.file_name))
-            except:
-                # error could not delete file
-                logging.getLogger("special").exception(
-                    " Could not delete cache file:  {}     .error: {}".format(
-                        "{}/{}.json".format(self.folder_name, self.file_name),
-                        sys.exc_info()[0],
-                    )
-                )
+    def _init_cache(self):
 
         # init price cache
-        self._cache = file_utilities.load_json(
-            filename=self.file_name, folder_path=self.folder_name
-        )
+        self._cache = self._load_cache_file()
+
         # set new dict if no file has been loaded
         if self._cache == None:
             self._cache = dict()
@@ -250,11 +293,7 @@ class standard_thegraph_cache:
                 self._cache[network][block][key] = data
 
                 # save cache to file
-                file_utilities.save_json(
-                    filename=self.file_name,
-                    data=self._cache,
-                    folder_path=self.folder_name,
-                )
+                self._save_tofile()
 
             return True
         # not added
@@ -306,34 +345,10 @@ class standard_thegraph_cache:
 
 
 class price_cache(standard_property_cache):
-    def init_cache(self, reset: bool):
-
-        # check if folder exists
-        if not os.path.exists(self.folder_name):
-            # Create a new directory because it does not exist
-            os.makedirs(name=self.folder_name, exist_ok=True)
-
-        if reset:
-            # delete file
-            try:
-                if os.path.isfile(
-                    "{}/{}.json".format(self.folder_name, self.file_name)
-                ):
-                    os.remove("{}/{}.json".format(self.folder_name, self.file_name))
-            except:
-                # error could not delete file
-                logging.getLogger("special").exception(
-                    " Could not delete cache file:  {}     .error: {}".format(
-                        "{}/{}.json".format(self.folder_name, self.file_name),
-                        sys.exc_info()[0],
-                    )
-                )
+    def _init_cache(self):
 
         # init price cache
-        self._cache = dict()
-        temp_loaded_cache = file_utilities.load_json(
-            filename=self.file_name, folder_path=self.folder_name
-        )
+        temp_loaded_cache = self._load_cache_file()
         _loaded = 0
         if temp_loaded_cache != None:
             for chainId, val1 in temp_loaded_cache.items():

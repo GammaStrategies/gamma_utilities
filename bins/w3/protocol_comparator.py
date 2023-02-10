@@ -7,6 +7,8 @@ import logging
 from web3 import Web3
 from web3.middleware import geth_poa_middleware
 
+from bins.configuration import CONFIGURATION
+
 from bins.w3 import onchain_utilities
 from bins.mixed import price_utilities
 from bins.general import general_utilities
@@ -236,17 +238,16 @@ def template(oftype: str) -> dict:
 class comparator_v1:
 
     # SETUP
-    def __init__(self, configuration: dict, protocol: str):
+    def __init__(self, protocol: str):
 
         # set init vars
-        self.configuration = configuration
         self.protocol = protocol
 
         # create price helper
         self.price_helper = price_utilities.price_scraper(
-            cache=self.configuration["cache"]["enabled"],
+            cache=CONFIGURATION["cache"]["enabled"],
             cache_filename="uniswapv3_price_cache",
-            cache_folderName=self.configuration["cache"]["save_path"],
+            cache_folderName=CONFIGURATION["cache"]["save_path"],
         )
 
     # PUBLIC
@@ -306,7 +307,7 @@ class comparator_v1:
 
         # Web3 helper
         web3_helper = self.create_web3_helper(
-            address=address, web3Provider=self.create_web3_provider(network=network)
+            address=address, network=network
         )
         # define block
         web3_helper.block = (
@@ -370,7 +371,7 @@ class comparator_v1:
         # Web3 helper
         web3_helper = self.create_web3_helper(
             address=address,
-            web3Provider=self.create_web3_provider(network=network),
+            network=network,
             block=block,
         )
 
@@ -440,7 +441,7 @@ class comparator_v1:
 
         # Onetime get token addresses to decrease onchain queries when scraping status
         web3_helper = self.create_web3_helper(
-            address=address, web3Provider=self.create_web3_provider(network=network)
+            address=address, network=network
         )
         address_token0 = web3_helper.token0.address
         address_token1 = web3_helper.token1.address
@@ -484,7 +485,7 @@ class comparator_v1:
     ) -> dict:
 
         # ease the var access name
-        filters = self.configuration["script"]["protocols"][self.protocol]["filters"]
+        filters = CONFIGURATION["script"]["protocols"][self.protocol]["filters"]
         # defaults
         date_end = dt.datetime.utcnow()
         date_ini = date_end - dt.timedelta(days=7 * 4 * 2)  # 8 weeks
@@ -538,7 +539,7 @@ class comparator_v1:
         )
 
         # apply filters, if any
-        filters = self.configuration["script"]["protocols"][self.protocol]["filters"]
+        filters = CONFIGURATION["script"]["protocols"][self.protocol]["filters"]
         if (
             "force_timeframe" in filters
             and "start_time" in filters["force_timeframe"]
@@ -979,7 +980,7 @@ class comparator_v1:
            dict: template oftype="chart"
         """
 
-        # TODO: implement start and end time reading values from self.configuration
+        # TODO: implement start and end time reading values from CONFIGURATION
         # TODO: implement Impermanent L,G and APR,APY relative and absolutes
 
         # control vars
@@ -1218,7 +1219,7 @@ class comparator_v1:
 
         w3 = Web3(
             Web3.HTTPProvider(
-                self.configuration["sources"]["web3Providers"][network],
+                CONFIGURATION["sources"]["web3Providers"][network],
                 request_kwargs={"timeout": 60},
             )
         )
@@ -1229,24 +1230,23 @@ class comparator_v1:
         # return result
         return w3
 
-    def create_web3_helper(self, address: str, web3Provider: Web3, block: int = 0):
+    def create_web3_helper(self, address: str, network: str, block: int = 0):
         """create a helper to interact with the protocol defined
 
         Args:
            address (str): "0x..."
-           web3Provider (Web3):
 
         Returns:
            _type_: protocol helper for web3 interactions
         """
         if self.protocol == "gamma":
             return onchain_utilities.gamma_hypervisor_cached(
-                address=address, web3Provider=web3Provider, block=block
+                address=address, network=network, block=block
             )
 
         elif self.protocol == "arrakis":
             return onchain_utilities.arrakis_hypervisor_cached(
-                address=address, web3Provider=web3Provider, block=block
+                address=address, network=network, block=block
             )
 
         else:
@@ -1285,7 +1285,7 @@ class comparator_v1:
                     "gamma_deposit": ["uint256", "uint256", "uint256"],
                     "gamma_withdraw": ["uint256", "uint256", "uint256"],
                 },
-                web3Provider=self.create_web3_provider(network),
+                network=network,
             )
         elif self.protocol == "arrakis":
             result = onchain_utilities.data_collector(
@@ -1315,7 +1315,7 @@ class comparator_v1:
                     ],
                     "arrakis_fee": ["uint256", "uint256"],
                 },
-                web3Provider=self.create_web3_provider(network),
+                network=network,
             )
         else:
             raise ValueError(
@@ -1364,7 +1364,7 @@ class comparator_v1:
         dta_coll.progress_callback = progress_callback
 
         # get all content
-        dta_coll.get_all_operations(
+        dta_coll.fill_all_operations_data(
             block_ini=block_ini,
             block_end=block_end,
             contracts=[Web3.toChecksumAddress(x) for x in addresses],
@@ -1402,7 +1402,7 @@ class comparator_v1:
 
         # save token addresses to gather prices from
         w3helper = self.create_web3_helper(
-            address=address, web3Provider=self.create_web3_provider(network=network)
+            address=address, network=network
         )
         address_token0 = w3helper.token0.address
         address_token1 = w3helper.token1.address
@@ -1552,11 +1552,11 @@ class comparator_v1:
         # create a dummy helper ( use only web3wrap functions)
         dummy_helper = self.create_web3_helper(
             address="0x0000000000000000000000000000000000000000",
-            web3Provider=self.create_web3_provider(network=network),
+            network=network,
         )
 
         # ease the var access name
-        filters = self.configuration["script"]["protocols"][self.protocol]["filters"]
+        filters = CONFIGURATION["script"]["protocols"][self.protocol]["filters"]
 
         # apply filter if defined
         block_ini = block_end = 0
@@ -1619,8 +1619,8 @@ class comparator_v1:
         """
 
         # ease the var access name
-        filters = self.configuration["script"]["protocols"][self.protocol]["filters"]
-        output = self.configuration["script"]["protocols"][self.protocol]["output"]
+        filters = CONFIGURATION["script"]["protocols"][self.protocol]["filters"]
+        output = CONFIGURATION["script"]["protocols"][self.protocol]["output"]
 
         # get blocks
         block_ini, block_end = self.get_standard_blockBounds(network=network)
@@ -1684,7 +1684,7 @@ class comparator_v1:
         # create a dummy helper ( use only web3wrap functions)
         dummy_helper = self.create_web3_helper(
             address="0x0000000000000000000000000000000000000000",
-            web3Provider=self.create_web3_provider(network=network),
+            network=network,
         )
         secs = dummy_helper.average_blockTime(
             blocksaway=dummy_helper._w3.eth.get_block("latest").number * 0.85
@@ -1768,7 +1768,7 @@ class comparator_v1:
         # create a dummy helper ( use only web3wrap functions)
         dummy_helper = self.create_web3_helper(
             address="0x0000000000000000000000000000000000000000",
-            web3Provider=self.create_web3_provider(network=network),
+            network=network,
         )
         secs = dummy_helper.average_blockTime(
             blocksaway=dummy_helper._w3.eth.get_block("latest").number * 0.85

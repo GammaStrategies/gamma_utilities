@@ -86,6 +86,10 @@ def get_positionKey(ownerAddress: str, tickLower: int, tickUpper: int) -> str:
     return Web3.solidityKeccak(val_types, values).hex()
 
 
+def get_positionKey_algebra(ownerAddress: str, tickLower: int, tickUpper: int) -> str:
+    return f"{(((int(ownerAddress.lower(),16) << 24) | (tickLower & 0xFFFFFF)) << 24) | (tickUpper & 0xFFFFFF):064x}"
+
+
 def convert_tick_to_price(tick: int) -> float:
     """convert int ticks into not decimal adjusted float price
 
