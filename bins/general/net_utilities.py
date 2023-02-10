@@ -9,6 +9,9 @@ from requests import exceptions as req_exceptions
 
 
 # TODO: implement httpx + any concurrency manager
+# TODO: implement requests-cache
+
+
 
 
 #

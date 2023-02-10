@@ -1,9 +1,12 @@
 import getopt
 import os
+import sys
 import yaml
 import datetime as dt
 from pathlib import Path
+from logging import Logger, getLogger
 
+log = getLogger(__name__)
 
 # SCRIPT UTIL
 def check_configuration_file(config_file):
@@ -87,29 +90,32 @@ def convert_commandline_arguments(argv) -> dict:
     prmtrs = dict()  # the parameters we will pass
 
     try:
-        opts, args = getopt.getopt(argv, "c:", ["config="])
+        opts, args = getopt.getopt(argv, "c:f:", ["config=", "db_feed="])
+
     except getopt.GetoptError as err:
         print("             <filename>.py <options>")
         print("Options:")
         print(" -c <filename> or --config=<filename>")
+        # database feeder:  -db_feed operations
+        print(" -f <option> or --db_feed=<option>")
+        print("    <option> = operations, status, static, prices ")
         print(" ")
         print(" ")
         print(" ")
         print("to execute with custom configuration file:")
-        print(
-            "             <filename>.py -s <start date as %Y-%m-%d> -e <end date as %Y-%m-%d> -c <filename.yaml>"
-        )
+        print("             <filename>.py -c <filename.yaml>")
         print("error message: {}".format(err.msg))
         print("opt message: {}".format(err.opt))
         sys.exit(2)
 
     # loop and retrieve each command
     for opt, arg in opts:
-        if opt in ("-c", "config="):
+        if opt in ("-c", "--config"):
             # todo: check if it is a string   if isinstance(arg,str)
             # todo: check if file exists
-            prmtrs["config_file"] = arg
-
+            prmtrs["config_file"] = arg.strip()
+        if opt in ("-f", "--db_feed"):
+            prmtrs["db_feed"] = arg.strip()
     return prmtrs
 
 
@@ -199,3 +205,42 @@ class time_controller:
         return (
             dt.datetime.utcnow() - self.lastupdate
         ).total_seconds() > self.timespan_secs
+
+
+class log_time_passed:
+    def __init__(self, fName="", callback: Logger = None):
+        self.start = dt.datetime.utcnow()
+        self.end = None
+        self.fName = fName
+        self._callback: Logger = callback
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        # xception handling here
+        if not self._callback == None:
+            self._callback.debug(
+                f" took {self.get_timepassed_string(self.start,self.end)} to complete {self.fName}"
+            )
+
+    @staticmethod
+    def get_timepassed_string(
+        start_time: dt.datetime, end_time: dt.datetime = None
+    ) -> str:
+        if not end_time:
+            end_time = dt.datetime.utcnow()
+        _timelapse = end_time - start_time
+        _passed = _timelapse.total_seconds()
+        if _passed < 60:
+            _timelapse_unit = "seconds"
+        elif _passed < 60 * 60:
+            _timelapse_unit = "minutes"
+            _passed /= 60
+        elif _passed < 60 * 60 * 24:
+            _timelapse_unit = "hours"
+            _passed /= 60 * 60
+        return "{:,.2f} {}".format(_passed, _timelapse_unit)
+
+    def stop(self):
+        self.end = dt.datetime.utcnow()

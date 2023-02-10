@@ -14,6 +14,7 @@ CURRENT_FOLDER = os.path.dirname(os.path.realpath(__file__))
 PARENT_FOLDER = os.path.dirname(CURRENT_FOLDER)
 sys.path.append(PARENT_FOLDER)
 
+from bins.configuration import CONFIGURATION
 
 from bins.apis import etherscan_utilities, thegraph_utilities
 from bins.cache import cache_utilities
@@ -26,20 +27,17 @@ from bins.formulas import univ3_formulas
 # this comparison contains many differences ( check  tegraph_vs_onchain tests  )
 # be aware that gammawire API getsinfo from subgraph so block is behind "latest" onchain..
 # so differences are xpected ..
-def test_uncollected_fees_comparison_api_onchain(
-    configuration: dict, threaded: bool = False
-):
+def test_uncollected_fees_comparison_api_onchain(threaded: bool = False):
     """Comparison between uncollected fees data sourced from the gammawire.net endpoint and
        custom calculation method using onchain queries
 
        Results are saved in a csv file with the same def name
 
     Args:
-       configuration (dict): loaded config from config.yaml
        threaded (bool, optional): speedup the scriptwith threading. Defaults to False.
     """
     network = "ethereum"
-    web3Provider_url = configuration["sources"]["web3Providers"][network]
+    web3Provider_url = CONFIGURATION["sources"]["web3Providers"][network]
     official_api_url = "https://gammawire.net/hypervisors/uncollectedFees"
 
     csv_filename = "{}_test_uncollected_fees_comparison_api_onchain{}.csv".format(
@@ -47,11 +45,11 @@ def test_uncollected_fees_comparison_api_onchain(
     )
     csv_filename = os.path.join(CURRENT_FOLDER, csv_filename)
 
-    def do_loop_work(hyp_id, hypervisor, web3Provider):
+    def do_loop_work(hyp_id, hypervisor, network: str):
 
         # get onchain data ( need to force abi path bc current workinfolder is tests)
         w3help = onchain_utilities.gamma_hypervisor_cached(
-            address=hyp_id, web3Provider=web3Provider
+            address=hyp_id, network=network
         )
         dta_tvl = w3help.get_tvl()
         dta_uncollected = w3help.get_fees_uncollected()
@@ -122,7 +120,7 @@ def test_uncollected_fees_comparison_api_onchain(
                 )
 
                 # add data to result
-                result_item = do_loop_work(hyp_id, web3Provider)
+                result_item = do_loop_work(hyp_id, network)
 
                 # result
                 result.append(result_item)
@@ -132,7 +130,7 @@ def test_uncollected_fees_comparison_api_onchain(
         else:
             # threaded
             args = (
-                (hyp_id, hypervisor, web3Provider)
+                (hyp_id, hypervisor, network)
                 for hyp_id, hypervisor in official_uncollected_data.items()
             )
             with concurrent.futures.ThreadPoolExecutor(max_workers=5) as ex:
@@ -157,16 +155,13 @@ def test_uncollected_fees_comparison_api_onchain(
 
 # passed
 # this comparison has small differences ( negligible, may be due to code execution [gammawire uses only one query and alternative method uses many] )
-def test_uncollected_fees_comparison_api_thegraph(
-    configuration: dict, threaded: bool = False
-):
+def test_uncollected_fees_comparison_api_thegraph(threaded: bool = False):
     """Comparison between uncollected fees data sourced from the gammawire.net endpoint and
        custom calculation method using GAMMA's subgraph
 
        Results are savedin a csv file with the same def name
 
     Args:
-       configuration (dict): loaded config from config.yaml
        threaded (bool, optional): speedup the scriptwith threading. Defaults to False.
     """
 
@@ -632,9 +627,7 @@ def test_uncollected_fees_comparison_api_thegraph(
 
 # passed
 # equal 100%
-def test_uncollected_fees_comparison_formulas_thegraph(
-    configuration: dict, threaded: bool = False
-):
+def test_uncollected_fees_comparison_formulas_thegraph(threaded: bool = False):
     """Comparison between uncollected fees formula used at gammawire.net endpoint and
        custom calculation method using THEGRAPH data:
            data sourced from thegraph ( same data is used)
@@ -642,7 +635,6 @@ def test_uncollected_fees_comparison_formulas_thegraph(
        Results are saved in a csv file with the same def name
 
     Args:
-       configuration (dict): loaded config from config.yaml
        threaded (bool, optional): speedup the scriptwith threading. Defaults to False.
     """
 
@@ -1160,9 +1152,7 @@ def test_uncollected_fees_comparison_formulas_thegraph(
 
 # passed
 # equal 100%
-def test_uncollected_fees_comparison_formulas_onchain(
-    configuration: dict, threaded: bool = False
-):
+def test_uncollected_fees_comparison_formulas_onchain(threaded: bool = False):
     """Comparison between uncollected fees formula used at gammawire.net endpoint and
        custom calculation method using direct chain queries:
            data sourced from chain using web3 provider ( same data is used)
@@ -1170,13 +1160,12 @@ def test_uncollected_fees_comparison_formulas_onchain(
        Results are saved in a csv file with the same def name
 
     Args:
-       configuration (dict): loaded config from config.yaml
        threaded (bool, optional): speedup the scriptwith threading. Defaults to False.
     """
 
     protocol = "gamma"
     network = "ethereum"
-    web3Provider_url = configuration["sources"]["web3Providers"][network]
+    web3Provider_url = CONFIGURATION["sources"]["web3Providers"][network]
     csv_filename = "{}_test_uncollected_fees_comparison_formulas_onchain{}.csv".format(
         network, "_threaded" if threaded else ""
     )
@@ -1198,13 +1187,13 @@ def test_uncollected_fees_comparison_formulas_onchain(
     result = list()
 
     # create the func to loop thru
-    def do_loop_work(hyp_id, web3Provider):
+    def do_loop_work(hyp_id, network):
 
         error = False
 
         # setup helper
         gamma_web3Helper = onchain_utilities.gamma_hypervisor_cached(
-            address=hyp_id, web3Provider=web3Provider
+            address=hyp_id, network=network
         )
 
         # get name
@@ -1408,13 +1397,13 @@ def test_uncollected_fees_comparison_formulas_onchain(
                 )
 
                 # add data to result
-                result.append(do_loop_work(hypervisor["id"]))
+                result.append(do_loop_work(hypervisor["id"], network))
 
                 # update progress
                 progress_bar.update(1)
         else:
             # threaded
-            args = ((hypervisor["id"], web3Provider) for hypervisor in hypervisors)
+            args = ((hypervisor["id"], network) for hypervisor in hypervisors)
             with concurrent.futures.ThreadPoolExecutor(max_workers=5) as ex:
                 for result_item in ex.map(lambda p: do_loop_work(*p), args):
                     # progress
@@ -1442,6 +1431,7 @@ from bins.mixed import price_utilities
 def test_uncollected_fees_onchain(
     protocol: str,
     network: str,
+    dex: str,
     web3Provider_url: str,
     hypervisor_ids: list,
     blocks: list = [],
@@ -1453,6 +1443,7 @@ def test_uncollected_fees_onchain(
     Args:
        protocol (str): "gamma"
        network (str): "ethereum", "polygon" ...
+       dex (str): "uniswapv3" or "quickswap" ...
        web3Provider_url (str): full url to web3 provider
        hypervisor_ids (list):
        blocks (list, optional): if no blocks specified, current block is used. Defaults to [].
@@ -1512,9 +1503,14 @@ def test_uncollected_fees_onchain(
         error = False
 
         # setup helper
-        gamma_web3Helper = onchain_utilities.gamma_hypervisor_cached(
-            address=hyp_id, web3Provider=web3Provider, block=block
-        )
+        if dex == "uniswapv3":
+            gamma_web3Helper = onchain_utilities.gamma_hypervisor(
+                address=hyp_id, network=network, block=block
+            )
+        elif dex == "quickswap":
+            gamma_web3Helper = onchain_utilities.gamma_hypervisor_quickswap(
+                address=hyp_id, network=network, block=block
+            )
 
         # get name
         hypervisor_name = gamma_web3Helper.symbol
@@ -1553,7 +1549,8 @@ def test_uncollected_fees_onchain(
             network=network, token_id=gamma_web3Helper.token1.address, block=block
         )
         # calc USD TVL
-        tvlUSD = tvl0_indirect * price0 + tvl1_indirect * price1
+        tvlUSD_fromdex = tvl0_indirect * price0 + tvl1_indirect * price1
+        tvlUSD = tvl0_direct * price0 + tvl1_direct * price1
 
         # UNCOLLECTED
         fees_uncollected = gamma_web3Helper.get_fees_uncollected(inDecimal=True)
@@ -1564,9 +1561,12 @@ def test_uncollected_fees_onchain(
             "name": hypervisor_name,
             "block": block,
             "timestamp": timestamp,
-            "tvl0": tvl0_indirect,
-            "tvl1": tvl1_indirect,
+            "tvl0": tvl0_direct,
+            "tvl1": tvl1_direct,
             "tvlUSD": tvlUSD,
+            "tvl0_fromdex": tvl0_indirect,
+            "tvl1_fromdex": tvl1_indirect,
+            "tvlUSD_fromdex": tvlUSD,
             "deployed_token0": tvl_indirect["deployed_token0"],
             "deployed_token1": tvl_indirect["deployed_token1"],
             "fees_owed_token0": tvl_indirect["fees_owed_token0"],
@@ -1627,25 +1627,527 @@ def test_uncollected_fees_onchain(
     return result
 
 
+def test_uncollected_fees_thegraph(
+    protocol: str,
+    network: str,
+    dex: str,
+    hypervisor_ids: list,
+    blocks: list = [],
+    threaded: bool = False,
+    max_workers: int = 5,
+):
+    """get multiple thegraph fields and save em to csv file
+
+    Args:
+       protocol (str): "gamma"
+       network (str): "ethereum", "polygon" ...
+       dex (str): "uniswapv3" or "quickswap" ...
+       web3Provider_url (str): full url to web3 provider
+       hypervisor_ids (list):
+       blocks (list, optional): if no blocks specified, current block is used. Defaults to [].
+       threaded (bool, optional): . Defaults to False.
+       max_workers (int, optional): . Defaults to 5.
+
+    Returns:
+           saves csv file with rows:
+                       "hypervisor_id",
+                       "name",
+                       "block",
+                       "timestamp",
+                       "tvl0",
+                       "tvl1",
+                       "tvlUSD",
+                       "deployed_token0",
+                       "deployed_token1",
+                       "fees_owed_token0",
+                       "fees_owed_token1",
+                       "parked_token0",
+                       "parked_token1",
+                       "uncollected_fees0",
+                       "uncollected_fees1",
+                       "price0",
+                       "price1",
+                       "elapsedTime",
+                       "subgraph_errors"
+    """
+
+    blocks_scraper = thegraph_utilities.blocks_scraper(
+        cache=False, cache_savePath="", convert=True
+    )
+    # define blocks to be scraped ( for each hypervisor id)
+    if len(blocks) == 0:
+        blocks = list()
+        latest_block = blocks_scraper.get_all_results(
+            network=network,
+            query_name="blocks",
+            first=1,
+            orderBy="number",
+            orderDirection="desc",
+        )[0]
+        # for i in range(len(hypervisor_ids)):
+        blocks.append(latest_block)
+
+    blocks_info = {}
+    for item in blocks_scraper.get_all_results(
+        network=network, query_name="blocks", where=" number_in:{}".format(blocks)
+    ):
+        if not int(item["number"]) in blocks_info:
+            blocks_info[int(item["number"])] = item
+
+    # create price scrape helper
+    price_helper = price_utilities.price_scraper(
+        cache=False,
+        cache_filename="uniswapv3_price_cache",
+        cache_folderName="data/cache",
+    )
+
+    # utility class tbul
+    class tick:
+        # value
+        # liquidityGross ,
+        # liquidityNet ,
+        # feeGrowthOutside0X128 uint256,
+        # feeGrowthOutside1X128 uint256,
+        # tickCumulativeOutside int56,
+        # secondsPerLiquidityOutsideX128 uint160,
+        # secondsOutside uint32, initialized bool
+
+        def __init__(
+            self, value: int, feeGrowthOutside0X128: int, feeGrowthOutside1X128: int
+        ):
+            self._value = value  # tick
+            self._feeGrowthOutside0X128 = feeGrowthOutside0X128
+            self._feeGrowthOutside1X128 = feeGrowthOutside1X128
+
+        @property
+        def value(self):
+            return self._value
+
+        @property
+        def feeGrowthOutside0X128(self):
+            return self._feeGrowthOutside0X128
+
+        @property
+        def feeGrowthOutside1X128(self):
+            return self._feeGrowthOutside1X128
+
+    # define a result var
+    result = list()
+
+    # create the func to loop thru
+    def do_loop_work(hyp_id, block, price_helper, network):
+
+        error = False
+
+        # setup helper
+        gamma_helper = thegraph_utilities.gamma_scraper(
+            cache=False, cache_savePath="data/cache", convert=True
+        )
+        hypervisor = gamma_helper.get_all_results(
+            network=network,
+            query_name=f"uniswapV3Hypervisors_{dex}",
+            where=""" id: "{}" """.format(hyp_id),
+            block="number: {}".format(block),
+        )[0]
+
+        if dex == "uniswapv3":
+            dexV3_helper = thegraph_utilities.uniswapv3_scraper(
+                cache=False, cache_savePath="data/cache", convert=True
+            )
+        elif dex == "quickswap":
+            dexV3_helper = thegraph_utilities.quickswap_scraper(
+                cache=False, cache_savePath="data/cache", convert=True
+            )
+
+        # get name
+        hypervisor_name = hypervisor["symbol"]
+
+        timestamp = blocks_info[block]["timestamp"]
+
+        # TVL direct contract call
+        tvl0_direct = hypervisor["tvl0"]
+        tvl1_direct = hypervisor["tvl1"]
+
+        # TODO: disabled for now here.
+        # TVL indirect univ3 calculation calls
+        tvl0_indirect = hypervisor["tvl0"]
+        tvl1_indirect = hypervisor["tvl1"]
+        # TVL solidity/python deviation
+        diff0 = ((tvl0_direct - tvl0_indirect) / tvl0_direct) if tvl0_direct != 0 else 0
+        diff1 = ((tvl1_direct - tvl1_indirect) / tvl1_direct) if tvl1_direct != 0 else 0
+        if abs(diff0) > 0.0001:
+            print(
+                "{} {} token0 total difference of {:,.4%} btween direct call to totalAmounts and indirect calls 2 univ3".format(
+                    network, hypervisor_name, diff0
+                )
+            )
+        if abs(diff1) > 0.0001:
+            print(
+                "{} {} token1 total difference of {:,.4%} btween direct call to totalAmounts and indirect calls 2 univ3".format(
+                    network, hypervisor_name, diff1
+                )
+            )
+
+        # PRICE get prices from thegraph or coingecko
+        price0 = price_helper.get_price(
+            network=network, token_id=hypervisor["pool"]["token0"]["id"], block=block
+        )
+        price1 = price_helper.get_price(
+            network=network, token_id=hypervisor["pool"]["token1"]["id"], block=block
+        )
+        # calc USD TVL
+        tvlUSD = tvl0_indirect * price0 + tvl1_indirect * price1
+
+        # UNCOLLECTED
+        fees_uncollected = dict()
+
+        try:
+            # get uniswap pool and tick info  [ feeGrowthGlobal0X128 and feeGrowthGlobal1X128]
+            univ3_pool = dexV3_helper.get_all_results(
+                network=network,
+                query_name="pools",
+                where=""" id: "{}" """.format(hypervisor["pool"]["id"]),
+                block="number: {}".format(block),
+            )[0]
+
+            # create an array of ticks
+            ticks = [
+                hypervisor["baseUpper"],
+                hypervisor["baseLower"],
+                hypervisor["limitUpper"],
+                hypervisor["limitLower"],
+            ]
+            # get all ticks [feeGrowthOutside1X128 and feeGrowthOutside0X128]
+            univ3_ticks = dexV3_helper.get_all_results(
+                network=network,
+                query_name="ticks",
+                where=""" tickIdx_in: {}, poolAddress: "{}" """.format(
+                    ticks, hypervisor["pool"]["id"]
+                ),
+                block="number: {}".format(block),
+            )
+
+            # classify univ3 ticks in a dict
+            feeGrowthOutside = dict()
+            for tk in univ3_ticks:
+                if not tk["tickIdx"] in feeGrowthOutside:
+                    feeGrowthOutside[int(tk["tickIdx"])] = tick(
+                        int(tk["tickIdx"]),
+                        int(tk["feeGrowthOutside0X128"]),
+                        int(tk["feeGrowthOutside1X128"]),
+                    )
+
+            decimals_token0 = hypervisor["pool"]["token0"]["decimals"]
+            decimals_token1 = hypervisor["pool"]["token1"]["decimals"]
+            currentTick = int(univ3_pool["tick"])
+
+            # gather BASE position data
+            liquidity = int(hypervisor["baseLiquidity"])
+            _lowerTick = int(hypervisor["baseLower"])
+            _upperTick = int(hypervisor["baseUpper"])
+
+            # define token0 feeGrowthOutsideLower & Upper vars
+            feeGrowthOutsideLower_token0 = feeGrowthOutsideUpper_token0 = 0
+            try:
+                feeGrowthOutsideLower_token0 = feeGrowthOutside[
+                    _lowerTick
+                ].feeGrowthOutside0X128
+            except:
+                error = True
+                # log error
+                logging.getLogger(__name__).error(
+                    "{} tick {} is not present in uniswap's subgraph using <tickIdx_in: {}, poolAddress:{} > in the query. ".format(
+                        hypervisor_name, _lowerTick, ticks, hypervisor["pool"]["id"]
+                    )
+                )
+                # skip
+                feeGrowthOutsideLower_token0 = 0
+                logging.getLogger(__name__).warning(
+                    "{} token0 base position's feeGrowthOutsideLower of token0 has been set to zero due to errors encountered   hyp_id:{}".format(
+                        hypervisor_name, hypervisor["id"]
+                    )
+                )
+            try:
+                feeGrowthOutsideUpper_token0 = feeGrowthOutside[
+                    _upperTick
+                ].feeGrowthOutside0X128
+            except:
+                error = True
+                # log error
+                logging.getLogger(__name__).error(
+                    "{} tick {} is not present in uniswap's subgraph using <tickIdx_in: {}, poolAddress:{} > in the query.".format(
+                        hypervisor_name, _lowerTick, ticks, hypervisor["pool"]["id"]
+                    )
+                )
+                # skip
+                feeGrowthOutsideUpper_token0 = 0
+                logging.getLogger(__name__).warning(
+                    "{} token0 base position's feeGrowthOutsideUpper has been set to zero due to errors encountered   hyp_id:{}".format(
+                        hypervisor_name, hypervisor["id"]
+                    )
+                )
+
+            # define token1 feeGrowthOutsideLower & Upper vars
+            feeGrowthOutsideLower_token1 = feeGrowthOutsideUpper_token1 = 0
+            try:
+                feeGrowthOutsideLower_token1 = feeGrowthOutside[
+                    _lowerTick
+                ].feeGrowthOutside1X128
+            except:
+                error = True
+                # log error
+                logging.getLogger(__name__).error(
+                    "{} tick {} is not present in uniswap's subgraph using <tickIdx_in: {}, poolAddress:{} > in the query. ".format(
+                        hypervisor_name, _lowerTick, ticks, hypervisor["pool"]["id"]
+                    )
+                )
+                # skip
+                feeGrowthOutsideLower_token1 = 0
+                logging.getLogger(__name__).warning(
+                    "{} token1 base position's feeGrowthOutsideLower of token0 has been set to zero due to errors encountered   hyp_id:{}".format(
+                        hypervisor_name, hypervisor["id"]
+                    )
+                )
+            try:
+                feeGrowthOutsideUpper_token1 = feeGrowthOutside[
+                    _upperTick
+                ].feeGrowthOutside1X128
+            except:
+                error = True
+                # log error
+                logging.getLogger(__name__).error(
+                    "{} tick {} is not present in uniswap's subgraph using <tickIdx_in: {}, poolAddress:{} > in the query.".format(
+                        hypervisor_name, _lowerTick, ticks, hypervisor["pool"]["id"]
+                    )
+                )
+                # skip
+                feeGrowthOutsideUpper_token1 = 0
+                logging.getLogger(__name__).warning(
+                    "{} token1 base position's feeGrowthOutsideUpper has been set to zero due to errors encountered   hyp_id:{}".format(
+                        hypervisor_name, hypervisor["id"]
+                    )
+                )
+
+            # alternative formula
+            base_fees0 = univ3_formulas.get_uncollected_fees(
+                feeGrowthGlobal=int(univ3_pool["feeGrowthGlobal0X128"]),
+                feeGrowthOutsideLower=feeGrowthOutsideLower_token0,
+                feeGrowthOutsideUpper=feeGrowthOutsideUpper_token0,
+                feeGrowthInsideLast=int(hypervisor["baseFeeGrowthInside0LastX128"]),
+                tickCurrent=currentTick,
+                liquidity=liquidity,
+                tickLower=_lowerTick,
+                tickUpper=_upperTick,
+            ) / (10**decimals_token0)
+
+            base_fees1 = univ3_formulas.get_uncollected_fees(
+                feeGrowthGlobal=int(univ3_pool["feeGrowthGlobal1X128"]),
+                feeGrowthOutsideLower=feeGrowthOutsideLower_token1,
+                feeGrowthOutsideUpper=feeGrowthOutsideUpper_token1,
+                feeGrowthInsideLast=int(hypervisor["baseFeeGrowthInside1LastX128"]),
+                tickCurrent=currentTick,
+                liquidity=liquidity,
+                tickLower=_lowerTick,
+                tickUpper=_upperTick,
+            ) / (10**decimals_token1)
+
+            # gather LIMIT position data
+            liquidity = int(hypervisor["limitLiquidity"])
+            _lowerTick = int(hypervisor["limitLower"])
+            _upperTick = int(hypervisor["limitUpper"])
+
+            # define token0 feeGrowthOutsideLower & Upper vars
+            feeGrowthOutsideLower_token0 = feeGrowthOutsideUpper_token0 = 0
+            try:
+                feeGrowthOutsideLower_token0 = feeGrowthOutside[
+                    _lowerTick
+                ].feeGrowthOutside0X128
+            except:
+                error = True
+                # log error
+                logging.getLogger(__name__).error(
+                    "{} tick {} is not present in uniswap's subgraph using <tickIdx_in: {}, poolAddress:{} > in the query. ".format(
+                        hypervisor_name, _lowerTick, ticks, hypervisor["pool"]["id"]
+                    )
+                )
+                # skip
+                feeGrowthOutsideLower_token0 = 0
+                logging.getLogger(__name__).warning(
+                    "{} token0 limit position's feeGrowthOutsideLower of token0 has been set to zero due to errors encountered   hyp_id:{}".format(
+                        hypervisor_name, hypervisor["id"]
+                    )
+                )
+            try:
+                feeGrowthOutsideUpper_token0 = feeGrowthOutside[
+                    _upperTick
+                ].feeGrowthOutside0X128
+            except:
+                error = True
+                # log error
+                logging.getLogger(__name__).error(
+                    "{} tick {} is not present in uniswap's subgraph using <tickIdx_in: {}, poolAddress:{} > in the query.".format(
+                        hypervisor_name, _lowerTick, ticks, hypervisor["pool"]["id"]
+                    )
+                )
+                # skip
+                feeGrowthOutsideUpper_token0 = 0
+                logging.getLogger(__name__).warning(
+                    "{} token0 limit position's feeGrowthOutsideUpper has been set to zero due to errors encountered   hyp_id:{}".format(
+                        hypervisor_name, hypervisor["id"]
+                    )
+                )
+
+            # define token1 feeGrowthOutsideLower & Upper vars
+            feeGrowthOutsideLower_token1 = feeGrowthOutsideUpper_token1 = 0
+            try:
+                feeGrowthOutsideLower_token1 = feeGrowthOutside[
+                    _lowerTick
+                ].feeGrowthOutside1X128
+            except:
+                error = True
+                # log error
+                logging.getLogger(__name__).error(
+                    "{} tick {} is not present in uniswap's subgraph using <tickIdx_in: {}, poolAddress:{} > in the query. ".format(
+                        hypervisor_name, _lowerTick, ticks, hypervisor["pool"]["id"]
+                    )
+                )
+                # skip
+                feeGrowthOutsideLower_token1 = 0
+                logging.getLogger(__name__).warning(
+                    "{} token1 limit position's feeGrowthOutsideLower of token0 has been set to zero due to errors encountered   hyp_id:{}".format(
+                        hypervisor_name, hypervisor["id"]
+                    )
+                )
+            try:
+                feeGrowthOutsideUpper_token1 = feeGrowthOutside[
+                    _upperTick
+                ].feeGrowthOutside1X128
+            except:
+                error = True
+                # log error
+                logging.getLogger(__name__).error(
+                    "{} tick {} is not present in uniswap's subgraph using <tickIdx_in: {}, poolAddress:{} > in the query.".format(
+                        hypervisor_name, _lowerTick, ticks, hypervisor["pool"]["id"]
+                    )
+                )
+                # skip
+                feeGrowthOutsideUpper_token1 = 0
+                logging.getLogger(__name__).warning(
+                    "{} token1 limit position's feeGrowthOutsideUpper has been set to zero due to errors encountered   hyp_id:{}".format(
+                        hypervisor_name, hypervisor["id"]
+                    )
+                )
+
+            limit_fees0 = univ3_formulas.get_uncollected_fees(
+                feeGrowthGlobal=int(univ3_pool["feeGrowthGlobal0X128"]),
+                feeGrowthOutsideLower=feeGrowthOutsideLower_token0,
+                feeGrowthOutsideUpper=feeGrowthOutsideUpper_token0,
+                feeGrowthInsideLast=int(hypervisor["limitFeeGrowthInside0LastX128"]),
+                tickCurrent=currentTick,
+                liquidity=liquidity,
+                tickLower=_lowerTick,
+                tickUpper=_upperTick,
+            ) / (10**decimals_token0)
+
+            limit_fees1 = univ3_formulas.get_uncollected_fees(
+                feeGrowthGlobal=int(univ3_pool["feeGrowthGlobal1X128"]),
+                feeGrowthOutsideLower=feeGrowthOutsideLower_token1,
+                feeGrowthOutsideUpper=feeGrowthOutsideUpper_token1,
+                feeGrowthInsideLast=int(hypervisor["limitFeeGrowthInside1LastX128"]),
+                tickCurrent=currentTick,
+                liquidity=liquidity,
+                tickLower=_lowerTick,
+                tickUpper=_upperTick,
+            ) / (10**decimals_token1)
+
+            fees_uncollected["qtty_token0"] = base_fees0 + limit_fees0
+            fees_uncollected["qtty_token1"] = base_fees1 + limit_fees1
+
+        except:
+            logging.getLogger(__name__).exception(
+                " Unexpected error  while processing {}       .error: {}".format(
+                    hypervisor_name, sys.exc_info()[0]
+                )
+            )
+            error = True
+
+        # add data to result
+        return {
+            "hypervisor_id": hyp_id,
+            "name": hypervisor_name,
+            "block": block,
+            "timestamp": timestamp,
+            "tvl0": tvl0_direct,
+            "tvl1": tvl1_direct,
+            "tvlUSD": tvlUSD,
+            "tvl0_fromdex": tvl0_indirect,
+            "tvl1_fromdex": tvl1_indirect,
+            "tvlUSD_fromdex": tvlUSD,
+            "tvl0": tvl0_indirect,
+            "tvl1": tvl1_indirect,
+            "tvlUSD": tvlUSD,
+            "deployed_token0": "",
+            "deployed_token1": "",
+            "fees_owed_token0": "",
+            "fees_owed_token1": "",
+            "parked_token0": "",
+            "parked_token1": "",
+            "uncollected_fees0": fees_uncollected["qtty_token0"],
+            "uncollected_fees1": fees_uncollected["qtty_token1"],
+            "price0": price0,
+            "price1": price1,
+            "elapsedTime": 0,
+            "subgraph_errors": error,
+        }
+
+    # progress
+    with tqdm.tqdm(total=len(hypervisor_ids) * len(blocks)) as progress_bar:
+
+        if not threaded:
+            # not threaded  (slow )
+            for hypervisor_id in hypervisor_ids:
+
+                for block in blocks:
+
+                    progress_bar.set_description(
+                        "processed {}'s {}".format(network, hypervisor_id)
+                    )
+
+                    # add data to result
+                    result.append(
+                        do_loop_work(hypervisor_id, block, price_helper, network)
+                    )
+
+                    # update progress
+                    progress_bar.update(1)
+        else:
+            # threaded
+            args = (
+                (hypervisor_id, block, price_helper, network)
+                for hypervisor_id in hypervisor_ids
+                for block in blocks
+            )
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
+                for result_item in ex.map(lambda p: do_loop_work(*p), args):
+                    # progress
+                    progress_bar.set_description(
+                        "processed {}'s {}".format(network, result_item["name"])
+                    )
+
+                    # add data to result
+                    result.append(result_item)
+
+                    # update progress
+                    progress_bar.update(1)
+
+    # resuklt
+    return result
+
+
 # START ####################################################################################################################
 if __name__ == "__main__":
     os.chdir(PARENT_FOLDER)
-    # convert command line arguments to dict variables
-    cml_parameters = general_utilities.convert_commandline_arguments(sys.argv[1:])
-    # load configuration
-    configuration = (
-        general_utilities.load_configuration(cfg_name=cml_parameters["config_file"])
-        if "config_file" in cml_parameters
-        else general_utilities.load_configuration()
-    )
-    # check configuration
-    general_utilities.check_configuration_file(configuration)
-    # setup logging
-    log_helper.setup_logging(customconf=configuration)
-    # add cml_parameters into loaded config ( this is used later on to load again the config file to be able to update on-the-fly vars)
-    if not "_custom_" in configuration.keys():
-        configuration["_custom_"] = dict()
-    configuration["_custom_"]["cml_parameters"] = cml_parameters
+
     ##### main ######
     __module_name = Path(os.path.abspath(__file__)).stem
     logging.getLogger(__name__).info(
@@ -1654,57 +2156,52 @@ if __name__ == "__main__":
     # start time log
     _startime = dt.datetime.utcnow()
 
-    test_uncollected_fees_comparison_api_onchain(
-        configuration=configuration, threaded=True
-    )
+    # test_uncollected_fees_comparison_api_onchain(threaded=True )
 
-    test_uncollected_fees_comparison_api_thegraph(
-        configuration=configuration, threaded=True
-    )
+    # test_uncollected_fees_comparison_api_thegraph(threaded=True )
 
-    test_uncollected_fees_comparison_formulas_thegraph(
-        configuration=configuration, threaded=True
-    )
+    # test_uncollected_fees_comparison_formulas_thegraph(threaded=True)
 
-    test_uncollected_fees_comparison_formulas_onchain(
-        configuration=configuration, threaded=True
-    )
+    # test_uncollected_fees_comparison_formulas_onchain( threaded=True)
 
-    # test_uncollected_fees_onchain
-    network = "arbitrum"
-    csv_filename = "{}_test_uncollected_fees_onchain.csv".format(network)
+    # test_uncollected_fees_
+    test_name = "onchain"  # << --  onchain or thegraph
+    protocol = "gamma"
+    dex = "quickswap"
+    network = "polygon"
+    csv_filename = "{}_test_uncollected_fees_{}.csv".format(network, test_name)
     csv_filename = os.path.join(CURRENT_FOLDER, csv_filename)  # save to test folder
     # list of hypervisors
-    hypervisor_ids = ["0xf21df991caafebc242c7e5be17892d3b0453bc0f"]
+    hypervisor_ids = ["0xadc7b4096c3059ec578585df36e6e1286d345367"]
     # list of blocks to analyze
     blocks = [
-        50973544,
-        51055282,
-        51055283,
-        51055824,
-        51055825,
-        51056549,
-        51056550,
-        51057291,
-        51057292,
-        51058269,
-        51058270,
-        51113588,
-        51113589,
-        51114535,
-        51114536,
-        51125916,
-        51125917,
+        38761039,
+        38761040,
+        38761041,
+        38781367,
     ]
-    result = test_uncollected_fees_onchain(
-        protocol="gamma",
-        network=network,
-        web3Provider_url=configuration["sources"]["web3Providers"][network],
-        hypervisor_ids=hypervisor_ids,
-        blocks=blocks,
-        threaded=True,
-        max_workers=5,
-    )
+    if test_name == "thegraph":
+        result = test_uncollected_fees_thegraph(
+            protocol=protocol,
+            network=network,
+            dex=dex,
+            hypervisor_ids=hypervisor_ids,
+            blocks=blocks,
+            threaded=True,
+            max_workers=5,
+        )
+    elif test_name == "onchain":
+        result = test_uncollected_fees_onchain(
+            protocol=protocol,
+            network=network,
+            dex=dex,
+            web3Provider_url=CONFIGURATION["sources"]["web3Providers"][network],
+            hypervisor_ids=hypervisor_ids,
+            blocks=blocks,
+            threaded=True,
+            max_workers=5,
+        )
+
     # remove file
     try:
         os.remove(csv_filename)

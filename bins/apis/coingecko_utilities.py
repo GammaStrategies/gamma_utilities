@@ -1,5 +1,6 @@
 from pycoingecko import CoinGeckoAPI
 import datetime as dt
+import logging
 
 
 class coingecko_price_helper:

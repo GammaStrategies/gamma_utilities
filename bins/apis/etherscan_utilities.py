@@ -4,7 +4,6 @@ from bins.general import net_utilities
 
 class etherscan_helper:
 
-    _api_keys = dict()
     _urls = {
         "ethereum": "https://api.etherscan.io",
         "polygon": "https://api.polygonscan.com",

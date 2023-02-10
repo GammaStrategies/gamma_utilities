@@ -2,12 +2,14 @@ import sys
 import logging
 from bins.cache import cache_utilities
 from bins.apis import thegraph_utilities, coingecko_utilities
+from bins.configuration import CONFIGURATION
 
 
 class price_scraper:
-    def __init__(
-        self, cache: bool = True, cache_filename: str = "", cache_folderName: str = ""
-    ):
+    def __init__(self, cache: bool = True, cache_filename: str = ""):
+
+        cache_folderName = CONFIGURATION["cache"]["save_path"]
+
         # init cache
         self.cache = (
             cache_utilities.price_cache(cache_filename, cache_folderName)
@@ -34,7 +36,7 @@ class price_scraper:
     ## PUBLIC ##
     def get_price(
         self, network: str, token_id: str, block: int = 0, of: str = "USD"
-    ) -> tuple:
+    ) -> float:
         """
         return: price_usd_token
         """
