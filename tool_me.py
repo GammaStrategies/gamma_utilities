@@ -10,7 +10,6 @@ os.chdir(os.path.dirname(os.path.realpath(__file__)))
 from bins.configuration import CONFIGURATION
 from apps import database_feeder
 
-log = logging.getLogger(__name__)
 
 # START ####################################################################################################################
 if __name__ == "__main__":
@@ -20,7 +19,9 @@ if __name__ == "__main__":
     __module_name = " Gamma tools"
 
     ##### main ######
-    log.info(" Start {}   ----------------------> ".format(__module_name))
+    logging.getLogger(__name__).info(
+        " Start {}   ----------------------> ".format(__module_name)
+    )
     # start time log
     _startime = datetime.utcnow()
 
@@ -28,12 +29,16 @@ if __name__ == "__main__":
     if "db_feed" in CONFIGURATION["_custom_"]["cml_parameters"]:
         # database feeder:  -db_feed operations
         database_feeder.main(
-            options=CONFIGURATION["_custom_"]["cml_parameters"]["db_feed"]
+            option=CONFIGURATION["_custom_"]["cml_parameters"]["db_feed"]
         )
     else:
-        log.info(" Nothing to do. How u doin? ")
+        logging.getLogger(__name__).info(" Nothing to do. How u doin? ")
 
     # end time log
     _timelapse = datetime.utcnow() - _startime
-    log.info(" took {:,.2f} seconds to complete".format(_timelapse.total_seconds()))
-    log.info(" Exit {}    <----------------------".format(__module_name))
+    logging.getLogger(__name__).info(
+        " took {:,.2f} seconds to complete".format(_timelapse.total_seconds())
+    )
+    logging.getLogger(__name__).info(
+        " Exit {}    <----------------------".format(__module_name)
+    )

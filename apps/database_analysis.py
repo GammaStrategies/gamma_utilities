@@ -29,8 +29,6 @@ from bins.w3.onchain_utilities import (
     gamma_hypervisor_quickswap_cached,
 )
 
-log = logging.getLogger(__name__)
-
 
 @dataclass
 class status_item:
@@ -139,7 +137,7 @@ class hypervisor_onchain_data_processor:
 
             return self._global_data_by_block[block]
         else:
-            log.warning(
+            logging.getLogger(__name__).warning(
                 f" global data has been called when there is no global_data_by_block set yet on hypervisor {self._hypervisor_address} users by block length: {len(self._users_by_block)}"
             )
             return {}
@@ -153,7 +151,7 @@ class hypervisor_onchain_data_processor:
             if not operation["id"] in self.ids_processed:
                 # check if operation is valid
                 if operation["blockNumber"] < self.last_block_processed:
-                    log.error(
+                    logging.getLogger(__name__).error(
                         f""" Not processing operation with a lower block than last processed: {operation["blockNumber"]}  CHECK operation id: {operation["id"]}"""
                     )
                     continue
@@ -164,7 +162,9 @@ class hypervisor_onchain_data_processor:
                 # set last block number processed
                 self.last_block_processed = operation["blockNumber"]
             else:
-                log.debug(f""" Operation already processed {operation["id"]}""")
+                logging.getLogger(__name__).debug(
+                    f""" Operation already processed {operation["id"]}"""
+                )
 
     # General classifier
     def _process_operation(self, operation: dict):
@@ -494,18 +494,18 @@ class hypervisor_onchain_data_processor:
         if total_shares == 0:
             # there is no deposits yet... hypervisor is in testing or seting up mode
             if fees_collected_token0 == fees_collected_token1 == 0:
-                log.debug(
+                logging.getLogger(__name__).debug(
                     f" Not processing 0x..{self._hypervisor_address[-4:]} fee collection as it has no deposits yet and collected fees are zero"
                 )
             else:
-                log.warning(
+                logging.getLogger(__name__).warning(
                     f" Not processing 0x..{self._hypervisor_address[-4:]} fee collection as it has no deposits yet but fees collected fees are NON zero --> token0: {fees_collected_token0}  token1: {fees_collected_token1}"
                 )
             # exit
             return
         if fees_collected_token0 == fees_collected_token1 == 0:
             # there is no collection made ... but hypervisor changed tick boundaries
-            log.debug(
+            logging.getLogger(__name__).debug(
                 f" Not processing 0x..{self._hypervisor_address[-4:]} fee collection as it has not collected any fees."
             )
             # exit
@@ -565,7 +565,7 @@ class hypervisor_onchain_data_processor:
 
             # log if value is significant
             if (Decimal("1") - total_percentage_applied) > Decimal("0.0001"):
-                log.error(
+                logging.getLogger(__name__).error(
                     " Only {:,.2f} of the rebalance value has been distributed to current accounts. remainder: {} ".format(
                         total_percentage_applied,
                         (Decimal("1") - total_percentage_applied),
@@ -610,7 +610,7 @@ class hypervisor_onchain_data_processor:
                 else:
                     self._global_data_by_block[block][k] = kwargs[k]
             except:
-                log.exception(
+                logging.getLogger(__name__).exception(
                     f" Unexpected error while updating global data key {k} at block {block} of {self._hypervisor_address} hypervisor"
                 )
 
@@ -643,7 +643,7 @@ class hypervisor_onchain_data_processor:
                 not operation.account_address
                 == "0x0000000000000000000000000000000000000000"
             ):
-                log.debug(
+                logging.getLogger(__name__).debug(
                     f"Not adding blacklisted account {operation.account_address} operation"
                 )
 
@@ -808,7 +808,7 @@ class hypervisor_onchain_data_processor_w3(hypervisor_onchain_data_processor):
 
             return self._global_data_by_block[block]
         else:
-            log.warning(
+            logging.getLogger(__name__).warning(
                 f" global data has been called when there is no global_data_by_block set yet on hypervisor {self._hypervisor_address} users by block length: {len(self._users_by_block)}"
             )
             return {}
@@ -822,7 +822,7 @@ class hypervisor_onchain_data_processor_w3(hypervisor_onchain_data_processor):
             if not operation["id"] in self.ids_processed:
                 # check if operation is valid
                 if operation["blockNumber"] < self.last_block_processed:
-                    log.error(
+                    logging.getLogger(__name__).error(
                         f""" Not processing operation with a lower block than last processed: {operation["blockNumber"]}  CHECK operation id: {operation["id"]}"""
                     )
                     continue
@@ -833,7 +833,9 @@ class hypervisor_onchain_data_processor_w3(hypervisor_onchain_data_processor):
                 # set last block number processed
                 self.last_block_processed = operation["blockNumber"]
             else:
-                log.debug(f""" Operation already processed {operation["id"]}""")
+                logging.getLogger(__name__).debug(
+                    f""" Operation already processed {operation["id"]}"""
+                )
 
     # General classifier
     def _process_operation(self, operation: dict):
@@ -1135,18 +1137,18 @@ class hypervisor_onchain_data_processor_w3(hypervisor_onchain_data_processor):
         if total_shares == 0:
             # there is no deposits yet... hypervisor is in testing or seting up mode
             if fees_collected_token0 == fees_collected_token1 == 0:
-                log.debug(
+                logging.getLogger(__name__).debug(
                     f" Not processing 0x..{self._hypervisor_address[-4:]} fee collection as it has no deposits yet and collected fees are zero"
                 )
             else:
-                log.warning(
+                logging.getLogger(__name__).warning(
                     f" Not processing 0x..{self._hypervisor_address[-4:]} fee collection as it has no deposits yet but fees collected fees are NON zero --> token0: {fees_collected_token0}  token1: {fees_collected_token1}"
                 )
             # exit
             return
         if fees_collected_token0 == fees_collected_token1 == 0:
             # there is no collection made ... but hypervisor changed tick boundaries
-            log.debug(
+            logging.getLogger(__name__).debug(
                 f" Not processing 0x..{self._hypervisor_address[-4:]} fee collection as it has not collected any fees."
             )
             # exit
@@ -1206,7 +1208,7 @@ class hypervisor_onchain_data_processor_w3(hypervisor_onchain_data_processor):
 
             # log if value is significant
             if (Decimal("1") - total_percentage_applied) > Decimal("0.0001"):
-                log.error(
+                logging.getLogger(__name__).error(
                     " Only {:,.2f} of the rebalance value has been distributed to current accounts. remainder: {} ".format(
                         total_percentage_applied,
                         (Decimal("1") - total_percentage_applied),
@@ -1272,7 +1274,7 @@ class hypervisor_onchain_data_processor_w3(hypervisor_onchain_data_processor):
                 not operation.account_address
                 == "0x0000000000000000000000000000000000000000"
             ):
-                log.debug(
+                logging.getLogger(__name__).debug(
                     f"Not adding blacklisted account {operation.account_address} operation"
                 )
 
@@ -1456,41 +1458,43 @@ def compare_with_subgraph(
         global_data = hype.global_data()
         shares = hype.shares_qtty()
 
-        log.info(" ")
-        log.info(f""" HYPERVISOR: {hype._hypervisor_address} """)
-        log.info(""" THE GRAPH <-->  WEB3 """)
-        log.info(""" Total supply: """)
-        log.info(
+        logging.getLogger(__name__).info(" ")
+        logging.getLogger(__name__).info(
+            f""" HYPERVISOR: {hype._hypervisor_address} """
+        )
+        logging.getLogger(__name__).info(""" THE GRAPH <-->  WEB3 """)
+        logging.getLogger(__name__).info(""" Total supply: """)
+        logging.getLogger(__name__).info(
             """ {}  <--> {}   ==  {} """.format(
                 hype_graph["totalSupply"],
                 shares,
                 Decimal(hype_graph["totalSupply"]) - shares,
             )
         )
-        log.info(""" Total value locked: """)
-        log.info(
+        logging.getLogger(__name__).info(""" Total value locked: """)
+        logging.getLogger(__name__).info(
             """ token 0:    {:,.2f}  <--> {:,.2f}  ==  {} """.format(
                 hype_graph["tvl0"],
                 global_data["tvl0"],
                 Decimal(hype_graph["tvl0"]) - global_data["tvl0"],
             )
         )
-        log.info(
+        logging.getLogger(__name__).info(
             """ token 1:    {:,.2f}  <--> {:,.2f}  ==  {}""".format(
                 hype_graph["tvl1"],
                 global_data["tvl1"],
                 Decimal(hype_graph["tvl1"]) - global_data["tvl1"],
             )
         )
-        log.info(""" Total fees: """)
-        log.info(
+        logging.getLogger(__name__).info(""" Total fees: """)
+        logging.getLogger(__name__).info(
             """ token 0:    {:,.2f}  <--> {:,.2f}  ==  {}""".format(
                 hype_graph["grossFeesClaimed0"],
                 fees["token0"],
                 Decimal(hype_graph["grossFeesClaimed0"]) - fees["token0"],
             )
         )
-        log.info(
+        logging.getLogger(__name__).info(
             """ token 1:    {:,.2f}  <--> {:,.2f}   ==  {} """.format(
                 hype_graph["grossFeesClaimed1"],
                 fees["token1"],
@@ -1498,14 +1502,14 @@ def compare_with_subgraph(
             )
         )
         # remainder
-        log.info(" ")
-        log.info(
+        logging.getLogger(__name__).info(" ")
+        logging.getLogger(__name__).info(
             """ remainder fees : 0: {}    1: {}  """.format(
                 global_data["fee0_remainder"], global_data["fee1_remainder"]
             )
         )
     except:
-        log.error(
+        logging.getLogger(__name__).error(
             f" Unexpected error while comparing {hype._hypervisor_address} result with subgraphs data.  --> err: {sys.exc_info()[0]}"
         )
 
@@ -1587,12 +1591,12 @@ def get_hypervisor_addresses(network: str, protocol: str) -> list[str]:
     # ]
 
     # apply black list
-    log.debug(
+    logging.getLogger(__name__).debug(
         f" Number of hypervisors to process before applying filters: {len(result)}"
     )
     # filter blcacklisted
     result = [x for x in result if not x in blacklisted]
-    log.debug(
+    logging.getLogger(__name__).debug(
         f" Number of hypervisors to process after applying filters: {len(result)}"
     )
 
@@ -1628,7 +1632,9 @@ if __name__ == "__main__":
 
     ##### main ######
     __module_name = Path(os.path.abspath(__file__)).stem
-    log.info(" Start {}   ----------------------> ".format(__module_name))
+    logging.getLogger(__name__).info(
+        " Start {}   ----------------------> ".format(__module_name)
+    )
     # start time log
     _startime = datetime.utcnow()
 
@@ -1636,5 +1642,9 @@ if __name__ == "__main__":
 
     # end time log
     _timelapse = datetime.utcnow() - _startime
-    log.info(" took {:,.2f} seconds to complete".format(_timelapse.total_seconds()))
-    log.info(" Exit {}    <----------------------".format(__module_name))
+    logging.getLogger(__name__).info(
+        " took {:,.2f} seconds to complete".format(_timelapse.total_seconds())
+    )
+    logging.getLogger(__name__).info(
+        " Exit {}    <----------------------".format(__module_name)
+    )

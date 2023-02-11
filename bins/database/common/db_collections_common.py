@@ -10,6 +10,7 @@ from bins.database.common.db_general_models import (
     tool_mongodb_general,
     tool_database_id,
 )
+from bins.database.common.db_object_models import usd_price
 from bins.log import log_helper
 
 
@@ -210,9 +211,14 @@ class database_global(db_collections_common):
     def set_price_usd(
         self, network: str, block: int, token_address: str, price_usd: float
     ):
-        data = db_object_models.usd_price(
-            network=network, block=block, address=token_address, price_usd=price_usd
-        )
+        data = {
+            "id": f"{network}_{block}_{token_address}",
+            "network": network,
+            "block": block,
+            "address": token_address,
+            "price": price_usd,
+        }
+
         self.save_item_to_database(data=data, collection_name="usd_prices")
 
     def set_block(self, network: str, block: int, timestamp: datetime.timestamp):
@@ -223,18 +229,20 @@ class database_global(db_collections_common):
         self,
         network: str,
         block: int,
+        address: str,
     ) -> float:
         """get usd price from block
 
         Args:
             network (str): ethereum, optimism, polygon....
             block (int): number
+            address (str): token address
 
         Returns:
             float: price in usd
         """
         result = self.get_items_from_database(
-            query=self.query_usd_price(network=network, block=block),
+            query=self.query_usd_price(network=network, block=block, address=address),
             collection_name="usd_prices",
         )
         return result
@@ -274,7 +282,7 @@ class database_global(db_collections_common):
         return []
 
     @staticmethod
-    def query_usd_price(network: str, block: int) -> list[dict]:
+    def query_usd_price(network: str, block: int, address: str) -> list[dict]:
 
         # return query
         return []
@@ -347,6 +355,7 @@ class database_local(db_collections_common):
         )
 
     def set_static(self, data: dict):
+        data["id"] = data["address"]
         self.save_item_to_database(data=data, collection_name="static")
 
     def set_operation(self, data: dict):
@@ -409,6 +418,16 @@ class database_local(db_collections_common):
         ]
         return self.get_items_from_database(collection_name="status", aggregate=query)
 
+    def get_unique_tokens(self) -> list:
+        """Get a unique token list from status database
+
+        Returns:
+            list:
+        """
+        return self.get_items_from_database(
+            collection_name="status", aggregate=self.query_unique_token_addresses()
+        )
+
     def get_items(self, collection_name: str, **kwargs) -> list:
         """Any
 
@@ -441,4 +460,29 @@ class database_local(db_collections_common):
                 }
             },
             {"$unset": ["_id"]},
+        ]
+
+    @staticmethod
+    def query_unique_token_addresses() -> list[dict]:
+        """Unique token list using status database
+
+        Returns:
+            list[dict]:
+        """
+        return [
+            {
+                "$group": {
+                    "_id": "$pool.address",
+                    "items": {"$push": "$$ROOT"},
+                }
+            },
+            {"$project": {"_id": "$_id", "last": {"$last": "$items"}}},
+            {
+                "$project": {
+                    "_id": "$_id",
+                    "token": ["$last.pool.token0.address", "$last.pool.token1.address"],
+                }
+            },
+            {"$unwind": "$token"},
+            {"$group": {"_id": "$token"}},
         ]

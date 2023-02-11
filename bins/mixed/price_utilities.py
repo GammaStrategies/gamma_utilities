@@ -59,8 +59,16 @@ class price_scraper:
                     network, token_id, block
                 )
             )
-            _price = self._get_price_from_univ3_thegraph(network, token_id, block, of)
-
+            try:
+                _price = self._get_price_from_univ3_thegraph(
+                    network, token_id, block, of
+                )
+            except:
+                logging.getLogger(__name__).debug(
+                    " Could not get {}'s token {} price at block {} from uniswapv3 subgraph.".format(
+                        network, token_id, block
+                    )
+                )
         if _price == None or _price == 0:
             # GET FROM COINGECKO
             logging.getLogger(__name__).debug(
@@ -68,7 +76,14 @@ class price_scraper:
                     network, token_id, block
                 )
             )
-            _price = self._get_price_from_coingecko(network, token_id, block, of)
+            try:
+                _price = self._get_price_from_coingecko(network, token_id, block, of)
+            except:
+                logging.getLogger(__name__).debug(
+                    " Could not get {}'s token {} price at block {} from coingecko.".format(
+                        network, token_id, block
+                    )
+                )
 
         # SAVE CACHE
         if _price != None and _price != 0 and self.cache != None:

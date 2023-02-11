@@ -118,7 +118,7 @@ def test_thegraph_vs_onchain_data_fees(
 
                 # add to result
                 result.append(
-                    do_loop_work(
+                    do_loop_work_loc_graph(
                         hypervisor,
                         web3Provider,
                         dexV3_helper,
@@ -138,7 +138,7 @@ def test_thegraph_vs_onchain_data_fees(
                 for hypervisor in hypervisors
             )
             with concurrent.futures.ThreadPoolExecutor(max_workers=5) as ex:
-                for result_item in ex.map(lambda p: do_loop_work(*p), args):
+                for result_item in ex.map(lambda p: do_loop_work_loc_graph(*p), args):
                     # progress
                     progress_bar.set_description(
                         "processed {}-{} {}".format(
@@ -559,6 +559,7 @@ def do_loop_work(
     return appendableItem
 
 
+# using loc new subgraph for feegrowth params
 def do_loop_work_loc_graph(
     hypervisor,
     web3Provider,
@@ -584,6 +585,7 @@ def do_loop_work_loc_graph(
         gamma_web3Helper = onchain_utilities.gamma_hypervisor(
             address=hypervisor["id"], network=network, block=block
         )
+
     elif dex == "quickswap":
         gamma_web3Helper = onchain_utilities.gamma_hypervisor_quickswap(
             address=hypervisor["id"], network=network, block=block
@@ -610,22 +612,29 @@ def do_loop_work_loc_graph(
         int(hypervisor["limitLower"]),
     ]
     # get all ticks [feeGrowthOutside1X128 and feeGrowthOutside0X128]
-    univ3_ticks = dexV3_helper.get_all_results(
-        network=network,
-        query_name="ticks",
-        where=""" tickIdx_in: {}, poolAddress: "{}" """.format(
-            ticks, hypervisor["pool"]["id"]
-        ),
-        block=""" number:{} """.format(block),
-    )
     # classify univ3 ticks in a dict
     feeGrowthOutside = dict()
-    for tick in univ3_ticks:
-        if not int(tick["tickIdx"]) in feeGrowthOutside:
-            feeGrowthOutside[int(tick["tickIdx"])] = {
-                "feeGrowthOutside0X128": tick["feeGrowthOutside0X128"],
-                "feeGrowthOutside1X128": tick["feeGrowthOutside1X128"],
-            }
+    for pos in ["base", "limit"]:
+        feeGrowthOutside[
+            special_hypervisor[f"{pos}Position"]["tickLower"]["tickIdx"]
+        ] = {
+            "feeGrowthOutside0X128": special_hypervisor[f"{pos}Position"]["tickLower"][
+                "feeGrowthOutside0X128"
+            ],
+            "feeGrowthOutside1X128": special_hypervisor[f"{pos}Position"]["tickLower"][
+                "feeGrowthOutside1X128"
+            ],
+        }
+        feeGrowthOutside[
+            special_hypervisor[f"{pos}Position"]["tickUpper"]["tickIdx"]
+        ] = {
+            "feeGrowthOutside0X128": special_hypervisor[f"{pos}Position"]["tickUpper"][
+                "feeGrowthOutside0X128"
+            ],
+            "feeGrowthOutside1X128": special_hypervisor[f"{pos}Position"]["tickUpper"][
+                "feeGrowthOutside1X128"
+            ],
+        }
 
     # create a res item to fill with comparison data
     result_item = dict()
@@ -634,12 +643,8 @@ def do_loop_work_loc_graph(
     for pos in ["base", "limit"]:
 
         # feeGrowthGlobal is pool's same regardless of position (limit, base)
-        feeGrowthGlobal0X128 = special_hypervisor["{}Position".format(pos)][
-            "tickLower"
-        ]["pool"]["feeGrowthGlobal0X128"]
-        feeGrowthGlobal1X128 = special_hypervisor["{}Position".format(pos)][
-            "tickLower"
-        ]["pool"]["feeGrowthGlobal1X128"]
+        feeGrowthGlobal0X128 = special_hypervisor["pool"]["feeGrowthGlobal0X128"]
+        feeGrowthGlobal1X128 = special_hypervisor["pool"]["feeGrowthGlobal1X128"]
 
         # set the graph data fields
         typname = "graph"
@@ -676,7 +681,7 @@ def do_loop_work_loc_graph(
                 except KeyError:
                     # : one of hypervisor's tick is not present at uniswapv3 subgraph when querying for it, but it is showing up in gamma's subgraph...
                     logging.getLogger(__name__).error(
-                        "{} tick {} is not present in uniswap's subgraph using <tickIdx_in: {}, poolAddress:{} > in the query.".format(
+                        "{} tick {} is not present in locs's special subgraph using <tickIdx_in: {}, poolAddress:{} > in the query.".format(
                             hypervisor_name,
                             result_item["{}_{}_{}Tick".format(pos, typname, y)],
                             ticks,
@@ -819,7 +824,7 @@ if __name__ == "__main__":
         network="polygon",
         dex="quickswap",
         block=38945270,
-        threaded=True,
+        threaded=False,
         # hypervisor_address="0x5928f9f61902b139e1c40cba59077516734ff09f",
     )
 

@@ -55,15 +55,28 @@ class file_backend:
         # init price cache
         self._cache = dict()
 
-    def _load_cache_file(self) -> dict:
-        with CACHE_LOCK:
+    def _load_cache_file(self, lock: bool = True) -> dict:
+        if lock:
+            with CACHE_LOCK:
+                temp_loaded_cache = file_utilities.load_json(
+                    filename=self.file_name, folder_path=self.folder_name
+                )
+        else:
             temp_loaded_cache = file_utilities.load_json(
                 filename=self.file_name, folder_path=self.folder_name
             )
         return temp_loaded_cache
 
-    def _save_tofile(self):
-        with CACHE_LOCK:
+    def _save_tofile(self, lock: bool = True):
+        if lock:
+            with CACHE_LOCK:
+                # save file
+                file_utilities.save_json(
+                    filename=self.file_name,
+                    data=self._cache,
+                    folder_path=self.folder_name,
+                )
+        else:
             # save file
             file_utilities.save_json(
                 filename=self.file_name, data=self._cache, folder_path=self.folder_name
@@ -293,7 +306,7 @@ class standard_thegraph_cache(file_backend):
                 self._cache[network][block][key] = data
 
                 # save cache to file
-                self._save_tofile()
+                self._save_tofile(lock=False)
 
             return True
         # not added

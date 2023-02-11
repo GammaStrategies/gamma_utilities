@@ -32,6 +32,7 @@ class token(tool_mongodb_general, tool_database_id):
         self.position = data["position"]
 
 
+# not used
 @dataclass
 class pool(tool_mongodb_general, tool_database_id):
     address: str
@@ -107,6 +108,7 @@ class static(tool_mongodb_general, tool_database_id):
         return f"{self.network}_{self.address}"
 
 
+# not used
 @dataclass
 class status(tool_mongodb_general, tool_database_id):
     network: str
@@ -124,5 +126,6 @@ class status(tool_mongodb_general, tool_database_id):
         return f"{self.network}_{self.block}_{self.address}"
 
 
+# not used
 class root_price:
     pass
