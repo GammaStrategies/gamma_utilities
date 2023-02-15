@@ -4,6 +4,8 @@ from bins.cache import cache_utilities
 from bins.apis import thegraph_utilities, coingecko_utilities
 from bins.configuration import CONFIGURATION
 
+LOG_NAME = "price"
+
 
 class price_scraper:
     def __init__(self, cache: bool = True, cache_filename: str = ""):
@@ -54,21 +56,36 @@ class price_scraper:
 
         if _price == None or _price == 0:
             # GET FROM UNIV3 THEGRAPH
-            logging.getLogger(__name__).debug(
+            logging.getLogger(LOG_NAME).debug(
                 " Trying to get {}'s token {} price at block {} from uniswapv3 subgraph".format(
                     network, token_id, block
                 )
             )
-            _price = self._get_price_from_univ3_thegraph(network, token_id, block, of)
-
+            try:
+                _price = self._get_price_from_univ3_thegraph(
+                    network, token_id, block, of
+                )
+            except:
+                logging.getLogger(LOG_NAME).debug(
+                    " Could not get {}'s token {} price at block {} from uniswapv3 subgraph.".format(
+                        network, token_id, block
+                    )
+                )
         if _price == None or _price == 0:
             # GET FROM COINGECKO
-            logging.getLogger(__name__).debug(
+            logging.getLogger(LOG_NAME).debug(
                 " Trying to get {}'s token {} price at block {} from coingecko".format(
                     network, token_id, block
                 )
             )
-            _price = self._get_price_from_coingecko(network, token_id, block, of)
+            try:
+                _price = self._get_price_from_coingecko(network, token_id, block, of)
+            except:
+                logging.getLogger(LOG_NAME).debug(
+                    " Could not get {}'s token {} price at block {} from coingecko.".format(
+                        network, token_id, block
+                    )
+                )
 
         # SAVE CACHE
         if _price != None and _price != 0 and self.cache != None:
@@ -83,7 +100,7 @@ class price_scraper:
             )
         else:
             # not found
-            logging.getLogger(__name__).warning(
+            logging.getLogger(LOG_NAME).warning(
                 " {}'s token {} price at block {} not found".format(
                     network, token_id, block
                 )
@@ -154,7 +171,7 @@ class price_scraper:
         except ZeroDivisionError:
             # one or all prices are zero. Cant continue
             # return zeros
-            logging.getLogger(__name__).warning(
+            logging.getLogger(LOG_NAME).warning(
                 "one or all price variables of {}'s token {} (address {}) at block {} from uniswap subgraph are ZERO. Can't get price.  --> data: {}".format(
                     network, token_symbol, token_id, block, _data
                 )
@@ -164,20 +181,20 @@ class price_scraper:
             # errors': [{'message': 'indexing_error'}]
             if "errors" in _data:
                 for error in _data["errors"]:
-                    logging.getLogger(__name__).error(
+                    logging.getLogger(LOG_NAME).error(
                         "Unexpected error while getting price of {}'s token address {} at block {} from uniswap subgraph   data:{}      .error: {}".format(
                             network, token_id, block, _data, error
                         )
                     )
             else:
-                logging.getLogger(__name__).exception(
+                logging.getLogger(LOG_NAME).exception(
                     "Unexpected error while getting price of {}'s token address {} at block {} from uniswap subgraph   data:{}      .error: {}".format(
                         network, token_id, block, _data, sys.exc_info()[0]
                     )
                 )
             _price = 0
         except:
-            logging.getLogger(__name__).exception(
+            logging.getLogger(LOG_NAME).exception(
                 "Unexpected error while getting price of {}'s token address {} at block {} from uniswap subgraph   data:{}      .error: {}".format(
                     network, token_id, block, _data, sys.exc_info()[0]
                 )

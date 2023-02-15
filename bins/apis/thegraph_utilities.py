@@ -2815,45 +2815,45 @@ class quickswap_scraper(thegraph_scraper_helper):
         elif name == "hypervisors_loc":
             return """{{ hypervisors({}, skip: {}) {{
                            id
-                            pool {
+                            pool {{
                             currentTick
                             feeGrowthGlobal0X128
                             feeGrowthGlobal1X128
-                            }
-                            basePosition {
+                            }}
+                            basePosition {{
                             liquidity
                             tokensOwed0
                             tokensOwed1
                             feeGrowthInside0X128
                             feeGrowthInside1X128
-                            tickLower {
+                            tickLower {{
                                 tickIdx
                                 feeGrowthOutside0X128
                                 feeGrowthOutside1X128
-                            }
-                            tickUpper {
+                            }}
+                            tickUpper {{
                                 tickIdx
                                 feeGrowthOutside0X128
                                 feeGrowthOutside1X128
-                            }
-                            }
-                            limitPosition {
+                            }}
+                            }}
+                            limitPosition {{
                             liquidity
                             tokensOwed0
                             tokensOwed1
                             feeGrowthInside0X128
                             feeGrowthInside1X128
-                            tickLower {
+                            tickLower {{
                                 tickIdx
                                 feeGrowthOutside0X128
                                 feeGrowthOutside1X128
-                            }
-                            tickUpper {
+                            }}
+                            tickUpper {{
                                 tickIdx
                                 feeGrowthOutside0X128
                                 feeGrowthOutside1X128
-                            }
-                            }
+                            }}
+                            }}
                     }}
                     }}""".format(
                 filter, skip
@@ -3015,7 +3015,6 @@ class quickswap_scraper(thegraph_scraper_helper):
             itm["volumeUSD"] = float(itm["volumeUSD"])
 
         elif query_name == "hypervisors_loc":
-            pass
             itm["pool"]["currentTick"] = int(itm["pool"]["currentTick"])
             itm["pool"]["feeGrowthGlobal0X128"] = int(
                 itm["pool"]["feeGrowthGlobal0X128"]
@@ -3092,7 +3091,10 @@ class quickswap_scraper(thegraph_scraper_helper):
         return itm
 
     def _url_constructor(self, network, query_name: str = ""):
-        return self.__URLS[network]
+        if "_loc" in query_name:
+            return self.__URLS_loc[network]
+        else:
+            return self.__URLS[network]
 
 
 class blocks_scraper(thegraph_scraper_helper):

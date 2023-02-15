@@ -993,7 +993,7 @@ class onchain_data_helper2:
 
     def get_custom_blockBounds(
         self, date_ini: dt.datetime, date_end: dt.datetime, network: str, step="week"
-    ) -> tuple:
+    ) -> tuple[int, int]:
 
         if step == "week":
             # convert date_ini in that same week first day first hour
@@ -1049,10 +1049,123 @@ class onchain_data_helper2:
             inexact_mode="after",
             eq_timestamp_position="first",
         )
-        block_end = dummy_helper.blockNumberFromTimestamp(
-            timestamp=dt.datetime.timestamp(result_date_end),
-            inexact_mode="before",
-            eq_timestamp_position="last",
-        )
+        try:
+            block_end = dummy_helper.blockNumberFromTimestamp(
+                timestamp=dt.datetime.timestamp(result_date_end),
+                inexact_mode="before",
+                eq_timestamp_position="last",
+            )
+        except:
+            # Last chance: get last block
+            logging.getLogger(__name__).warning(
+                f" Unexpected error converting datetime to block end in {network}. Trying to get last block instead."
+            )
+            try:
+                block_end = dummy_helper.w3.eth.get_block("latest").number
+            except:
+                logging.getLogger(__name__).exception(
+                    f" Unexpected error retrieving {network}'s last block. error->{sys.exc_info()[0]}"
+                )
 
         return block_ini, block_end
+
+    def get_block_fromDatetime(
+        self, date: dt.datetime, network: str, step="week"
+    ) -> int:
+
+        if step == "week":
+            # convert date_ini in that same week first day first hour
+            year, week_num, day_of_week = date_ini.isocalendar()
+            result_date_ini = dt.datetime.fromisocalendar(year, week_num, 1)
+
+            # convert date_end in that same week last day last hour
+            year, week_num, day_of_week = date_end.isocalendar()
+            result_date_end = dt.datetime.fromisocalendar(year, week_num, 7)
+
+            step_secs = 60 * 60 * 24 * 7
+        elif step == "day":
+            # convert date_ini in that same day first hour
+            result_date_ini = dt.datetime(
+                year=date_ini.year,
+                month=date_ini.month,
+                day=date_ini.day,
+                hour=0,
+                minute=0,
+                second=0,
+            )
+
+            # convert date_end in that same week last day last hour
+            result_date_end = dt.datetime(
+                year=date_end.year,
+                month=date_end.month,
+                day=date_end.day,
+                hour=23,
+                minute=59,
+                second=59,
+            )
+
+            step_secs = 60 * 60 * 24
+        else:
+            raise NotImplementedError(
+                " blockBounds step not implemented: {}".format(step)
+            )
+
+    def convert_datetime_toComparable(
+        self, date_ini: dt.datetime = None, date_end: dt.datetime = None, step="week"
+    ) -> dict:
+        """Converts dates to comparable like, when "day" step is chosen, date_ini is converted in that same day first hour and
+            date_end in that same day last hour minute second
+
+        Args:
+            date_ini (dt.datetime, optional): initial date to transform. Defaults to None.
+            date_end (dt.datetime, optional): end date to transform. Defaults to None.
+            step (str, optional): can be day and week (TODO: more). Defaults to "week".
+
+        Raises:
+            NotImplementedError: when stem is not defined
+
+        Returns:
+            dict: {"date_ini":None, "date_end":None, "step_secs":0}
+        """
+        result = {"date_ini": None, "date_end": None, "step_secs": 0}
+
+        if step == "week":
+            if date_ini:
+                # convert date_ini in that same week first day first hour
+                year, week_num, day_of_week = date_ini.isocalendar()
+                result["date_ini"] = dt.datetime.fromisocalendar(year, week_num, 1)
+            if date_end:
+                # convert date_end in that same week last day last hour
+                year, week_num, day_of_week = date_end.isocalendar()
+                result["date_end"] = dt.datetime.fromisocalendar(year, week_num, 7)
+
+            result["step_secs"] = 60 * 60 * 24 * 7
+        elif step == "day":
+            if date_ini:
+                # convert date_ini in that same day first hour
+                result["date_ini"] = dt.datetime(
+                    year=date_ini.year,
+                    month=date_ini.month,
+                    day=date_ini.day,
+                    hour=0,
+                    minute=0,
+                    second=0,
+                )
+            if date_end:
+                # convert date_end in that same week last day last hour
+                result["date_end"] = dt.datetime(
+                    year=date_end.year,
+                    month=date_end.month,
+                    day=date_end.day,
+                    hour=23,
+                    minute=59,
+                    second=59,
+                )
+
+            result["step_secs"] = 60 * 60 * 24
+        else:
+            raise NotImplementedError(
+                " blockBounds step not implemented: {}".format(step)
+            )
+
+            return result

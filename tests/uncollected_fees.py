@@ -1518,7 +1518,7 @@ def test_uncollected_fees_onchain(
         timestamp = web3Provider.eth.getBlock(block).timestamp
 
         # TVL direct contract call
-        totalAmounts = gamma_web3Helper.getTotalAmounts
+        totalAmounts = gamma_web3Helper.getTotalAmounts  # TODO: check no float anymore
         tvl0_direct = totalAmounts["total0"]
         tvl1_direct = totalAmounts["total1"]
         # TVL indirect univ3 calculation calls

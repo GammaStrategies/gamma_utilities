@@ -2,3 +2,12 @@
 Dex:
   ☐ Implement in configuration file
   ☐ Im
+
+database_feeder:
+  ☐ (line 87) -> implement onchain datetime block conversion individually 
+            (onchain_helper.get_custom_blockBounds) -> for initial and end dates
+  ☐ Log number of errors at the end of feeding status ( maybe log error summary?)
+  ☐ Save status last block to db (current)
+
+database_analysis:
+  ☐ Implement new read only hypervisor with database as datasource

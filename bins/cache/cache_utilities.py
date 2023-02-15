@@ -6,7 +6,7 @@ import threading
 from bins.general import file_utilities, net_utilities
 from bins.database.common.db_collections_common import db_collections_common
 
-CACHE_LOCK = threading.Lock()
+CACHE_LOCK = threading.Lock()  ##threading.RLock
 
 
 class file_backend:
@@ -55,15 +55,28 @@ class file_backend:
         # init price cache
         self._cache = dict()
 
-    def _load_cache_file(self) -> dict:
-        with CACHE_LOCK:
+    def _load_cache_file(self, lock: bool = True) -> dict:
+        if lock:
+            with CACHE_LOCK:
+                temp_loaded_cache = file_utilities.load_json(
+                    filename=self.file_name, folder_path=self.folder_name
+                )
+        else:
             temp_loaded_cache = file_utilities.load_json(
                 filename=self.file_name, folder_path=self.folder_name
             )
         return temp_loaded_cache
 
-    def _save_tofile(self):
-        with CACHE_LOCK:
+    def _save_tofile(self, lock: bool = True):
+        if lock:
+            with CACHE_LOCK:
+                # save file
+                file_utilities.save_json(
+                    filename=self.file_name,
+                    data=self._cache,
+                    folder_path=self.folder_name,
+                )
+        else:
             # save file
             file_utilities.save_json(
                 filename=self.file_name, data=self._cache, folder_path=self.folder_name
@@ -227,7 +240,12 @@ class standard_property_cache(file_backend):
 
         try:
             # use it for key in cache
-            return self._cache[chain_id][address][block][key]
+            return (
+                self._cache.get(chain_id, None)
+                .get(address, None)
+                .get(block, None)
+                .get(key, None)
+            )  # [chain_id][address][block][key]
         except:
             pass
 
@@ -293,7 +311,7 @@ class standard_thegraph_cache(file_backend):
                 self._cache[network][block][key] = data
 
                 # save cache to file
-                self._save_tofile()
+                self._save_tofile(lock=False)
 
             return True
         # not added

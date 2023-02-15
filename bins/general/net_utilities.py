@@ -12,8 +12,6 @@ from requests import exceptions as req_exceptions
 # TODO: implement requests-cache
 
 
-
-
 #
 def post_request(url: str, query: str, retry=0, max_retry=2, wait_secs=5) -> dict:
 
@@ -98,7 +96,7 @@ class rate_limit:
         self.rate_count_lastupdate: dt.datetime = dt.datetime.now() - dt.timedelta(
             hours=8
         )
-        self.lock = threading.Lock()
+        self.lock = threading.Lock()  # threading.RLock
 
     def hit(self) -> bool:
         """Report a query to rate limit and

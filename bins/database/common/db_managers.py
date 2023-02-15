@@ -146,6 +146,10 @@ class MongoDbManager:
                                    allowDiskUse=<bool>
         """
 
+        # when no argunments, return all
+        if len(kwargs.keys()) == 0:
+            kwargs["find"] = {}
+
         # build FIND result
         if "find" in kwargs:
             if "batch_size" in kwargs:
