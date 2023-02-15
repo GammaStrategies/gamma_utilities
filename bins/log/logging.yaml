@@ -71,22 +71,12 @@ handlers:
         backupCount: 2
         encoding: utf8
 
-    special_file_handler:
+    price_file_handler:
         class: logging.handlers.RotatingFileHandler
         level: DEBUG
         formatter: simple
         filters: [duplicateFilter]
-        filename: special.log
-        maxBytes: 10485760 # 10MB
-        backupCount: 0
-        encoding: utf8
-
-    analysis_file_handler:
-        class: logging.handlers.RotatingFileHandler
-        level: DEBUG
-        formatter: simple
-        filters: [duplicateFilter]
-        filename: analysis.log
+        filename: price.log
         maxBytes: 10485760 # 10MB
         backupCount: 0
         encoding: utf8
@@ -100,16 +90,11 @@ loggers:
         level: DEBUG
         handlers: [console, debug_file_handler, info_file_handler, warning_file_handler, critical_file_handler, error_file_handler]
         propagate: False
-    
-    special:
+    price:
         level: DEBUG
-        handlers: [special_file_handler]
+        handlers: [price_file_handler]
         propagate: False
 
-    analysis:
-        level: DEBUG
-        handlers: [analysis_file_handler]
-        propagate: False
 root:
     level: INFO
     handlers: [console, debug_file_handler, info_file_handler, warning_file_handler, critical_file_handler, error_file_handler]
