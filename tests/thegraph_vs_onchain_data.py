@@ -464,6 +464,14 @@ def do_loop_work(
             if pos == "base"
             else gamma_web3Helper.getLimitPosition
         )
+        # convert to floats
+        w3position["amount0"] = w3position["amount0"] / (
+            10**gamma_web3Helper.token0.decimals
+        )
+        w3position["amount1"] = w3position["amount1"] / (
+            10**gamma_web3Helper.token1.decimals
+        )
+
         w3tickUpper = (
             gamma_web3Helper.baseUpper if pos == "base" else gamma_web3Helper.limitUpper
         )
@@ -713,6 +721,14 @@ def do_loop_work_loc_graph(
             if pos == "base"
             else gamma_web3Helper.getLimitPosition
         )
+        # convert to floats
+        w3position["amount0"] = w3position["amount0"] / (
+            10**gamma_web3Helper.token0.decimals
+        )
+        w3position["amount1"] = w3position["amount1"] / (
+            10**gamma_web3Helper.token1.decimals
+        )
+
         w3tickUpper = (
             gamma_web3Helper.baseUpper if pos == "base" else gamma_web3Helper.limitUpper
         )
@@ -823,9 +839,9 @@ if __name__ == "__main__":
     test_thegraph_vs_onchain_data_fees_save_csv(
         network="polygon",
         dex="quickswap",
-        block=38945270,
+        block=37724862,
         threaded=False,
-        # hypervisor_address="0x5928f9f61902b139e1c40cba59077516734ff09f",
+        hypervisor_address="0x6ccf63ac74b5533c456c3a68786629e7670293c0",
     )
 
     # test_thegraph_vs_onchain_data_fees_find(

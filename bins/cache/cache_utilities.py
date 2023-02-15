@@ -6,7 +6,7 @@ import threading
 from bins.general import file_utilities, net_utilities
 from bins.database.common.db_collections_common import db_collections_common
 
-CACHE_LOCK = threading.Lock()
+CACHE_LOCK = threading.Lock()  ##threading.RLock
 
 
 class file_backend:
@@ -240,7 +240,12 @@ class standard_property_cache(file_backend):
 
         try:
             # use it for key in cache
-            return self._cache[chain_id][address][block][key]
+            return (
+                self._cache.get(chain_id, None)
+                .get(address, None)
+                .get(block, None)
+                .get(key, None)
+            )  # [chain_id][address][block][key]
         except:
             pass
 

@@ -225,6 +225,13 @@ class database_global(db_collections_common):
         data = db_object_models.block(network=network, block=block, timestamp=timestamp)
         self.save_item_to_database(data=data, collection_name="blocks")
 
+    def get_all_priceAddressBlocks(self, network: str) -> list():
+        result = self.query_items_from_database(
+            query=self.query_prices_addressBlocks(network=network),
+            collection_name="usd_prices",
+        )
+        return result
+
     def get_price_usd(
         self,
         network: str,
@@ -241,7 +248,7 @@ class database_global(db_collections_common):
         Returns:
             float: price in usd
         """
-        result = self.get_items_from_database(
+        result = self.query_items_from_database(
             query=self.query_usd_price(network=network, block=block, address=address),
             collection_name="usd_prices",
         )
@@ -252,7 +259,7 @@ class database_global(db_collections_common):
         network: str,
         block: int,
     ) -> datetime.timestamp:
-        result = self.get_items_from_database(
+        result = self.query_items_from_database(
             query=self.query_timestamp(network=network, block=block),
             collection_name="blocks",
         )
@@ -263,7 +270,7 @@ class database_global(db_collections_common):
         network: str,
         timestamp: datetime.timestamp,
     ) -> int:
-        result = self.get_items_from_database(
+        result = self.query_items_from_database(
             query=self.query_block(network=network, timestamp=timestamp),
             collection_name="blocks",
         )
@@ -286,6 +293,14 @@ class database_global(db_collections_common):
 
         # return query
         return []
+
+    @staticmethod
+    def query_prices_addressBlocks(network: str) -> list[dict]:
+        return [
+            {"$match": {"network": network}},
+            {"$group": {"_id": {"address": "$address", "block": "$block"}}},
+            {"$replaceRoot": {"newRoot": "$_id"}},
+        ]
 
 
 class database_local(db_collections_common):
@@ -354,6 +369,15 @@ class database_local(db_collections_common):
             mongo_url=mongo_url, db_name=db_name, db_collections=db_collections
         )
 
+    def get_items(self, collection_name: str, **kwargs) -> list:
+        """Any
+
+        Returns:
+            list: of results
+        """
+        return self.get_items_from_database(collection_name=collection_name, **kwargs)
+
+    # specific collection related
     def set_static(self, data: dict):
         data["id"] = data["address"]
         self.save_item_to_database(data=data, collection_name="static")
@@ -365,6 +389,38 @@ class database_local(db_collections_common):
         # define database id
         data["id"] = f"{data['address']}_{data['block']}"
         self.save_item_to_database(data=data, collection_name="status")
+
+    def get_all_status(self, hypervisor_address: str) -> list:
+        """find all hypervisor status from db
+            sort by lowest block first
+
+        Args:
+            hypervisor_address (str): address
+
+        Returns:
+            list: hypervisor status list
+        """
+        find = {"address": hypervisor_address}
+        sort = [("block", 1)]
+        return self.get_items_from_database(
+            collection_name="status", find=find, sort=sort
+        )
+
+    def get_all_operations(self, hypervisor_address: str) -> list:
+        """find all hypervisor operations from db
+            sort by lowest block and lowest logIndex first
+
+        Args:
+            hypervisor_address (str): address
+
+        Returns:
+            list: hypervisor status list
+        """
+        find = {"address": hypervisor_address}
+        sort = [("blockNumber", 1), ("logIndex", 1)]
+        return self.get_items_from_database(
+            collection_name="operations", find=find, sort=sort
+        )
 
     def get_unique_operations_blockAddress(self) -> list:
         """Retrieve a list of unique blocks + addresses present in operations collection
@@ -427,14 +483,6 @@ class database_local(db_collections_common):
         return self.get_items_from_database(
             collection_name="status", aggregate=self.query_unique_token_addresses()
         )
-
-    def get_items(self, collection_name: str, **kwargs) -> list:
-        """Any
-
-        Returns:
-            list: of results
-        """
-        return self.get_items_from_database(collection_name=collection_name, **kwargs)
 
     @staticmethod
     def query_unique_addressBlocks() -> list[dict]:

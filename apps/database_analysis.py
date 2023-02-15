@@ -37,15 +37,24 @@ class status_item:
     topic: str = ""
     account_address: str = ""
 
+    # investment are deposits.
+    # When transfers occur, investment % of the transfer share qtty is also transfered to new account. When investments are closed, the divestment % is substracted
     investment_qtty_token0: Decimal = Decimal("0")
     investment_qtty_token1: Decimal = Decimal("0")
 
+    # fees always grow in proportion to current block's shares
     fees_collected_token0: Decimal = Decimal("0")
     fees_collected_token1: Decimal = Decimal("0")
 
-    fees_owed_token0: Decimal = Decimal("0")
-    fees_owed_token1: Decimal = Decimal("0")
+    # owed fees + feeGrowth calculation
+    fees_uncollected_token0: Decimal = Decimal("0")
+    fees_uncollected_token1: Decimal = Decimal("0")
 
+    # impermanent result token0 token1
+    impermanent_result_token0: Decimal = Decimal("0")
+    impermanent_result_token1: Decimal = Decimal("0")
+
+    # every rebalance, there is a closed position.
     closed_investment_return_token0: Decimal = Decimal("0")
     closed_investment_return_token1: Decimal = Decimal("0")
     closed_investment_return_token0_percent: Decimal = Decimal("0")
@@ -55,6 +64,11 @@ class status_item:
     # ( this is % that multiplied by tvl gives u total qtty assets)
     shares_percent: Decimal = Decimal("0")
 
+    # total underlying assets ( Be aware that includes uncollected fees )
+    total_underlying_token0: Decimal(0) = Decimal("0")
+    total_underlying_token1: Decimal(0) = Decimal("0")
+
+    # save the raw operation info here
     raw_operation: dict = field(default_factory=dict)
 
     def fill_from_status(self, status: super):
@@ -499,7 +513,7 @@ class hypervisor_onchain_data_processor:
                 )
             else:
                 logging.getLogger(__name__).warning(
-                    f" Not processing 0x..{self._hypervisor_address[-4:]} fee collection as it has no deposits yet but fees collected fees are NON zero --> token0: {fees_collected_token0}  token1: {fees_collected_token1}"
+                    f" Not processing 0x..{self._hypervisor_address[-4:]} fee collection as it has no deposits yet but collected fees are NON zero --> token0: {fees_collected_token0}  token1: {fees_collected_token1}"
                 )
             # exit
             return
@@ -708,8 +722,12 @@ class hypervisor_onchain_data_processor:
             if len(processed_addresses) == len(total_shares_addresses.keys()):
                 break
 
+        result = sum(list(total_shares_addresses.values()))
+        result_noCalc = Decimal(self._statuc[at_block]["totalSupply"])
+        # TODO: compare both
+
         # sum shares
-        return sum(list(total_shares_addresses.values()))
+        return result
 
     def get_all_account_addresses(self, at_block: int = 0) -> list[str]:
         """Get a unique list of addresses
@@ -1365,6 +1383,747 @@ class hypervisor_onchain_data_processor_w3(hypervisor_onchain_data_processor):
         return list(addresses_list)
 
 
+class ro_hypervisor_db:
+    def __init__(self, hypervisor_address: str, network: str, protocol: str):
+
+        self._hypervisor_address = hypervisor_address
+        self.__blacklist_addresses = ["0x0000000000000000000000000000000000000000"]
+        # { <block>: {<user address>:status list}}
+        self._users_by_block = dict()
+
+        # databse items
+        self._status = dict()  # hypervisor status
+        self._operations = dict()  # hypervior operations
+
+        # control var (itemsprocessed): list of operation ids processed
+        self.ids_processed = list()
+        # control var time order :  last block always >= current
+        self.last_block_processed: int = 0
+
+        self.network = network
+        self.protocol = protocol
+
+    # Configuration
+    def load_from_database(self, db_url: str):
+        """load all possible hypervisor data from database
+
+        Args:
+            db_url (str): mongo database full url access
+        """
+        # create database link
+        db_name = f"{self.network}_{self.protocol}"
+        local_db_manager = database_local(mongo_url=db_url, db_name=db_name)
+
+        # load status available
+        self._status = {
+            x["block"]: x
+            for x in local_db_manager.get_all_status(
+                hypervisor_address=self._hypervisor_address.lower()
+            )
+        }
+        # load operations available
+        self._operations = local_db_manager.get_all_operations(
+            hypervisor_address=self._hypervisor_address.lower()
+        )
+
+        # fill this hypervisor object with data
+        self._fill_with_operations()
+
+    # Public
+    def tvl(self, at_block: int = 0) -> dict:
+        if at_block == 0:
+            at_block = max(list(self._status.keys()))
+
+        if not at_block in self._status:
+            raise ValueError(
+                f" {at_block} block has not been found in status (..and should be there)"
+            )
+
+        data = self._status[at_block]
+
+        # return not calculated field 'totalAmounts' as tvl
+        return {
+            "token0": Decimal(data["totalAmounts"]["total0"]),
+            "token1": Decimal(data["totalAmounts"]["total1"]),
+        }
+
+    # # TODO: unify with total_shares below func
+    # def shares_qtty(self) -> Decimal:
+    #     total = Decimal(0)
+
+    #     for account in self.get_all_account_addresses():
+    #         last_op = self.last_operation(account_address=account)
+    #         total += last_op.shares_qtty
+
+    #     # compare with non calculated shares qtty
+    #     total_nonCalc = Decimal(
+    #         self._status[max(list(self._status.keys()))]["totalSupply"]
+    #     )
+    #     # small variance may be present due to Decimal vs double conversions
+    #     if (total - total_nonCalc) / total_nonCalc > Decimal("0.001"):
+    #         logging.getLogger(__name__).warning(
+    #             " Calculated total supply [{}] for {} is different from its saved status {}".format(
+    #                 total, self._hypervisor_address, total_nonCalc
+    #             )
+    #         )
+
+    #     return total
+
+    def total_shares(self, at_block: int = 0) -> Decimal:
+        """Return total hypervisor shares
+
+        Args:
+            at_block (int, optional): . Defaults to 0.
+
+        Returns:
+            Decimal: total shares
+        """
+
+        total_shares_addresses = {
+            x: Decimal(0) for x in self.get_all_account_addresses(at_block=at_block)
+        }
+
+        block_list = reversed(sorted(list(self._users_by_block.keys())))
+        if at_block > 0:
+            block_list = [x for x in block_list if x <= at_block]
+
+        # set a control var
+        processed_addresses = list()  # vs len(total_shares_addresses.keys())
+        for block in block_list:
+            for address, operations_list in self._users_by_block[block].items():
+                if (not address in processed_addresses) and (
+                    total_shares_addresses[address] == Decimal("0")
+                ):
+                    total_shares_addresses[address] = operations_list[-1].shares_qtty
+                    processed_addresses.append(address)
+
+            # check if processed all addreses
+            if len(processed_addresses) == len(total_shares_addresses.keys()):
+                break
+
+        # set result var
+        totalSupply = sum(list(total_shares_addresses.values()))
+
+        # check if calc. result var equals direct chain contract call to totalSupply
+        try:
+            _tsupply = Decimal("0")
+            if at_block == 0:
+                _tsupply = Decimal(
+                    self._status[max(list(self._status.keys()))]["totalSupply"]
+                )
+            else:
+                _tsupply = Decimal(self._status[at_block]["totalSupply"])
+
+            # small variance may be present due to Decimal vs double conversions
+            if (totalSupply - _tsupply) / _tsupply > Decimal("0.001"):
+                logging.getLogger(__name__).warning(
+                    " Calculated total supply [{}] for {} is different from its saved status [{}]".format(
+                        totalSupply, self._hypervisor_address, _tsupply
+                    )
+                )
+        except:
+            logging.getLogger(__name__).error(
+                f" Unexpected error comparing totalSupply calc vs onchain results. err-> {sys.exc_info()[0]}"
+            )
+
+        # sum shares
+        return totalSupply
+
+    def total_fees(self) -> dict:
+        total = {
+            "token0": Decimal(0),
+            "token1": Decimal(0),
+        }
+
+        for account in self.get_all_account_addresses():
+            last_op = self.last_operation(account_address=account)
+            total["token0"] += last_op.fees_collected_token0
+            total["token1"] += last_op.fees_collected_token1
+
+        return total
+
+    def _fill_with_operations(self):
+        # data should already be sorted from source query
+        for operation in self._operations:
+            if not operation["id"] in self.ids_processed:
+                # check if operation is valid
+                if operation["blockNumber"] < self.last_block_processed:
+                    logging.getLogger(__name__).error(
+                        f""" Not processing operation with a lower block than last processed: {operation["blockNumber"]}  CHECK operation id: {operation["id"]}"""
+                    )
+                    continue
+                # process operation
+                self._process_operation(operation)
+                # add operation as proceesed
+                self.ids_processed.append(operation["id"])
+                # set last block number processed
+                self.last_block_processed = operation["blockNumber"]
+            else:
+                logging.getLogger(__name__).debug(
+                    f""" Operation already processed {operation["id"]}"""
+                )
+
+    # General classifier
+    def _process_operation(self, operation: dict):
+
+        if operation["topic"] == "deposit":
+            self._add_operation(operation=self._process_deposit(operation=operation))
+
+        elif operation["topic"] == "withdraw":
+            self._add_operation(self._process_withdraw(operation=operation))
+
+        elif operation["topic"] == "transfer":
+            # retrieve new status
+            op_source, op_destination = self._process_transfer(operation=operation)
+            # add to collection
+            self._add_operation(operation=op_source)
+            self._add_operation(operation=op_destination)
+
+        elif operation["topic"] == "rebalance":
+            self._process_rebalance(operation=operation)
+
+        elif operation["topic"] == "approval":
+            # TODO: approval topic
+            # self._add_operation(self._process_approval(operation=operation))
+            pass
+
+        elif operation["topic"] == "zeroBurn":
+            self._process_zeroBurn(operation=operation)
+
+        elif operation["topic"] == "setFee":
+            # TODO: setFee topic
+            pass
+
+        else:
+            raise NotImplementedError(
+                f""" {operation["topic"]} topic not implemented yet"""
+            )
+
+    # Topic transformers
+    def _process_deposit(self, operation: dict) -> status_item:
+
+        # block
+        block = operation["blockNumber"]
+        # contract address
+        contract_address = operation["address"].lower()
+        # set user address
+        account_address = operation["to"].lower()
+
+        # create result
+        new_status_item = status_item(
+            timestamp=operation["timestamp"],
+            block=operation["blockNumber"],
+            topic=operation["topic"],
+            account_address=account_address,
+            raw_operation=operation,
+        )
+
+        # get last operation
+        last_op = self.last_operation(
+            account_address=account_address, from_block=operation["blockNumber"]
+        )
+
+        # fill new status item with last data
+        new_status_item.fill_from_status(status=last_op)
+
+        # calc. operation's token investment qtty
+        qtty0 = Decimal(operation["qtty_token0"]) / (
+            Decimal(10) ** Decimal(operation["decimals_token0"])
+        )
+        qtty1 = Decimal(operation["qtty_token1"]) / (
+            Decimal(10) ** Decimal(operation["decimals_token1"])
+        )
+        # set status investment
+        new_status_item.investment_qtty_token0 += qtty0
+        new_status_item.investment_qtty_token1 += qtty1
+
+        # add uncollected fees ?
+        # add tvl ?
+        # add impermanent result ?
+
+        # result
+        return new_status_item
+
+    def _process_withdraw(self, operation: dict) -> status_item:
+
+        # block
+        block = operation["blockNumber"]
+        # contract address
+        contract_address = operation["address"].lower()
+        # set user address
+        account_address = operation["sender"].lower()
+
+        # create result
+        new_status_item = status_item(
+            timestamp=operation["timestamp"],
+            block=block,
+            topic=operation["topic"],
+            account_address=account_address,
+            raw_operation=operation,
+        )
+        # get last operation
+        last_op = self.last_operation(account_address=account_address, from_block=block)
+
+        # fill new status item with last data
+        new_status_item.fill_from_status(status=last_op)
+
+        divestment_qtty_token0 = Decimal(operation["qtty_token0"]) / (
+            Decimal(10) ** Decimal(operation["decimals_token0"])
+        )
+        divestment_qtty_token1 = Decimal(operation["qtty_token1"]) / (
+            Decimal(10) ** Decimal(operation["decimals_token1"])
+        )
+
+        divestment_shares_qtty = Decimal(operation["shares"]) / (
+            Decimal(10) ** Decimal(operation["decimals_contract"])
+        )
+
+        # below, divestment has already been substracted from last operation,
+        # so we add divestment_shares_qtty to calc percentage divested
+        divestment_percentage = divestment_shares_qtty / (
+            last_op.shares_qtty + divestment_shares_qtty
+        )
+
+        # what will be substracted from investment
+        new_status_item.investment_qtty_token0 -= (
+            last_op.investment_qtty_token0 * divestment_percentage
+        )
+        new_status_item.investment_qtty_token1 -= (
+            last_op.investment_qtty_token1 * divestment_percentage
+        )
+        #
+        # divestment result = qtty_token - (divestment% * last_investment_qtty_token)  <-- fees + ilg
+        new_status_item.closed_investment_return_token0 += divestment_qtty_token0 - (
+            last_op.investment_qtty_token0 * divestment_percentage
+        )
+
+        new_status_item.closed_investment_return_token1 += divestment_qtty_token1 - (
+            last_op.investment_qtty_token1 * divestment_percentage
+        )
+
+        # TODO: correct
+        # closed_investment_return_token0_percent
+        # closed_investment_return_token1_percent
+
+        # result
+        return new_status_item
+
+    def _process_transfer(self, operation: dict) -> tuple[status_item, status_item]:
+
+        # TODO: check if transfer to masterchef rewards
+        # transfer to masterchef = stake
+
+        # block
+        block = operation["blockNumber"]
+        # contract address
+        contract_address = operation["address"].lower()
+        # set user address
+        address_source = operation["src"].lower()
+        address_destination = operation["dst"].lower()
+
+        # create SOURCE result
+        new_status_item_source = status_item(
+            timestamp=operation["timestamp"],
+            block=block,
+            topic=operation["topic"],
+            account_address=address_source,
+            raw_operation=operation,
+        )
+
+        # get last operation from source address
+        last_op_source = self.last_operation(
+            account_address=address_source, from_block=block
+        )
+
+        # fill new status item with last data
+        new_status_item_source.fill_from_status(status=last_op_source)
+
+        # operation share participation
+        shares_qtty = Decimal(operation["qtty"]) / (
+            Decimal(10) ** Decimal(operation["decimals_contract"])
+        )
+        # shares percentage (to be used for investments)
+        shares_qtty_percent = (
+            (shares_qtty / new_status_item_source.shares_qtty)
+            if new_status_item_source.shares_qtty != 0
+            else 0
+        )
+
+        # calc investment transfered ( with shares)
+        investment_qtty_token0_transfer = (
+            new_status_item_source.investment_qtty_token0 * shares_qtty_percent
+        )
+        investment_qtty_token1_transfer = (
+            new_status_item_source.investment_qtty_token1 * shares_qtty_percent
+        )
+
+        # create DESTINATION result
+        new_status_item_destination = status_item(
+            timestamp=operation["timestamp"],
+            block=block,
+            topic=operation["topic"],
+            account_address=address_destination,
+            raw_operation=operation,
+        )
+
+        # get last operation from destination address
+        last_op_destination = self.last_operation(
+            account_address=address_destination, from_block=block
+        )
+
+        # fill new status item with last data
+        new_status_item_destination.fill_from_status(status=last_op_destination)
+
+        # get current total contract_address shares qtty
+        total_shares = self.total_shares(at_block=block)
+        # total shares here donot include current operation when depositing
+        if operation["src"] == "0x0000000000000000000000000000000000000000":
+            # before deposit creation transfer
+            # add current created shares to total shares
+            total_shares += shares_qtty
+
+        elif operation["dst"] == "0x0000000000000000000000000000000000000000":
+            # before withdraw transfer (burn)
+            pass
+
+        # modify SOURCE:
+        new_status_item_source.shares_qtty -= shares_qtty
+        new_status_item_source.investment_qtty_token0 -= investment_qtty_token0_transfer
+        new_status_item_source.investment_qtty_token1 -= investment_qtty_token1_transfer
+        new_status_item_source.shares_percent = (
+            (new_status_item_source.shares_qtty / total_shares)
+            if total_shares != 0
+            else 0
+        )
+
+        # modify DESTINATION:
+        new_status_item_destination.shares_qtty += shares_qtty
+        new_status_item_destination.investment_qtty_token0 += (
+            investment_qtty_token0_transfer
+        )
+        new_status_item_destination.investment_qtty_token1 += (
+            investment_qtty_token1_transfer
+        )
+        new_status_item_destination.shares_percent = (
+            (new_status_item_destination.shares_qtty / total_shares)
+            if total_shares != 0
+            else 0
+        )
+
+        # result
+        return new_status_item_source, new_status_item_destination
+
+    def _process_rebalance(self, operation: dict):
+        """Rebalance affects all users positions
+
+        Args:
+            operation (dict):
+
+        Returns:
+            status_item: _description_
+        """
+        # block
+        block = operation["blockNumber"]
+
+        # convert TVL
+        new_tvl_token0 = Decimal(operation["totalAmount0"]) / (
+            Decimal(10) ** Decimal(operation["decimals_token0"])
+        )
+        new_tvl_token1 = Decimal(operation["totalAmount1"]) / (
+            Decimal(10) ** Decimal(operation["decimals_token1"])
+        )
+
+        # calculate permanent gain/loss and set new tvl
+        current_tvl = self.tvl(at_block=block)
+        tvl0_div = current_tvl["token0"] - new_tvl_token0
+        tvl1_div = current_tvl["token1"] - new_tvl_token1
+
+        # add tvl divergence
+        # self._modify_global_data(
+        #     block=block, add=True, tvl0_div=tvl0_div, tvl1_div=tvl1_div
+        # )
+
+        # share fees with all accounts with shares
+        self._share_fees_with_acounts(operation)
+
+    def _process_approval(self, operation: dict):
+        # TODO: approval
+        pass
+
+    def _process_zeroBurn(self, operation: dict):
+        # share fees with all acoounts proportionally
+        self._share_fees_with_acounts(operation)
+
+    def _share_fees_with_acounts(self, operation: dict):
+
+        # block
+        block = operation["blockNumber"]
+        # contract address
+        contract_address = operation["address"].lower()
+
+        # get current total contract_address shares qtty
+        total_shares = self.total_shares(at_block=block)
+
+        fees_collected_token0 = Decimal(operation["qtty_token0"]) / (
+            Decimal(10) ** Decimal(operation["decimals_token0"])
+        )
+        fees_collected_token1 = Decimal(operation["qtty_token1"]) / (
+            Decimal(10) ** Decimal(operation["decimals_token1"])
+        )
+
+        # check if any fees have actually been collected to proceed ...
+        if total_shares == 0:
+            # there is no deposits yet... hypervisor is in testing or seting up mode
+            if fees_collected_token0 == fees_collected_token1 == 0:
+                logging.getLogger(__name__).debug(
+                    f" Not processing 0x..{self._hypervisor_address[-4:]} fee collection as it has no deposits yet and collected fees are zero"
+                )
+            else:
+                logging.getLogger(__name__).warning(
+                    f" Not processing 0x..{self._hypervisor_address[-4:]} fee collection as it has no deposits yet but fees collected fees are NON zero --> token0: {fees_collected_token0}  token1: {fees_collected_token1}"
+                )
+            # exit
+            return
+        if fees_collected_token0 == fees_collected_token1 == 0:
+            # there is no collection made ... but hypervisor changed tick boundaries
+            logging.getLogger(__name__).debug(
+                f" Not processing 0x..{self._hypervisor_address[-4:]} fee collection as it has not collected any fees."
+            )
+            # exit
+            return
+
+        # control var to keep track of total percentage applied
+        total_percentage_applied = Decimal("0")
+        # loop all addresses
+        for account_address in self.get_all_account_addresses(at_block=block):
+            # create result
+            new_status_item = status_item(
+                timestamp=operation["timestamp"],
+                block=block,
+                topic=operation["topic"],
+                account_address=account_address,
+                raw_operation=operation,
+            )
+            # get last address operation (status)
+            # fill new status item with last data
+            new_status_item.fill_from_status(
+                status=self.last_operation(
+                    account_address=account_address, from_block=block
+                )
+            )
+
+            # calc user share in the pool
+            user_share = new_status_item.shares_qtty / total_shares
+
+            # check inconsistency
+            if (total_percentage_applied + user_share) > 1:
+                raise ValueError(
+                    " The total percentage applied while calc. user fees exceeds '100%' at {}'s {} hype {}".format(
+                        self.network, self.protocol, self._hypervisor_address
+                    )
+                )
+
+            # add user share to total processed control var
+            total_percentage_applied += user_share
+
+            # add fees collected to user
+            new_status_item.fees_collected_token0 += fees_collected_token0 * user_share
+            new_status_item.fees_collected_token1 += fees_collected_token1 * user_share
+
+            # add new status to hypervisor
+            self._add_operation(operation=new_status_item)
+
+        # save fee remainders data
+        if total_percentage_applied != Decimal("1"):
+
+            fee0_remainder = (
+                Decimal("1") - total_percentage_applied
+            ) * fees_collected_token0
+            fee1_remainder = (
+                Decimal("1") - total_percentage_applied
+            ) * fees_collected_token1
+
+            # add remainders to global vars
+            # self._modify_global_data(
+            #     block=block,
+            #     add=True,
+            #     fee0_remainder=fee0_remainder,
+            #     fee1_remainder=fee1_remainder,
+            # )
+
+            # log if value is significant
+            if (Decimal("1") - total_percentage_applied) > Decimal("0.0001"):
+                logging.getLogger(__name__).error(
+                    " Only {:,.2f} of the rebalance value has been distributed to current accounts. remainder: {} ".format(
+                        total_percentage_applied,
+                        (Decimal("1") - total_percentage_applied),
+                    )
+                )
+
+    def _modify_global_data(self, block: int, add: bool = True, **kwargs):
+        """modify hypervisor global vars status like tvl, divergences ..
+
+        Args:
+            block (int): block number
+            add (bool, optional): "add" [+=] variables to globals or "set" [=]. Defaults to True.
+        """
+        if not block in self._global_data_by_block:
+            # get currentlast block before creating other
+            last_block = (
+                max(list(self._global_data_by_block.keys()))
+                if len(self._global_data_by_block) > 0
+                else block
+            )
+
+            # init block
+            self._global_data_by_block[block] = {
+                "tvl0": Decimal("0"),
+                "tvl1": Decimal("0"),
+                "tvl0_div": Decimal("0"),  # divergence
+                "tvl1_div": Decimal("0"),
+                "fee0_remainder": Decimal("0"),  # remainders
+                "fee1_remainder": Decimal("0"),
+            }
+            # add last block data
+            if len(self._global_data_by_block) > 0:
+                # copy old data to new block
+                for k, v in self._global_data_by_block[last_block].items():
+                    self._global_data_by_block[block][k] += v
+
+        # add or set new data to new block
+        for k in kwargs.keys():
+            try:
+                if add:
+                    self._global_data_by_block[block][k] += kwargs[k]
+                else:
+                    self._global_data_by_block[block][k] = kwargs[k]
+            except:
+                logging.getLogger(__name__).exception(
+                    f" Unexpected error while updating global data key {k} at block {block} of {self._hypervisor_address} hypervisor"
+                )
+
+    # Collection
+    def _add_operation(self, operation: status_item):
+        """
+
+        Args:
+            operation (status_item):
+        """
+        if not operation.account_address in self.__blacklist_addresses:
+            # create in users if do not exist
+            if not operation.block in self._users_by_block:
+                # create a new block
+                self._users_by_block[operation.block] = dict()
+            if not operation.account_address in self._users_by_block[operation.block]:
+                # create a new address in a block
+                self._users_by_block[operation.block][
+                    operation.account_address
+                ] = list()
+
+            # add operation to list
+            self._users_by_block[operation.block][operation.account_address].append(
+                operation
+            )
+
+        else:
+            # blacklisted
+            if (
+                not operation.account_address
+                == "0x0000000000000000000000000000000000000000"
+            ):
+                logging.getLogger(__name__).debug(
+                    f"Not adding blacklisted account {operation.account_address} operation"
+                )
+
+    # General helpers
+    def _add_globals_to_status_item(self, item: status_item) -> status_item:
+
+        # get hypervisor status at block
+        status_data = self._status[item.block]
+
+        # set item's proportional tvl ( underlying tokens value)
+        item.total_underlying_token0 = (
+            Decimal(status_data["totalAmounts"]["total0"]) * item.shares_percent
+        )
+        item.total_underlying_token0 = (
+            Decimal(status_data["totalAmounts"]["total1"]) * item.shares_percent
+        )
+
+        # set item's proportional uncollected fees
+        item.fees_uncollected_token0 = (
+            Decimal(status_data["fees_uncollected"]["qtty_token0"])
+            * item.shares_percent
+        )
+        item.fees_uncollected_token1 = (
+            Decimal(status_data["fees_uncollected"]["qtty_token1"])
+            * item.shares_percent
+        )
+
+        # set impermanent loss
+        # current underlying tokens - last underlying tokens
+        # item.impermanent_result_token0 = item.investment_qtty_token0 -
+
+        return item
+
+    def last_operation(self, account_address: str, from_block: int = 0) -> status_item:
+        """find the last operation of an account
+
+        Args:
+            account_address (str): user account
+            from_block (int, optional): find last account operation from a defined block. Defaults to 0.
+
+        Returns:
+            status_item: last operation
+        """
+
+        block_list = reversed(sorted(list(self._users_by_block.keys())))
+        if from_block > 0:
+            block_list = [x for x in block_list if x <= from_block]
+
+        for block in block_list:
+            if account_address in self._users_by_block[block]:
+                return self._users_by_block[block][account_address][
+                    -1
+                ]  # last item in list
+
+        return status_item(
+            timestamp=0,
+            block=0,
+            topic="",
+            account_address=account_address,
+        )
+
+    def get_all_account_addresses(self, at_block: int = 0) -> list[str]:
+        """Get a unique list of addresses
+
+        Args:
+            at_block (int, optional): . Defaults to 0.
+
+        Returns:
+            list[str]: of account addresses
+        """
+        addresses_list = set()
+
+        block_list = reversed(sorted(list(self._users_by_block.keys())))
+        if at_block > 0:
+            block_list = [x for x in block_list if x <= at_block]
+
+        # build a list of addresses
+        for block in block_list:
+            addresses_list.update(list(self._users_by_block[block].keys()))
+
+        # return unique list
+        return list(addresses_list)
+
+    def get_account_info(self, account_address: str) -> list[status_item]:
+        result = list()
+        for block, accounts in self._users_by_block.items():
+            if account_address in accounts.keys():
+                result.extend(accounts[account_address])
+
+        return sorted(result, key=lambda x: (x.block, x.raw_operation["logIndex"]))
+
+
 def build_hypervisors(network: str, protocol: str, threaded: bool = True) -> list:
 
     # init result
@@ -1418,22 +2177,40 @@ def digest_hypervisor_data(
     local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
 
     with general_utilities.log_time_passed(
-        fName=f"Building {hypervisor_address} status", callback=log
+        fName=f"Building {hypervisor_address} status",
+        callback=logging.getLogger(__name__),
     ):
-        # get operations from database
-        operations = local_db_manager.get_items_from_database(
-            collection_name="operations",
-            find={"address": hypervisor_address},
-            sort=[("blockNumber", 1), ("logIndex", 1)],
-        )
-        # setup and use operations to fill hypervisor helper
-        hyp_c = hypervisor_onchain_data_processor_w3(
+        # create hypervisor
+        hyp_c = ro_hypervisor_db(
             hypervisor_address=hypervisor_address, network=network, protocol=protocol
         )
-        # hyp_c = hypervisor_onchain_data_processor(
+        try:
+            # construct hype from db data
+            hyp_c.load_from_database(db_url=mongo_url)
+        except ValueError as err:
+            logging.getLogger(__name__).error(
+                f" Unexpected error while creating hypervisor from db data err: {err}"
+            )
+        except:
+            logging.getLogger(__name__).exception(
+                f" Unexpected error while creating hypervisor from db data err: {sys.exc_info()[0]} "
+            )
+
+        ######################
+        # # get operations from database
+        # operations = local_db_manager.get_items_from_database(
+        #     collection_name="operations",
+        #     find={"address": hypervisor_address},
+        #     sort=[("blockNumber", 1), ("logIndex", 1)],
+        # )
+        # # setup and use operations to fill hypervisor helper
+        # hyp_c = hypervisor_onchain_data_processor_w3(
         #     hypervisor_address=hypervisor_address, network=network, protocol=protocol
         # )
-        hyp_c.fill_with_operations(operations)
+        # # hyp_c = hypervisor_onchain_data_processor(
+        # #     hypervisor_address=hypervisor_address, network=network, protocol=protocol
+        # # )
+        # hyp_c.fill_with_operations(operations)
 
     return hyp_c
 
@@ -1455,8 +2232,8 @@ def compare_with_subgraph(
         )[0]
 
         fees = hype.total_fees()
-        global_data = hype.global_data()
-        shares = hype.shares_qtty()
+        tvl = hype.tvl()
+        shares = hype.total_shares()
 
         logging.getLogger(__name__).info(" ")
         logging.getLogger(__name__).info(
@@ -1475,15 +2252,15 @@ def compare_with_subgraph(
         logging.getLogger(__name__).info(
             """ token 0:    {:,.2f}  <--> {:,.2f}  ==  {} """.format(
                 hype_graph["tvl0"],
-                global_data["tvl0"],
-                Decimal(hype_graph["tvl0"]) - global_data["tvl0"],
+                tvl["token0"],
+                Decimal(hype_graph["tvl0"]) - tvl["token0"],
             )
         )
         logging.getLogger(__name__).info(
             """ token 1:    {:,.2f}  <--> {:,.2f}  ==  {}""".format(
                 hype_graph["tvl1"],
-                global_data["tvl1"],
-                Decimal(hype_graph["tvl1"]) - global_data["tvl1"],
+                tvl["token1"],
+                Decimal(hype_graph["tvl1"]) - tvl["token1"],
             )
         )
         logging.getLogger(__name__).info(""" Total fees: """)
@@ -1502,12 +2279,12 @@ def compare_with_subgraph(
             )
         )
         # remainder
-        logging.getLogger(__name__).info(" ")
-        logging.getLogger(__name__).info(
-            """ remainder fees : 0: {}    1: {}  """.format(
-                global_data["fee0_remainder"], global_data["fee1_remainder"]
-            )
-        )
+        # logging.getLogger(__name__).info(" ")
+        # logging.getLogger(__name__).info(
+        #     """ remainder fees : 0: {}    1: {}  """.format(
+        #         global_data["fee0_remainder"], global_data["fee1_remainder"]
+        #     )
+        # )
     except:
         logging.getLogger(__name__).error(
             f" Unexpected error while comparing {hype._hypervisor_address} result with subgraphs data.  --> err: {sys.exc_info()[0]}"
@@ -1605,7 +2382,7 @@ def get_hypervisor_addresses(network: str, protocol: str) -> list[str]:
 
 def main():
 
-    dex = "uniswap_v3"
+    dex = "uniswapv3"
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
 
     for protocol in CONFIGURATION["script"]["protocols"].keys():
@@ -1619,11 +2396,22 @@ def main():
             hypervisors = build_hypervisors(
                 network=network,
                 protocol=protocol,
-                threaded=True,
+                threaded=False,
             )
 
             for hype in hypervisors:
-                compare_with_subgraph(hype=hype, network=network, dex=dex)
+                # compare total hypervisor with thegraph data
+                # compare_with_subgraph(hype=hype, network=network, dex=dex)
+
+                # get user result
+                try:
+                    test = hype.get_account_info(
+                        account_address="0xB56eE2875ab8AED0E8eaF8be8e4674A5316bA903".lower()
+                    )
+                    if len(test) > 0:
+                        po = ""
+                except:
+                    pass
 
 
 # START ####################################################################################################################

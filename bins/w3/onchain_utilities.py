@@ -20,9 +20,9 @@ from bins.formulas import univ3_formulas
 # GENERAL
 class web3wrap:
 
-    _abi_filename = ""  # json file name without the extension
-    _abi_path = ""  # like data/abi/gamma
-    _abi = ""
+    # _abi_filename = ""  # json file name without the extension
+    # _abi_path = ""  # like data/abi/gamma
+    # _abi = ""
 
     # SETUP
     def __init__(
@@ -366,7 +366,26 @@ class web3wrap:
             for event in entries:
                 yield event
 
-    def as_dict(self) -> dict:
+    def identify_dex_name(self) -> str:
+        """Return dex name using the calling object's type
+
+        Returns:
+            str: "uniswapv3", "quickswap" or  not Implemented error
+        """
+        if isinstance(
+            self, (gamma_hypervisor_quickswap, quickswapv3_pool)
+        ) or issubclass(type(self), (gamma_hypervisor_quickswap, quickswapv3_pool)):
+            return "quickswap"
+        elif isinstance(self, (gamma_hypervisor, univ3_pool)) or issubclass(
+            type(self), (gamma_hypervisor, univ3_pool)
+        ):
+            return "uniswapv3"
+        else:
+            raise NotImplementedError(
+                f" Dex name cannot be identified using object type {type(self)}"
+            )
+
+    def as_dict(self, convert_bint=False) -> dict:
         result = dict()
         result["block"] = self.block
         # lower case address to be able to be directly compared
@@ -402,16 +421,14 @@ class erc20(web3wrap):
     def decimals(self) -> int:
         return self._contract.functions.decimals().call()
 
-    def balanceOf(self, address: str) -> float:
+    def balanceOf(self, address: str) -> int:
         return self._contract.functions.balanceOf(Web3.toChecksumAddress(address)).call(
             block_identifier=self.block
         )
 
     @property
-    def totalSupply(self) -> float:
-        return self._contract.functions.totalSupply().call(
-            block_identifier=self.block
-        ) / (10**self.decimals)
+    def totalSupply(self) -> int:
+        return self._contract.functions.totalSupply().call(block_identifier=self.block)
 
     @property
     def symbol(self) -> str:
@@ -425,11 +442,21 @@ class erc20(web3wrap):
             Web3.toChecksumAddress(owner), Web3.toChecksumAddress(spender)
         ).call(block_identifier=self.block)
 
-    def as_dict(self) -> dict:
-        result = super().as_dict()
+    def as_dict(self, convert_bint=False) -> dict:
+        """as_dict _summary_
+
+        Args:
+            convert_bint (bool, optional): Convert big integers to strings ? . Defaults to False.
+
+        Returns:
+            dict: decimals, totalSupply(bint) and symbol dict
+        """
+        result = super().as_dict(convert_bint=convert_bint)
 
         result["decimals"] = self.decimals
-        result["totalSupply"] = self.totalSupply
+        result["totalSupply"] = (
+            self.totalSupply if not convert_bint else str(self.totalSupply)
+        )
         result["symbol"] = self.symbol
 
         return result
@@ -462,7 +489,7 @@ class erc20_cached(erc20):
         return result
 
     @property
-    def totalSupply(self) -> float:
+    def totalSupply(self) -> int:
         prop_name = "totalSupply"
         result = self._cache.get_data(
             chain_id=self._chain_id,
@@ -575,6 +602,7 @@ class data_collector:
         self._web3_helper._progress_callback = value
 
     # PUBLIC
+    # TODO:  remove or change
     def fill_all_operations_data(
         self,
         block_ini: int,
@@ -592,6 +620,7 @@ class data_collector:
            block_end (int):  to this block (inclusive)
            contracts (list):  list of contract addresses to look for
         """
+
         # clear data content to save result to
         if len(self._data.keys()) > 0:
             self._data = dict()
@@ -687,6 +716,7 @@ class data_collector:
             yield result
 
     # HELPERS
+    # TODO:  remove or change
     def _save_topic(self, topic: str, event, data):
 
         # init result
@@ -699,7 +729,7 @@ class data_collector:
         if not itm["address"].lower() in self._data.keys():
             self._data[itm["address"].lower()] = dict()
 
-        # create topic in contract if not existnt
+        # create topic in contract if not exists
         topic_key = "{}s".format(topic.split("_")[1])
         if not topic_key in self._data[itm["address"].lower()]:
             self._data[itm["address"].lower()][topic_key] = list()
@@ -829,217 +859,16 @@ class data_collector:
             itm["recipient"] = data[0]
             itm["amount0"] = str(data[1])
             itm["amount1"] = str(data[2])
-
-        return itm
-
-    def _convert_topic_decimal(self, topic: str, event, data) -> dict:
-
-        # init result
-        itm = dict()
-
-        # common vars
-        itm["transactionHash"] = event.transactionHash.hex()
-        itm["blockHash"] = event.blockHash.hex()
-        itm["blockNumber"] = event.blockNumber
-        itm["address"] = event.address
-        itm["timestamp"] = self._w3.eth.get_block(itm["blockNumber"]).timestamp
-
-        # create a cached decimal dict
-        if not itm["address"].lower() in self._token_helpers:
-            try:
-                tmp = gamma_hypervisor(address=itm["address"], network=self.network)
-                # decimals should be inmutable
-                self._token_helpers[itm["address"].lower()] = {
-                    "address_token0": tmp.token0.address,
-                    "address_token1": tmp.token1.address,
-                    "decimals_token0": tmp.token0.decimals,
-                    "decimals_token1": tmp.token1.decimals,
-                    "decimals_contract": tmp.decimals,
-                }
-            except:
-                logging.getLogger(__name__).error(
-                    " Unexpected error caching topic ({}) related info from hyp: {}    .transaction hash: {}  -> error: {}".format(
-                        topic, itm["address"], itm["transactionHash"], sys.exc_info()[0]
-                    )
-                )
-
-        # set decimal vars for later use
-        decimals_token0 = self._token_helpers[itm["address"].lower()]["decimals_token0"]
-        decimals_token1 = self._token_helpers[itm["address"].lower()]["decimals_token1"]
-        decimals_contract = self._token_helpers[itm["address"].lower()][
-            "decimals_contract"
-        ]
-
-        # specific vars
-        if topic in ["gamma_deposit", "gamma_withdraw"]:
-
-            itm["sender"] = event.topics[1][-20:].hex()
-            itm["to"] = event.topics[2][-20:].hex()
-            itm["shares"] = Decimal(data[0]) / Decimal(10**decimals_contract)
-            itm["qtty_token0"] = Decimal(data[1]) / Decimal(10**decimals_token0)
-            itm["qtty_token1"] = Decimal(data[2]) / Decimal(10**decimals_token1)
-
-        elif topic == "gamma_rebalance":
-            itm["tick"] = data[0]
-            itm["totalAmount0"] = Decimal(data[1]) / Decimal(10**decimals_token0)
-            itm["totalAmount1"] = Decimal(data[2]) / Decimal(10**decimals_token1)
-            itm["qtty_token0"] = Decimal(data[3]) / Decimal(10**decimals_token0)
-            itm["qtty_token1"] = Decimal(data[4]) / Decimal(10**decimals_token1)
-
-        elif topic == "gamma_zeroBurn":
-
-            itm["fee"] = data[0]
-            itm["qtty_token0"] = Decimal(data[1]) / Decimal(10**decimals_token0)
-            itm["qtty_token1"] = Decimal(data[2]) / Decimal(10**decimals_token1)
-
-        elif topic in ["gamma_transfer", "arrakis_transfer"]:
-
-            itm["src"] = event.topics[1][-20:].hex()
-            itm["dst"] = event.topics[2][-20:].hex()
-            itm["qtty"] = Decimal(data[0]) / Decimal(10**decimals_contract)
-
-        elif topic in ["arrakis_deposit", "arrakis_withdraw"]:
-
-            itm["sender"] = data[0] if topic == "arrakis_deposit" else event.address
-            itm["to"] = data[0] if topic == "arrakis_withdraw" else event.address
-            itm["qtty_token0"] = Decimal(data[2]) / Decimal(
-                10**decimals_token0
-            )  # amount0
-            itm["qtty_token1"] = Decimal(data[3]) / Decimal(
-                10**decimals_token1
-            )  # amount1
-            itm["shares"] = Decimal(data[1]) / Decimal(
-                10**decimals_contract
-            )  # mintAmount
-
-        elif topic == "arrakis_fee":
-
-            itm["qtty_token0"] = Decimal(data[0]) / Decimal(10**decimals_token0)
-            itm["qtty_token1"] = Decimal(data[1]) / Decimal(10**decimals_token1)
-
-        elif topic == "arrakis_rebalance":
-
-            itm["lowerTick"] = Decimal(data[0])
-            itm["upperTick"] = Decimal(data[1])
-            # data[2] #liquidityBefore
-            # data[2] #liquidityAfter
-        elif topic in ["gamma_approval"]:
-            itm["value"] = Decimal(data[0]) / Decimal(10**decimals_contract)
-
-        elif topic in ["gamma_setFee"]:
-            itm["fee"] = Decimal(data[0])
-
-        elif topic == "uniswapv3_collect":
-            itm["recipient"] = data[0]
-            itm["amount0"] = Decimal(data[1]) / Decimal(10**decimals_token0)  #
-            itm["amount1"] = Decimal(data[2]) / Decimal(10**decimals_token1)  #
-
-        return itm
-
-    def _convert_topic_original(self, topic: str, event, data) -> dict:
-
-        # init result
-        itm = dict()
-
-        # common vars
-        itm["transactionHash"] = event.transactionHash.hex()
-        itm["blockHash"] = event.blockHash.hex()
-        itm["blockNumber"] = event.blockNumber
-        itm["address"] = event.address
-        itm["timestamp"] = self._w3.eth.get_block(itm["blockNumber"]).timestamp
-
-        # create a cached decimal dict
-        if not itm["address"].lower() in self._token_helpers:
-            try:
-                tmp = gamma_hypervisor(address=itm["address"], network=self.network)
-                # decimals should be inmutable
-                self._token_helpers[itm["address"].lower()] = {
-                    "address_token0": tmp.token0.address,
-                    "address_token1": tmp.token1.address,
-                    "decimals_token0": tmp.token0.decimals,
-                    "decimals_token1": tmp.token1.decimals,
-                    "decimals_contract": tmp.decimals,
-                }
-            except:
-                logging.getLogger(__name__).error(
-                    " Unexpected error caching topic ({}) related info from hyp: {}    .transaction hash: {}  -> error: {}".format(
-                        topic, itm["address"], itm["transactionHash"], sys.exc_info()[0]
-                    )
-                )
-
-        # set decimal vars for later use
-        decimals_token0 = self._token_helpers[itm["address"].lower()]["decimals_token0"]
-        decimals_token1 = self._token_helpers[itm["address"].lower()]["decimals_token1"]
-        decimals_contract = self._token_helpers[itm["address"].lower()][
-            "decimals_contract"
-        ]
-
-        # specific vars
-        if topic in ["gamma_deposit", "gamma_withdraw"]:
-
-            itm["sender"] = event.topics[1][-20:].hex()
-            itm["to"] = event.topics[2][-20:].hex()
-            itm["shares"] = int(data[0]) / (10**decimals_contract)
-            itm["qtty_token0"] = int(data[1]) / (10**decimals_token0)
-            itm["qtty_token1"] = int(data[2]) / (10**decimals_token1)
-
-        elif topic == "gamma_rebalance":
-            # rename topic to fee
-            # topic = "gamma_fee"
-            itm["tick"] = data[0]
-            itm["totalAmount0"] = int(data[1]) / (10**decimals_token0)
-            itm["totalAmount1"] = int(data[2]) / (10**decimals_token1)
-            itm["qtty_token0"] = int(data[3]) / (10**decimals_token0)
-            itm["qtty_token1"] = int(data[4]) / (10**decimals_token1)
-
-        elif topic == "gamma_zeroBurn":
-
-            itm["fee"] = data[0]
-            itm["qtty_token0"] = int(data[1]) / (10**decimals_token0)
-            itm["qtty_token1"] = int(data[2]) / (10**decimals_token1)
-
-        elif topic in ["gamma_transfer", "arrakis_transfer"]:
-
-            itm["src"] = event.topics[1][-20:].hex()
-            itm["dst"] = event.topics[2][-20:].hex()
-            itm["qtty"] = int(data[0]) / (10**decimals_contract)
-
-        elif topic in ["arrakis_deposit", "arrakis_withdraw"]:
-
-            itm["sender"] = data[0] if topic == "arrakis_deposit" else event.address
-            itm["to"] = data[0] if topic == "arrakis_withdraw" else event.address
-            itm["qtty_token0"] = int(data[2]) / (10**decimals_token0)  # amount0
-            itm["qtty_token1"] = int(data[3]) / (10**decimals_token1)  # amount1
-            itm["shares"] = int(data[1]) / (10**decimals_contract)  # mintAmount
-
-        elif topic == "arrakis_fee":
-
-            itm["qtty_token0"] = int(data[0]) / (10**decimals_token0)
-            itm["qtty_token1"] = int(data[1]) / (10**decimals_token1)
-
-        elif topic == "arrakis_rebalance":
-
-            itm["lowerTick"] = int(data[0])
-            itm["upperTick"] = int(data[1])
-            # data[2] #liquidityBefore
-            # data[2] #liquidityAfter
-        elif topic in ["gamma_approval"]:
-            itm["value"] = int(data[0]) / (10**decimals_contract)
-
-        elif topic in ["gamma_setFee"]:
-            itm["fee"] = int(data[0])
-
-        elif topic == "uniswapv3_collect":
-            itm["recipient"] = data[0]
-            itm["amount0"] = int(data[1]) / (10**decimals_token0)  #
-            itm["amount1"] = int(data[2]) / (10**decimals_token1)  #
+        else:
+            logging.getLogger(__name__).warning(
+                f" Can't find topic [{topic}] converter. Discarding  event [{event}]  with data [{data}] "
+            )
 
         return itm
 
 
 # DEXes
 class univ3_pool(web3wrap):
-
     # SETUP
     def __init__(
         self,
@@ -1149,12 +978,11 @@ class univ3_pool(web3wrap):
         }
 
     @property
-    def protocolFees(self):
-        """The amounts of token0 and token1 that are owed to the protocol
-
+    def protocolFees(self) -> list[int]:
+        """
         Returns:
-           _type_: token0   uint128 :  0
-                   token1   uint128 :  0
+           list: [0,0]
+
         """
         return self._contract.functions.protocolFees().call(block_identifier=self.block)
 
@@ -1172,7 +1000,7 @@ class univ3_pool(web3wrap):
                    unlocked   bool :  true
         """
         tmp = self._contract.functions.slot0().call(block_identifier=self.block)
-        result = {
+        return {
             "sqrtPriceX96": tmp[0],
             "tick": tmp[1],
             "observationIndex": tmp[2],
@@ -1181,7 +1009,6 @@ class univ3_pool(web3wrap):
             "feeProtocol": tmp[5],
             "unlocked": tmp[6],
         }
-        return result
 
     def snapshotCumulativeInside(self, tickLower: int, tickUpper: int):
         return self._contract.functions.snapshotCumulativeInside(
@@ -1230,7 +1057,6 @@ class univ3_pool(web3wrap):
         """The first of the two tokens of the pool, sorted by address
 
         Returns:
-           erc20:
         """
         if self._token0 == None:
             self._token0 = erc20(
@@ -1312,10 +1138,10 @@ class univ3_pool(web3wrap):
 
         Returns:
            dict: {
-                   "qtty_token0":0,        (float) # quantity of token 0 deployed in dex
-                   "qtty_token1":0,        (float) # quantity of token 1 deployed in dex
-                   "fees_owed_token0":0,   (float) # quantity of token 0 fees owed to the position ( not included in qtty_token0 and this is not uncollected fees)
-                   "fees_owed_token1":0,   (float) # quantity of token 1 fees owed to the position ( not included in qtty_token1 and this is not uncollected fees)
+                   "qtty_token0":0,        (int or Decimal) # quantity of token 0 deployed in dex
+                   "qtty_token1":0,        (int or Decimal) # quantity of token 1 deployed in dex
+                   "fees_owed_token0":0,   (int or Decimal) # quantity of token 0 fees owed to the position ( not included in qtty_token0 and this is not uncollected fees)
+                   "fees_owed_token1":0,   (int or Decimal) # quantity of token 1 fees owed to the position ( not included in qtty_token1 and this is not uncollected fees)
                  }
         """
 
@@ -1358,13 +1184,21 @@ class univ3_pool(web3wrap):
             decimals_token0 = self.token0.decimals
             decimals_token1 = self.token1.decimals
 
-            result["qtty_token0"] /= 10**decimals_token0
-            result["qtty_token1"] /= 10**decimals_token1
-            result["fees_owed_token0"] /= 10**decimals_token0
-            result["fees_owed_token1"] /= 10**decimals_token1
+            result["qtty_token0"] = Decimal(result["qtty_token0"]) / Decimal(
+                10**decimals_token0
+            )
+            result["qtty_token1"] = Decimal(result["qtty_token1"]) / Decimal(
+                10**decimals_token1
+            )
+            result["fees_owed_token0"] = Decimal(result["fees_owed_token0"]) / Decimal(
+                10**decimals_token0
+            )
+            result["fees_owed_token1"] = Decimal(result["fees_owed_token1"]) / Decimal(
+                10**decimals_token1
+            )
 
         # return result
-        return result
+        return result.copy()
 
     def get_fees_uncollected(
         self, ownerAddress: str, tickUpper: int, tickLower: int, inDecimal: bool = True
@@ -1379,8 +1213,8 @@ class univ3_pool(web3wrap):
 
         Returns:
             dict: {
-                    "qtty_token0":0,   (float)     # quantity of uncollected token 0
-                    "qtty_token1":0,   (float)     # quantity of uncollected token 1
+                    "qtty_token0":0,   (int or Decimal)     # quantity of uncollected token 0
+                    "qtty_token1":0,   (int or Decimal)     # quantity of uncollected token 1
                 }
         """
 
@@ -1400,38 +1234,6 @@ class univ3_pool(web3wrap):
         tickCurrent = self.slot0["tick"]
         ticks_lower = self.ticks(tickLower)
         ticks_upper = self.ticks(tickUpper)
-
-        # calc token0 uncollected fees
-        # feeGrowthOutside0X128_lower = ticks_lower["feeGrowthOutside0X128"]
-        # feeGrowthOutside0X128_upper = ticks_upper["feeGrowthOutside0X128"]
-        # feeGrowthInside0LastX128 = pos["feeGrowthInside0LastX128"]
-        # # add to result
-        # result["qtty_token0"] = univ3_formulas.get_uncollected_fees(
-        #     feeGrowthGlobal=self.feeGrowthGlobal0X128,
-        #     feeGrowthOutsideLower=feeGrowthOutside0X128_lower,
-        #     feeGrowthOutsideUpper=feeGrowthOutside0X128_upper,
-        #     feeGrowthInsideLast=feeGrowthInside0LastX128,
-        #     tickCurrent=tickCurrent,
-        #     liquidity=pos["liquidity"],
-        #     tickLower=tickLower,
-        #     tickUpper=tickUpper,
-        # )
-
-        # calc token1 uncollected fees
-        # feeGrowthOutside1X128_lower = ticks_lower["feeGrowthOutside1X128"]
-        # feeGrowthOutside1X128_upper = ticks_upper["feeGrowthOutside1X128"]
-        # feeGrowthInside1LastX128 = pos["feeGrowthInside1LastX128"]
-        # #       add fee1 to result
-        # result["qtty_token1"] = univ3_formulas.get_uncollected_fees(
-        #     feeGrowthGlobal=self.feeGrowthGlobal1X128,
-        #     feeGrowthOutsideLower=feeGrowthOutside1X128_lower,
-        #     feeGrowthOutsideUpper=feeGrowthOutside1X128_upper,
-        #     feeGrowthInsideLast=feeGrowthInside1LastX128,
-        #     tickCurrent=tickCurrent,
-        #     liquidity=pos["liquidity"],
-        #     tickLower=tickLower,
-        #     tickUpper=tickUpper,
-        # )
 
         (
             result["qtty_token0"],
@@ -1453,30 +1255,71 @@ class univ3_pool(web3wrap):
 
         # convert to decimal as needed
         if inDecimal:
-            # get token decimals
-            decimals_token0 = self.token0.decimals
-            decimals_token1 = self.token1.decimals
-
-            result["qtty_token0"] /= 10**decimals_token0
-            result["qtty_token1"] /= 10**decimals_token1
+            result["qtty_token0"] = Decimal(result["qtty_token0"]) / Decimal(
+                10**self.token0.decimals
+            )
+            result["qtty_token1"] = Decimal(result["qtty_token1"]) / Decimal(
+                10**self.token1.decimals
+            )
 
         # return result
-        return result
+        return result.copy()
 
-    def as_dict(self) -> dict:
-        result = super().as_dict()
+    def as_dict(self, convert_bint=False) -> dict:
+        result = super().as_dict(convert_bint=convert_bint)
 
         # result["factory"] = self.factory
         result["fee"] = self.fee
-        # result["feeGrowthGlobal0X128"] = str(self.feeGrowthGlobal0X128)
-        # result["feeGrowthGlobal1X128"] = str(self.feeGrowthGlobal1X128)
-        # result["liquidity"] = str(self.liquidity)
-        # result["maxLiquidityPerTick"] = str(self.maxLiquidityPerTick)
-        # result["protocolFees"] = self.protocolFees
-        # result["slot0"] = self.slot0
-        # result["tickSpacing"] = self.tickSpacing
-        result["token0"] = self.token0.as_dict()
-        result["token1"] = self.token1.as_dict()
+
+        result["feeGrowthGlobal0X128"] = (
+            self.feeGrowthGlobal0X128
+            if not convert_bint
+            else str(self.feeGrowthGlobal0X128)
+        )
+        result["feeGrowthGlobal1X128"] = (
+            self.feeGrowthGlobal1X128
+            if not convert_bint
+            else str(self.feeGrowthGlobal1X128)
+        )
+        result["liquidity"] = (
+            self.liquidity if not convert_bint else str(self.liquidity)
+        )
+        result["maxLiquidityPerTick"] = (
+            self.maxLiquidityPerTick
+            if not convert_bint
+            else str(self.maxLiquidityPerTick)
+        )
+        # protocolFees
+        result["protocolFees"] = self.protocolFees
+        if convert_bint:
+            result["protocolFees"] = [str(i) for i in result["protocolFees"]]
+
+        # slot0
+        result["slot0"] = self.slot0
+        if convert_bint:
+            result["slot0"]["sqrtPriceX96"] = str(result["slot0"]["sqrtPriceX96"])
+            result["slot0"]["tick"] = str(result["slot0"]["tick"])
+            result["slot0"]["observationIndex"] = str(
+                result["slot0"]["observationIndex"]
+            )
+            result["slot0"]["observationCardinality"] = str(
+                result["slot0"]["observationCardinality"]
+            )
+            result["slot0"]["observationCardinalityNext"] = str(
+                result["slot0"]["observationCardinalityNext"]
+            )
+
+        # t spacing
+        result["tickSpacing"] = (
+            self.tickSpacing if not convert_bint else str(self.tickSpacing)
+        )
+
+        # identify pool dex
+        result["dex"] = self.identify_dex_name()
+
+        # tokens
+        result["token0"] = self.token0.as_dict(convert_bint=convert_bint)
+        result["token1"] = self.token1.as_dict(convert_bint=convert_bint)
 
         return result
 
@@ -1622,12 +1465,11 @@ class univ3_pool_cached(univ3_pool):
         return result
 
     @property
-    def protocolFees(self):
+    def protocolFees(self) -> list:
         """The amounts of token0 and token1 that are owed to the protocol
 
         Returns:
-           _type_: token0   uint128 :  0
-                   token1   uint128 :  0
+           list: token0   uint128 :  0, token1   uint128 :  0
         """
         prop_name = "protocolFees"
         result = self._cache.get_data(
@@ -1646,7 +1488,7 @@ class univ3_pool_cached(univ3_pool):
                 data=result,
                 save2file=self.SAVE2FILE,
             )
-        return result
+        return result.copy()
 
     @property
     def slot0(self) -> dict:
@@ -1678,7 +1520,7 @@ class univ3_pool_cached(univ3_pool):
                 data=result,
                 save2file=self.SAVE2FILE,
             )
-        return result
+        return result.copy()
 
     @property
     def tickSpacing(self) -> int:
@@ -1760,11 +1602,34 @@ class quickswapv3_dataStorageOperator(web3wrap):
             block=block,
         )
 
-    # TODO: all
+    # TODO: Implement contract functs calculateVolumePerLiquidity, getAverages, getFee, getSingleTimepoint, getTimepoints and timepoints
 
     @property
     def feeConfig(self) -> dict:
+        """feeConfig _summary_
+
+        Returns:
+            dict:   { alpha1   uint16 :  100
+                        alpha2   uint16 :  3600
+                        beta1   uint32 :  500
+                        beta2   uint32 :  80000
+                        gamma1   uint16 :  80
+                        gamma2   uint16 :  11750
+                        volumeBeta   uint32 :  0
+                        volumeGamma   uint16 :  10
+                        baseFee   uint16 :  400 }
+
+        """
         return self._contract.functions.feeConfig().call(block_identifier=self.block)
+
+    @property
+    def window(self) -> int:
+        """window _summary_
+
+        Returns:
+            int: 86400 uint32
+        """
+        return self._contract.functions.window().call(block_identifier=self.block)
 
 
 class quickswapv3_dataStorageOperator_cached(quickswapv3_dataStorageOperator):
@@ -1876,7 +1741,7 @@ class quickswapv3_pool(web3wrap):
                    unlocked   bool :  true
         """
         tmp = self._contract.functions.globalState().call(block_identifier=self.block)
-        result = {
+        return {
             "sqrtPriceX96": tmp[0],
             "tick": tmp[1],
             "fee": tmp[2],
@@ -1885,20 +1750,34 @@ class quickswapv3_pool(web3wrap):
             "communityFeeToken1": tmp[5],
             "unlocked": tmp[6],
         }
-        return result
 
     @property
     def liquidity(self) -> int:
+        """liquidity _summary_
+
+        Returns:
+            int: 14468296980040792163 uint128
+        """
         return self._contract.functions.liquidity().call(block_identifier=self.block)
 
     @property
     def liquidityCooldown(self) -> int:
+        """liquidityCooldown _summary_
+
+        Returns:
+            int: 0 uint32
+        """
         return self._contract.functions.liquidityCooldown().call(
             block_identifier=self.block
         )
 
     @property
     def maxLiquidityPerTick(self) -> int:
+        """maxLiquidityPerTick _summary_
+
+        Returns:
+            int: 11505743598341114571880798222544994 uint128
+        """
         return self._contract.functions.maxLiquidityPerTick().call(
             block_identifier=self.block
         )
@@ -1932,6 +1811,11 @@ class quickswapv3_pool(web3wrap):
 
     @property
     def tickSpacing(self) -> int:
+        """tickSpacing _summary_
+
+        Returns:
+            int: 60 int24
+        """
         return self._contract.functions.tickSpacing().call(block_identifier=self.block)
 
     def tickTable(self, value: int) -> int:
@@ -2046,12 +1930,13 @@ class quickswapv3_pool(web3wrap):
                    tokensOwed0   uint128 :  0
                    tokensOwed1   uint128 :  0
         """
-        key = univ3_formulas.get_positionKey_algebra(
-            ownerAddress=ownerAddress,
-            tickLower=tickLower,
-            tickUpper=tickUpper,
+        return self.positions(
+            univ3_formulas.get_positionKey_algebra(
+                ownerAddress=ownerAddress,
+                tickLower=tickLower,
+                tickUpper=tickUpper,
+            )
         )
-        return self.positions(key)
 
     def get_qtty_depoloyed(
         self, ownerAddress: str, tickUpper: int, tickLower: int, inDecimal: bool = True
@@ -2066,10 +1951,10 @@ class quickswapv3_pool(web3wrap):
 
         Returns:
            dict: {
-                   "qtty_token0":0,        (float) # quantity of token 0 deployed in dex
-                   "qtty_token1":0,        (float) # quantity of token 1 deployed in dex
-                   "fees_owed_token0":0,   (float) # quantity of token 0 fees owed to the position ( not included in qtty_token0 and this is not uncollected fees)
-                   "fees_owed_token1":0,   (float) # quantity of token 1 fees owed to the position ( not included in qtty_token1 and this is not uncollected fees)
+                   "qtty_token0":0,        (int or Decimal) # quantity of token 0 deployed in dex
+                   "qtty_token1":0,        (int or Decimal) # quantity of token 1 deployed in dex
+                   "fees_owed_token0":0,   (int or Decimal) # quantity of token 0 fees owed to the position ( not included in qtty_token0 and this is not uncollected fees)
+                   "fees_owed_token1":0,   (int or Decimal) # quantity of token 1 fees owed to the position ( not included in qtty_token1 and this is not uncollected fees)
                  }
         """
 
@@ -2112,13 +1997,21 @@ class quickswapv3_pool(web3wrap):
             decimals_token0 = self.token0.decimals
             decimals_token1 = self.token1.decimals
 
-            result["qtty_token0"] /= 10**decimals_token0
-            result["qtty_token1"] /= 10**decimals_token1
-            result["fees_owed_token0"] /= 10**decimals_token0
-            result["fees_owed_token1"] /= 10**decimals_token1
+            result["qtty_token0"] = Decimal(result["qtty_token0"]) / Decimal(
+                10**decimals_token0
+            )
+            result["qtty_token1"] = Decimal(result["qtty_token1"]) / Decimal(
+                10**decimals_token1
+            )
+            result["fees_owed_token0"] = Decimal(result["fees_owed_token0"]) / Decimal(
+                10**decimals_token0
+            )
+            result["fees_owed_token1"] = Decimal(result["fees_owed_token1"]) / Decimal(
+                10**decimals_token1
+            )
 
         # return result
-        return result
+        return result.copy()
 
     def get_fees_uncollected(
         self, ownerAddress: str, tickUpper: int, tickLower: int, inDecimal: bool = True
@@ -2133,8 +2026,8 @@ class quickswapv3_pool(web3wrap):
 
         Returns:
             dict: {
-                    "qtty_token0":0,   (float)     # quantity of uncollected token 0
-                    "qtty_token1":0,   (float)     # quantity of uncollected token 1
+                    "qtty_token0":0,   (int or Decimal)     # quantity of uncollected token 0
+                    "qtty_token1":0,   (int or Decimal)     # quantity of uncollected token 1
                 }
         """
 
@@ -2154,16 +2047,6 @@ class quickswapv3_pool(web3wrap):
         tickCurrent = self.globalState["tick"]
         ticks_lower = self.ticks(tickLower)
         ticks_upper = self.ticks(tickUpper)
-
-        # calc token0 uncollected fees
-        # feeGrowthOutside0X128_lower = ticks_lower["feeGrowthOutside0X128"]
-        # feeGrowthOutside0X128_upper = ticks_upper["feeGrowthOutside0X128"]
-        # feeGrowthInside0LastX128 = pos["feeGrowthInside0LastX128"]
-
-        # calc token1 uncollected fees
-        # feeGrowthOutside1X128_lower = ticks_lower["feeGrowthOutside1X128"]
-        # feeGrowthOutside1X128_upper = ticks_upper["feeGrowthOutside1X128"]
-        # feeGrowthInside1LastX128 = pos["feeGrowthInside1LastX128"]
 
         (
             result["qtty_token0"],
@@ -2189,85 +2072,61 @@ class quickswapv3_pool(web3wrap):
             decimals_token0 = self.token0.decimals
             decimals_token1 = self.token1.decimals
 
-            result["qtty_token0"] /= 10**decimals_token0
-            result["qtty_token1"] /= 10**decimals_token1
+            result["qtty_token0"] = Decimal(result["qtty_token0"]) / Decimal(
+                10**decimals_token0
+            )
+            result["qtty_token1"] = Decimal(result["qtty_token1"]) / Decimal(
+                10**decimals_token1
+            )
 
         # return result
-        return result
+        return result.copy()
 
-    def get_fees_uncollected_original(
-        self, ownerAddress: str, tickUpper: int, tickLower: int, inDecimal: bool = True
-    ) -> dict:
-        # DO NOT USE
+    def as_dict(self, convert_bint=False) -> dict:
+        result = super().as_dict(convert_bint=convert_bint)
 
-        result = {
-            "qtty_token0": 0,
-            "qtty_token1": 0,
-        }
+        result["activeIncentive"] = self.activeIncentive
+        result["globalState"] = self.globalState
+        if convert_bint:
+            result["globalState"]["price"] = str(result["globalState"]["price"])
+            result["globalState"]["tick"] = str(result["globalState"]["tick"])
+            result["globalState"]["fee"] = str(result["globalState"]["fee"])
+            result["globalState"]["timepointIndex"] = str(
+                result["globalState"]["timepointIndex"]
+            )
+            result["globalState"]["price"] = str(result["globalState"]["price"])
 
-        # get position data
-        pos = self.position(
-            ownerAddress=Web3.toChecksumAddress(ownerAddress.lower()),
-            tickLower=tickLower,
-            tickUpper=tickUpper,
+        result["liquidity"] = (
+            self.liquidity if not convert_bint else str(self.liquidity)
+        )
+        result["liquidityCooldown"] = (
+            self.liquidityCooldown if not convert_bint else str(self.liquidityCooldown)
+        )
+        result["maxLiquidityPerTick"] = (
+            self.maxLiquidityPerTick
+            if not convert_bint
+            else str(self.maxLiquidityPerTick)
         )
 
-        # get ticks
-        tickCurrent = self.globalState["tick"]
-        ticks_lower = self.ticks(tickLower)
-        ticks_upper = self.ticks(tickUpper)
-
-        # calc token0 uncollected fees
-        feeGrowthOutside0X128_lower = ticks_lower["feeGrowthOutside0X128"]
-        feeGrowthOutside0X128_upper = ticks_upper["feeGrowthOutside0X128"]
-        feeGrowthInside0LastX128 = pos["feeGrowthInside0LastX128"]
-        # add to result
-        result["qtty_token0"] = univ3_formulas.get_uncollected_fees(
-            feeGrowthGlobal=self.feeGrowthGlobal0X128,
-            feeGrowthOutsideLower=feeGrowthOutside0X128_lower,
-            feeGrowthOutsideUpper=feeGrowthOutside0X128_upper,
-            feeGrowthInsideLast=feeGrowthInside0LastX128,
-            tickCurrent=tickCurrent,
-            liquidity=pos["liquidity"],
-            tickLower=tickLower,
-            tickUpper=tickUpper,
+        result["feeGrowthGlobal0X128"] = (
+            self.feeGrowthGlobal0X128
+            if not convert_bint
+            else str(self.feeGrowthGlobal0X128)
+        )
+        result["feeGrowthGlobal1X128"] = (
+            self.feeGrowthGlobal1X128
+            if not convert_bint
+            else str(self.feeGrowthGlobal1X128)
         )
 
-        # calc token1 uncollected fees
-        feeGrowthOutside1X128_lower = ticks_lower["feeGrowthOutside1X128"]
-        feeGrowthOutside1X128_upper = ticks_upper["feeGrowthOutside1X128"]
-        feeGrowthInside1LastX128 = pos["feeGrowthInside1LastX128"]
-        #       add fee1 to result
-        result["qtty_token1"] = univ3_formulas.get_uncollected_fees(
-            feeGrowthGlobal=self.feeGrowthGlobal1X128,
-            feeGrowthOutsideLower=feeGrowthOutside1X128_lower,
-            feeGrowthOutsideUpper=feeGrowthOutside1X128_upper,
-            feeGrowthInsideLast=feeGrowthInside1LastX128,
-            tickCurrent=tickCurrent,
-            liquidity=pos["liquidity"],
-            tickLower=tickLower,
-            tickUpper=tickUpper,
-        )
+        # add fee so that it has same field as univ3 pool to dict
+        result["fee"] = result["globalState"]["fee"]
 
-        # convert to decimal as needed
-        if inDecimal:
-            # get token decimals
-            decimals_token0 = self.token0.decimals
-            decimals_token1 = self.token1.decimals
+        # identify pool dex
+        result["dex"] = self.identify_dex_name()
 
-            result["qtty_token0"] /= 10**decimals_token0
-            result["qtty_token1"] /= 10**decimals_token1
-
-        # return result
-        return result
-
-    def as_dict(self) -> dict:
-        result = super().as_dict()
-
-        result["fee"] = self.globalState["fee"]
-
-        result["token0"] = self.token0.as_dict()
-        result["token1"] = self.token1.as_dict()
+        result["token0"] = self.token0.as_dict(convert_bint=convert_bint)
+        result["token1"] = self.token1.as_dict(convert_bint=convert_bint)
 
         return result
 
@@ -2352,7 +2211,7 @@ class quickswapv3_pool_cached(quickswapv3_pool):
                 data=result,
                 save2file=self.SAVE2FILE,
             )
-        return result
+        return result.copy()
 
     @property
     def liquidity(self) -> int:
@@ -2539,105 +2398,163 @@ class gamma_hypervisor(erc20):
 
     # PROPERTIES
     @property
-    def baseUpper(self):
+    def baseUpper(self) -> int:
+        """baseUpper _summary_
+
+        Returns:
+            _type_: 0 int24
+        """
         return self._contract.functions.baseUpper().call(block_identifier=self.block)
 
     @property
-    def baseLower(self):
+    def baseLower(self) -> int:
+        """baseLower _summary_
+
+        Returns:
+            _type_: 0 int24
+        """
         return self._contract.functions.baseLower().call(block_identifier=self.block)
 
     @property
     def currentTick(self) -> int:
+        """currentTick _summary_
+
+        Returns:
+            int: -78627 int24
+        """
         return self._contract.functions.currentTick().call(block_identifier=self.block)
 
     @property
-    def deposit0Max(self) -> float:
+    def deposit0Max(self) -> int:
+        """deposit0Max _summary_
+
+        Returns:
+            float: 1157920892373161954234007913129639935 uint256
+        """
         return self._contract.functions.deposit0Max().call(block_identifier=self.block)
 
     @property
-    def deposit1Max(self) -> float:
+    def deposit1Max(self) -> int:
+        """deposit1Max _summary_
+
+        Returns:
+            int: 115792089237 uint256
+        """
         return self._contract.functions.deposit1Max().call(block_identifier=self.block)
 
+    # v1 contracts have no directDeposit
     @property
     def directDeposit(self) -> bool:
+        """v1 contracts have no directDeposit function
+
+        Returns:
+            bool:
+        """
         return self._contract.functions.directDeposit().call(
             block_identifier=self.block
         )
 
     @property
     def fee(self) -> int:
+        """fee _summary_
+
+        Returns:
+            int: 10 uint8
+        """
         return self._contract.functions.fee().call(block_identifier=self.block)
+
+    # v1 contracts have no feeRecipient
+    @property
+    def feeRecipient(self) -> str:
+        """v1 contracts have no feeRecipient function
+
+        Returns:
+            str: address
+        """
+        return self._contract.functions.feeRecipient().call(block_identifier=self.block)
 
     @property
     def getBasePosition(self) -> dict:
         """
         Returns:
            dict:   {
-               liquidity   28.7141300490401993
-               amount0     72.329994
-               amount1     56.5062023318300677907
+               liquidity   287141300490401993 uint128
+               amount0     72329994  uint256
+               amount1     565062023318300677907  uint256
                }
         """
         tmp = self._contract.functions.getBasePosition().call(
             block_identifier=self.block
         )
-        result = {
+        return {
             "liquidity": tmp[0],
-            "amount0": tmp[1] / (10**self.token0.decimals),
-            "amount1": tmp[2] / (10**self.token1.decimals),
+            "amount0": tmp[1],
+            "amount1": tmp[2],
         }
-        return result
 
     @property
     def getLimitPosition(self) -> dict:
         """
         Returns:
            dict:   {
-               liquidity   28.7141300490401993
-               amount0     72.329994
-               amount1     56.5062023318300677907
+               liquidity   287141300490401993 uint128
+               amount0     72329994 uint256
+               amount1     565062023318300677907 uint256
                }
         """
         tmp = self._contract.functions.getLimitPosition().call(
             block_identifier=self.block
         )
-        result = {
+        return {
             "liquidity": tmp[0],
-            "amount0": tmp[1] / (10**self.token0.decimals),
-            "amount1": tmp[2] / (10**self.token1.decimals),
+            "amount0": tmp[1],
+            "amount1": tmp[2],
         }
-        return result
 
     @property
     def getTotalAmounts(self) -> dict:
         """
 
         Returns:
-           _type_: total0   2.902086313
-                   total1  56.5062023318300678136
+           _type_: total0   2902086313 uint256
+                   total1  565062023318300678136 uint256
         """
         tmp = self._contract.functions.getTotalAmounts().call(
             block_identifier=self.block
         )
-        result = {
-            "total0": tmp[0] / (10**self.token0.decimals),
-            "total1": tmp[1] / (10**self.token1.decimals),
+        return {
+            "total0": tmp[0],
+            "total1": tmp[1],
         }
-        return result
 
     @property
-    def limitLower(self):
+    def limitLower(self) -> int:
+        """limitLower _summary_
+
+        Returns:
+            int: 0 int24
+        """
         return self._contract.functions.limitLower().call(block_identifier=self.block)
 
     @property
-    def limitUpper(self):
+    def limitUpper(self) -> int:
+        """limitUpper _summary_
+
+        Returns:
+            int: 0 int24
+        """
         return self._contract.functions.limitUpper().call(block_identifier=self.block)
 
     @property
-    def maxTotalSupply(self) -> float:
+    def maxTotalSupply(self) -> int:
+        """maxTotalSupply _summary_
+
+        Returns:
+            int: 0 uint256
+        """
         return self._contract.functions.maxTotalSupply().call(
             block_identifier=self.block
-        ) / (10**self.decimals)
+        )
 
     @property
     def name(self) -> str:
@@ -2666,6 +2583,11 @@ class gamma_hypervisor(erc20):
 
     @property
     def tickSpacing(self) -> int:
+        """tickSpacing _summary_
+
+        Returns:
+            int: 60 int24
+        """
         return self._contract.functions.tickSpacing().call(block_identifier=self.block)
 
     @property
@@ -2765,22 +2687,22 @@ class gamma_hypervisor(erc20):
 
         return {k: base.get(k, 0) + limit.get(k, 0) for k in set(base) & set(limit)}
 
-    def get_tvl(self) -> dict:
+    def get_tvl(self, inDecimal=True) -> dict:
         """get total value locked of both positions
            TVL = deployed + parked + owed
 
         Returns:
-           dict: {" tvl_token0": ,      (float) sum of below's token 0 (total)
-                   "tvl_token1": ,      (float)
-                   "deployed_token0": , (float) quantity of token 0 LPing
-                   "deployed_token1": , (float)
-                   "fees_owed_token0": ,(float) fees owed to the position by dex
-                   "fees_owed_token1": ,(float)
-                   "parked_token0": ,   (float) quantity of token 0 parked at contract (not deployed)
-                   "parked_token1": ,   (float)
+           dict: {" tvl_token0": ,      (int or Decimal) sum of below's token 0 (total)
+                   "tvl_token1": ,      (int or Decimal)
+                   "deployed_token0": , (int or Decimal) quantity of token 0 LPing
+                   "deployed_token1": , (int or Decimal)
+                   "fees_owed_token0": ,(int or Decimal) fees owed to the position by dex
+                   "fees_owed_token1": ,(int or Decimal)
+                   "parked_token0": ,   (int or Decimal) quantity of token 0 parked at contract (not deployed)
+                   "parked_token1": ,   (int or Decimal)
                    }
         """
-        # get deployed fees as int
+        # get deployed fees as int ( force no decimals)
         deployed = self.get_qtty_depoloyed(inDecimal=False)
 
         result = dict()
@@ -2806,48 +2728,129 @@ class gamma_hypervisor(erc20):
             + result["parked_token1"]
         )
 
-        # transform everythin to deicmal
-        for key in result.keys():
-            if "token0" in key:
-                result[key] /= 10**self.token0.decimals
-            elif "token1" in key:
-                result[key] /= 10**self.token1.decimals
-            else:
-                raise ValueError("Cant convert '{}' field to decimal".format(key))
+        if inDecimal:
+            # convert to decimal
+            for key in result.keys():
+                if "token0" in key:
+                    result[key] = Decimal(result[key]) / Decimal(
+                        10**self.token0.decimals
+                    )
+                elif "token1" in key:
+                    result[key] = Decimal(result[key]) / Decimal(
+                        10**self.token1.decimals
+                    )
+                else:
+                    raise ValueError("Cant convert '{}' field to decimal".format(key))
 
-        return result
+        return result.copy()
 
-    def as_dict(self) -> dict:
-        result = super().as_dict()
+    def as_dict(self, convert_bint=False, static_mode: bool = False) -> dict:
+        """as_dict _summary_
 
-        result["baseLower"] = self.baseLower
-        result["baseUpper"] = self.baseUpper
-        result["currentTick"] = self.currentTick
+        Args:
+            convert_bint (bool, optional): Convert big integers to string. Defaults to False.
+            static_mode (bool, optional): only general static fields are returned. Defaults to False.
 
-        # result["deposit0Max"] = self.deposit0Max
-        # result["deposit1Max"] = self.deposit1Max
+        Returns:
+            dict:
+        """
+        result = super().as_dict(convert_bint=convert_bint)
 
-        # result["directDeposit"] = self.directDeposit  # not working
+        result["name"] = self.name
+        result["pool"] = self.pool.as_dict(convert_bint=convert_bint)
+
         result["fee"] = self.fee
 
-        # result["basePosition"] = self.getBasePosition
-        # result["limitPosition"] = self.getLimitPosition
+        # identify hypervisor dex
+        result["dex"] = self.identify_dex_name()
 
-        result["totalAmounts"] = self.getTotalAmounts
-        result["limitLower"] = self.limitLower
-        result["limitUpper"] = self.limitUpper
-        result["maxTotalSupply"] = self.maxTotalSupply
-        result["name"] = self.name
+        result["deposit0Max"] = (
+            self.deposit0Max if not convert_bint else str(self.deposit0Max)
+        )
+        result["deposit1Max"] = (
+            self.deposit1Max if not convert_bint else str(self.deposit1Max)
+        )
+        # result["directDeposit"] = self.directDeposit  # not working
 
-        result["pool"] = self.pool.as_dict()
+        # only return when static mode is off
+        if not static_mode:
+            result["baseLower"] = (
+                self.baseLower if not convert_bint else str(self.baseLower)
+            )
+            result["baseUpper"] = (
+                self.baseUpper if not convert_bint else str(self.baseUpper)
+            )
+            result["currentTick"] = (
+                self.currentTick if not convert_bint else str(self.currentTick)
+            )
 
-        # result["tickSpacing"] = self.tickSpacing
-        # result["token0"] = self.token0.as_dict()
-        # result["token1"] = self.token1.as_dict()
+            result["limitLower"] = (
+                self.limitLower if not convert_bint else str(self.limitLower)
+            )
+            result["limitUpper"] = (
+                self.limitUpper if not convert_bint else str(self.limitUpper)
+            )
 
-        result["tvl"] = self.get_tvl()
-        result["qtty_depoloyed"] = self.get_qtty_depoloyed()
-        result["fees_uncollected"] = self.get_fees_uncollected()
+            # getTotalAmounts
+            result["totalAmounts"] = self.getTotalAmounts
+            if convert_bint:
+                result["totalAmounts"]["total0"] = str(result["totalAmounts"]["total0"])
+                result["totalAmounts"]["total1"] = str(result["totalAmounts"]["total1"])
+
+            result["maxTotalSupply"] = (
+                self.maxTotalSupply if not convert_bint else str(self.maxTotalSupply)
+            )
+
+            # TVL
+            result["tvl"] = self.get_tvl(inDecimal=(not convert_bint))
+            if convert_bint:
+                for k in result["tvl"].keys():
+                    result["tvl"][k] = str(result["tvl"][k])
+
+            # Deployed
+            result["qtty_depoloyed"] = self.get_qtty_depoloyed(
+                inDecimal=(not convert_bint)
+            )
+            if convert_bint:
+                for k in result["qtty_depoloyed"].keys():
+                    result["qtty_depoloyed"][k] = str(result["qtty_depoloyed"][k])
+
+            # uncollected fees
+            result["fees_uncollected"] = self.get_fees_uncollected(
+                inDecimal=(not convert_bint)
+            )
+            if convert_bint:
+                for k in result["fees_uncollected"].keys():
+                    result["fees_uncollected"][k] = str(result["fees_uncollected"][k])
+
+            # positions
+            result["basePosition"] = self.getBasePosition
+            if convert_bint:
+                result["basePosition"]["liquidity"] = str(
+                    result["basePosition"]["liquidity"]
+                )
+                result["basePosition"]["amount0"] = str(
+                    result["basePosition"]["amount0"]
+                )
+                result["basePosition"]["amount1"] = str(
+                    result["basePosition"]["amount1"]
+                )
+
+            result["limitPosition"] = self.getLimitPosition
+            if convert_bint:
+                result["limitPosition"]["liquidity"] = str(
+                    result["limitPosition"]["liquidity"]
+                )
+                result["limitPosition"]["amount0"] = str(
+                    result["limitPosition"]["amount0"]
+                )
+                result["limitPosition"]["amount1"] = str(
+                    result["limitPosition"]["amount1"]
+                )
+
+            result["tickSpacing"] = (
+                self.tickSpacing if not convert_bint else str(self.tickSpacing)
+            )
 
         return result
 
@@ -2893,7 +2896,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
 
     # PROPERTIES
     @property
-    def baseLower(self):
+    def baseLower(self) -> int:
         prop_name = "baseLower"
         result = self._cache.get_data(
             chain_id=self._chain_id,
@@ -2914,7 +2917,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
         return result
 
     @property
-    def baseUpper(self):
+    def baseUpper(self) -> int:
         prop_name = "baseUpper"
         result = self._cache.get_data(
             chain_id=self._chain_id,
@@ -2956,7 +2959,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
         return result
 
     @property
-    def deposit0Max(self) -> float:
+    def deposit0Max(self) -> int:
         prop_name = "deposit0Max"
         result = self._cache.get_data(
             chain_id=self._chain_id,
@@ -2977,7 +2980,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
         return result
 
     @property
-    def deposit1Max(self) -> float:
+    def deposit1Max(self) -> int:
         prop_name = "deposit1Max"
         result = self._cache.get_data(
             chain_id=self._chain_id,
@@ -3044,9 +3047,9 @@ class gamma_hypervisor_cached(gamma_hypervisor):
         """
         Returns:
            dict:   {
-               liquidity   28.7141300490401993
-               amount0     72.329994
-               amount1     56.5062023318300677907
+               liquidity   287141300490401993
+               amount0     72329994
+               amount1     565062023318300677907
                }
         """
         prop_name = "getBasePosition"
@@ -3066,16 +3069,16 @@ class gamma_hypervisor_cached(gamma_hypervisor):
                 data=result,
                 save2file=self.SAVE2FILE,
             )
-        return result
+        return result.copy()
 
     @property
     def getLimitPosition(self) -> dict:
         """
         Returns:
            dict:   {
-               liquidity   28.7141300490401993
-               amount0     72.329994
-               amount1     56.5062023318300677907
+               liquidity   287141300490401993
+               amount0     72329994
+               amount1     565062023318300677907
                }
         """
         prop_name = "getLimitPosition"
@@ -3095,15 +3098,15 @@ class gamma_hypervisor_cached(gamma_hypervisor):
                 data=result,
                 save2file=self.SAVE2FILE,
             )
-        return result
+        return result.copy()
 
     @property
     def getTotalAmounts(self) -> dict:
         """_
 
         Returns:
-           _type_: total0   2.902086313
-                   total1  56.5062023318300678136
+           _type_: total0   2902086313
+                   total1  565062023318300678136
         """
         prop_name = "getTotalAmounts"
         result = self._cache.get_data(
@@ -3123,10 +3126,10 @@ class gamma_hypervisor_cached(gamma_hypervisor):
                 save2file=self.SAVE2FILE,
             )
 
-        return result
+        return result.copy()
 
     @property
-    def limitLower(self):
+    def limitLower(self) -> int:
         prop_name = "limitLower"
         result = self._cache.get_data(
             chain_id=self._chain_id,
@@ -3147,7 +3150,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
         return result
 
     @property
-    def limitUpper(self):
+    def limitUpper(self) -> int:
         prop_name = "limitUpper"
         result = self._cache.get_data(
             chain_id=self._chain_id,
@@ -3315,7 +3318,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
 
     # PROPERTIES
     @property
-    def baseLower(self):
+    def baseLower(self) -> int:
         prop_name = "baseLower"
         result = self._cache.get_data(
             chain_id=self._chain_id,
@@ -3336,7 +3339,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
         return result
 
     @property
-    def baseUpper(self):
+    def baseUpper(self) -> int:
         prop_name = "baseUpper"
         result = self._cache.get_data(
             chain_id=self._chain_id,
@@ -3378,7 +3381,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
         return result
 
     @property
-    def deposit0Max(self) -> float:
+    def deposit0Max(self) -> int:
         prop_name = "deposit0Max"
         result = self._cache.get_data(
             chain_id=self._chain_id,
@@ -3399,7 +3402,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
         return result
 
     @property
-    def deposit1Max(self) -> float:
+    def deposit1Max(self) -> int:
         prop_name = "deposit1Max"
         result = self._cache.get_data(
             chain_id=self._chain_id,
@@ -3466,9 +3469,9 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
         """
         Returns:
            dict:   {
-               liquidity   28.7141300490401993
-               amount0     72.329994
-               amount1     56.5062023318300677907
+               liquidity   287141300490401993
+               amount0     72329994
+               amount1     565062023318300677907
                }
         """
         prop_name = "getBasePosition"
@@ -3488,16 +3491,16 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
                 data=result,
                 save2file=self.SAVE2FILE,
             )
-        return result
+        return result.copy()
 
     @property
     def getLimitPosition(self) -> dict:
         """
         Returns:
            dict:   {
-               liquidity   28.7141300490401993
-               amount0     72.329994
-               amount1     56.5062023318300677907
+               liquidity   287141300490401993
+               amount0     72329994
+               amount1     565062023318300677907
                }
         """
         prop_name = "getLimitPosition"
@@ -3517,15 +3520,15 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
                 data=result,
                 save2file=self.SAVE2FILE,
             )
-        return result
+        return result.copy()
 
     @property
     def getTotalAmounts(self) -> dict:
         """_
 
         Returns:
-           _type_: total0   2.902086313
-                   total1  56.5062023318300678136
+           _type_: total0   2902086313
+                   total1  565062023318300678136
         """
         prop_name = "getTotalAmounts"
         result = self._cache.get_data(
@@ -3545,10 +3548,10 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
                 save2file=self.SAVE2FILE,
             )
 
-        return result
+        return result.copy()
 
     @property
-    def limitLower(self):
+    def limitLower(self) -> int:
         prop_name = "limitLower"
         result = self._cache.get_data(
             chain_id=self._chain_id,
@@ -3569,7 +3572,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
         return result
 
     @property
-    def limitUpper(self):
+    def limitUpper(self) -> int:
         prop_name = "limitUpper"
         result = self._cache.get_data(
             chain_id=self._chain_id,
@@ -3655,7 +3658,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
     @property
     def pool(self) -> str:
         if self._pool == None:
-            self._pool = univ3_pool_cached(
+            self._pool = quickswapv3_pool(
                 address=self._contract.functions.pool().call(
                     block_identifier=self.block
                 ),
@@ -3807,7 +3810,7 @@ class gamma_hypervisor_registry(web3wrap):
                     block=self.block,
                 )
                 # check this is actually an hypervisor (erroneous addresses exist like "ethereum":{"0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599"})
-                hypervisor.getTotalAmounts
+                hypervisor.getTotalAmounts  # test func
 
                 # return correct hypervisor
                 yield hypervisor
@@ -3847,6 +3850,7 @@ class gamma_hypervisor_registry(web3wrap):
         return result
 
 
+# TODO: decimals n stuff
 class arrakis_hypervisor(erc20):
 
     # SETUP
