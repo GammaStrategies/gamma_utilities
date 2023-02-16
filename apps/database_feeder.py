@@ -21,13 +21,14 @@ from bins.general.general_utilities import (
     log_time_passed,
 )
 from bins.w3.onchain_data_helper import onchain_data_helper2
-from bins.w3.onchain_utilities import (
+from bins.w3.onchain_utilities.protocols import (
     gamma_hypervisor,
     gamma_hypervisor_quickswap,
     gamma_hypervisor_cached,
     gamma_hypervisor_quickswap_cached,
     gamma_hypervisor_registry,
 )
+
 from bins.database.common.db_collections_common import database_local, database_global
 from bins.mixed.price_utilities import price_scraper
 

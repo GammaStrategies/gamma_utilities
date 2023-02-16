@@ -10,7 +10,16 @@ import tqdm
 import concurrent.futures
 
 from bins.w3.protocol_comparator import template
-from bins.w3 import onchain_utilities
+
+from bins.w3.onchain_utilities.collectors import data_collector
+from bins.w3.onchain_utilities.protocols import (
+    gamma_hypervisor_cached,
+    gamma_hypervisor_quickswap_cached,
+    gamma_hypervisor,
+    gamma_hypervisor_quickswap,
+    arrakis_hypervisor_cached,
+)
+
 from bins.general import general_utilities, file_utilities
 from bins.mixed import price_utilities
 from bins.database.common import db_operations_models, db_managers
@@ -63,12 +72,12 @@ class onchain_data_helper:
            _type_: protocol helper for web3 interactions
         """
         if self.protocol == "gamma":
-            return onchain_utilities.gamma_hypervisor_cached(
+            return gamma_hypervisor_cached(
                 address=address, network=network, block=block
             )
 
         elif self.protocol == "arrakis":
-            return onchain_utilities.arrakis_hypervisor_cached(
+            return arrakis_hypervisor_cached(
                 address=address, network=network, block=block
             )
 
@@ -77,18 +86,18 @@ class onchain_data_helper:
                 " No web3 helper defined for {} protocol".format(self.protocol)
             )
 
-    def create_data_collector(self, network: str) -> onchain_utilities.data_collector:
+    def create_data_collector(self, network: str) -> data_collector:
         """Create a data collector class
 
         Args:
            network (str):
 
         Returns:
-           onchain_utilities.data_collector:
+           data_collector:
         """
         result = None
         if self.protocol == "gamma":
-            result = onchain_utilities.data_collector(
+            result = data_collector(
                 topics={
                     "gamma_transfer": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
                     "gamma_rebalance": "0xbc4c20ad04f161d631d9ce94d27659391196415aa3c42f6a71c62e905ece782d",
@@ -121,7 +130,7 @@ class onchain_data_helper:
                 network=network,
             )
         elif self.protocol == "arrakis":
-            result = onchain_utilities.data_collector(
+            result = data_collector(
                 topics={
                     "arrakis_transfer": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
                     "arrakis_rebalance": "0xc749f9ae947d4734cf1569606a8a347391ae94a063478aa853aeff48ac5f99e8",
@@ -151,7 +160,7 @@ class onchain_data_helper:
                 network=network,
             )
         elif self.protocol == "uniswapv3":
-            result = onchain_utilities.data_collector(
+            result = data_collector(
                 topics={
                     "uniswapv3_collect": "0x40d0efd1a53d60ecbf40971b9daf7dc90178c3aadc7aab1765632738fa8b8f01",
                     "burn": "0x0c396cd989a39f4459b5fa1aed6a9a8dcdbc45908acfd67e028cd568da98982c",
@@ -660,17 +669,12 @@ class onchain_data_helper2:
            _type_: protocol helper for web3 interactions
         """
         if self.protocol == "gamma":
-            return onchain_utilities.gamma_hypervisor_cached(
+            return gamma_hypervisor_cached(
                 address=address, network=network, block=block
             )
 
         elif self.protocol == "arrakis":
-            return onchain_utilities.arrakis_hypervisor_cached(
-                address=address, network=network, block=block
-            )
-        # TODO: remove
-        elif self.protocol == "uniswapv3":
-            return onchain_utilities.gamma_hypervisor_cached(
+            return arrakis_hypervisor_cached(
                 address=address, network=network, block=block
             )
 
@@ -679,18 +683,18 @@ class onchain_data_helper2:
                 " No web3 helper defined for {} protocol".format(self.protocol)
             )
 
-    def create_data_collector(self, network: str) -> onchain_utilities.data_collector:
+    def create_data_collector(self, network: str) -> data_collector:
         """Create a data collector class
 
         Args:
            network (str):
 
         Returns:
-           onchain_utilities.data_collector:
+           data_collector:
         """
         result = None
         if self.protocol == "gamma":
-            result = onchain_utilities.data_collector(
+            result = data_collector(
                 topics={
                     "gamma_transfer": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",  # event_signature_hash = web3.keccak(text="transfer(uint32...)").hex()
                     "gamma_rebalance": "0xbc4c20ad04f161d631d9ce94d27659391196415aa3c42f6a71c62e905ece782d",
@@ -723,7 +727,7 @@ class onchain_data_helper2:
                 network=network,
             )
         elif self.protocol == "arrakis":
-            result = onchain_utilities.data_collector(
+            result = data_collector(
                 topics={
                     "arrakis_transfer": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
                     "arrakis_rebalance": "0xc749f9ae947d4734cf1569606a8a347391ae94a063478aa853aeff48ac5f99e8",
@@ -753,7 +757,7 @@ class onchain_data_helper2:
                 network=network,
             )
         elif self.protocol == "uniswapv3":
-            result = onchain_utilities.data_collector(
+            result = data_collector(
                 topics={
                     "uniswapv3_collect": "0x40d0efd1a53d60ecbf40971b9daf7dc90178c3aadc7aab1765632738fa8b8f01",
                 },

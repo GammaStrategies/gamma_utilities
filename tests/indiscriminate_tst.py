@@ -16,7 +16,7 @@ sys.path.append(PARENT_FOLDER)
 from bins.configuration import CONFIGURATION
 from bins.general import general_utilities, file_utilities
 
-from bins.w3.onchain_utilities import (
+from bins.w3.onchain_utilities.protocols import (
     gamma_hypervisor,
     gamma_hypervisor_quickswap,
     gamma_hypervisor_cached,

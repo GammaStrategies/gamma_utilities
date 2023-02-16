@@ -17,7 +17,6 @@ from bins.configuration import CONFIGURATION
 
 from bins.w3 import protocol_comparator
 from bins.general import general_utilities, file_utilities
-from bins.log import log_helper
 
 
 def test_comparator_phase1():

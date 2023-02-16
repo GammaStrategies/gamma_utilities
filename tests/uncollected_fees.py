@@ -19,7 +19,14 @@ from bins.configuration import CONFIGURATION
 from bins.apis import etherscan_utilities, thegraph_utilities
 from bins.cache import cache_utilities
 from bins.general import net_utilities, file_utilities, general_utilities
-from bins.w3 import onchain_utilities
+
+from bins.w3.onchain_utilities.protocols import (
+    gamma_hypervisor,
+    gamma_hypervisor_quickswap,
+    gamma_hypervisor_cached,
+    gamma_hypervisor_quickswap_cached,
+)
+
 from bins.log import log_helper
 from bins.formulas import univ3_formulas
 
@@ -48,9 +55,7 @@ def test_uncollected_fees_comparison_api_onchain(threaded: bool = False):
     def do_loop_work(hyp_id, hypervisor, network: str):
 
         # get onchain data ( need to force abi path bc current workinfolder is tests)
-        w3help = onchain_utilities.gamma_hypervisor_cached(
-            address=hyp_id, network=network
-        )
+        w3help = gamma_hypervisor_cached(address=hyp_id, network=network)
         dta_tvl = w3help.get_tvl()
         dta_uncollected = w3help.get_fees_uncollected()
 
@@ -1192,9 +1197,7 @@ def test_uncollected_fees_comparison_formulas_onchain(threaded: bool = False):
         error = False
 
         # setup helper
-        gamma_web3Helper = onchain_utilities.gamma_hypervisor_cached(
-            address=hyp_id, network=network
-        )
+        gamma_web3Helper = gamma_hypervisor_cached(address=hyp_id, network=network)
 
         # get name
         hypervisor_name = gamma_web3Helper.symbol
@@ -1504,11 +1507,11 @@ def test_uncollected_fees_onchain(
 
         # setup helper
         if dex == "uniswapv3":
-            gamma_web3Helper = onchain_utilities.gamma_hypervisor(
+            gamma_web3Helper = gamma_hypervisor(
                 address=hyp_id, network=network, block=block
             )
         elif dex == "quickswap":
-            gamma_web3Helper = onchain_utilities.gamma_hypervisor_quickswap(
+            gamma_web3Helper = gamma_hypervisor_quickswap(
                 address=hyp_id, network=network, block=block
             )
 

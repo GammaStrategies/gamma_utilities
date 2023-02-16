@@ -19,7 +19,12 @@ from bins.configuration import CONFIGURATION
 from bins.apis import etherscan_utilities, thegraph_utilities
 from bins.cache import cache_utilities
 from bins.general import net_utilities, file_utilities, general_utilities
-from bins.w3 import onchain_utilities
+
+from bins.w3.onchain_utilities.protocols import (
+    gamma_hypervisor,
+    gamma_hypervisor_quickswap,
+)
+
 from bins.log import log_helper
 
 
@@ -346,11 +351,11 @@ def do_loop_work(
     ## WEB3 INFO ##
     # get onchain data and set the block num. on all queries from now on
     if dex == "uniswapv3":
-        gamma_web3Helper = onchain_utilities.gamma_hypervisor(
+        gamma_web3Helper = gamma_hypervisor(
             address=hypervisor["id"], network=network, block=block
         )
     elif dex == "quickswap":
-        gamma_web3Helper = onchain_utilities.gamma_hypervisor_quickswap(
+        gamma_web3Helper = gamma_hypervisor_quickswap(
             address=hypervisor["id"], network=network, block=block
         )
 
@@ -590,12 +595,12 @@ def do_loop_work_loc_graph(
     ## WEB3 INFO ##
     # get onchain data and set the block num. on all queries from now on
     if dex == "uniswapv3":
-        gamma_web3Helper = onchain_utilities.gamma_hypervisor(
+        gamma_web3Helper = gamma_hypervisor(
             address=hypervisor["id"], network=network, block=block
         )
 
     elif dex == "quickswap":
-        gamma_web3Helper = onchain_utilities.gamma_hypervisor_quickswap(
+        gamma_web3Helper = gamma_hypervisor_quickswap(
             address=hypervisor["id"], network=network, block=block
         )
 

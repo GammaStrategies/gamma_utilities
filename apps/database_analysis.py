@@ -21,7 +21,7 @@ from bins.configuration import CONFIGURATION
 from bins.database.common.db_collections_common import database_local, database_global
 from bins.general import general_utilities
 from bins.apis.thegraph_utilities import gamma_scraper
-from bins.w3.onchain_utilities import (
+from bins.w3.onchain_utilities.protocols import (
     gamma_hypervisor,
     gamma_hypervisor_quickswap,
     gamma_hypervisor_cached,

@@ -11,7 +11,6 @@ from bins.database.common.db_general_models import (
     tool_database_id,
 )
 from bins.database.common.db_object_models import usd_price
-from bins.log import log_helper
 
 
 class db_collections_common:

@@ -9,7 +9,15 @@ from web3.middleware import geth_poa_middleware
 
 from bins.configuration import CONFIGURATION
 
-from bins.w3 import onchain_utilities
+from bins.w3.onchain_utilities.collectors import data_collector
+from bins.w3.onchain_utilities.protocols import (
+    gamma_hypervisor_cached,
+    gamma_hypervisor_quickswap_cached,
+    gamma_hypervisor,
+    gamma_hypervisor_quickswap,
+    arrakis_hypervisor_cached,
+)
+
 from bins.mixed import price_utilities
 from bins.general import general_utilities
 
@@ -306,9 +314,7 @@ class comparator_v1:
         result = template(oftype="hypervisor")["static"]
 
         # Web3 helper
-        web3_helper = self.create_web3_helper(
-            address=address, network=network
-        )
+        web3_helper = self.create_web3_helper(address=address, network=network)
         # define block
         web3_helper.block = (
             block if block != 0 else web3_helper.w3.eth.get_block("latest").number
@@ -440,9 +446,7 @@ class comparator_v1:
         max_workers = 5
 
         # Onetime get token addresses to decrease onchain queries when scraping status
-        web3_helper = self.create_web3_helper(
-            address=address, network=network
-        )
+        web3_helper = self.create_web3_helper(address=address, network=network)
         address_token0 = web3_helper.token0.address
         address_token1 = web3_helper.token1.address
 
@@ -1240,12 +1244,12 @@ class comparator_v1:
            _type_: protocol helper for web3 interactions
         """
         if self.protocol == "gamma":
-            return onchain_utilities.gamma_hypervisor_cached(
+            return gamma_hypervisor_cached(
                 address=address, network=network, block=block
             )
 
         elif self.protocol == "arrakis":
-            return onchain_utilities.arrakis_hypervisor_cached(
+            return arrakis_hypervisor_cached(
                 address=address, network=network, block=block
             )
 
@@ -1254,18 +1258,18 @@ class comparator_v1:
                 " No web3 helper defined for {} protocol".format(self.protocol)
             )
 
-    def create_data_collector(self, network: str) -> onchain_utilities.data_collector:
+    def create_data_collector(self, network: str) -> data_collector:
         """Create a data collector class
 
         Args:
            network (str):
 
         Returns:
-           onchain_utilities.data_collector:
+           data_collector:
         """
         result = None
         if self.protocol == "gamma":
-            result = onchain_utilities.data_collector(
+            result = data_collector(
                 topics={
                     "gamma_transfer": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
                     "gamma_rebalance": "0xbc4c20ad04f161d631d9ce94d27659391196415aa3c42f6a71c62e905ece782d",
@@ -1288,7 +1292,7 @@ class comparator_v1:
                 network=network,
             )
         elif self.protocol == "arrakis":
-            result = onchain_utilities.data_collector(
+            result = data_collector(
                 topics={
                     "arrakis_transfer": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
                     "arrakis_rebalance": "0xc749f9ae947d4734cf1569606a8a347391ae94a063478aa853aeff48ac5f99e8",
@@ -1401,9 +1405,7 @@ class comparator_v1:
         result["transfers"] = list()
 
         # save token addresses to gather prices from
-        w3helper = self.create_web3_helper(
-            address=address, network=network
-        )
+        w3helper = self.create_web3_helper(address=address, network=network)
         address_token0 = w3helper.token0.address
         address_token1 = w3helper.token1.address
 
