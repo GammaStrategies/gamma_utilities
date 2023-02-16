@@ -227,7 +227,9 @@ def feed_operations(
             )
 
             # check if hypervisors in static collection are diff from operation's
-            if len(hypervisor_addresses) > len(hypervisor_addresses_in_operations):
+            if len(hypervisor_addresses_in_operations) > 0 and len(
+                hypervisor_addresses
+            ) > len(hypervisor_addresses_in_operations):
                 # get different addresses
                 diffs = differences(
                     hypervisor_addresses, hypervisor_addresses_in_operations
