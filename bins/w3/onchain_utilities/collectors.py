@@ -9,6 +9,8 @@ from web3 import Web3
 from web3.middleware import geth_poa_middleware
 
 from bins.configuration import CONFIGURATION
+from bins.w3.onchain_utilities.basic import erc20
+from bins.w3.onchain_utilities.protocols import gamma_hypervisor
 
 
 class data_collector:
