@@ -86,36 +86,53 @@ def convert_commandline_arguments(argv) -> dict:
        dict -- [description]
     """
 
+    # TODO: implement argparse
+
     # GET COMMAND LINE ARGUMENTS
     prmtrs = dict()  # the parameters we will pass
 
     try:
-        opts, args = getopt.getopt(argv, "c:f:", ["config=", "db_feed="])
+        opts, args = getopt.getopt(argv, "", ["config=", "db_feed=", "service="])
 
     except getopt.GetoptError as err:
         print("             <filename>.py <options>")
         print("Options:")
-        print(" -c <filename> or --config=<filename>")
+        # config file
+        print("Load custom config file:")
+        print("    --config=<filename>")
         # database feeder:  -db_feed operations
-        print(" -f <option> or --db_feed=<option>")
-        print("    <option> = operations, status, static, prices ")
+        print("Feed database:")
+        print("    --db_feed=<option>")
+        print("    <option>: operations, status, static, prices ")
+        # service
+        print("Run in loop:")
+        print(" --service=<option>")
+        print("    <option>: global, local ")
         print(" ")
         print(" ")
         print(" ")
-        print("to execute with custom configuration file:")
-        print("             <filename>.py -c <filename.yaml>")
+        # examples
+        print("to execute feed db with custom configuration file:")
+        print("             <filename>.py --config <filename.yaml> --db_feed <option>")
         print("error message: {}".format(err.msg))
         print("opt message: {}".format(err.opt))
         sys.exit(2)
 
     # loop and retrieve each command
     for opt, arg in opts:
-        if opt in ("-c", "--config"):
-            # todo: check if it is a string   if isinstance(arg,str)
-            # todo: check if file exists
+        if opt in ("--config"):
+            # TODO: check if it is a string   if isinstance(arg,str)
+            # TODO: check if file exists
             prmtrs["config_file"] = arg.strip()
-        if opt in ("-f", "--db_feed"):
+
+        if opt in ("--db_feed"):
+            # database feed
             prmtrs["db_feed"] = arg.strip()
+
+        if opt in ("--service"):
+            # service
+            prmtrs["service"] = arg.strip()
+
     return prmtrs
 
 

@@ -46,6 +46,7 @@ class LogstashFormatter(Formatter):
 
 # TEST
 def test():
+
     logger = logging.getLogger("trymeApp")
     logger.setLevel(logging.WARNING)
 

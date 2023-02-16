@@ -2,6 +2,7 @@ import os
 import yaml
 import logging.config
 import logging
+from bins.log import telegram_logger
 
 
 def setup_logging(customconf, default_level=logging.INFO, env_key="LOG_CFG"):
@@ -15,6 +16,17 @@ def setup_logging(customconf, default_level=logging.INFO, env_key="LOG_CFG"):
        default_level {int} --  (default: {logging.INFO})
        env_key {str} --     (default: {'LOG_CFG'})
     """
+
+    # load telegram chatid n token
+    telegram_logger.TELEGRAM_ENABLED = (
+        customconf.get("logs", {}).get("telegram", {}).get("enabled", False)
+    )
+    telegram_logger.TELEGRAM_TOKEN = (
+        customconf.get("logs", {}).get("telegram", {}).get("token", "")
+    )
+    telegram_logger.TELEGRAM_CHAT_ID = (
+        customconf.get("logs", {}).get("telegram", {}).get("chat_id", "")
+    )
 
     # create logs dir if not exists
     if not os.path.exists(customconf["logs"]["save_path"]):
@@ -33,10 +45,6 @@ def setup_logging(customconf, default_level=logging.INFO, env_key="LOG_CFG"):
                         config["handlers"][k]["filename"] = os.path.join(
                             customconf["logs"]["save_path"], v["filename"]
                         )
-                        # if not customconf["logs"]["save_path"].endswith("/"):
-                        #     config["handlers"][k]["filename"] = "{}/{}".format(customconf["logs"]["save_path"],v["filename"])
-                        # else:
-                        #     config["handlers"][k]["filename"] = "{}{}".format(customconf["logs"]["save_path"],v["filename"])
                     except:
                         # many handlers do not have filename key
                         pass
