@@ -9,7 +9,7 @@ os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 from bins.configuration import CONFIGURATION
 from bins.general.general_utilities import log_time_passed
-from apps import database_feeder
+from apps import database_feeder, database_feeder_service
 
 
 # START ####################################################################################################################
@@ -26,20 +26,20 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.utcnow()
 
-    # check options chosen
+    # choose the first of the  parsed options
     if "db_feed" in CONFIGURATION["_custom_"]["cml_parameters"]:
         # database feeder:  -db_feed operations
         database_feeder.main(
-            option=CONFIGURATION["_custom_"]["cml_parameters"]["db_feed"]
+            option=CONFIGURATION["_custom_"]["cml_parameters"]["service"]
+        )
+    elif "service" in CONFIGURATION["_custom_"]["cml_parameters"]:
+        # service loop
+        database_feeder_service.main(
+            option=CONFIGURATION["_custom_"]["cml_parameters"]["service"]
         )
     else:
         logging.getLogger(__name__).info(" Nothing to do. How u doin? ")
 
-    # end time log
-    # _timelapse = datetime.utcnow() - _startime
-    # logging.getLogger(__name__).info(
-    #     " took {:,.2f} seconds to complete".format(_timelapse.total_seconds())
-    # )
     logging.getLogger(__name__).info(
         " took {} to complete".format(
             log_time_passed.get_timepassed_string(start_time=_startime)

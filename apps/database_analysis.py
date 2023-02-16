@@ -10,7 +10,6 @@ from datetime import datetime
 from dataclasses import dataclass, field, asdict, InitVar
 from decimal import Decimal
 
-
 if __name__ == "__main__":
     # append parent directory pth
     CURRENT_FOLDER = os.path.dirname(os.path.realpath(__file__))
@@ -2307,65 +2306,12 @@ def get_hypervisor_addresses(network: str, protocol: str) -> list[str]:
         .get("hypervisors_not_included", {})
         .get(network, [])
     )
-    # add hardcoded hyp addresses to list
-    # arbitrage attacker "0x89640eB6c8D72606D6a0FFf45415BFF0aB0e3AE1" affected hypervisor "0x0d3fbebfdd96940952618598a5f012de7240c552" mainnet  Visor HEX-ETH Uni v3
-    # blacklisted.append("0x0d3fbebfdd96940952618598a5f012de7240c552")
 
     # retrieve all addresses from database
     local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
     result = local_db_manager.get_distinct_items_from_database(
         collection_name="operations", field="address"
     )
-
-    # # TODO: remove debug
-    # hypervisor_addresses = [
-    #     "0x0d3fbebfdd96940952618598a5f012de7240c552",
-    #     "0x18d3284d9eff64fc97b64ab2b871738e684aa151",
-    #     "0x1b56860eaf38f27b99d2b0d8ffac86b0f1173f1a",
-    #     "0x33412fef1af035d6dba8b2f9b33b022e4c31dbb4",
-    #     "0x33682bfc1d94480a0e3de0a565180b182b71d485",
-    #     "0x336d7e0a0f87e2729c0080f86801e6f4becf146f",
-    #     "0x34b95494c3c2732aa82e1e56be57074fee7a2b28",
-    #     "0x35abccd8e577607275647edab08c537fa32cc65e",
-    #     "0x388a3938fb6c9c6cb0415946dd5d026f7d98e22c",
-    #     "0x3cca05926af387f1ab4cd45ce8975d31f0469927",
-    #     "0x3f805de0ec508bf7311baaa617015809be9ce953",
-    #     "0x467414f0312ecedba1e505c12bd97daa3609da87",
-    #     "0x46e4ddb5b87152dda90afe75daedfddab1c16513",
-    #     "0x4f7997158d66ca31d9734674fdcd12cc74e503a7",
-    #     "0x5230371a6d5311b1d7dd30c0f5474c2ef0a24661",
-    #     "0x52ce16b1f37ea7be4352b29fcde3331e225380ff",
-    #     "0x55eed13ab07f8b5538eff301551492a1d776da7b",
-    #     "0x5e6c481de496554b66657dd1ca1f70c61cf11660",
-    #     "0x6941b1b6b29948a2f74cad0ef2866e93436a5e2d",
-    #     "0x6c8116abe5c5f2c39553c6f4217840e71462539c",
-    #     "0x6e67bb258b6485b688cbb526c868d4428b634cf1",
-    #     "0x704ececabe7855996cede5cefa660eccd3c01dbe",
-    #     "0x705b3acaf102404cfdd5e4a60535e4e70091273c",
-    #     "0x716bd8a7f8a44b010969a1825ae5658e7a18630d",
-    #     "0x717a3276bd6f9e2f0ae447e0ffb45d0fa1c2dc57",
-    #     "0x85a5326f08c44ec673e4bfc666b737f7f3dc6b37",
-    #     "0x85cbed523459b7f6f81c11e710df969703a8a70c",
-    #     "0x8cd73cb1e1fa35628e36b8c543c5f825cd4e77f1",
-    #     "0x9196617815d95853945cd8f5e4e0bb88fdfe0281",
-    #     "0x92ccaa1b3dccccae7d68fff50e6e47a747233e62",
-    #     "0x93acb12ae1effb3426220c20c6d408eeaae59d72",
-    #     "0xa625ea468a4c70f13f9a756ffac3d0d250a5c276",
-    #     "0xae29f871c9a4cda7ad2c8dff7193c2a0fe3d0c05",
-    #     "0xb542f4cb10b7913307e3ed432acd9bf2e709f5fa",
-    #     "0xb666bfdb553a1aff4042c1e4f39e43852ba9731d",
-    #     "0xbff4a47a0f77637f735e3a0ce10ff2bf9be12e89",
-    #     "0xc92ff322c8a18e38b46393dbcc8a7c5691586497",
-    #     "0xd7b990543ea8e9bd0b9ae2deb9c52c4d0e660431",
-    #     "0xd8dbdb77305898365d7ba6dd438f2663f7d4e409",
-    #     "0xd930ab15c8078ebae4ac8da1098a81583603f7ce",
-    #     "0xe1ae05518a67ebe7e1e08e3b22d905d6c05b6c0f",
-    #     "0xe8f20fd90161de1d5b4cf7e2b5d92932ca06d5f4",
-    #     "0xf0a9f5c64f80fa390a46b298791dab9e2bb29bca",
-    #     "0xf19f91d7889668a533f14d076adc187be781a458",
-    #     "0xf56abca39c27d5c74f94c901b8c137fdf53b3e80",
-    #     "0xf874d4957861e193aec9937223062679c14f9aca",
-    # ]
 
     # apply black list
     logging.getLogger(__name__).debug(
