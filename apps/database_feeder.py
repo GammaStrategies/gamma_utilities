@@ -447,7 +447,9 @@ def feed_hypervisor_status(
         " Total address blocks {} ->  Already processed {} [{:,.0%}]".format(
             len(toProcess_block_address),
             len(processed_blocks),
-            len(processed_blocks.keys()) / len(toProcess_block_address),
+            (len(processed_blocks.keys()) / len(toProcess_block_address))
+            if len(toProcess_block_address) > 0
+            else 0,
         )
     )
     # remove already processed blocks
@@ -521,7 +523,10 @@ def feed_hypervisor_status(
     try:
         logging.getLogger(__name__).info(
             " {} of {} hypervisor status could not be scraped due to errors".format(
-                _errors, _errors / len(toProcess_block_address)
+                _errors,
+                (_errors / len(toProcess_block_address))
+                if len(toProcess_block_address) > 0
+                else 0,
             )
         )
     except:
