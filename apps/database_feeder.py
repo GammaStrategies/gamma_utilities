@@ -620,6 +620,8 @@ def feed_prices(
         cache=CONFIGURATION["cache"]["enabled"],
         cache_filename="uniswapv3_price_cache",
     )
+    # log errors
+    _errors = 0
 
     with tqdm.tqdm(total=len(items_to_process)) as progress_bar:
 
@@ -681,19 +683,33 @@ def feed_prices(
                         block=item["block"],
                         of="USD",
                     )
-                    # save price to database
-                    global_db_manager.set_price_usd(
-                        network=network,
-                        block=item["block"],
-                        token_address=item["token"],
-                        price_usd=price_usd,
-                    )
+                    if price_usd:
+                        # save price to database
+                        global_db_manager.set_price_usd(
+                            network=network,
+                            block=item["block"],
+                            token_address=item["token"],
+                            price_usd=price_usd,
+                        )
+                    else:
+                        # error found
+                        _errors += 1
                 except:
                     logging.getLogger(__name__).exception(
                         f"Unexpected error while geting {item['token']} usd price at block {item['block']}"
                     )
                 # add one
                 progress_bar.update(1)
+
+    try:
+        logging.getLogger(__name__).info(
+            " {} of {} address block prices could not be scraped due to errors".format(
+                _errors,
+                (_errors / len(items_to_process)) if len(items_to_process) > 0 else 0,
+            )
+        )
+    except:
+        pass
 
 
 def main(option="operations"):
