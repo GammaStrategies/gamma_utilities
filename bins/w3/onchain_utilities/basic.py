@@ -362,6 +362,15 @@ class web3wrap:
         Returns:
             str: "uniswapv3", "quickswap" or  not Implemented error
         """
+        # cross reference import
+        from bins.w3.onchain_utilities.protocols import (
+            gamma_hypervisor,
+            gamma_hypervisor_quickswap,
+        )
+        from bins.w3.onchain_utilities.exchanges import univ3_pool, quickswapv3_pool
+
+        #######################
+
         if isinstance(
             self, (gamma_hypervisor_quickswap, quickswapv3_pool)
         ) or issubclass(type(self), (gamma_hypervisor_quickswap, quickswapv3_pool)):
