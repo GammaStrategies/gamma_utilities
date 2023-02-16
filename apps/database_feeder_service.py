@@ -38,7 +38,7 @@ def local_db_sequence():
                             network=network,
                             dex=dex,
                             rewrite=False,
-                            threaded=True,  # TODO:_change
+                            threaded=True,
                         )
 
                     # feed database with all operations from static hyprervisor addresses
@@ -51,8 +51,9 @@ def local_db_sequence():
     except KeyboardInterrupt:
         logging.getLogger(__name__).debug(" Local database feeding loop stoped by user")
     except:
-        # TODO: log error
-        pass
+        logging.getLogger(__name__).exception(
+            f" Unexpected error while loop-feeding local database data. error {sys.exc_info()[0]}"
+        )
     # send eveyone not updating anymore
     logging.getLogger("telegram").info(" Local database feeding loop stoped")
 
@@ -72,8 +73,9 @@ def global_db_sequence():
             " Global database feeding loop stoped by user"
         )
     except:
-        # TODO: log error
-        pass
+        logging.getLogger(__name__).exception(
+            f" Unexpected error while loop-feeding global database data. error {sys.exc_info()[0]}"
+        )
     # send eveyone not updating anymore
     logging.getLogger("telegram").info(" Global database feeding loop stoped")
 
