@@ -13,6 +13,8 @@ formatters:
         format: "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
     server_message:
         format: "%(asctime)s - %(message)s"
+    telegram_format: 
+        '()': bins.log.telegram_logger.LogstashFormatter
     error:
         format: "%(levelname)s <PID %(process)d:%(processName)s> %(name)s.%(funcName)s(): %(message)s"
 
@@ -23,6 +25,11 @@ handlers:
         formatter: simple
         filters: [infoFilter]
         stream: ext://sys.stdout
+
+    telegram_handler:
+        class: bins.log.telegram_logger.RequestsHandler
+        level: INFO
+        formatter: telegram_format
 
     info_file_handler:
         class: logging.handlers.RotatingFileHandler
@@ -85,6 +92,10 @@ loggers:
     __main__:
         level: DEBUG
         handlers: [console, debug_file_handler, info_file_handler, warning_file_handler, critical_file_handler, error_file_handler]
+        propagate: False
+    telegram:
+        level: INFO
+        handlers: [telegram_handler]
         propagate: False
     bins:
         level: DEBUG
