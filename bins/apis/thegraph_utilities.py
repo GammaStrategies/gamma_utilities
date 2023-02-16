@@ -149,12 +149,14 @@ class thegraph_scraper_helper:
                 if not self._CACHE.add_data(
                     data=result, network=network, query_name=query_name, **kwargs
                 ):
-                    # not saved to cache
-                    logging.getLogger(__name__).warning(
-                        "Could not save thegraph data to cache ->  network:{} query:{}     .error: {}".format(
-                            network, query_name, sys.exc_info()[0]
+                    # can't save cache without block num. in query
+                    if "block" in kwargs:
+                        # not saved to cache
+                        logging.getLogger(__name__).warning(
+                            "Could not save thegraph data to cache ->  network:{} query:{} ".format(
+                                network, query_name
+                            )
                         )
-                    )
 
         # convert result
         if self._CONVERT:
