@@ -117,7 +117,7 @@ def feed_hypervisor_static(
                     if result:
                         # progress
                         progress_bar.set_description(
-                            " {} processed ".format(result["address"])
+                            " 0x..{} processed ".format(result["address"][-4:])
                         )
                         # add hypervisor status to database
                         local_db.set_static(data=result)
@@ -129,7 +129,9 @@ def feed_hypervisor_static(
         else:
             # get operations from database
             for address in hypervisor_addresses:
-                progress_bar.set_description(" 0x..{} to be processed".format(address))
+                progress_bar.set_description(
+                    " 0x..{} to be processed".format(address[-4:])
+                )
                 result = create_db_hypervisor(
                     address=address,
                     network=network,
