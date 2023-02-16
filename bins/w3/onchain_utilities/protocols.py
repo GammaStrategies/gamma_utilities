@@ -5,7 +5,7 @@ import math
 from decimal import Decimal
 from web3 import Web3
 
-from bins.configuration import CONFIGURATION
+from bins.configuration import CONFIGURATION, HYPERVISOR_REGISTRIES
 from bins.formulas import univ3_formulas
 from bins.w3.onchain_utilities.basic import web3wrap, erc20, erc20_cached
 from bins.w3.onchain_utilities.exchanges import (
