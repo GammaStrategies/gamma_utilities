@@ -27,15 +27,19 @@ if __name__ == "__main__":
     _startime = datetime.utcnow()
 
     # choose the first of the  parsed options
-    if "db_feed" in CONFIGURATION["_custom_"]["cml_parameters"]:
+    if CONFIGURATION["_custom_"]["cml_parameters"].db_feed:
         # database feeder:  -db_feed operations
-        database_feeder.main(
-            option=CONFIGURATION["_custom_"]["cml_parameters"]["service"]
-        )
-    elif "service" in CONFIGURATION["_custom_"]["cml_parameters"]:
+        database_feeder.main(option=CONFIGURATION["_custom_"]["cml_parameters"].db_feed)
+    elif CONFIGURATION["_custom_"]["cml_parameters"].service:
         # service loop
         database_feeder_service.main(
-            option=CONFIGURATION["_custom_"]["cml_parameters"]["service"]
+            option=CONFIGURATION["_custom_"]["cml_parameters"].service
+        )
+    elif CONFIGURATION["_custom_"]["cml_parameters"].service_network:
+        database_feeder_service.main(
+            option="network",
+            network=CONFIGURATION["_custom_"]["cml_parameters"].service_network,
+            protocol="gamma",
         )
     else:
         logging.getLogger(__name__).info(" Nothing to do. How u doin? ")

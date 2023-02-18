@@ -28,6 +28,7 @@ from bins.w3.onchain_utilities.protocols import (
     gamma_hypervisor_quickswap_cached,
     gamma_hypervisor_registry,
 )
+from bins.w3.onchain_utilities.basic import erc20_cached
 
 from bins.database.common.db_collections_common import database_local, database_global
 from bins.mixed.price_utilities import price_scraper
@@ -424,7 +425,9 @@ def feed_hypervisor_status(
         x["address"]: x for x in local_db.get_items(collection_name="static")
     }
 
-    # create a unique list of blocks addresses from database
+    # create a unique list of blocks addresses from database to be processed including:
+    #       operation blocks and their block-1 relatives
+    #       block every day at 0:00
     toProcess_block_address = dict()
     for x in local_db.get_unique_operations_blockAddress():
         # add operation addressBlock to be processed
@@ -434,6 +437,7 @@ def feed_hypervisor_status(
             "address": x["address"],
             "block": x["block"] - 1,
         }
+    # TODO: add blocks every day at 0:00
 
     if rewrite:
         # rewrite all address blocks
@@ -704,6 +708,149 @@ def feed_prices(
     try:
         logging.getLogger(__name__).info(
             " {} of {} address block prices could not be scraped due to errors".format(
+                _errors,
+                (_errors / len(items_to_process)) if len(items_to_process) > 0 else 0,
+            )
+        )
+    except:
+        pass
+
+
+### Blocks Timestamp #####################
+def feed_blocks_timestamp(network: str):
+    """ """
+
+    # setup database managers
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    global_db_manager = database_global(mongo_url=mongo_url)
+
+    # get a list of timestamps already in the database
+    timestamps_indb = [
+        x["timestamp"]
+        for x in global_db_manager.get_all_block_timestamp(network=network)
+    ]
+
+    # set initial  a list of timestamps to process
+    from_date = datetime.timestamp(datetime(year=2021, month=3, day=1))
+    try:
+        from_date = max(timestamps_indb)
+    except:
+        # from_date shuld be still defined
+        pass
+
+    # define daily parameters
+    day_in_seconds = 60 * 60 * 24
+    total_days = int((datetime.utcnow().timestamp() - from_date) / day_in_seconds)
+
+    # create a list of timestamps to process  (daily)
+    timestamps = [from_date + day_in_seconds * idx for idx in range(total_days)]
+
+    # create a dummy erc20 obj as helper ( use only web3wrap functions)
+    dummy_helper = erc20_cached(
+        address="0x0000000000000000000000000000000000000000", network=network
+    )
+    for timestamp in timestamps:
+        # brute force search closest block numbers from datetime
+        block = dummy_helper.blockNumberFromTimestamp(
+            timestamp=timestamp,
+            inexact_mode="after",
+            eq_timestamp_position="first",
+        )
+
+
+def feed_timestamp_blocks(network: str, protocol: str):
+    """fill global blocks data using blocks from the status collection
+
+    Args:
+        network (str):
+        protocol (str):
+    """
+    # setup database managers
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    global_db_manager = database_global(mongo_url=mongo_url)
+
+    db_name = f"{network}_{protocol}"
+    local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
+
+    # create a dummy object to use inherited func
+    dummy_helper = erc20_cached(
+        address="0x0000000000000000000000000000000000000000", network=network
+    )
+
+    # get a list of blocks already in the database
+    blocks_indb = [
+        x["block"] for x in global_db_manager.get_all_block_timestamp(network=network)
+    ]
+    # create a list of items to process
+    items_to_process = list()
+    for block in local_db_manager.get_distinct_items_from_database(
+        collection_name="status", field="block"
+    ):
+        if not block in blocks_indb:
+            items_to_process.append(block)
+
+    # beguin processing
+    with tqdm.tqdm(total=len(items_to_process)) as progress_bar:
+
+        def _get_timestamp(block):
+            try:
+                # get timestamp
+                return dummy_helper.timestampFromBlockNumber(block=block), block
+
+            except:
+                logging.getLogger(__name__).exception(
+                    f"Unexpected error while geting timestamp of block {block}"
+                )
+            return None
+
+        if threaded:
+            # threaded
+            args = ((item) for item in items_to_process)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+                for timestamp, block in ex.map(lambda p: _get_timestamp(*p), args):
+                    if timestamp:
+                        # progress
+                        progress_bar.set_description(
+                            f" Retrieved timestamp of block {block}"
+                        )
+
+                        # save to database
+                        global_db_manager.set_block(
+                            network=network, block=block, timestamp=timestamp
+                        )
+                    else:
+                        # error found
+                        _errors += 1
+
+                    # update progress
+                    progress_bar.update(1)
+        else:
+            # loop blocks to gather info
+            for item in items_to_process:
+
+                progress_bar.set_description(f" Retrieving timestamp of block {item}")
+                progress_bar.refresh()
+                try:
+                    # get price
+                    timestamp = _get_timestamp(item)
+                    if timestamp:
+                        # save to database
+                        global_db_manager.set_block(
+                            network=network, block=item, timestamp=timestamp
+                        )
+                    else:
+                        # error found
+                        _errors += 1
+                except:
+                    logging.getLogger(__name__).exception(
+                        f"Unexpected error while geting timestamp of block {item}"
+                    )
+                # add one
+                progress_bar.update(1)
+
+    try:
+        logging.getLogger(__name__).info(
+            " {} of {} blocks could not be scraped due to errors".format(
                 _errors,
                 (_errors / len(items_to_process)) if len(items_to_process) > 0 else 0,
             )

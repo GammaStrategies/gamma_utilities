@@ -92,7 +92,9 @@ def convert_commandline_arguments(argv) -> dict:
     prmtrs = dict()  # the parameters we will pass
 
     try:
-        opts, args = getopt.getopt(argv, "", ["config=", "db_feed=", "service="])
+        opts, args = getopt.getopt(
+            argv, "", ["config=", "db_feed=", "service=", "network=", "protocol="]
+        )
 
     except getopt.GetoptError as err:
         print("             <filename>.py <options>")
@@ -107,7 +109,8 @@ def convert_commandline_arguments(argv) -> dict:
         # service
         print("Run in loop:")
         print(" --service=<option>")
-        print("    <option>: global, local ")
+        print("    <option>: global, local and network ")
+        print("    <network> option needs: network= and protocol= ")
         print(" ")
         print(" ")
         print(" ")
@@ -132,7 +135,15 @@ def convert_commandline_arguments(argv) -> dict:
         if opt in ("--service"):
             # service
             prmtrs["service"] = arg.strip()
+            prmtrs["service_parameters"] = {}
 
+        if opt in ("--network"):
+            # network service
+            prmtrs["network"] = arg.strip()
+
+        if opt in ("--protocol"):
+            # network service
+            prmtrs["protocol"] = arg.strip()
     return prmtrs
 
 

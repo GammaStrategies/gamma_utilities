@@ -5,18 +5,19 @@ from bins.general.general_utilities import (
     load_configuration,
     check_configuration_file,
 )
+from bins.general.command_line import parse_commandLine_args
 from bins.log import log_helper
 
 CONFIGURATION = dict()
 
 # convert command line arguments to dict variables
-cml_parameters = convert_commandline_arguments(sys.argv[1:])
-
+cml_parameters = parse_commandLine_args()
+# cml_parameters = convert_commandline_arguments(sys.argv[1:])
 
 # load configuration
 CONFIGURATION = (
-    load_configuration(cfg_name=cml_parameters["config_file"])
-    if "config_file" in cml_parameters
+    load_configuration(cfg_name=cml_parameters.config)
+    if cml_parameters.config
     else load_configuration()
 )
 

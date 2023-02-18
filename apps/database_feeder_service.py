@@ -17,10 +17,51 @@ from apps.database_feeder import (
     feed_operations,
     feed_hypervisor_status,
     feed_prices,
+    feed_timestamp_blocks,
+    feed_blocks_timestamp,
 )
 
 
-def local_db_sequence():
+def network_sequence_loop(protocol: str, network: str):
+    """local database feeding loop.
+        it will also feed the 'blocks' global collection
+
+    Args:
+        protocol (str):
+        network (str):
+    """
+    # feed static operations
+    for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][
+        network
+    ].keys():
+        feed_hypervisor_static(
+            protocol=protocol,
+            network=network,
+            dex=dex,
+            rewrite=False,
+            threaded=True,
+        )
+
+    # feed database with all operations from static hyprervisor addresses
+    feed_operations(protocol=protocol, network=network)
+
+    # feed database with status from all operations
+    feed_hypervisor_status(protocol=protocol, network=network, threaded=True)
+
+    # feed global blocks data with status
+    feed_timestamp_blocks(network=network, protocol=protocol)
+
+    # feed global blocks data with daily
+    feed_blocks_timestamp(network=network)
+
+
+def price_sequence_loop(protocol: str, network: str):
+    # feed database with prices from all status
+    feed_prices(protocol=protocol, network=network)
+
+
+# services
+def local_db_service():
     """feed all local database collections in an infinite loop"""
     try:
         while True:
@@ -28,26 +69,8 @@ def local_db_sequence():
                 for network in CONFIGURATION["script"]["protocols"][protocol][
                     "networks"
                 ].keys():
+                    network_sequence_loop(protocol=protocol, network=network)
 
-                    # feed static operations
-                    for dex in CONFIGURATION["script"]["protocols"][protocol][
-                        "networks"
-                    ][network].keys():
-                        feed_hypervisor_static(
-                            protocol=protocol,
-                            network=network,
-                            dex=dex,
-                            rewrite=False,
-                            threaded=True,
-                        )
-
-                    # feed database with all operations from static hyprervisor addresses
-                    feed_operations(protocol=protocol, network=network)
-
-                    # feed database with status from all operations
-                    feed_hypervisor_status(
-                        protocol=protocol, network=network, threaded=True
-                    )
     except KeyboardInterrupt:
         logging.getLogger(__name__).debug(" Local database feeding loop stoped by user")
     except:
@@ -66,8 +89,8 @@ def global_db_sequence():
                 for network in CONFIGURATION["script"]["protocols"][protocol][
                     "networks"
                 ].keys():
-                    # feed database with prices from all status
-                    feed_prices(protocol=protocol, network=network)
+                    price_sequence_loop(protocol=protocol, network=network)
+
     except KeyboardInterrupt:
         logging.getLogger(__name__).debug(
             " Global database feeding loop stoped by user"
@@ -80,12 +103,36 @@ def global_db_sequence():
     logging.getLogger("telegram").info(" Global database feeding loop stoped")
 
 
-def main(option: str):
+def network_db_service(protocol: str, network: str):
+    """feed one local database collection in an infinite loop"""
+
+    try:
+        while True:
+            network_sequence_loop(protocol=protocol, network=network)
+
+    except KeyboardInterrupt:
+        logging.getLogger(__name__).debug(
+            f" {protocol}'s {network} database feeding loop stoped by user"
+        )
+    except:
+        logging.getLogger(__name__).exception(
+            f" Unexpected error while loop-feeding {protocol}'s {network} database data. error {sys.exc_info()[0]}"
+        )
+
+    # telegram messaging
+    logging.getLogger("telegram").info(
+        f" {protocol}'s {network} database feeding loop stoped"
+    )
+
+
+def main(option: str, **kwargs):
 
     if option == "local":
-        local_db_sequence()
+        local_db_service()
     elif option == "global":
-        global_db_sequence()
+        global_db_service()
+    elif option == "network":
+        network_db_service(protocol=kwargs["protocol"], network=kwargs["network"])
     else:
         raise NotImplementedError(
             f" Can't find any action to be taken from {option} service option"

@@ -221,10 +221,16 @@ class database_global(db_collections_common):
         self.save_item_to_database(data=data, collection_name="usd_prices")
 
     def set_block(self, network: str, block: int, timestamp: datetime.timestamp):
-        data = db_object_models.block(network=network, block=block, timestamp=timestamp)
+
+        data = {
+            "id": f"{network}_{block}",
+            "network": network,
+            "block": block,
+            "timestamp": timestamp,
+        }
         self.save_item_to_database(data=data, collection_name="blocks")
 
-    def get_all_priceAddressBlocks(self, network: str) -> list():
+    def get_all_priceAddressBlocks(self, network: str) -> list:
         result = self.query_items_from_database(
             query=self.query_prices_addressBlocks(network=network),
             collection_name="usd_prices",
@@ -274,6 +280,19 @@ class database_global(db_collections_common):
             collection_name="blocks",
         )
         return result
+
+    def get_all_block_timestamp(self, network: str) -> list:
+        """get all blocks and timestamps from database
+            sorted by block
+        Args:
+            network (str):
+
+        Returns:
+            list: of sorted blocks timestamps
+        """
+        return self.get_items_from_database(
+            collection_name="blocks", find={"network": network}, sort=[("block", 1)]
+        )
 
     @staticmethod
     def query_block(network: str, timestamp: datetime.timestamp) -> list[dict]:
@@ -421,6 +440,36 @@ class database_local(db_collections_common):
             collection_name="operations", find=find, sort=sort
         )
 
+    def get_hype_operations_btwn_timestamps(
+        self,
+        hypervisor_address: str,
+        timestamp_ini: datetime.timestamp,
+        timestamp_end: datetime.timestamp,
+    ) -> list:
+        return self.query_items_from_database(
+            collection_name="operations",
+            query=self.query_operations_btwn_timestamps(
+                hypervisor_address=hypervisor_address,
+                timestamp_ini=timestamp_ini,
+                timestamp_end=timestamp_end,
+            ),
+        )
+
+    def get_hype_status_btwn_blocks(
+        self,
+        hypervisor_address: str,
+        block_ini: int,
+        block_end: int,
+    ) -> list:
+        return self.query_items_from_database(
+            collection_name="status",
+            query=self.query_status_btwn_blocks(
+                hypervisor_address=hypervisor_address,
+                block_ini=block_ini,
+                block_end=block_end,
+            ),
+        )
+
     def get_unique_operations_blockAddress(self) -> list:
         """Retrieve a list of unique blocks + addresses present in operations collection
 
@@ -532,4 +581,46 @@ class database_local(db_collections_common):
             },
             {"$unwind": "$token"},
             {"$group": {"_id": "$token"}},
+        ]
+
+    @staticmethod
+    def query_operations_btwn_timestamps(
+        hypervisor_address: str,
+        timestamp_ini: datetime.timestamp,
+        timestamp_end: datetime.timestamp,
+    ) -> list[dict]:
+        """get operations between timestamps
+
+        Args:
+            timestamp_ini (datetime.timestamp): initial timestamp
+            timestamp_end (datetime.timestamp): end timestamp
+
+        Returns:
+            list[dict]:
+        """
+        return [
+            {
+                "$match": {
+                    "address": hypervisor_address,
+                    "timestamp": {"$gte": timestamp_ini, "$lte": timestamp_end},
+                }
+            },
+            {"$sort": {"blockNumber": -1, "logIndex": 1}},
+        ]
+
+    @staticmethod
+    def query_status_btwn_blocks(
+        hypervisor_address: str,
+        block_ini: datetime.timestamp,
+        block_end: datetime.timestamp,
+    ) -> list[dict]:
+        """get status between blocks"""
+        return [
+            {
+                "$match": {
+                    "address": hypervisor_address,
+                    "block": {"$gte": block_ini, "$lte": block_end},
+                }
+            },
+            {"$sort": {"block": -1}},
         ]
