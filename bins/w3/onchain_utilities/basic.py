@@ -271,6 +271,17 @@ class web3wrap:
         # return closest block found
         return result
 
+    def timestampFromBlockNumber(self, block: int) -> int:
+
+        block_obj = None
+        if block < 1:
+            block_obj = self._w3.eth.get_block("latest")
+        else:
+            block_obj = self._w3.eth.get_block(block)
+
+        # return closest block found
+        return block_obj.timestamp
+
     def get_sameTimestampBlocks(self, block, queries_cost: int):
 
         result = list()
