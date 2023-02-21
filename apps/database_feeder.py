@@ -834,7 +834,6 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
     """Using global used known tokens like WETH, apply pools sqrtPriceX96 to
         get token pricess currently 0 or not found
 
-
     Args:
         protocol (str):
         network (str):
@@ -851,12 +850,25 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
     local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
     global_db_manager = database_global(mongo_url=mongo_url)
 
-    # get all hype status where token1 == WETH
-    status_list = local_db_manager.get_items(
-        collection_name="status",
-        find={"pool.token1.symbol": "WETH"},
-        sort=[("block", 1)],
+    # check already processed prices
+    already_processed_prices = set(
+        [
+            "{}_{}".format(x["address"], x["block"])
+            for x in global_db_manager.get_all_priceAddressBlocks(network=network)
+        ]
     )
+
+    # get all hype status where token1 == WETH and not already processed
+    status_list = [
+        x
+        for x in local_db_manager.get_items(
+            collection_name="status",
+            find={"pool.token1.symbol": "WETH"},
+            sort=[("block", 1)],
+        )
+        if not "{}_{}".format(x["pool"]["token0"]["address"], x["block"])
+        in already_processed_prices
+    ]
 
     # log errors
     _errors = 0
@@ -893,7 +905,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
                     if price_usd > 0:
                         # progress
                         progress_bar.set_description(
-                            f""" Retrieved USD price of {item["pool"]["token0"]["symbol"]} at block {item["block"]}"""
+                            f"""[er:{_errors}]  Retrieved USD price of {item["pool"]["token0"]["symbol"]} at block {item["block"]}"""
                         )
                         # add hypervisor status to database
                         # save price to database
@@ -915,7 +927,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
         else:
             for item in status_list:
                 progress_bar.set_description(
-                    f""" Retrieving USD price of {item["pool"]["token0"]["symbol"]} at block {item['block']}"""
+                    f"""[er:{_errors}]  Retrieving USD price of {item["pool"]["token0"]["symbol"]} at block {item['block']}"""
                 )
                 progress_bar.refresh()
                 # calc price
