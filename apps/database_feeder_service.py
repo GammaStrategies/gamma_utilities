@@ -66,7 +66,7 @@ def price_sequence_loop(protocol: str, network: str):
         token_blocks=create_tokenBlocks_topTokens(protocol=protocol, network=network),
     )
     # force feed prices from already known using conversion
-    feed_prices_force_sqrtPriceX96(protocol=protocol, network=network, threaded=False)
+    feed_prices_force_sqrtPriceX96(protocol=protocol, network=network)
 
     # feed all token prices left
     feed_prices(
