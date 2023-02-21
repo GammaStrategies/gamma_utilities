@@ -20,7 +20,10 @@ class price_scraper:
         )
 
         # create price helpers
-        self.init_apis(cache, cache_folderName)
+        logging.getLogger(__name__).debug(
+            " Force disable cache for thegraph and coingecko"
+        )
+        self.init_apis(cache=False, cache_savePath=cache_folderName)
 
     ## CONFIG ##
     def init_apis(self, cache: bool, cache_savePath: str):
