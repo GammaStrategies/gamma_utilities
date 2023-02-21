@@ -58,9 +58,9 @@ class db_collections_common:
                     coll_name=collection_name, dbFilter={"id": data["id"]}, data=data
                 )
         except Exception as e:
-            logging.getLogger(__name__).exception(
-                " Unable to save data to mongo's {} collection.  error-> {}".format(
-                    collection_name, e
+            logging.getLogger(__name__).error(
+                " Unable to save data to mongo's {} collection.  Item: {}    error-> {}".format(
+                    collection_name, data, e
                 )
             )
 
@@ -80,9 +80,9 @@ class db_collections_common:
                     coll_name=collection_name, dbFilter={"id": data["id"]}, data=data
                 )
         except Exception as e:
-            logging.getLogger(__name__).exception(
-                " Unable to replace data in mongo's {} collection.  error-> {}".format(
-                    collection_name, e
+            logging.getLogger(__name__).error(
+                " Unable to replace data in mongo's {} collection.  Item: {}    error-> {}".format(
+                    collection_name, data, e
                 )
             )
 
@@ -231,6 +231,15 @@ class database_global(db_collections_common):
         self.save_item_to_database(data=data, collection_name="blocks")
 
     def get_all_priceAddressBlocks(self, network: str) -> list:
+        """get addresses and blocks already present in database
+            with price greater than zero.
+
+        Args:
+            network (str):
+
+        Returns:
+            list:
+        """
         result = self.query_items_from_database(
             query=self.query_prices_addressBlocks(network=network),
             collection_name="usd_prices",
@@ -313,8 +322,16 @@ class database_global(db_collections_common):
 
     @staticmethod
     def query_prices_addressBlocks(network: str) -> list[dict]:
+        """get addresses and blocks of usd prices present at database and greater than zero
+
+        Args:
+            network (str):
+
+        Returns:
+            list[dict]:
+        """
         return [
-            {"$match": {"network": network}},
+            {"$match": {"network": network, "price": {"$gt": 0}}},
             {"$group": {"_id": {"address": "$address", "block": "$block"}}},
             {"$replaceRoot": {"newRoot": "$_id"}},
         ]
