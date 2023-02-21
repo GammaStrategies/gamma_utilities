@@ -1286,13 +1286,36 @@ class quickswapv3_pool(web3wrap):
 
             result["globalState"] = self.globalState
             if convert_bint:
-                result["globalState"]["price"] = str(result["globalState"]["price"])
-                result["globalState"]["tick"] = str(result["globalState"]["tick"])
-                result["globalState"]["fee"] = str(result["globalState"]["fee"])
-                result["globalState"]["timepointIndex"] = str(
-                    result["globalState"]["timepointIndex"]
-                )
-                result["globalState"]["price"] = str(result["globalState"]["price"])
+                try:
+                    result["globalState"]["price"] = (
+                        str(result["globalState"]["price"])
+                        if "price" in result["globalState"]
+                        else ""
+                    )
+                    result["globalState"]["tick"] = (
+                        str(result["globalState"]["tick"])
+                        if "tick" in result["globalState"]
+                        else ""
+                    )
+                    result["globalState"]["fee"] = (
+                        str(result["globalState"]["fee"])
+                        if "fee" in result["globalState"]
+                        else ""
+                    )
+                    result["globalState"]["timepointIndex"] = (
+                        str(result["globalState"]["timepointIndex"])
+                        if "timepointIndex" in result["globalState"]
+                        else ""
+                    )
+                except:
+                    logging.getLogger(__name__).warning(
+                        " Unexpected error converting globalState of {} at block {}     error-> {}   globalState: {}".format(
+                            result["address"],
+                            result["block"],
+                            sys.exc_info()[0],
+                            result["globalState"],
+                        )
+                    )
 
         return result
 
