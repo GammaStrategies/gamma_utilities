@@ -1,3 +1,5 @@
+configuration.yaml:
+  ☐ Convert hypervisor addresses to lower() on load
 
 Dex:
   ☐ Implement in configuration file
