@@ -16,6 +16,8 @@ sys.path.append(PARENT_FOLDER)
 from bins.configuration import CONFIGURATION
 from bins.general import general_utilities, file_utilities
 
+from apps.database_feeder import feed_prices_force_sqrtPriceX96
+
 from bins.w3.onchain_utilities.protocols import (
     gamma_hypervisor,
     gamma_hypervisor_quickswap,
@@ -47,6 +49,11 @@ def test_w3_hypervisor_obj(
     test = ""
 
 
+def test_prices(protocol="gamma", network="ethereum"):
+    # force feed prices from already known using conversion
+    feed_prices_force_sqrtPriceX96(protocol=protocol, network=network, threaded=False)
+
+
 # START ####################################################################################################################
 if __name__ == "__main__":
     os.chdir(PARENT_FOLDER)
@@ -58,6 +65,8 @@ if __name__ == "__main__":
     )
     # start time log
     _startime = dt.datetime.utcnow()
+
+    test_prices()
 
     ########
     ########
