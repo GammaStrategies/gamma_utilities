@@ -1403,12 +1403,14 @@ class gamma_hypervisor_registry(web3wrap):
             block=block,
         )
 
-    # TODO: implement harcoded erroneous addresses to reduce web3 calls
+    # implement harcoded erroneous addresses to reduce web3 calls
     __blacklist_addresses = {
-        "ethereum": ["0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599"],  # address:index
-        "polygon": ["0xa9782a2c9c3fb83937f14cdfac9a6d23946c9255"],
-        "optimism": ["0xc7722271281Aa6D5D027fC9B21989BE99424834f"],
-        "arbitrum": ["0x38f81e638f9e268e8417F2Ff76C270597fa077A0"],
+        "ethereum": [
+            "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599".lower()
+        ],  # address:index
+        "polygon": ["0xa9782a2c9c3fb83937f14cdfac9a6d23946c9255".lower()],
+        "optimism": ["0xc7722271281Aa6D5D027fC9B21989BE99424834f".lower()],
+        "arbitrum": ["0x38f81e638f9e268e8417F2Ff76C270597fa077A0".lower()],
     }
 
     @property
@@ -1451,6 +1453,14 @@ class gamma_hypervisor_registry(web3wrap):
             try:
                 hypervisor_id = self.registry(index=i)
 
+                # filter blacklisted hypes
+                if (
+                    self._network in __blacklist_addresses
+                    and hypervisor_id.lower() in __blacklist_addresses[self._network]
+                ):
+                    # hypervisor is blacklisted: loop
+                    continue
+
                 # build hypervisor
                 hypervisor = gamma_hypervisor(
                     address=hypervisor_id,
@@ -1476,21 +1486,30 @@ class gamma_hypervisor_registry(web3wrap):
            list of addresses
         """
         # get list of erroneous addresses
-        err_adrs = list()
-        for dex, value in HYPERVISOR_REGISTRIES.items():
-            for network, address in value.items():
-                if network in self.__blacklist_addresses:
-                    if address.lower() == self.address.lower():
-                        err_adrs.extend(self.__blacklist_addresses[network])
+        # err_adrs = list()
+        # for dex, value in HYPERVISOR_REGISTRIES.items():
+        #     for network, address in value.items():
+        #         if network in self.__blacklist_addresses:
+        #             if address.lower() == self.address.lower():
+        #                 err_adrs.extend(self.__blacklist_addresses[network])
 
         total_qtty = self.counter + 1  # index positions ini=0 end=counter
 
         result = list()
         for i in range(total_qtty):
             try:
-                tmp = self.registry(index=i)
-                if tmp not in err_adrs:
-                    result.append(tmp)
+                hypervisor_id = self.registry(index=i)
+
+                # filter blacklisted hypes
+                if (
+                    self._network in __blacklist_addresses
+                    and hypervisor_id.lower() in __blacklist_addresses[self._network]
+                ):
+                    # hypervisor is blacklisted: loop
+                    continue
+
+                result.append(tmp)
+
             except:
                 # executiuon reverted:  arbitrum and mainnet have diff ways of indexing (+1 or 0)
                 pass

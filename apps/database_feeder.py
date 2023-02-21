@@ -85,7 +85,24 @@ def feed_hypervisor_static(
         )
     )
     try:
-        hypervisor_addresses_registry = gamma_registry.get_hypervisors_addresses()
+        # get hypes
+        hypervisor_addresses_registry: list = gamma_registry.get_hypervisors_addresses()
+        # apply filters
+        filters: dict = (
+            CONFIGURATION["script"]["protocols"].get(protocol, {}).get("filters", {})
+        )
+        hypes_not_included: list = [
+            x.lower()
+            for x in filters.get("hypervisors_not_included", {}).get(network, list())
+        ]
+
+        logging.getLogger(__name__).debug(
+            f" excluding hypervisors: {hypes_not_included}"
+        )
+        hypervisor_addresses_registry = [
+            x for x in hypervisor_addresses_registry if x not in hypes_not_included
+        ]
+
     except ValueError as err:
         if "message" in err:
             logging.getLogger(__name__).error(
@@ -95,6 +112,7 @@ def feed_hypervisor_static(
             logging.getLogger(__name__).error(
                 f" Unexpected error while fetching hypes from {network} registry  error: {sys.exc_info()[0]}"
             )
+        # return an empty hype address list
         hypervisor_addresses_registry = list()
 
     # ini hyp addresses to process var
@@ -232,6 +250,21 @@ def feed_operations(
     hypervisor_addresses_in_operations = local_db.get_distinct_items_from_database(
         collection_name="operations", field="address"
     )
+    # apply filters
+    filters: dict = (
+        CONFIGURATION["script"]["protocols"].get(protocol, {}).get("filters", {})
+    )
+    hypes_not_included: list = [
+        x.lower()
+        for x in filters.get("hypervisors_not_included", {}).get(network, list())
+    ]
+    logging.getLogger(__name__).debug(f" excluding hypervisors: {hypes_not_included}")
+    hypervisor_addresses = [
+        x for x in hypervisor_addresses if x not in hypes_not_included
+    ]
+    hypervisor_addresses_in_operations = [
+        x for x in hypervisor_addresses_in_operations if x not in hypes_not_included
+    ]
 
     try:
         # try getting initial block as last found in database
@@ -456,7 +489,6 @@ def feed_hypervisor_status(
             "address": x["address"],
             "block": x["block"] - 1,
         }
-    # TODO: add blocks every day at 0:00
 
     if rewrite:
         # rewrite all address blocks
