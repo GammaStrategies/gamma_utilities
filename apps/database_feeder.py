@@ -634,8 +634,10 @@ def feed_prices(
     logging.getLogger(__name__).info(
         "Get {}'s prices using {} database".format(network, db_name)
     )
+
+    logging.getLogger(__name__).debug(" Force disable price cache ")
     price_helper = price_scraper(
-        cache=CONFIGURATION["cache"]["enabled"],
+        cache=False,
         cache_filename="uniswapv3_price_cache",
     )
     # log errors
