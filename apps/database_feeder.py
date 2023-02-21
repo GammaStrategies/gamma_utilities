@@ -84,7 +84,18 @@ def feed_hypervisor_static(
             network, protocol, dex
         )
     )
-    hypervisor_addresses_registry = gamma_registry.get_hypervisors_addresses()
+    try:
+        hypervisor_addresses_registry = gamma_registry.get_hypervisors_addresses()
+    except ValueError as err:
+        if "message" in err:
+            logging.getLogger(__name__).error(
+                f" Unexpected error while fetching hypes from {network} registry  error: {err['message']}"
+            )
+        else:
+            logging.getLogger(__name__).error(
+                f" Unexpected error while fetching hypes from {network} registry  error: {sys.exc_info()[0]}"
+            )
+        hypervisor_addresses_registry = list()
 
     # ini hyp addresses to process var
     hypervisor_addresses = list()
