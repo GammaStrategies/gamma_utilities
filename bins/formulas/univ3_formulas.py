@@ -121,7 +121,7 @@ def sqrtPriceX96_to_price_float(
     sqrtPriceX96: int, token0_decimals: int, token1_decimals: int
 ) -> float:
     return ((sqrtPriceX96**2) / 2 ** (96 * 2)) * 10 ** (
-        token0_decimal - token1_decimal
+        token0_decimals - token1_decimals
     )
 
 

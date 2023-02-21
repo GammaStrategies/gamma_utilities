@@ -17,6 +17,9 @@ from apps.database_feeder import (
     feed_operations,
     feed_hypervisor_status,
     feed_prices,
+    create_tokenBlocks_allTokens,
+    create_tokenBlocks_topTokens,
+    feed_prices_force_sqrtPriceX96,
     feed_timestamp_blocks,
     feed_blocks_timestamp,
 )
@@ -56,8 +59,21 @@ def network_sequence_loop(protocol: str, network: str):
 
 
 def price_sequence_loop(protocol: str, network: str):
-    # feed database with prices from all status
-    feed_prices(protocol=protocol, network=network)
+    # feed most used token proces
+    feed_prices(
+        protocol=protocol,
+        network=network,
+        token_blocks=create_tokenBlocks_topTokens(protocol=protocol, network=network),
+    )
+    # force feed prices from already known using conversion
+    feed_prices_force_sqrtPriceX96(protocol=protocol, network=network, threaded=False)
+
+    # feed all token prices left
+    feed_prices(
+        protocol=protocol,
+        network=network,
+        token_blocks=create_tokenBlocks_allTokens(protocol=protocol, network=network),
+    )
 
 
 # services
@@ -81,7 +97,7 @@ def local_db_service():
     logging.getLogger("telegram").info(" Local database feeding loop stoped")
 
 
-def global_db_sequence():
+def global_db_service():
     """feed global database collections in an infinite loop"""
     try:
         while True:

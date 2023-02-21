@@ -253,11 +253,10 @@ class database_global(db_collections_common):
         Returns:
             float: price in usd
         """
-        result = self.query_items_from_database(
-            query=self.query_usd_price(network=network, block=block, address=address),
+        return self.get_items_from_database(
             collection_name="usd_prices",
+            find={"network": network, "block": block, "address": address},
         )
-        return result
 
     def get_timestamp(
         self,
@@ -532,6 +531,20 @@ class database_local(db_collections_common):
             collection_name="status", aggregate=self.query_unique_token_addresses()
         )
 
+    def get_mostUsed_tokens(self, limit: int = 5) -> list:
+        """Return the addresses of the top used tokens, present in status database
+
+        Args:
+            limit (int, optional): . Defaults to 5.
+
+        Returns:
+            list: of {"token":<address>}
+        """
+        return self.get_items_from_database(
+            collection_name="status",
+            aggregate=self.query_status_mostUsed_token1(limit=limit),
+        )
+
     @staticmethod
     def query_unique_addressBlocks() -> list[dict]:
         """retriev
@@ -623,4 +636,28 @@ class database_local(db_collections_common):
                 }
             },
             {"$sort": {"block": -1}},
+        ]
+
+    @staticmethod
+    def query_status_mostUsed_token1(limit: int = 5) -> list[dict]:
+        """return the top most used token1 address of status database
+
+        Returns:
+            list[dict]: _description_
+        """
+        return [
+            {
+                "$group": {
+                    "_id": {"token1": "$pool.token1.address"},
+                    "count": {"$sum": 1},
+                }
+            },
+            {"$sort": {"count": -1}},
+            {"$limit": limit},
+            {
+                "$project": {
+                    "token": "$_id.token1",
+                }
+            },
+            {"$unset": ["_id"]},
         ]

@@ -33,6 +33,7 @@ from bins.w3.onchain_utilities.basic import erc20_cached
 from bins.database.common.db_collections_common import database_local, database_global
 from bins.mixed.price_utilities import price_scraper
 
+from bins.formulas.univ3_formulas import sqrtPriceX96_to_price_float
 
 ### Static ######################
 def feed_hypervisor_static(
@@ -175,6 +176,10 @@ def feed_operations(
     date_end: datetime = None,
 ):
 
+    logging.getLogger(__name__).info(
+        f" Feeding {protocol}'s {network} hypervisors operations information"
+    )
+
     # debug variables
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     filters = CONFIGURATION["script"]["protocols"].get(protocol, {}).get("filters", {})
@@ -241,6 +246,9 @@ def feed_operations(
                 )  # 1% of blocks ini back time?
                 logging.getLogger(__name__).debug(
                     f" {len(diffs)} new hypervisors found in static but not in operations collections. Force initial block {block_ini} back time at {new_block_ini}"
+                )
+                logging.getLogger(__name__).debug(
+                    f"              new hypervisors-->  {diffs}"
                 )
                 # set initial block
                 block_ini = new_block_ini
@@ -527,14 +535,15 @@ def feed_hypervisor_status(
                 progress_bar.update(1)
 
     try:
-        logging.getLogger(__name__).info(
-            " {} of {} hypervisor status could not be scraped due to errors".format(
-                _errors,
-                (_errors / len(toProcess_block_address))
-                if len(toProcess_block_address) > 0
-                else 0,
+        if _errors > 0:
+            logging.getLogger(__name__).info(
+                " {} of {} hypervisor status could not be scraped due to errors".format(
+                    _errors,
+                    (_errors / len(toProcess_block_address))
+                    if len(toProcess_block_address) > 0
+                    else 0,
+                )
             )
-        )
     except:
         pass
 
@@ -575,46 +584,51 @@ def create_db_hypervisor(
 
 ### Prices ######################
 def feed_prices(
-    protocol: str, network: str, rewrite: bool = False, threaded: bool = True
+    protocol: str,
+    network: str,
+    token_blocks: dict,
+    rewrite: bool = False,
+    threaded: bool = True,
 ):
-    """Feed database with prices of tokens found in status collection
+    """Feed database with prices of tokens and blocks specified in token_blocks
 
     Args:
         protocol (str):
         network (str):
+        token_blocks (dic): a dictionary of <token address>:<block list> to be scraped
     """
+    logging.getLogger(__name__).info(f" Feeding {protocol}'s {network} token prices")
+
     # setup database managers
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     db_name = f"{network}_{protocol}"
     local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
     global_db_manager = database_global(mongo_url=mongo_url)
 
-    # create unique token list using db data from hypervisor status
-    token_list = [x["_id"] for x in local_db_manager.get_unique_tokens()]
-    # create unique block list using data from hypervisor status
-    blocks_list = sorted(
-        local_db_manager.get_distinct_items_from_database(
-            collection_name="status", field="block"
-        ),
-        reverse=True,
-    )
-    # combine token block lists
-    token_blocks = {token: blocks_list for token in token_list}
-
     # check already processed prices
-    already_processed_prices = [
-        "{}_{}".format(x["address"], x["block"])
-        for x in global_db_manager.get_all_priceAddressBlocks(network=network)
-    ]
+    already_processed_prices = set(
+        [
+            "{}_{}".format(x["address"], x["block"])
+            for x in global_db_manager.get_all_priceAddressBlocks(network=network)
+        ]
+    )
+    token_blocks_s = set(
+        [
+            "{}_{}".format(token, block)
+            for token, blocks in token_blocks.items()
+            for block in blocks
+        ]
+    )
 
     # create items to process
+    logging.getLogger(__name__).info(
+        "Building a list of addresses and blocks to be scraped"
+    )
     items_to_process = list()
-    for token, blocks in token_blocks.items():
-        for block in blocks:
-            if not "{}_{}".format(token, block) in already_processed_prices:
-                items_to_process.append({"token": token, "block": block})
-            # token block already in db
-            # logging.getLogger(__name__).debug(" token ")
+    for item in token_blocks_s:
+        if not item in already_processed_prices:
+            tb = item.split("_")
+            items_to_process.append({"token": tb[0], "block": tb[1]})
 
     # create price helper
     logging.getLogger(__name__).info(
@@ -655,7 +669,7 @@ def feed_prices(
                     if price_usd:
                         # progress
                         progress_bar.set_description(
-                            f" Retrieved USD price of 0x..{token[-3:]} at block {block}"
+                            f"[er:{_errors}] Retrieved USD price of 0x..{token[-3:]} at block {block}   "
                         )
                         # add hypervisor status to database
                         # save price to database
@@ -676,7 +690,7 @@ def feed_prices(
             for item in items_to_process:
 
                 progress_bar.set_description(
-                    f" Retrieving USD price of 0x..{item['token'][-3:]} at block {item['block']}"
+                    f"[er:{_errors}] Retrieving USD price of 0x..{item['token'][-3:]} at block {item['block']}"
                 )
                 progress_bar.refresh()
                 try:
@@ -706,12 +720,188 @@ def feed_prices(
                 progress_bar.update(1)
 
     try:
-        logging.getLogger(__name__).info(
-            " {} of {} address block prices could not be scraped due to errors".format(
-                _errors,
-                (_errors / len(items_to_process)) if len(items_to_process) > 0 else 0,
+        if _errors > 0:
+            logging.getLogger(__name__).info(
+                " {} of {} address block prices could not be scraped due to errors".format(
+                    _errors,
+                    (_errors / len(items_to_process))
+                    if len(items_to_process) > 0
+                    else 0,
+                )
             )
-        )
+    except:
+        pass
+
+
+def create_tokenBlocks_allTokens(protocol: str, network: str) -> dict:
+
+    # setup database managers
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_name = f"{network}_{protocol}"
+    local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
+    global_db_manager = database_global(mongo_url=mongo_url)
+
+    # create unique token list using db data from hypervisor status
+    token_list = [x["_id"] for x in local_db_manager.get_unique_tokens()]
+
+    # create unique block list using data from hypervisor status
+    blocks_list = sorted(
+        local_db_manager.get_distinct_items_from_database(
+            collection_name="status", field="block"
+        ),
+        reverse=True,
+    )
+    # combine token block lists
+    return {token: blocks_list for token in token_list}
+
+
+def create_tokenBlocks_topTokens(protocol: str, network: str) -> dict:
+    """Create a list of blocks for each TOP token address
+
+    Args:
+        protocol (str):
+        network (str):
+
+    Returns:
+        dict: {<token address>: <list of blocks>
+    """
+    # setup database managers
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_name = f"{network}_{protocol}"
+    local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
+    global_db_manager = database_global(mongo_url=mongo_url)
+
+    # get most used token list
+    top_tokens = [x["token"] for x in local_db_manager.get_mostUsed_tokens()]
+
+    # create unique block list using data from hypervisor status
+    blocks_list = sorted(
+        local_db_manager.get_distinct_items_from_database(
+            collection_name="status", field="block"
+        ),
+        reverse=True,
+    )
+
+    # combine token block lists
+    return {token: blocks_list for token in top_tokens}
+
+
+def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool = True):
+    """Using global used known tokens like WETH, apply pools sqrtPriceX96 to
+        get token pricess currently 0 or not found
+
+
+    Args:
+        protocol (str):
+        network (str):
+        rewrite (bool, optional): . Defaults to False.
+        threaded (bool, optional): . Defaults to True.
+    """
+    logging.getLogger(__name__).info(
+        f" Feeding {protocol}'s {network} token prices [sqrtPriceX96]"
+    )
+
+    # setup database managers
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_name = f"{network}_{protocol}"
+    local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
+    global_db_manager = database_global(mongo_url=mongo_url)
+
+    # get all hype status where token1 == WETH
+    status_list = local_db_manager.get_items(
+        collection_name="status",
+        find={"pool.token1.symbol": "WETH"},
+        sort=[("block", 1)],
+    )
+
+    # log errors
+    _errors = 0
+
+    with tqdm.tqdm(total=len(status_list)) as progress_bar:
+
+        def loopme(status: dict):
+            try:
+                # calc price
+                price_token0 = sqrtPriceX96_to_price_float(
+                    sqrtPriceX96=int(status["pool"]["slot0"]["sqrtPriceX96"]),
+                    token0_decimals=status["pool"]["token0"]["decimals"],
+                    token1_decimals=status["pool"]["token1"]["decimals"],
+                )
+                # get weth usd price
+                usdPrice_token1 = global_db_manager.get_price_usd(
+                    network=network,
+                    block=status["block"],
+                    address=status["pool"]["token1"]["address"],
+                )
+                # calc token pusd price
+                return (usdPrice_token1[0] * price_token0), status
+
+            except:
+                pass
+
+            return 0, status
+
+        if threaded:
+            # threaded
+            args = ((item) for item in status_list)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+                for price_usd, item in ex.map(lambda p: loopme(*p), args):
+                    if price_usd > 0:
+                        # progress
+                        progress_bar.set_description(
+                            f""" Retrieved USD price of {item["pool"]["token0"]["symbol"]} at block {item["block"]}"""
+                        )
+                        # add hypervisor status to database
+                        # save price to database
+                        global_db_manager.set_price_usd(
+                            network=network,
+                            block=item["block"],
+                            token_address=item["pool"]["token0"]["address"],
+                            price_usd=price_usd,
+                        )
+                    else:
+                        # error found
+                        logging.getLogger(__name__).warning(
+                            f""" No price for {item["pool"]["token1"]["symbol"]} ({item["pool"]["token1"]["address"]}) was found in database"""
+                        )
+                        _errors += 1
+
+                    # update progress
+                    progress_bar.update(1)
+        else:
+            for item in status_list:
+                progress_bar.set_description(
+                    f""" Retrieving USD price of {item["pool"]["token0"]["symbol"]} at block {item['block']}"""
+                )
+                progress_bar.refresh()
+                # calc price
+                price_usd, notuse = loopme(status=item)
+                if price_usd > 0:
+                    # save to database
+                    global_db_manager.set_price_usd(
+                        network=network,
+                        block=item["block"],
+                        token_address=item["pool"]["token0"]["address"],
+                        price_usd=price_usd,
+                    )
+                else:
+                    logging.getLogger(__name__).warning(
+                        f""" No price for {item["pool"]["token1"]["symbol"]} ({item["pool"]["token1"]["address"]}) was found in database"""
+                    )
+
+                # add one
+                progress_bar.update(1)
+
+    try:
+        if _errors > 0:
+            logging.getLogger(__name__).info(
+                " {} of {} address block prices could not be scraped due to errors".format(
+                    _errors,
+                    (_errors / len(items_to_process))
+                    if len(items_to_process) > 0
+                    else 0,
+                )
+            )
     except:
         pass
 
@@ -720,6 +910,9 @@ def feed_prices(
 def feed_blocks_timestamp(network: str):
     """ """
 
+    logging.getLogger(__name__).info(
+        f" Feeding {network} block <-> timestamp information"
+    )
     # setup database managers
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     global_db_manager = database_global(mongo_url=mongo_url)
@@ -758,13 +951,17 @@ def feed_blocks_timestamp(network: str):
         )
 
 
-def feed_timestamp_blocks(network: str, protocol: str):
+def feed_timestamp_blocks(network: str, protocol: str, threaded: bool = True):
     """fill global blocks data using blocks from the status collection
 
     Args:
         network (str):
         protocol (str):
     """
+    logging.getLogger(__name__).info(
+        f" Feeding {protocol}'s {network} timestamp <-> block information"
+    )
+
     # setup database managers
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     global_db_manager = database_global(mongo_url=mongo_url)
@@ -807,7 +1004,7 @@ def feed_timestamp_blocks(network: str, protocol: str):
             # threaded
             args = ((item) for item in items_to_process)
             with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-                for timestamp, block in ex.map(lambda p: _get_timestamp(*p), args):
+                for timestamp, block in ex.map(lambda p: _get_timestamp(p), args):
                     if timestamp:
                         # progress
                         progress_bar.set_description(
@@ -893,7 +1090,14 @@ def main(option="operations"):
                 )
             elif option == "prices":
                 # feed database with prices from all status
-                feed_prices(protocol=protocol, network=network)
+                # feed_prices(protocol=protocol, network=network, token_blocks=self._create_tokenBlocks_allTokens(protocol=protocol, network=network))
+                feed_prices(
+                    protocol=protocol,
+                    network=network,
+                    token_blocks=self._create_tokenBlocks_topTokens(
+                        protocol=protocol, network=network
+                    ),
+                )
 
 
 # START ####################################################################################################################
