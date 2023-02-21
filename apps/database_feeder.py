@@ -285,11 +285,10 @@ def feed_operations(
                     hypervisor_addresses, hypervisor_addresses_in_operations
                 )
                 # define a new initial block but traveling back time sufficienty to get missed ops
-                new_block_ini = block_ini - int(
-                    block_ini * 0.01
-                )  # 1% of blocks ini back time?
+                # TODO: avoid hardcoded vars ( blocks back in time )
+                new_block_ini = block_ini - int(block_ini * 0.005)
                 logging.getLogger(__name__).debug(
-                    f" {len(diffs)} new hypervisors found in static but not in operations collections. Force initial block {block_ini} back time at {new_block_ini}"
+                    f" {len(diffs)} new hypervisors found in static but not in operations collections. Force initial block {block_ini} back time at {new_block_ini} [{block_ini-new_block_ini} blocks]"
                 )
                 logging.getLogger(__name__).debug(
                     f"              new hypervisors-->  {diffs}"
