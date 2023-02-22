@@ -549,8 +549,8 @@ class database_local(db_collections_common):
             collection_name="static", aggregate=self.query_unique_token_addresses()
         )
 
-    def get_mostUsed_tokens(self, limit: int = 5) -> list:
-        """Return the addresses of the top used tokens, present in status database
+    def get_mostUsed_tokens1(self, limit: int = 5) -> list:
+        """Return the addresses of the top used tokens1, present in static database
 
         Args:
             limit (int, optional): . Defaults to 5.
@@ -559,7 +559,7 @@ class database_local(db_collections_common):
             list: of {"token":<address>}
         """
         return self.get_items_from_database(
-            collection_name="status",
+            collection_name="static",
             aggregate=self.query_status_mostUsed_token1(limit=limit),
         )
 
@@ -658,7 +658,8 @@ class database_local(db_collections_common):
 
     @staticmethod
     def query_status_mostUsed_token1(limit: int = 5) -> list[dict]:
-        """return the top most used token1 address of status database
+        """return the top most used token1 address of static database
+            ( may be used in status too)
 
         Returns:
             list[dict]: _description_
@@ -667,6 +668,7 @@ class database_local(db_collections_common):
             {
                 "$group": {
                     "_id": {"token1": "$pool.token1.address"},
+                    "symbol": {"$last": "$pool.token1.symbol"},
                     "count": {"$sum": 1},
                 }
             },
@@ -675,6 +677,7 @@ class database_local(db_collections_common):
             {
                 "$project": {
                     "token": "$_id.token1",
+                    "symbol": "$symbol",
                 }
             },
             {"$unset": ["_id"]},
