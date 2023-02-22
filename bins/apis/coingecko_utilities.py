@@ -74,7 +74,7 @@ class coingecko_price_helper:
         # get price from coingecko
         cg = CoinGeckoAPI()
         # modify cgecko's default timeout
-        cg.request_timeout = 30
+        cg.request_timeout = 10
         # define a timeframe to query
         to_timestamp = int(
             dt.datetime.timestamp(
