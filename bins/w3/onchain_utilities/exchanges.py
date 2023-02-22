@@ -886,7 +886,7 @@ class quickswapv3_pool(web3wrap):
         """
 
         Returns:
-           dict:   price  uint160 :  28854610805518743926885543006518067
+           dict:   sqrtPriceX96  uint160 :  28854610805518743926885543006518067  ( <price> at contract level)
                    tick   int24 :  256121
                    fee   uint16 :  198
                    timepointIndex   uint16 :  300
@@ -1287,11 +1287,16 @@ class quickswapv3_pool(web3wrap):
             result["globalState"] = self.globalState
             if convert_bint:
                 try:
-                    result["globalState"]["price"] = (
-                        str(result["globalState"]["price"])
-                        if "price" in result["globalState"]
+                    result["globalState"]["sqrtPriceX96"] = (
+                        str(result["globalState"]["sqrtPriceX96"])
+                        if "sqrtPriceX96" in result["globalState"]
                         else ""
                     )
+                    # result["globalState"]["price"] = (
+                    #     str(result["globalState"]["price"])
+                    #     if "price" in result["globalState"]
+                    #     else ""
+                    # )
                     result["globalState"]["tick"] = (
                         str(result["globalState"]["tick"])
                         if "tick" in result["globalState"]
