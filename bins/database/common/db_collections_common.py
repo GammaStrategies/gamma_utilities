@@ -213,9 +213,9 @@ class database_global(db_collections_common):
         data = {
             "id": f"{network}_{block}_{token_address}",
             "network": network,
-            "block": block,
+            "block": int(block),
             "address": token_address,
-            "price": price_usd,
+            "price": float(price_usd),
         }
 
         self.save_item_to_database(data=data, collection_name="usd_prices")
@@ -240,9 +240,12 @@ class database_global(db_collections_common):
         Returns:
             list:
         """
-        result = self.query_items_from_database(
-            query=self.query_prices_addressBlocks(network=network),
-            collection_name="usd_prices",
+        # result = self.query_items_from_database(
+        #     query=self.query_prices_addressBlocks(network=network),
+        #     collection_name="usd_prices",
+        # )
+        result = self.get_items_from_database(
+            collection_name="usd_prices", find={"network": network, "price": {"$gt": 0}}
         )
         return result
 
@@ -332,8 +335,6 @@ class database_global(db_collections_common):
         """
         return [
             {"$match": {"network": network, "price": {"$gt": 0}}},
-            {"$group": {"_id": {"address": "$address", "block": "$block"}}},
-            {"$replaceRoot": {"newRoot": "$_id"}},
         ]
 
 
