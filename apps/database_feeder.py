@@ -899,9 +899,9 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
 
         if threaded:
             # threaded
-            args = ((item) for item in status_list)
+            # args = ((item) for item in status_list)
             with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-                for price_usd, item in ex.map(lambda p: loopme(*p), args):
+                for price_usd, item in ex.map(loopme, status_list):
                     if price_usd > 0:
                         # progress
                         progress_bar.set_description(

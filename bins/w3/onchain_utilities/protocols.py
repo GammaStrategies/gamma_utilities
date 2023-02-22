@@ -1455,8 +1455,9 @@ class gamma_hypervisor_registry(web3wrap):
 
                 # filter blacklisted hypes
                 if (
-                    self._network in __blacklist_addresses
-                    and hypervisor_id.lower() in __blacklist_addresses[self._network]
+                    self._network in self.__blacklist_addresses
+                    and hypervisor_id.lower()
+                    in self.__blacklist_addresses[self._network]
                 ):
                     # hypervisor is blacklisted: loop
                     continue
@@ -1502,13 +1503,14 @@ class gamma_hypervisor_registry(web3wrap):
 
                 # filter blacklisted hypes
                 if (
-                    self._network in __blacklist_addresses
-                    and hypervisor_id.lower() in __blacklist_addresses[self._network]
+                    self._network in self.__blacklist_addresses
+                    and hypervisor_id.lower()
+                    in self.__blacklist_addresses[self._network]
                 ):
                     # hypervisor is blacklisted: loop
                     continue
 
-                result.append(tmp)
+                result.append(hypervisor_id)
 
             except:
                 # executiuon reverted:  arbitrum and mainnet have diff ways of indexing (+1 or 0)
