@@ -246,6 +246,7 @@ class price_scraper:
         return _price
 
     # HELPERS
+    # TODO: use database to query blocks
     def _convert_block_to_timestamp(self, network: str, block: int) -> int:
         try:
             block_data = self.thegraph_block_connector.get_all_results(

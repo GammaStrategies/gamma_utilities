@@ -50,7 +50,7 @@ def feed_hypervisor_static(
     """
 
     logging.getLogger(__name__).info(
-        f" Feeding {protocol}'s {network} hypervisors static information"
+        f">Feeding {protocol}'s {network} hypervisors static information"
     )
 
     # debug variables
@@ -97,7 +97,7 @@ def feed_hypervisor_static(
         ]
 
         logging.getLogger(__name__).debug(
-            f" excluding hypervisors: {hypes_not_included}"
+            f"   excluding hypervisors: {hypes_not_included}"
         )
         hypervisor_addresses_registry = [
             x for x in hypervisor_addresses_registry if x not in hypes_not_included
@@ -124,14 +124,14 @@ def feed_hypervisor_static(
         for address in hypervisor_addresses_registry:
             if address.lower() in hypervisor_addresses_db:
                 logging.getLogger(__name__).debug(
-                    f" 0x..{address[-4:]} hypervisor static info already in db"
+                    f"   0x..{address[-4:]} hypervisor static info already in db"
                 )
             else:
                 hypervisor_addresses.append(address)
     else:
         hypervisor_addresses = hypervisor_addresses_registry
         logging.getLogger(__name__).debug(
-            " Rewriting all hypervisors static information of {}'s {} {} ".format(
+            "   Rewriting all hypervisors static information of {}'s {} {} ".format(
                 network, protocol, dex
             )
         )
@@ -187,7 +187,7 @@ def feed_hypervisor_static(
     try:
         if _errors > 0:
             logging.getLogger(__name__).info(
-                " {} of {} ({:,.1%}) hypervisors could not be scraped due to errors".format(
+                "   {} of {} ({:,.1%}) hypervisors could not be scraped due to errors".format(
                     _errors,
                     len(hypervisor_addresses),
                     _errors / len(hypervisor_addresses),
@@ -208,7 +208,7 @@ def feed_operations(
 ):
 
     logging.getLogger(__name__).info(
-        f" Feeding {protocol}'s {network} hypervisors operations information"
+        f">Feeding {protocol}'s {network} hypervisors operations information"
     )
 
     # debug variables
@@ -260,7 +260,7 @@ def feed_operations(
         x.lower()
         for x in filters.get("hypervisors_not_included", {}).get(network, list())
     ]
-    logging.getLogger(__name__).debug(f" excluding hypervisors: {hypes_not_included}")
+    logging.getLogger(__name__).debug(f"   excluding hypervisors: {hypes_not_included}")
     hypervisor_addresses = [
         x for x in hypervisor_addresses if x not in hypes_not_included
     ]
@@ -290,18 +290,16 @@ def feed_operations(
                 # TODO: avoid hardcoded vars ( blocks back in time )
                 new_block_ini = block_ini - int(block_ini * 0.005)
                 logging.getLogger(__name__).debug(
-                    f" {len(diffs)} new hypervisors found in static but not in operations collections. Force initial block {block_ini} back time at {new_block_ini} [{block_ini-new_block_ini} blocks]"
+                    f"   {len(diffs)} new hypervisors found in static but not in operations collections. Force initial block {block_ini} back time at {new_block_ini} [{block_ini-new_block_ini} blocks]"
                 )
-                logging.getLogger(__name__).debug(
-                    f"              new hypervisors-->  {diffs}"
-                )
+                logging.getLogger(__name__).debug(f"   new hypervisors-->  {diffs}")
                 # set initial block
                 block_ini = new_block_ini
 
         # define block to scrape
         if not block_ini and not block_end:
             logging.getLogger(__name__).info(
-                " Calculating {} blocks to be processed using dates from {:%Y-%m-%d %H:%M:%S} to {:%Y-%m-%d %H:%M:%S} ".format(
+                "   Calculating {} blocks to be processed using dates from {:%Y-%m-%d %H:%M:%S} to {:%Y-%m-%d %H:%M:%S} ".format(
                     network, date_ini, date_end
                 )
             )
@@ -371,7 +369,7 @@ def feed_operations_hypervisors(
     onchain_helper = onchain_data_helper2(protocol=protocol)
 
     logging.getLogger(__name__).info(
-        "Feeding database with {}'s {} operations of {} hypervisors from blocks {} to {}".format(
+        "   Feeding database with {}'s {} operations of {} hypervisors from blocks {} to {}".format(
             network, protocol, len(hypervisor_addresses), block_ini, block_end
         )
     )
@@ -460,7 +458,7 @@ def feed_hypervisor_status(
     """
 
     logging.getLogger(__name__).info(
-        f" Feeding {protocol}'s {network} hypervisors status information {'[rewriting all]' if rewrite else ''}"
+        f">Feeding {protocol}'s {network} hypervisors status information {'[rewriting all]' if rewrite else ''}"
     )
 
     # debug variables
@@ -503,7 +501,7 @@ def feed_hypervisor_status(
         }
 
     logging.getLogger(__name__).debug(
-        " Total address blocks {} ->  Already processed {} [{:,.0%}]".format(
+        "   Total address blocks {} ->  Already processed {} [{:,.0%}]".format(
             len(toProcess_block_address),
             len(processed_blocks),
             (len(processed_blocks.keys()) / len(toProcess_block_address))
@@ -584,7 +582,7 @@ def feed_hypervisor_status(
     try:
         if _errors > 0:
             logging.getLogger(__name__).info(
-                " {} of {} ({:,.1%}) hypervisor status could not be scraped due to errors".format(
+                "   {} of {} ({:,.1%}) hypervisor status could not be scraped due to errors".format(
                     _errors,
                     len(toProcess_block_address),
                     (_errors / len(toProcess_block_address))
@@ -645,7 +643,7 @@ def feed_prices(
         network (str):
         price_ids (set): list of database ids to be scraped --> "<network>_<block>_<token address>"
     """
-    logging.getLogger(__name__).info(f" Feeding {protocol}'s {network} token prices")
+    logging.getLogger(__name__).info(f">Feeding {protocol}'s {network} token prices")
 
     # setup database managers
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
@@ -663,18 +661,18 @@ def feed_prices(
     )
 
     # create items to process
-    logging.getLogger(__name__).info(
-        "Building a list of addresses and blocks to be scraped"
+    logging.getLogger(__name__).debug(
+        "   Building a list of addresses and blocks to be scraped"
     )
     items_to_process = list(price_ids - already_processed_prices)
 
     if len(items_to_process) > 0:
         # create price helper
-        logging.getLogger(__name__).info(
-            "Get {}'s prices using {} database".format(network, db_name)
+        logging.getLogger(__name__).debug(
+            "   Get {}'s prices using {} database".format(network, db_name)
         )
 
-        logging.getLogger(__name__).debug(" Force disable price cache ")
+        logging.getLogger(__name__).debug("   Force disable price cache ")
         price_helper = price_scraper(
             cache=False,
             cache_filename="uniswapv3_price_cache",
@@ -765,7 +763,7 @@ def feed_prices(
         try:
             if _errors > 0:
                 logging.getLogger(__name__).info(
-                    " {} of {} ({:,.1%}) address block prices could not be scraped due to errors".format(
+                    "   {} of {} ({:,.1%}) address block prices could not be scraped due to errors".format(
                         _errors,
                         len(items_to_process),
                         (_errors / len(items_to_process))
@@ -778,7 +776,7 @@ def feed_prices(
 
     else:
         logging.getLogger(__name__).info(
-            "No new {}'s prices to process for {} database".format(network, db_name)
+            "   No new {}'s prices to process for {} database".format(network, db_name)
         )
 
 
@@ -876,7 +874,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
         threaded (bool, optional): . Defaults to True.
     """
     logging.getLogger(__name__).info(
-        f" Feeding {protocol}'s {network} token prices [sqrtPriceX96]"
+        f">Feeding {protocol}'s {network} token prices [sqrtPriceX96]"
     )
 
     # setup database managers
@@ -1000,7 +998,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
     try:
         if _errors > 0:
             logging.getLogger(__name__).info(
-                " {} of {} ({:,.1%}) address block prices could not be scraped due to errors".format(
+                "   {} of {} ({:,.1%}) address block prices could not be scraped due to errors".format(
                     _errors,
                     len(items_to_process),
                     (_errors / len(items_to_process))
@@ -1017,7 +1015,7 @@ def feed_blocks_timestamp(network: str):
     """ """
 
     logging.getLogger(__name__).info(
-        f" Feeding {network} block <-> timestamp information"
+        f">Feeding {network} block <-> timestamp information"
     )
     # setup database managers
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
@@ -1065,7 +1063,7 @@ def feed_timestamp_blocks(network: str, protocol: str, threaded: bool = True):
         protocol (str):
     """
     logging.getLogger(__name__).info(
-        f" Feeding {protocol}'s {network} timestamp <-> block information"
+        f">Feeding {protocol}'s {network} timestamp <-> block information"
     )
 
     # setup database managers
@@ -1153,7 +1151,7 @@ def feed_timestamp_blocks(network: str, protocol: str, threaded: bool = True):
 
     try:
         logging.getLogger(__name__).info(
-            " {} of {} ({:,.1%}) blocks could not be scraped due to errors".format(
+            "   {} of {} ({:,.1%}) blocks could not be scraped due to errors".format(
                 _errors,
                 len(items_to_process),
                 (_errors / len(items_to_process)) if len(items_to_process) > 0 else 0,
