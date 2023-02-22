@@ -837,8 +837,6 @@ class quickswapv3_pool(web3wrap):
             block=block,
         )
 
-    # https://polygonscan.com/address/0xae81fac689a1b4b1e06e7ef4a2ab4cd8ac0a087d#readContract
-
     # PROPERTIES
 
     @property
