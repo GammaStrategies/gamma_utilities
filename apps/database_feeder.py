@@ -633,7 +633,7 @@ def create_db_hypervisor(
 def feed_prices(
     protocol: str,
     network: str,
-    token_blocks: dict,
+    price_ids: set,
     rewrite: bool = False,
     threaded: bool = True,
 ):
@@ -642,7 +642,7 @@ def feed_prices(
     Args:
         protocol (str):
         network (str):
-        token_blocks (dic): a dictionary of <token address>:<block list> to be scraped
+        price_ids (set): list of database ids to be scraped --> "<network>_<block>_<token address>"
     """
     logging.getLogger(__name__).info(f" Feeding {protocol}'s {network} token prices")
 
@@ -660,21 +660,13 @@ def feed_prices(
             for x in global_db_manager.get_unique_prices_addressBlock(network=network)
         ]
     )
-    # format set with database id
-    token_blocks_s = set(
-        [
-            "{}_{}_{}".format(network, block, token)
-            for token, blocks in token_blocks.items()
-            for block in blocks
-        ]
-    )
 
     # create items to process
     logging.getLogger(__name__).info(
         "Building a list of addresses and blocks to be scraped"
     )
     items_to_process = list()
-    for item in token_blocks_s:
+    for item in price_ids:
         if not item in already_processed_prices:
             tb = item.split("_")
             items_to_process.append({"token": tb[2], "block": int(tb[1])})
@@ -792,29 +784,37 @@ def feed_prices(
         )
 
 
-def create_tokenBlocks_allTokens(protocol: str, network: str) -> dict:
+def create_tokenBlocks_allTokensButWeth(protocol: str, network: str) -> set:
+    """create a list of token addresses where weth is not in the pair
 
+    Args:
+        protocol (str):
+        network (str):
+
+    Returns:
+        dict:
+    """
     # setup database managers
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     db_name = f"{network}_{protocol}"
     local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
     global_db_manager = database_global(mongo_url=mongo_url)
 
-    # create unique token list using db data from hypervisor status
-    token_list = [x["_id"] for x in local_db_manager.get_unique_tokens()]
+    result = set()
+    for status in local_db_manager.get_items_from_database(collection_name="status"):
+        for i in [0, 1]:
+            if status["pool"][f"token{i}"]["symbol"] != "WETH":
+                result.add(
+                    "{}_{}_{}".format(
+                        network, status["block"], status["pool"][f"token{i}"]["address"]
+                    )
+                )
 
-    # create unique block list using data from hypervisor status
-    blocks_list = sorted(
-        local_db_manager.get_distinct_items_from_database(
-            collection_name="status", field="block"
-        ),
-        reverse=True,
-    )
     # combine token block lists
-    return {token: blocks_list for token in token_list}
+    return result
 
 
-def create_tokenBlocks_topTokens(protocol: str, network: str) -> dict:
+def create_tokenBlocks_topTokens(protocol: str, network: str) -> set:
     """Create a list of blocks for each TOP token address
 
     Args:
@@ -842,7 +842,13 @@ def create_tokenBlocks_topTokens(protocol: str, network: str) -> dict:
     )
 
     # combine token block lists
-    return {token: blocks_list for token in top_tokens}
+    return set(
+        [
+            "{}_{}_{}".format(network, block, token)
+            for token in top_tokens
+            for block in blocks_list
+        ]
+    )
 
 
 def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool = True):
@@ -905,7 +911,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
                     address=status["pool"]["token1"]["address"],
                 )
                 # calc token pusd price
-                return (usdPrice_token1[0] * price_token0), status
+                return (usdPrice_token1[0]["price"] * price_token0), status
 
             except:
                 pass
@@ -934,7 +940,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
                     else:
                         # error found
                         logging.getLogger(__name__).warning(
-                            f""" No price for {item["pool"]["token1"]["symbol"]} ({item["pool"]["token1"]["address"]}) was found in database"""
+                            f""" No price for {network}'s {item["pool"]["token1"]["symbol"]} ({item["pool"]["token1"]["address"]}) was found in database at block{item["block"]}"""
                         )
                         _errors += 1
 
@@ -958,7 +964,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
                     )
                 else:
                     logging.getLogger(__name__).warning(
-                        f""" No price for {item["pool"]["token1"]["symbol"]} ({item["pool"]["token1"]["address"]}) was found in database"""
+                        f""" No price for {network}'s {item["pool"]["token1"]["symbol"]} ({item["pool"]["token1"]["address"]}) was found in database at block{item["block"]}"""
                     )
                     _errors += 1
 

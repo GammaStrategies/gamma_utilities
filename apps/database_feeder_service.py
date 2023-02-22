@@ -17,7 +17,7 @@ from apps.database_feeder import (
     feed_operations,
     feed_hypervisor_status,
     feed_prices,
-    create_tokenBlocks_allTokens,
+    create_tokenBlocks_allTokensButWeth,
     create_tokenBlocks_topTokens,
     feed_prices_force_sqrtPriceX96,
     feed_timestamp_blocks,
@@ -63,7 +63,7 @@ def price_sequence_loop(protocol: str, network: str):
     feed_prices(
         protocol=protocol,
         network=network,
-        token_blocks=create_tokenBlocks_topTokens(protocol=protocol, network=network),
+        price_ids=create_tokenBlocks_topTokens(protocol=protocol, network=network),
     )
     # force feed prices from already known using conversion
     feed_prices_force_sqrtPriceX96(protocol=protocol, network=network)
@@ -72,7 +72,9 @@ def price_sequence_loop(protocol: str, network: str):
     feed_prices(
         protocol=protocol,
         network=network,
-        token_blocks=create_tokenBlocks_allTokens(protocol=protocol, network=network),
+        price_ids=create_tokenBlocks_allTokensButWeth(
+            protocol=protocol, network=network
+        ),
     )
 
 
