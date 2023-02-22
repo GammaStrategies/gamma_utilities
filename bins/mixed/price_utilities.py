@@ -88,16 +88,27 @@ class price_scraper:
                 )
 
         # SAVE CACHE
-        if _price != None and _price != 0 and self.cache != None:
-            # save price to cache and disk
-            self.cache.add_data(
-                chain_id=network,
-                address=token_id,
-                block=block,
-                key=of,
-                data=_price,
-                save2file=True,
+        if _price != None and _price != 0:
+            logging.getLogger(LOG_NAME).debug(
+                " {}'s token {} price at block {} was found: {}".format(
+                    network, token_id, block, _price
+                )
             )
+            if self.cache != None:
+                # save price to cache and disk
+                logging.getLogger(LOG_NAME).debug(
+                    " {}'s token {} price at block {} was saved to cache".format(
+                        network, token_id, block
+                    )
+                )
+                self.cache.add_data(
+                    chain_id=network,
+                    address=token_id,
+                    block=block,
+                    key=of,
+                    data=_price,
+                    save2file=True,
+                )
         else:
             # not found
             logging.getLogger(LOG_NAME).warning(

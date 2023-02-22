@@ -760,6 +760,7 @@ def feed_prices(
                     logging.getLogger(__name__).exception(
                         f"Unexpected error while geting {item['token']} usd price at block {item['block']}"
                     )
+                    _errors += 1
                 # add one
                 progress_bar.update(1)
 
