@@ -69,38 +69,110 @@ def replace_blocks_to_int(network: str, protocol: str = "gamma"):
                 progress_bar.update(1)
 
 
+# TODO: implement tqdm
 def check_database():
 
     # setup global database manager
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     global_db_manager = database_global(mongo_url=mongo_url)
 
+    # check LOCAL
     for protocol, networks in CONFIGURATION["script"]["protocols"].items():
         for network, dexes in networks.items():
+
             # setup local database manager
             db_name = f"{network}_{protocol}"
             local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
 
-            # check operation blocks are int
-            blocks_operatons = local_db_manager.get_items_from_database(
-                collection_name="operations",
-                find={"blockNumber": {"$not": {"$type": "int"}}},
-            )
-            # warn
-            if len(blocks_operatons) > 0:
-                logging.getLogger(__name__).warning(
-                    f" Found {len(blocks_operatons)} operations with the block field not being int"
-                )
+            # check blocks
+            chek_localdb_blocks(local_db_manager=local_db_manager)
 
-            # check status blocks are int
-            blocks_status = local_db_manager.get_items_from_database(
-                collection_name="status", find={"block": {"$not": {"$type": "int"}}}
+    # check GLOBAL
+    # check blocks
+    chek_globaldb_blocks(global_db_manager=global_db_manager)
+
+
+def chek_localdb_blocks(local_db_manager: database_local):
+    """check if blocks are typed correctly
+
+    Args:
+        local_db_manager (database_local):
+    """
+
+    # check operation blocks are int
+    blocks_operatons = local_db_manager.get_items_from_database(
+        collection_name="operations",
+        find={"blockNumber": {"$not": {"$type": "int"}}},
+    )
+    # warn
+    if len(blocks_operatons) > 0:
+        logging.getLogger(__name__).warning(
+            f" Found {len(blocks_operatons)} operations with the block field not being int"
+        )
+
+    # check status blocks are int
+    blocks_status = local_db_manager.get_items_from_database(
+        collection_name="status", find={"block": {"$not": {"$type": "int"}}}
+    )
+    # warn
+    if len(blocks_status) > 0:
+        logging.getLogger(__name__).warning(
+            f" Found {len(blocks_status)} hypervisor status with the block field not being int"
+        )
+
+
+def chek_globaldb_blocks(global_db_manager: database_global):
+    """check that blocks have the correct type
+
+    Args:
+        global_db_manager (database_global):
+    """
+
+    blocks_usd_prices = global_db_manager.get_items_from_database(
+        collection_name="usd_prices", find={"block": {"$not": {"$type": "int"}}}
+    )
+    # warn
+    if len(blocks_usd_prices) > 0:
+        logging.getLogger(__name__).warning(
+            f" Found {len(blocks_usd_prices)} usd prices with the block field not being int"
+        )
+
+
+def check_status_prices(
+    network: str, local_db_manager: database_local, global_db_manager: database_global
+):
+    """Check that all status tokens have usd prices
+
+    Args:
+        local_db_manager (database_local):
+        global_db_manager (database_global):
+    """
+    # get all prices + address + block
+    prices = set(
+        [
+            x["id"]
+            for x in global_db_manager.get_unique_prices_addressBlock(network=network)
+        ]
+    )
+
+    # get tokens and blocks present in database
+    prices_todo = set()
+    for x in local_db_manager.get_items_from_database(collection_name=status, find={}):
+        for i in [0, 1]:
+            db_id = "{}_{}_{}".format(
+                network,
+                x["pool"][f"token{i}"]["block"],
+                x["pool"][f"token{i}"]["address"],
             )
-            # warn
-            if len(blocks_status) > 0:
-                logging.getLogger(__name__).warning(
-                    f" Found {len(blocks_status)} hypervisor status with the block field not being int"
-                )
+            if not db_id in prices:
+                prices_todo.add(db_id)
+
+    if len(prices_todo) > 0:
+        logging.getLogger(__name__).warning(
+            " Found {} token blocks without price, from a total of {} ({:,.1%})".format(
+                len(prices_todo), len(prices), len(prices_todo) / len(prices)
+            )
+        )
 
 
 # START ####################################################################################################################
