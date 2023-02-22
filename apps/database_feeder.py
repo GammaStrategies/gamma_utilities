@@ -151,6 +151,7 @@ def feed_hypervisor_static(
                         progress_bar.set_description(
                             " 0x..{} processed ".format(result["address"][-4:])
                         )
+                        progress_bar.refresh()
                         # add hypervisor status to database
                         local_db.set_static(data=result)
                         # update progress
@@ -164,6 +165,7 @@ def feed_hypervisor_static(
                 progress_bar.set_description(
                     " 0x..{} to be processed".format(address[-4:])
                 )
+                progress_bar.refresh()
                 result = create_db_hypervisor(
                     address=address,
                     network=network,
@@ -545,6 +547,7 @@ def feed_hypervisor_status(
                         progress_bar.set_description(
                             " {} processed ".format(result["address"])
                         )
+                        progress_bar.refresh()
                         # add hypervisor status to database
                         local_db.set_status(data=result)
                     else:
@@ -561,6 +564,7 @@ def feed_hypervisor_status(
                         item["address"][-4:], item["block"]
                     )
                 )
+                progress_bar.refresh()
                 result = create_db_hypervisor(
                     address=item["address"],
                     network=network,
@@ -719,6 +723,7 @@ def feed_prices(
                             progress_bar.set_description(
                                 f"[er:{_errors}] Retrieved USD price of 0x..{token[-3:]} at block {block}   "
                             )
+                            progress_bar.refresh()
                             # add hypervisor status to database
                             # save price to database
                             global_db_manager.set_price_usd(
@@ -917,6 +922,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
                         progress_bar.set_description(
                             f"""[er:{_errors}]  Retrieved USD price of {item["pool"]["token0"]["symbol"]} at block {item["block"]}"""
                         )
+                        progress_bar.refresh()
                         # add hypervisor status to database
                         # save price to database
                         global_db_manager.set_price_usd(
@@ -1077,7 +1083,7 @@ def feed_timestamp_blocks(network: str, protocol: str, threaded: bool = True):
                         progress_bar.set_description(
                             f" Retrieved timestamp of block {block}"
                         )
-
+                        progress_bar.refresh()
                         # save to database
                         global_db_manager.set_block(
                             network=network, block=block, timestamp=timestamp
