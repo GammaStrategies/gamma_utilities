@@ -187,7 +187,7 @@ def feed_hypervisor_static(
     try:
         if _errors > 0:
             logging.getLogger(__name__).info(
-                " {} of {} [{:,.0%}] hypervisors could not be scraped due to errors".format(
+                " {} of {} ({:,.1%}) hypervisors could not be scraped due to errors".format(
                     _errors,
                     len(hypervisor_addresses),
                     _errors / len(hypervisor_addresses),
@@ -584,8 +584,9 @@ def feed_hypervisor_status(
     try:
         if _errors > 0:
             logging.getLogger(__name__).info(
-                " {} of {} hypervisor status could not be scraped due to errors".format(
+                " {} of {} ({:,.1%}) hypervisor status could not be scraped due to errors".format(
                     _errors,
+                    len(toProcess_block_address),
                     (_errors / len(toProcess_block_address))
                     if len(toProcess_block_address) > 0
                     else 0,
@@ -764,8 +765,9 @@ def feed_prices(
         try:
             if _errors > 0:
                 logging.getLogger(__name__).info(
-                    " {} of {} address block prices could not be scraped due to errors".format(
+                    " {} of {} ({:,.1%}) address block prices could not be scraped due to errors".format(
                         _errors,
+                        len(items_to_process),
                         (_errors / len(items_to_process))
                         if len(items_to_process) > 0
                         else 0,
@@ -998,8 +1000,9 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
     try:
         if _errors > 0:
             logging.getLogger(__name__).info(
-                " {} of {} address block prices could not be scraped due to errors".format(
+                " {} of {} ({:,.1%}) address block prices could not be scraped due to errors".format(
                     _errors,
+                    len(items_to_process),
                     (_errors / len(items_to_process))
                     if len(items_to_process) > 0
                     else 0,
@@ -1150,8 +1153,9 @@ def feed_timestamp_blocks(network: str, protocol: str, threaded: bool = True):
 
     try:
         logging.getLogger(__name__).info(
-            " {} of {} blocks could not be scraped due to errors".format(
+            " {} of {} ({:,.1%}) blocks could not be scraped due to errors".format(
                 _errors,
+                len(items_to_process),
                 (_errors / len(items_to_process)) if len(items_to_process) > 0 else 0,
             )
         )
