@@ -648,15 +648,14 @@ def feed_prices(
     global_db_manager = database_global(mongo_url=mongo_url)
 
     # check already processed prices
+    # using only set with database id
     already_processed_prices = set(
-        [
-            "{}_{}".format(x["address"], x["block"])
-            for x in global_db_manager.get_all_priceAddressBlocks(network=network)
-        ]
+        [x["id"] for x in global_db_manager.get_all_priceAddressBlocks(network=network)]
     )
+    # format set with database id
     token_blocks_s = set(
         [
-            "{}_{}".format(token, block)
+            "{}_{}_{}".format(network, block, token)
             for token, blocks in token_blocks.items()
             for block in blocks
         ]
@@ -670,112 +669,118 @@ def feed_prices(
     for item in token_blocks_s:
         if not item in already_processed_prices:
             tb = item.split("_")
-            items_to_process.append({"token": tb[0], "block": tb[1]})
+            items_to_process.append({"token": tb[2], "block": tb[1]})
 
-    # create price helper
-    logging.getLogger(__name__).info(
-        "Get {}'s prices using {} database".format(network, db_name)
-    )
+    if len(items_to_process) > 0:
+        # create price helper
+        logging.getLogger(__name__).info(
+            "Get {}'s prices using {} database".format(network, db_name)
+        )
 
-    logging.getLogger(__name__).debug(" Force disable price cache ")
-    price_helper = price_scraper(
-        cache=False,
-        cache_filename="uniswapv3_price_cache",
-    )
-    # log errors
-    _errors = 0
+        logging.getLogger(__name__).debug(" Force disable price cache ")
+        price_helper = price_scraper(
+            cache=False,
+            cache_filename="uniswapv3_price_cache",
+        )
+        # log errors
+        _errors = 0
 
-    with tqdm.tqdm(total=len(items_to_process)) as progress_bar:
+        with tqdm.tqdm(total=len(items_to_process)) as progress_bar:
 
-        def loopme(network, token, block):
-            try:
-                # get price
-                return (
-                    price_helper.get_price(
-                        network=network, token_id=token, block=block, of="USD"
-                    ),
-                    token,
-                    block,
-                )
-            except:
-                logging.getLogger(__name__).exception(
-                    f"Unexpected error while geting {token} usd price at block {block}"
-                )
-            return None
-
-        if threaded:
-            # threaded
-            args = (
-                (network, item["token"], item["block"]) for item in items_to_process
-            )
-            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-                for price_usd, token, block in ex.map(lambda p: loopme(*p), args):
-                    if price_usd:
-                        # progress
-                        progress_bar.set_description(
-                            f"[er:{_errors}] Retrieved USD price of 0x..{token[-3:]} at block {block}   "
-                        )
-                        # add hypervisor status to database
-                        # save price to database
-                        global_db_manager.set_price_usd(
-                            network=network,
-                            block=block,
-                            token_address=token,
-                            price_usd=price_usd,
-                        )
-                    else:
-                        # error found
-                        _errors += 1
-
-                    # update progress
-                    progress_bar.update(1)
-        else:
-            # loop blocks to gather info
-            for item in items_to_process:
-
-                progress_bar.set_description(
-                    f"[er:{_errors}] Retrieving USD price of 0x..{item['token'][-3:]} at block {item['block']}"
-                )
-                progress_bar.refresh()
+            def loopme(network, token, block):
                 try:
                     # get price
-                    price_usd = price_helper.get_price(
-                        network=network,
-                        token_id=item["token"],
-                        block=item["block"],
-                        of="USD",
+                    return (
+                        price_helper.get_price(
+                            network=network, token_id=token, block=block, of="USD"
+                        ),
+                        token,
+                        block,
                     )
-                    if price_usd:
-                        # save price to database
-                        global_db_manager.set_price_usd(
-                            network=network,
-                            block=item["block"],
-                            token_address=item["token"],
-                            price_usd=price_usd,
-                        )
-                    else:
-                        # error found
-                        _errors += 1
                 except:
                     logging.getLogger(__name__).exception(
-                        f"Unexpected error while geting {item['token']} usd price at block {item['block']}"
+                        f"Unexpected error while geting {token} usd price at block {block}"
                     )
-                    _errors += 1
-                # add one
-                progress_bar.update(1)
+                return None
 
-    try:
-        if _errors > 0:
-            logging.getLogger(__name__).info(
-                " {} of {} address block prices could not be scraped due to errors".format(
-                    _errors,
-                    (_errors / len(items_to_process))
-                    if len(items_to_process) > 0
-                    else 0,
+            if threaded:
+                # threaded
+                args = (
+                    (network, item["token"], item["block"]) for item in items_to_process
                 )
-            )
-    except:
-        pass
+                with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+                    for price_usd, token, block in ex.map(lambda p: loopme(*p), args):
+                        if price_usd:
+                            # progress
+                            progress_bar.set_description(
+                                f"[er:{_errors}] Retrieved USD price of 0x..{token[-3:]} at block {block}   "
+                            )
+                            # add hypervisor status to database
+                            # save price to database
+                            global_db_manager.set_price_usd(
+                                network=network,
+                                block=block,
+                                token_address=token,
+                                price_usd=price_usd,
+                            )
+                        else:
+                            # error found
+                            _errors += 1
+
+                        # update progress
+                        progress_bar.update(1)
+            else:
+                # loop blocks to gather info
+                for item in items_to_process:
+
+                    progress_bar.set_description(
+                        f"[er:{_errors}] Retrieving USD price of 0x..{item['token'][-3:]} at block {item['block']}"
+                    )
+                    progress_bar.refresh()
+                    try:
+                        # get price
+                        price_usd = price_helper.get_price(
+                            network=network,
+                            token_id=item["token"],
+                            block=item["block"],
+                            of="USD",
+                        )
+                        if price_usd:
+                            # save price to database
+                            global_db_manager.set_price_usd(
+                                network=network,
+                                block=item["block"],
+                                token_address=item["token"],
+                                price_usd=price_usd,
+                            )
+                        else:
+                            # error found
+                            _errors += 1
+                    except:
+                        logging.getLogger(__name__).exception(
+                            f"Unexpected error while geting {item['token']} usd price at block {item['block']}"
+                        )
+                        _errors += 1
+                    # add one
+                    progress_bar.update(1)
+
+        try:
+            if _errors > 0:
+                logging.getLogger(__name__).info(
+                    " {} of {} address block prices could not be scraped due to errors".format(
+                        _errors,
+                        (_errors / len(items_to_process))
+                        if len(items_to_process) > 0
+                        else 0,
+                    )
+                )
+        except:
+            pass
+
+    else:
+        logging.getLogger(__name__).info(
+            "No new {}'s prices to process for {} database".format(network, db_name)
+        )
 
 
 def create_tokenBlocks_allTokens(protocol: str, network: str) -> dict:
@@ -853,10 +858,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
 
     # check already processed prices
     already_processed_prices = set(
-        [
-            "{}_{}".format(x["address"], x["block"])
-            for x in global_db_manager.get_all_priceAddressBlocks(network=network)
-        ]
+        [x["id"] for x in global_db_manager.get_all_priceAddressBlocks(network=network)]
     )
 
     # get all hype status where token1 == WETH and not already processed
@@ -867,7 +869,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
             find={"pool.token1.symbol": "WETH"},
             sort=[("block", 1)],
         )
-        if not "{}_{}".format(x["pool"]["token0"]["address"], x["block"])
+        if not "{}_{}_{}".format(network, x["block"], x["pool"]["token0"]["address"])
         in already_processed_prices
     ]
 
@@ -878,6 +880,9 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
 
         def loopme(status: dict):
             try:
+                if status["block"] == 12620847:
+                    po = ""
+
                 # calc price
                 price_token0 = sqrtPriceX96_to_price_float(
                     sqrtPriceX96=int(status["pool"]["slot0"]["sqrtPriceX96"]),
