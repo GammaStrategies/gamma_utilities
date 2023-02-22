@@ -24,8 +24,12 @@ class price_scraper:
 
     ## CONFIG ##
     def init_apis(self, cache: bool, cache_savePath: str):
-        # price thegraph
+        # univ3 thegraph
         self.thegraph_univ3_connector = thegraph_utilities.uniswapv3_scraper(
+            cache=cache, cache_savePath=cache_savePath
+        )
+        # quickswap thegraph
+        self.thegraph_quickswap_connector = thegraph_utilities.quickswap_scraper(
             cache=cache, cache_savePath=cache_savePath
         )
         # blocks->tiumestamp thegraph
@@ -54,7 +58,12 @@ class price_scraper:
         except:
             _price = None
 
-        if _price == None or _price == 0:
+        # uniswap
+        if (
+            _price == None
+            or _price == 0
+            and network in self.thegraph_univ3_connector.networks
+        ):
             # GET FROM UNIV3 THEGRAPH
             logging.getLogger(LOG_NAME).debug(
                 " Trying to get {}'s token {} price at block {} from uniswapv3 subgraph".format(
@@ -71,7 +80,34 @@ class price_scraper:
                         network, token_id, block
                     )
                 )
-        if _price == None or _price == 0:
+        # quickswap
+        if (
+            _price == None
+            or _price == 0
+            and network in self.thegraph_quickswap_connector.networks
+        ):
+            # GET FROM QUICKSWAP THEGRAPH
+            logging.getLogger(LOG_NAME).debug(
+                " Trying to get {}'s token {} price at block {} from quickswap subgraph".format(
+                    network, token_id, block
+                )
+            )
+            try:
+                _price = self._get_price_from_quickswap_thegraph(
+                    network, token_id, block, of
+                )
+            except:
+                logging.getLogger(LOG_NAME).debug(
+                    " Could not get {}'s token {} price at block {} from quickswap subgraph.".format(
+                        network, token_id, block
+                    )
+                )
+        # coingecko
+        if (
+            _price == None
+            or _price == 0
+            and network in self.coingecko_price_connector.networks
+        ):
             # GET FROM COINGECKO
             logging.getLogger(LOG_NAME).debug(
                 " Trying to get {}'s token {} price at block {} from coingecko".format(
@@ -207,6 +243,100 @@ class price_scraper:
         except:
             logging.getLogger(LOG_NAME).exception(
                 "Unexpected error while getting price of {}'s token address {} at block {} from uniswap subgraph   data:{}      .error: {}".format(
+                    network, token_id, block, _data, sys.exc_info()[0]
+                )
+            )
+            _price = 0
+
+        # return result
+        return _price
+
+    def _get_price_from_quickswap_thegraph(
+        self, network: str, token_id: str, block: int, of: str
+    ) -> float:
+
+        if of == "USD":
+
+            _where_query = """ id: "{}" """.format(token_id)
+
+            if block != 0:
+                # get price at block
+                _block_query = """ number: {}""".format(block)
+                _data = self.thegraph_quickswap_connector.get_all_results(
+                    network=network,
+                    query_name="tokens",
+                    where=_where_query,
+                    block=_block_query,
+                )
+            else:
+                # get current block price
+                _data = self.thegraph_quickswap_connector.get_all_results(
+                    network=network, query_name="tokens", where=_where_query
+                )
+
+        else:
+            raise NotImplementedError(
+                " Cannot find {} price method to be gathered from".format(of)
+            )
+
+        # process query
+        try:
+            # get the first item in data list
+            _data = _data[0]
+
+            token_symbol = _data["symbol"]
+            # decide what to use to get to price ( value or volume )
+            if (
+                float(_data["totalValueLockedUSD"]) > 0
+                and float(_data["totalValueLocked"]) > 0
+            ):
+                # get unit usd price from value locked
+                _price = float(_data["totalValueLockedUSD"]) / float(
+                    _data["totalValueLocked"]
+                )
+            elif (
+                "volume" in _data
+                and float(_data["volume"]) > 0
+                and "volumeUSD" in _data
+                and float(_data["volumeUSD"]) > 0
+            ):
+                # get unit usd price from volume
+                _price = float(_data["volumeUSD"]) / float(_data["volume"])
+            else:
+                # no way
+                _price = 0
+
+            # TODO: decide on certain circumstances (DAI USDC...)
+            # if _price == 0:
+            #     _price = self._price_special_case(address=token_id, network=network)
+        except ZeroDivisionError:
+            # one or all prices are zero. Cant continue
+            # return zeros
+            logging.getLogger(LOG_NAME).warning(
+                "one or all price variables of {}'s token {} (address {}) at block {} from quickswap subgraph are ZERO. Can't get price.  --> data: {}".format(
+                    network, token_symbol, token_id, block, _data
+                )
+            )
+            _price = 0
+        except (KeyError, TypeError) as err:
+            # errors': [{'message': 'indexing_error'}]
+            if "errors" in _data:
+                for error in _data["errors"]:
+                    logging.getLogger(LOG_NAME).error(
+                        "Unexpected error while getting price of {}'s token address {} at block {} from quickswap subgraph   data:{}      .error: {}".format(
+                            network, token_id, block, _data, error
+                        )
+                    )
+            else:
+                logging.getLogger(LOG_NAME).exception(
+                    "Unexpected error while getting price of {}'s token address {} at block {} from quickswap subgraph   data:{}      .error: {}".format(
+                        network, token_id, block, _data, sys.exc_info()[0]
+                    )
+                )
+            _price = 0
+        except:
+            logging.getLogger(LOG_NAME).exception(
+                "Unexpected error while getting price of {}'s token address {} at block {} from quickswap subgraph   data:{}      .error: {}".format(
                     network, token_id, block, _data, sys.exc_info()[0]
                 )
             )

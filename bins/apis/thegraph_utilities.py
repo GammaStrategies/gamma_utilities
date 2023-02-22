@@ -166,6 +166,15 @@ class thegraph_scraper_helper:
         # return
         return result
 
+    @property
+    def networks(self) -> list[str]:
+        """available networks
+
+        Returns:
+            list: of networks
+        """
+        return list(self.__URLS.keys())
+
     # HELPERS
     def _query_constructor(self, skip: int, name: str, filter: str) -> tuple:
         # query name

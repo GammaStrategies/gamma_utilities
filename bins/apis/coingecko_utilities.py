@@ -16,6 +16,15 @@ class coingecko_price_helper:
             "celo": "celo",
         }
 
+    @property
+    def networks(self) -> list[str]:
+        """available networks
+
+        Returns:
+            list: of networks
+        """
+        return list(self.COINGECKO_netids.keys())
+
     ## PUBLIC ##
     def get_price(
         self, network: str, contract_address: str, vs_currency: str = "usd"
