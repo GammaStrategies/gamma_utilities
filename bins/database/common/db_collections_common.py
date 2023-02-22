@@ -230,7 +230,7 @@ class database_global(db_collections_common):
         }
         self.save_item_to_database(data=data, collection_name="blocks")
 
-    def get_all_priceAddressBlocks(self, network: str) -> list:
+    def get_unique_prices_addressBlock(self, network: str) -> list:
         """get addresses and blocks already present in database
             with price greater than zero.
 
@@ -487,8 +487,8 @@ class database_local(db_collections_common):
             ),
         )
 
-    def get_unique_operations_blockAddress(self) -> list:
-        """Retrieve a list of unique blocks + addresses present in operations collection
+    def get_unique_operations_addressBlock(self) -> list:
+        """Retrieve a list of unique blocks + hypervisor addresses present in operations collection
 
         Returns:
             list: of  {
@@ -514,8 +514,8 @@ class database_local(db_collections_common):
             collection_name="operations", aggregate=query
         )
 
-    def get_unique_status_blockAddress(self) -> list:
-        """Retrieve a list of unique blocks + addresses present in status collection
+    def get_unique_status_addressBlock(self) -> list:
+        """Retrieve a list of unique blocks + hypervisor addresses present in status collection
 
         Returns:
             list: of {
@@ -540,13 +540,13 @@ class database_local(db_collections_common):
         return self.get_items_from_database(collection_name="status", aggregate=query)
 
     def get_unique_tokens(self) -> list:
-        """Get a unique token list from status database
+        """Get a unique token list from static database
 
         Returns:
             list:
         """
         return self.get_items_from_database(
-            collection_name="status", aggregate=self.query_unique_token_addresses()
+            collection_name="static", aggregate=self.query_unique_token_addresses()
         )
 
     def get_mostUsed_tokens(self, limit: int = 5) -> list:

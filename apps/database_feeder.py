@@ -480,7 +480,7 @@ def feed_hypervisor_status(
     #       operation blocks and their block-1 relatives
     #       block every day at 0:00
     toProcess_block_address = dict()
-    for x in local_db.get_unique_operations_blockAddress():
+    for x in local_db.get_unique_operations_addressBlock():
         # add operation addressBlock to be processed
         toProcess_block_address[f"""{x["address"]}_{x["block"]}"""] = x
         # add block -1
@@ -488,6 +488,7 @@ def feed_hypervisor_status(
             "address": x["address"],
             "block": x["block"] - 1,
         }
+        # TODO: add a block every day at 0:00 ??
 
     if rewrite:
         # rewrite all address blocks
@@ -496,7 +497,7 @@ def feed_hypervisor_status(
         # get a list of blocks already processed
         processed_blocks = {
             f"""{x["address"]}_{x["block"]}""": x
-            for x in local_db.get_unique_status_blockAddress()
+            for x in local_db.get_unique_status_addressBlock()
         }
 
     logging.getLogger(__name__).debug(
@@ -650,7 +651,10 @@ def feed_prices(
     # check already processed prices
     # using only set with database id
     already_processed_prices = set(
-        [x["id"] for x in global_db_manager.get_all_priceAddressBlocks(network=network)]
+        [
+            x["id"]
+            for x in global_db_manager.get_unique_prices_addressBlock(network=network)
+        ]
     )
     # format set with database id
     token_blocks_s = set(
@@ -669,7 +673,7 @@ def feed_prices(
     for item in token_blocks_s:
         if not item in already_processed_prices:
             tb = item.split("_")
-            items_to_process.append({"token": tb[2], "block": tb[1]})
+            items_to_process.append({"token": tb[2], "block": int(tb[1])})
 
     if len(items_to_process) > 0:
         # create price helper
@@ -858,7 +862,10 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
 
     # check already processed prices
     already_processed_prices = set(
-        [x["id"] for x in global_db_manager.get_all_priceAddressBlocks(network=network)]
+        [
+            x["id"]
+            for x in global_db_manager.get_unique_prices_addressBlock(network=network)
+        ]
     )
 
     # get all hype status where token1 == WETH and not already processed
@@ -880,9 +887,6 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
 
         def loopme(status: dict):
             try:
-                if status["block"] == 12620847:
-                    po = ""
-
                 # calc price
                 price_token0 = sqrtPriceX96_to_price_float(
                     sqrtPriceX96=int(status["pool"]["slot0"]["sqrtPriceX96"]),
@@ -950,6 +954,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
                     logging.getLogger(__name__).warning(
                         f""" No price for {item["pool"]["token1"]["symbol"]} ({item["pool"]["token1"]["address"]}) was found in database"""
                     )
+                    _errors += 1
 
                 # add one
                 progress_bar.update(1)
