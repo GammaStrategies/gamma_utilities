@@ -27,6 +27,10 @@ def post_request(url: str, query: str, retry=0, max_retry=2, wait_secs=5) -> dic
         logging.getLogger(__name__).warning(
             "Connection to {} has been closed...".format(url)
         )
+    except req_exceptions.ReadTimeout as err:
+        logging.getLogger(__name__).warning(
+            "Connection to {} has timed out...".format(url)
+        )
     except:
         logging.getLogger(__name__).exception(
             "Unexpected error while posting request at {} .error: {}".format(

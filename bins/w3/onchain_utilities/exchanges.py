@@ -1258,6 +1258,11 @@ class quickswapv3_pool(web3wrap):
             else str(self.maxLiquidityPerTick)
         )
 
+        # t spacing
+        # result["tickSpacing"] = (
+        #     self.tickSpacing if not convert_bint else str(self.tickSpacing)
+        # )
+
         # add fee so that it has same field as univ3 pool to dict
         result["fee"] = self.globalState["fee"]
 

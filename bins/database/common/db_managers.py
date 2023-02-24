@@ -154,24 +154,47 @@ class MongoDbManager:
         if "find" in kwargs:
             if "batch_size" in kwargs:
                 if "sort" in kwargs:
-                    return (
-                        self.database[coll_name]
-                        .find(kwargs["find"], batch_size=kwargs["batch_size"])
-                        .sort(kwargs["sort"])
-                    )
+                    if "limit" in kwargs:
+                        return (
+                            self.database[coll_name]
+                            .find(kwargs["find"], batch_size=kwargs["batch_size"])
+                            .sort(kwargs["sort"])
+                            .limit(kwargs["limit"])
+                        )
+                    else:
+                        return (
+                            self.database[coll_name]
+                            .find(kwargs["find"], batch_size=kwargs["batch_size"])
+                            .sort(kwargs["sort"])
+                        )
                 else:
                     return self.database[coll_name].find(
                         kwargs["find"], batch_size=kwargs["batch_size"]
                     )
             else:
                 if "sort" in kwargs:
-                    return (
-                        self.database[coll_name]
-                        .find(kwargs["find"])
-                        .sort(kwargs["sort"])
-                    )
+                    if "limit" in kwargs:
+                        return (
+                            self.database[coll_name]
+                            .find(kwargs["find"])
+                            .sort(kwargs["sort"])
+                            .limit(kwargs["limit"])
+                        )
+                    else:
+                        return (
+                            self.database[coll_name]
+                            .find(kwargs["find"])
+                            .sort(kwargs["sort"])
+                        )
                 else:
-                    return self.database[coll_name].find(kwargs["find"])
+                    if "limit" in kwargs:
+                        return (
+                            self.database[coll_name]
+                            .find(kwargs["find"])
+                            .limit(kwargs["limit"])
+                        )
+                    else:
+                        return self.database[coll_name].find(kwargs["find"])
 
         # build AGGREGATE result
         elif "aggregate" in kwargs:

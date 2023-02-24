@@ -4,6 +4,7 @@ import logging
 import tqdm
 import concurrent.futures
 from datetime import datetime
+from datetime import date
 from pathlib import Path
 from web3.exceptions import ContractLogicError
 
@@ -471,7 +472,7 @@ def feed_hypervisor_status(
     db_name = f"{network}_{protocol}"
     local_db = database_local(mongo_url=mongo_url, db_name=db_name)
 
-    # get all static hypervisor info and convert it to dict (only dex will be used)
+    # get all static hypervisor info and convert it to dict
     static_info = {
         x["address"]: x for x in local_db.get_items(collection_name="static")
     }
@@ -488,7 +489,24 @@ def feed_hypervisor_status(
             "address": x["address"],
             "block": x["block"] - 1,
         }
-        # TODO: add a block every day at 0:00 ??
+
+    # add latest block to all hypervisors
+    # create a dummy erc20 obj as helper ( use only web3wrap functions)
+    # dummy_helper = erc20_cached(
+    #     address="0x0000000000000000000000000000000000000000", network=network
+    # )
+    latest_block = (
+        erc20_cached(
+            address="0x0000000000000000000000000000000000000000", network=network
+        )
+        ._w3.eth.get_block("latest")
+        .number
+    )
+    for address in static_info.keys():
+        toProcess_block_address[f"""{address}_{latest_block}"""] = {
+            "address": address,
+            "block": latest_block,
+        }
 
     if rewrite:
         # rewrite all address blocks
@@ -540,10 +558,10 @@ def feed_hypervisor_status(
             )
             with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
                 for result in ex.map(lambda p: create_db_hypervisor(*p), args):
-                    if result:
+                    if result != None:
                         # progress
                         progress_bar.set_description(
-                            " {} processed ".format(result["address"])
+                            " {} processed ".format(result.get("address", " "))
                         )
                         progress_bar.refresh()
                         # add hypervisor status to database
@@ -559,7 +577,7 @@ def feed_hypervisor_status(
             for item in toProcess_block_address.values():
                 progress_bar.set_description(
                     " 0x..{} at block {} to be processed".format(
-                        item["address"][-4:], item["block"]
+                        item.get("address", "    ")[-4:], item.get("block", "")
                     )
                 )
                 progress_bar.refresh()
@@ -570,7 +588,7 @@ def feed_hypervisor_status(
                     dex=static_info[item["address"]]["dex"],
                     static_mode=False,
                 )
-                if result:
+                if result != None:
                     # add hypervisor status to database
                     local_db.set_status(data=result)
                 else:
@@ -609,7 +627,10 @@ def create_db_hypervisor(
             )
         else:
             raise NotImplementedError(f" {dex} exchange has not been implemented yet")
+
+        # return converted hypervisor
         return hypervisor.as_dict(convert_bint=True, static_mode=static_mode)
+
     # except ValueError as err:
     #     # most ususal error being  {'code': -32000, 'message': 'execution aborted (timeout = 5s)'}
     #     err_msg = err["message"] if "message" in err else err

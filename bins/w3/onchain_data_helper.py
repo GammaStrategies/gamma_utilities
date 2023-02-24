@@ -977,10 +977,10 @@ class onchain_data_helper2:
         )
 
         # define how many steps fit between blocks
-        block_step_reange = math.floor((block_end - block_ini) / blocks_step)
+        block_step_range = math.floor((block_end - block_ini) / blocks_step)
 
         result = list()
-        for i in range(block_step_reange + 2):  # +2 = ini and end blocks
+        for i in range(block_step_range + 2):  # +2 = ini and end blocks
             tmp_block = block_ini + (i * blocks_step)
 
             if tmp_block < block_end:

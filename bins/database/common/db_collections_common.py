@@ -460,8 +460,8 @@ class database_local(db_collections_common):
     def get_hype_operations_btwn_timestamps(
         self,
         hypervisor_address: str,
-        timestamp_ini: datetime.timestamp,
-        timestamp_end: datetime.timestamp,
+        timestamp_ini: int,
+        timestamp_end: int,
     ) -> list:
         return self.query_items_from_database(
             collection_name="operations",
@@ -617,8 +617,8 @@ class database_local(db_collections_common):
     @staticmethod
     def query_operations_btwn_timestamps(
         hypervisor_address: str,
-        timestamp_ini: datetime.timestamp,
-        timestamp_end: datetime.timestamp,
+        timestamp_ini: int,
+        timestamp_end: int,
     ) -> list[dict]:
         """get operations between timestamps
 
