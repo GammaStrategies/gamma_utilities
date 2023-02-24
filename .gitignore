@@ -152,3 +152,4 @@ logs/
 tests/*.json
 
 TODO
+apps/fastAPI
