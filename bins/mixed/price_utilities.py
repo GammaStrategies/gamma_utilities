@@ -352,11 +352,10 @@ class price_scraper:
         _price = 0
         if of == "USD":
             if block != 0:
-                # disable block search TODO: solve optimism url problems
                 # convert block to timestamp
-                timestamp = 0  # self._convert_block_to_timestamp(
-                # network=network, block=block
-                # )
+                timestamp = self._convert_block_to_timestamp(
+                    network=network, block=block
+                )
                 if timestamp != 0:
                     # get price at block
                     _price = self.coingecko_price_connector.get_price_historic(

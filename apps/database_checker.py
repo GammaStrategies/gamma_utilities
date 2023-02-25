@@ -265,7 +265,9 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.utcnow()
 
-    add_timestamps_to_status(network="ethereum")
+    for network in ["ethereum", "optimism", "polygon", "arbitrum"]:
+        add_timestamps_to_status(network=network)
+
     # replace_blocks_to_int(network="ethereum")
 
     # end time log
