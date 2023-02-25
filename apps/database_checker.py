@@ -69,6 +69,70 @@ def replace_blocks_to_int(network: str, protocol: str = "gamma"):
                 progress_bar.update(1)
 
 
+def add_timestamps_to_status(network: str, protocol: str = "gamma"):
+    # setup database managers
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_name = f"{network}_{protocol}"
+    local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
+    global_db_manager = database_global(mongo_url=mongo_url)
+
+    # get a list of timestamps from database
+    all_blocks = {
+        x["block"]: x["timestamp"]
+        for x in global_db_manager.get_items_from_database(collection_name="blocks")
+    }
+
+    all_status = local_db_manager.get_items_from_database(collection_name="status")
+
+    _errors = 0
+    with tqdm.tqdm(total=len(all_status)) as progress_bar:
+
+        def loopme(status):
+            # control var
+            saveit = False
+            try:
+                # get timestamp from database
+                status["timestamp"] = all_blocks[status["block"]]
+                status["pool"]["timestamp"] = status["timestamp"]
+                status["pool"]["token0"]["timestamp"] = status["timestamp"]
+                status["pool"]["token1"]["timestamp"] = status["timestamp"]
+
+                saveit = True
+            except:
+                pass
+            if not saveit:
+                try:
+                    # get timestamp from web3 call
+                    status["timestamp"] = (
+                        erc20_cached(
+                            address="0x0000000000000000000000000000000000000000",
+                            network=network,
+                        )
+                        ._w3.eth.get_block(status["block"])
+                        .timestamp
+                    )
+                    status["pool"]["timestamp"] = status["timestamp"]
+                    status["pool"]["token0"]["timestamp"] = status["timestamp"]
+                    status["pool"]["token1"]["timestamp"] = status["timestamp"]
+
+                    saveit = True
+                except:
+                    pass
+
+            if saveit:
+                # save modified status to database
+                local_db_manager.set_status(data=status)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as ex:
+            for status in ex.map(loopme, all_status):
+                progress_bar.set_description(
+                    f"Updating status database {status['network']}'s {status['address']} block {status['block']}"
+                )
+
+                # update progress
+                progress_bar.update(1)
+
+
 # TODO: implement tqdm
 def check_database():
 
@@ -187,7 +251,8 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.utcnow()
 
-    replace_blocks_to_int(network="ethereum")
+    add_timestamps_to_status(network="ethereum")
+    # replace_blocks_to_int(network="ethereum")
 
     # end time log
     # _timelapse = datetime.utcnow() - _startime
