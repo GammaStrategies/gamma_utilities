@@ -88,6 +88,11 @@ def add_timestamps_to_status(network: str, protocol: str = "gamma"):
     with tqdm.tqdm(total=len(all_status)) as progress_bar:
 
         def loopme(status):
+
+            if "timestamp" in status:
+                # item already with data
+                return status, True
+
             # control var
             saveit = False
             try:
@@ -122,11 +127,20 @@ def add_timestamps_to_status(network: str, protocol: str = "gamma"):
             if saveit:
                 # save modified status to database
                 local_db_manager.set_status(data=status)
+                return status, True
+            else:
+                logging.getLogger(__name__).warning(
+                    f" Can't get timestamp for hypervisor {status['address']}   id: {status['id']}"
+                )
+                return status, False
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as ex:
-            for status in ex.map(loopme, all_status):
+            for status, result in ex.map(loopme, all_status):
+                if not result:
+                    _errors += 1
+
                 progress_bar.set_description(
-                    f"Updating status database {status['network']}'s {status['address']} block {status['block']}"
+                    f"[{_errors}]  Updating status database {network}'s {status['address']} block {status['block']}"
                 )
 
                 # update progress
