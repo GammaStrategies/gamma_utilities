@@ -532,9 +532,12 @@ def feed_hypervisor_status(
         try:
             toProcess_block_address.pop(k)
         except KeyError as err:
-            logging.getLogger(__name__).warning(
-                f" Could not find status block address key {k} in operations"
-            )
+            # there are many more status blocks than operations ...
+            # not to worry
+            # logging.getLogger(__name__).warning(
+            #     f" Could not find status block address key {k} in operations"
+            # )
+            pass
         except:
             logging.getLogger(__name__).exception(
                 f" Unexpected error found while construction block addresses to feed db with hype status.  err-> {sys.exc_info()[0]}"
