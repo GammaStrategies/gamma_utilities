@@ -398,9 +398,10 @@ class web3wrap:
     def as_dict(self, convert_bint=False) -> dict:
         result = dict()
         result["block"] = self.block
+        # add timestamp ( block timestamp)
+        result["timestamp"] = self.timestampFromBlockNumber(block=self.block)
         # lower case address to be able to be directly compared
         result["address"] = self.address.lower()
-
         return result
 
 
