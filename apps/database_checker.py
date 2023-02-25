@@ -235,7 +235,7 @@ def check_status_prices(
 
     # get tokens and blocks present in database
     prices_todo = set()
-    for x in local_db_manager.get_items_from_database(collection_name=status, find={}):
+    for x in local_db_manager.get_items_from_database(collection_name=status):
         for i in [0, 1]:
             db_id = "{}_{}_{}".format(
                 network,
