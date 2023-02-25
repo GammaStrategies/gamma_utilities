@@ -254,7 +254,7 @@ class database_global(db_collections_common):
         network: str,
         block: int,
         address: str,
-    ) -> float:
+    ) -> dict:
         """get usd price from block
 
         Args:
@@ -263,34 +263,67 @@ class database_global(db_collections_common):
             address (str): token address
 
         Returns:
-            float: price in usd
+            dict: price dict obj
         """
         return self.get_items_from_database(
             collection_name="usd_prices",
             find={"network": network, "block": block, "address": address},
         )
 
+    def get_price_usd_closestBlock(
+        self,
+        network: str,
+        block: int,
+        address: str,
+    ) -> dict:
+        """get usd price from closest block to <block>
+
+        Args:
+            network (str):
+            block (int): number
+            address (str): token address
+
+        Returns:
+            dict:
+        """
+        return self.query_items_from_database(
+            query=self.query_blocks_closest(network=network, block=block),
+            collection_name="usd_prices",
+        )
+
     def get_timestamp(
         self,
         network: str,
         block: int,
-    ) -> datetime.timestamp:
-        result = self.query_items_from_database(
-            query=self.query_timestamp(network=network, block=block),
+    ) -> dict:
+        result = self.get_items_from_database(
             collection_name="blocks",
+            find={"network": network, "block": block},
         )
         return result
+
+    def get_closest_timestamp(self, network: str, block: int) -> dict:
+        return self.query_items_from_database(
+            query=self.query_blocks_closest(network=network, block=block),
+            collection_name="blocks",
+        )
 
     def get_block(
         self,
         network: str,
-        timestamp: datetime.timestamp,
-    ) -> int:
-        result = self.query_items_from_database(
-            query=self.query_block(network=network, timestamp=timestamp),
+        timestamp: int,
+    ) -> dict:
+        result = self.get_items_from_database(
             collection_name="blocks",
+            find={"network": network, "timestamp": int(timestamp)},
         )
         return result
+
+    def get_closest_block(self, network: str, timestamp: int) -> dict:
+        return self.query_items_from_database(
+            query=self.query_blocks_closest(network=network, timestamp=timestamp),
+            collection_name="blocks",
+        )
 
     def get_all_block_timestamp(self, network: str) -> list:
         """get all blocks and timestamps from database
@@ -306,24 +339,6 @@ class database_global(db_collections_common):
         )
 
     @staticmethod
-    def query_block(network: str, timestamp: datetime.timestamp) -> list[dict]:
-
-        # return query
-        return []
-
-    @staticmethod
-    def query_timestamp(network: str, block: int) -> list[dict]:
-
-        # return query
-        return []
-
-    @staticmethod
-    def query_usd_price(network: str, block: int, address: str) -> list[dict]:
-
-        # return query
-        return []
-
-    @staticmethod
     def query_prices_addressBlocks(network: str) -> list[dict]:
         """get addresses and blocks of usd prices present at database and greater than zero
 
@@ -335,6 +350,46 @@ class database_global(db_collections_common):
         """
         return [
             {"$match": {"network": network, "price": {"$gt": 0}}},
+        ]
+
+    @staticmethod
+    def query_blocks_closest(
+        network: str, block: int = 0, timestamp: int = 0
+    ) -> list[dict]:
+        """find closest block/timestamp item in database
+
+        Args:
+            network (str):
+            block (int, optional): . Defaults to 0.
+            timestamp (int, optional): . Defaults to 0.
+
+        Raises:
+            NotImplementedError: when no block or timestamp are provided
+
+        Returns:
+            list[dict]:
+        """
+        if block != 0:
+            _search = [block, "$block"]
+        elif timestamp != 0:
+            _search = [timestamp, "$timestamp"]
+        else:
+            raise NotImplementedError(
+                " provide either block or timestamp. If both are provided, block will be used "
+            )
+        return [
+            {"$match": {"network": network}},
+            # Project a diff field that's the absolute difference along with the original doc.
+            {
+                "$project": {
+                    "diff": {"$abs": {"$subtract": _search}},
+                    "doc": "$$ROOT",
+                }
+            },
+            # Order the docs by diff
+            {"$sort": {"diff": 1}},
+            # Take the first one
+            {"$limit": 1},
         ]
 
 
