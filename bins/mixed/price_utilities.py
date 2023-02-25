@@ -3,6 +3,7 @@ import logging
 from bins.cache import cache_utilities
 from bins.apis import thegraph_utilities, coingecko_utilities
 from bins.configuration import CONFIGURATION
+from bins.database.common.db_collections_common import database_global
 
 LOG_NAME = "price"
 
@@ -378,6 +379,19 @@ class price_scraper:
     # HELPERS
     # TODO: use database to query blocks
     def _convert_block_to_timestamp(self, network: str, block: int) -> int:
+
+        # try database
+        try:
+            # create global database manager
+            global_db = database_global(
+                mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"]
+            )
+            return global_db.get_items_from_database(
+                collection_name="block", find={"block": block}
+            )[0]["timestamp"]
+        except:
+            pass
+
         try:
             block_data = self.thegraph_block_connector.get_all_results(
                 network=network,
