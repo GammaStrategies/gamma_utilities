@@ -937,13 +937,14 @@ class hypervisor_db_reader:
     def _share_fees_with_acounts(self, operation: dict):
 
         # check if this is the last operation of the block
-        if not self._is_last_logIndex(
-            logIndex=operation["logIndex"], block=operation["blockNumber"]
-        ):
-            # share fees now
-            raise ValueError(
-                " Sharing fees in a non closed block !!! there are more operations after thins one ion the same block that may affect fee sharing --> code something "
-            )
+        # if not self._is_last_logIndex(
+        #     logIndex=operation["logIndex"], block=operation["blockNumber"]
+        # ):
+        #     # Sharing fees in a non closed block is ok since logIndex dictates order
+        #     # share fees now
+        #     raise ValueError(
+        #         " Sharing fees in a non closed block !!! there are more operations after thins one ion the same block that may affect fee sharing --> code something "
+        #     )
 
         # block
         block = operation["blockNumber"]
