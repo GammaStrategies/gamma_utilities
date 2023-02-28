@@ -2092,7 +2092,7 @@ def test():
 
     b_ini = 0
     b_end = 0
-    # hypervisor_addresses = get_hypervisor_addresses(network=network, protocol=protocol)
+    hypervisor_addresses = get_hypervisor_addresses(network=network, protocol=protocol)
     # hypervisor_addresses = ["0x35abccd8e577607275647edab08c537fa32cc65e".lower()]
     for address in hypervisor_addresses:
         hype = hypervisor_db_reader(
