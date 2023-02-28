@@ -123,7 +123,7 @@ def test_thegraph_vs_onchain_data_fees(
 
                 # add to result
                 result.append(
-                    do_loop_work_loc_graph(
+                    do_loop_work(
                         hypervisor,
                         web3Provider,
                         dexV3_helper,
@@ -143,7 +143,7 @@ def test_thegraph_vs_onchain_data_fees(
                 for hypervisor in hypervisors
             )
             with concurrent.futures.ThreadPoolExecutor(max_workers=5) as ex:
-                for result_item in ex.map(lambda p: do_loop_work_loc_graph(*p), args):
+                for result_item in ex.map(lambda p: do_loop_work(*p), args):
                     # progress
                     progress_bar.set_description(
                         "processed {}-{} {}".format(
@@ -842,11 +842,11 @@ if __name__ == "__main__":
     _startime = dt.datetime.utcnow()
 
     test_thegraph_vs_onchain_data_fees_save_csv(
-        network="polygon",
-        dex="quickswap",
-        block=37724862,
+        network="ethereum",
+        dex="uniswapv3",
+        block=16718556,
         threaded=False,
-        hypervisor_address="0x6ccf63ac74b5533c456c3a68786629e7670293c0",
+        hypervisor_address="0x35abccd8e577607275647edab08c537fa32cc65e",
     )
 
     # test_thegraph_vs_onchain_data_fees_find(

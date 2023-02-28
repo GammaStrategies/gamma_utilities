@@ -8,6 +8,7 @@ from pathlib import Path
 import tqdm
 import concurrent.futures
 
+from decimal import Decimal
 
 # append parent directory pth
 CURRENT_FOLDER = os.path.dirname(os.path.realpath(__file__))
@@ -1494,7 +1495,6 @@ def test_uncollected_fees_onchain(
     price_helper = price_utilities.price_scraper(
         cache=True,
         cache_filename="uniswapv3_price_cache",
-        cache_folderName="data/cache",
     )
 
     # define a result var
@@ -1522,10 +1522,14 @@ def test_uncollected_fees_onchain(
 
         # TVL direct contract call
         totalAmounts = gamma_web3Helper.getTotalAmounts  # TODO: check no float anymore
-        tvl0_direct = totalAmounts["total0"]
-        tvl1_direct = totalAmounts["total1"]
+        tvl0_direct = Decimal(totalAmounts["total0"]) / Decimal(
+            10**gamma_web3Helper.pool.token0.decimals
+        )
+        tvl1_direct = Decimal(totalAmounts["total1"]) / Decimal(
+            10**gamma_web3Helper.pool.token1.decimals
+        )
         # TVL indirect univ3 calculation calls
-        tvl_indirect = gamma_web3Helper.get_tvl()
+        tvl_indirect = gamma_web3Helper.get_tvl(inDecimal=True)
         tvl0_indirect = tvl_indirect["tvl_token0"]
         tvl1_indirect = tvl_indirect["tvl_token1"]
         # TVL solidity/python deviation
@@ -1552,8 +1556,10 @@ def test_uncollected_fees_onchain(
             network=network, token_id=gamma_web3Helper.token1.address, block=block
         )
         # calc USD TVL
-        tvlUSD_fromdex = tvl0_indirect * price0 + tvl1_indirect * price1
-        tvlUSD = tvl0_direct * price0 + tvl1_direct * price1
+        tvlUSD_fromdex = tvl0_indirect * Decimal(price0) + tvl1_indirect * Decimal(
+            price1
+        )
+        tvlUSD = tvl0_direct * Decimal(price0) + tvl1_direct * Decimal(price1)
 
         # UNCOLLECTED
         fees_uncollected = gamma_web3Helper.get_fees_uncollected(inDecimal=True)
@@ -2170,18 +2176,18 @@ if __name__ == "__main__":
     # test_uncollected_fees_
     test_name = "onchain"  # << --  onchain or thegraph
     protocol = "gamma"
-    dex = "quickswap"
-    network = "polygon"
+    dex = "uniswapv3"
+    network = "ethereum"
     csv_filename = "{}_test_uncollected_fees_{}.csv".format(network, test_name)
     csv_filename = os.path.join(CURRENT_FOLDER, csv_filename)  # save to test folder
     # list of hypervisors
-    hypervisor_ids = ["0xadc7b4096c3059ec578585df36e6e1286d345367"]
+    hypervisor_ids = ["0x35abccd8e577607275647edab08c537fa32cc65e"]
     # list of blocks to analyze
     blocks = [
-        38761039,
-        38761040,
-        38761041,
-        38781367,
+        16388680,
+        16718556,
+        16697059,
+        16720218,
     ]
     if test_name == "thegraph":
         result = test_uncollected_fees_thegraph(
