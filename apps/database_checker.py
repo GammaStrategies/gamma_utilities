@@ -3,9 +3,12 @@ import sys
 import logging
 import tqdm
 import concurrent.futures
+import re
+
 from datetime import datetime
 from pathlib import Path
 from web3.exceptions import ContractLogicError
+
 
 if __name__ == "__main__":
     # append parent directory pth
@@ -36,6 +39,7 @@ from bins.mixed.price_utilities import price_scraper
 from bins.formulas.univ3_formulas import sqrtPriceX96_to_price_float
 
 
+# mod apps
 def replace_blocks_to_int(network: str, protocol: str = "gamma"):
 
     # setup database managers
@@ -147,6 +151,59 @@ def add_timestamps_to_status(network: str, protocol: str = "gamma"):
                 progress_bar.update(1)
 
 
+def add_manual_prices():
+    network = "polygon"
+
+    address = "0xc2132d05d31c914a87c6611c10748aeb04b58e8f"  # USDT
+    blocks = [
+        39745459,
+        39745460,
+        39745491,
+        39745492,
+        39745534,
+        39745535,
+        39745541,
+        39745542,
+        39746053,
+        39746054,
+        39746062,
+        39746063,
+        39068569,
+        39423640,
+        39613083,
+        39616413,
+    ]
+
+
+# helpers
+def add_price_to_token(network: str, token_address: str, block: int, price: float):
+    """force special price add to database:
+     will create a field called "origin" with "manual" as value to be ableto identify at db
+
+    Args:
+        network (str):
+        token_address (str):
+        block (int):
+        price (float):
+    """
+
+    # setup database managers
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    global_db_manager = database_global(mongo_url=mongo_url)
+
+    data = {
+        "id": f"{network}_{block}_{token_address}",
+        "network": network,
+        "block": int(block),
+        "address": token_address,
+        "price": float(price_usd),
+        "origin": "manual",
+    }
+
+    global_db_manager.save_item_to_database(data=data, collection_name="usd_prices")
+
+
+# checks
 # TODO: implement tqdm
 def check_database():
 
@@ -253,6 +310,42 @@ def check_status_prices(
         )
 
 
+def get_failed_prices_from_log(log_file: str) -> dict:
+    """Search repeated network + address + block in logs
+
+    Return: {  <network>: {<address>: {<block>:<counter>}}}
+
+    """
+
+    regx_txt = "No\sprice\sfor\s(.*)'s\s(.*)\s\((.*)\)(?:.*block)\s(\d*)"
+    # groups->  network, symbol, address, block
+
+    # load file
+    log_file_content = ""
+    with open(log_file, encoding="utf8") as f:
+        log_file_content = f.read()
+
+    # search pattern
+    results = re.search(regx_txt, log_file_content)
+    # set a var
+    network_token_blocks = dict()
+    for result in results:
+        # network
+        if not result[0] in network_token_blocks.keys():
+            network_token_blocks[result[0]] = dict()
+        # address
+        if not result[2] in network_token_blocks[result[0]].keys():
+            network_token_blocks[result[0]][result[2]] = dict()
+        # block
+        if not result[3] in network_token_blocks[result[0]][result[2]].keys():
+            network_token_blocks[result[0]][result[2]][result[3]] = 0
+
+        # counter ( times encountered)
+        network_token_blocks[result[0]][result[2]][result[3]] += 1
+
+    return network_token_blocks
+
+
 # START ####################################################################################################################
 if __name__ == "__main__":
     os.chdir(PARENT_FOLDER)
@@ -264,11 +357,6 @@ if __name__ == "__main__":
     )
     # start time log
     _startime = datetime.utcnow()
-
-    for network in ["ethereum", "optimism", "polygon", "arbitrum"]:
-        add_timestamps_to_status(network=network)
-
-    # replace_blocks_to_int(network="ethereum")
 
     # end time log
     # _timelapse = datetime.utcnow() - _startime
