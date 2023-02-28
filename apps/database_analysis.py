@@ -20,7 +20,7 @@ if __name__ == "__main__":
 from bins.configuration import CONFIGURATION
 
 from bins.database.common.db_collections_common import database_local, database_global
-from bins.general import general_utilities
+from bins.general import general_utilities, file_utilities
 from bins.apis.thegraph_utilities import gamma_scraper
 from bins.w3.onchain_utilities.protocols import (
     gamma_hypervisor,
@@ -31,7 +31,7 @@ from bins.w3.onchain_utilities.protocols import (
 
 
 @dataclass
-class user_status:
+class root_status:
     # Important:
     # when var name <...in_token1> or <...in_usd>  means position converted to x. Normally beguining with a total
     #
@@ -53,24 +53,27 @@ class user_status:
     total_investment_qtty_in_token0: Decimal = Decimal("0")
     total_investment_qtty_in_token1: Decimal = Decimal("0")
 
+    # FEES loop ->  [ uncollected > owed > collected (inside underlaying tokens) ]
+
     # fees always grow in proportion to current block's shares
     fees_collected_token0: Decimal = Decimal("0")
     fees_collected_token1: Decimal = Decimal("0")
     total_fees_collected_in_usd: Decimal = Decimal("0")
-    total_fees_collected_in_token0: Decimal = Decimal("0")
-    total_fees_collected_in_token1: Decimal = Decimal("0")
 
-    # owed fees + feeGrowth calculation
+    # feeGrowth calculation
     fees_uncollected_token0: Decimal = Decimal("0")
     fees_uncollected_token1: Decimal = Decimal("0")
     total_fees_uncollected_in_usd: Decimal = Decimal("0")
-    total_fees_uncollected_in_token0: Decimal = Decimal("0")
-    total_fees_uncollected_in_token1: Decimal = Decimal("0")
+
+    # owed fees
+    fees_owed_token0: Decimal = Decimal("0")
+    fees_owed_token1: Decimal = Decimal("0")
+    total_fees_owed_in_usd: Decimal = Decimal("0")
 
     # seconds passed between uncollected fees
     fees_uncollected_secPassed: int = 0
 
-    # divestment
+    # divestment ( keep track control vars )
     divestment_base_qtty_token0: Decimal = Decimal("0")
     divestment_base_qtty_token1: Decimal = Decimal("0")
     total_divestment_base_qtty_in_usd: Decimal = Decimal("0")
@@ -80,15 +83,15 @@ class user_status:
     divestment_fee_qtty_token0: Decimal = Decimal("0")
     divestment_fee_qtty_token1: Decimal = Decimal("0")
     total_divestment_fee_qtty_in_usd: Decimal = Decimal("0")
-    total_divestment_fee_qtty_in_token0: Decimal = Decimal("0")
-    total_divestment_fee_qtty_in_token1: Decimal = Decimal("0")
 
-    # impermanent result token0 token1
-    impermanent_result_token0: Decimal = Decimal("0")  # initial - end
-    impermanent_result_token1: Decimal = Decimal("0")
-    total_impermanent_result_in_usd: Decimal = Decimal("0")
-    total_impermanent_result_in_token0: Decimal = Decimal("0")
-    total_impermanent_result_in_token1: Decimal = Decimal("0")
+    # Comparison result
+    impermanent_lp_vs_hodl_usd: Decimal = Decimal(
+        "0"
+    )  # current position val - investment value
+    impermanent_lp_vs_hodl_token0: Decimal = Decimal(
+        "0"
+    )  # current position val - investment in token qtty at current prices
+    impermanent_lp_vs_hodl_token1: Decimal = Decimal("0")
 
     # current result
     current_result_token0: Decimal = Decimal("0")
@@ -97,19 +100,19 @@ class user_status:
     total_current_result_in_token0: Decimal = Decimal("0")
     total_current_result_in_token1: Decimal = Decimal("0")
 
-    # every rebalance, there is a closed position.
+    # TODO: closed positions.
     closed_investment_return_token0: Decimal = Decimal("0")
     closed_investment_return_token1: Decimal = Decimal("0")
     total_closed_investment_return_in_usd: Decimal = Decimal("0")
     total_closed_investment_return_in_token0: Decimal = Decimal("0")
     total_closed_investment_return_in_token1: Decimal = Decimal("0")
 
+    # share qtty
     shares_qtty: Decimal = Decimal("0")
-
     # ( this is % that multiplied by tvl gives u total qtty assets)
     shares_percent: Decimal = Decimal("0")
 
-    # underlying assets ( Be aware that includes uncollected fees )
+    # underlying assets
     underlying_token0: Decimal = Decimal("0")
     underlying_token1: Decimal = Decimal("0")
     total_underlying_in_usd: Decimal = Decimal("0")
@@ -119,8 +122,18 @@ class user_status:
     # save the raw operation info here
     raw_operation: dict = field(default_factory=dict)
 
+
+class user_status(root_status):
     def fill_from_status(self, status: super):
-        doNot_fill = ["timestamp", "block", "topic", "account_address", "raw_operation"]
+        doNot_fill = [
+            "timestamp",
+            "block",
+            "topic",
+            "account_address",
+            "raw_operation",
+            "usd_price_token0",
+            "usd_price_token1",
+        ]
         props = [
             a
             for a in dir(status)
@@ -137,7 +150,15 @@ class user_status:
         Args:
             status (super):
         """
-        doNot_fill = ["timestamp", "block", "topic", "account_address", "raw_operation"]
+        doNot_fill = [
+            "timestamp",
+            "block",
+            "topic",
+            "account_address",
+            "raw_operation",
+            "usd_price_token0",
+            "usd_price_token1",
+        ]
         props = [
             a
             for a in dir(status)
@@ -147,6 +168,40 @@ class user_status:
         ]
         for p in props:
             setattr(self, p, getattr(status, p) + getattr(self, p))
+
+    def substract_status(self, status: super):
+        """substract all fields ( including prices)
+
+        Args:
+            status (super):
+        """
+        doNot_fill = ["timestamp", "block", "topic", "account_address", "raw_operation"]
+        props = [
+            a
+            for a in dir(status)
+            if not a.startswith("__")
+            and not callable(getattr(status, a))
+            and not a in doNot_fill
+        ]
+        for p in props:
+            setattr(self, p, getattr(self, p) - getattr(status, p))
+
+    def toDict(self) -> dict:
+        result = dict()
+        fields_expluded = ["raw_operation"]
+        props = [
+            a
+            for a in dir(self)
+            if not a.startswith("__")
+            and not callable(getattr(self, a))
+            and not a in fields_expluded
+        ]
+        for p in props:
+            result[p] = getattr(self, p)
+
+        return result
+        # return asdict(self)
+        # return {k: str(v) for k, v in asdict(self).items()}
 
 
 class hypervisor_db_reader:
@@ -180,8 +235,10 @@ class hypervisor_db_reader:
         self._operations = self._get_operations()
         # load prices for all status blocks
         self._prices = self._get_prices()
-        # load all blocks
-        # self._blocks = self.get_blocks(blocks=list(self._status.keys()))
+        # dummy blocks added to operation's used as report
+        self._report_blocks = set()
+        # masterchefs
+        self._masterchefs = list()
 
         # control var (itemsprocessed): list of operation ids processed
         self.ids_processed = list()
@@ -323,13 +380,11 @@ class hypervisor_db_reader:
         """
         return self._status[block]["totalSupply"]
 
-    def total_shares(self, at_block: int = 0, check: bool = False) -> Decimal:
-        """Return total hypervisor shares calculated from sum of total user shares
-
+    def total_shares(self, at_block: int = 0) -> Decimal:
+        """Return total hypervisor shares calculated from sum of total user shares at the moment we call
+            ( this is not totalSupply at all times )
         Args:
             at_block (int, optional): . Defaults to 0.
-            pre (bool): Indicates if the call is made pre operations or post operation (at block)
-                        (pre operations is the time between the block is being build, so time between block-1 and block)
         Returns:
             Decimal: total shares
         """
@@ -358,9 +413,6 @@ class hypervisor_db_reader:
 
         # set result var
         t_shares = sum(list(total_shares_addresses.values()))
-
-        if check:
-            self.check_totalSupply(t_shares=t_shares, at_block=at_block)
 
         # sum shares
         return t_shares
@@ -396,203 +448,21 @@ class hypervisor_db_reader:
             "block": at_block,
         }
 
-    def result_vars(self, t_ini: int = 0, t_end: int = 0) -> dict:
-
-        total = {
-            "current_result_token0": Decimal(0),
-            "current_result_token1": Decimal(0),
-            "total_current_result_in_usd": Decimal(0),
-            "impermanent_token0": Decimal(0),
-            "impermanent_token1": Decimal(0),
-            "investment_qtty_token0": Decimal(0),
-            "investment_qtty_token1": Decimal(0),
-            "total_investment_qtty_in_usd": Decimal(0),
-            "fees_collected_token0": Decimal(0),
-            "fees_collected_token1": Decimal(0),
-            "total_fees_collected_in_usd": Decimal(0),
-            "fees_uncollected_token0": Decimal(0),
-            "fees_uncollected_token1": Decimal(0),
-            "total_fees_uncollected_in_usd": Decimal(0),
-            "secPassed": 0,
-            "fees_uncollected_secPassed": 0,
-            "underlying_token0": Decimal(0),
-            "underlying_token1": Decimal(0),
-            "total_underlying_in_usd": Decimal(0),
-        }
-
-        for account in self.get_all_account_addresses():
-
-            last_op = self.last_operation(account_address=account)
-            total["current_result_token0"] += last_op.current_result_token0
-            total["current_result_token1"] += last_op.current_result_token1
-            total["total_current_result_in_usd"] += last_op.total_current_result_in_usd
-
-            total["investment_qtty_token0"] += last_op.investment_qtty_token0
-            total["investment_qtty_token1"] += last_op.investment_qtty_token1
-            total[
-                "total_investment_qtty_in_usd"
-            ] += last_op.total_investment_qtty_in_usd
-
-            total["fees_collected_token0"] += last_op.fees_collected_token0
-            total["fees_collected_token1"] += last_op.fees_collected_token1
-            total["total_fees_collected_in_usd"] += last_op.total_fees_collected_in_usd
-
-            total["fees_uncollected_token0"] += last_op.fees_uncollected_token0
-            total["fees_uncollected_token1"] += last_op.fees_uncollected_token1
-            total[
-                "total_fees_uncollected_in_usd"
-            ] += last_op.total_fees_uncollected_in_usd
-            total["fees_uncollected_secPassed"] += last_op.fees_uncollected_secPassed
-
-            total["secPassed"] += last_op.secPassed
-
-            total["impermanent_token0"] += last_op.impermanent_result_token0
-            total["impermanent_token1"] += last_op.impermanent_result_token1
-
-            total["underlying_token0"] += last_op.underlying_token0
-            total["underlying_token1"] += last_op.underlying_token1
-            total["total_underlying_in_usd"] += last_op.total_underlying_in_usd
-
-        return total
-
-    def result_vars2(self, b_ini: int = 0, b_end: int = 0) -> dict:
-
-        total_ini = {
-            "current_result_token0": Decimal(0),
-            "current_result_token1": Decimal(0),
-            "total_current_result_in_usd": Decimal(0),
-            "impermanent_token0": Decimal(0),
-            "impermanent_token1": Decimal(0),
-            "investment_qtty_token0": Decimal(0),
-            "investment_qtty_token1": Decimal(0),
-            "total_investment_qtty_in_usd": Decimal(0),
-            "fees_collected_token0": Decimal(0),
-            "fees_collected_token1": Decimal(0),
-            "total_fees_collected_in_usd": Decimal(0),
-            "fees_uncollected_token0": Decimal(0),
-            "fees_uncollected_token1": Decimal(0),
-            "total_fees_uncollected_in_usd": Decimal(0),
-            "secPassed": 0,
-            "fees_uncollected_secPassed": 0,
-            "underlying_token0": Decimal(0),
-            "underlying_token1": Decimal(0),
-            "total_underlying_in_usd": Decimal(0),
-        }
-        total_end = {
-            "current_result_token0": Decimal(0),
-            "current_result_token1": Decimal(0),
-            "total_current_result_in_usd": Decimal(0),
-            "impermanent_token0": Decimal(0),
-            "impermanent_token1": Decimal(0),
-            "investment_qtty_token0": Decimal(0),
-            "investment_qtty_token1": Decimal(0),
-            "total_investment_qtty_in_usd": Decimal(0),
-            "fees_collected_token0": Decimal(0),
-            "fees_collected_token1": Decimal(0),
-            "total_fees_collected_in_usd": Decimal(0),
-            "fees_uncollected_token0": Decimal(0),
-            "fees_uncollected_token1": Decimal(0),
-            "total_fees_uncollected_in_usd": Decimal(0),
-            "secPassed": 0,
-            "fees_uncollected_secPassed": 0,
-            "underlying_token0": Decimal(0),
-            "underlying_token1": Decimal(0),
-            "total_underlying_in_usd": Decimal(0),
-        }
-        for account in self.get_all_account_addresses():
-
-            last_op = self.last_operation_from(
-                account_address=account, from_block=b_ini
-            )
-            total_ini["current_result_token0"] += last_op.current_result_token0
-            total_ini["current_result_token1"] += last_op.current_result_token1
-            total_ini[
-                "total_current_result_in_usd"
-            ] += last_op.total_current_result_in_usd
-
-            total_ini["investment_qtty_token0"] += last_op.investment_qtty_token0
-            total_ini["investment_qtty_token1"] += last_op.investment_qtty_token1
-            total_ini[
-                "total_investment_qtty_in_usd"
-            ] += last_op.total_investment_qtty_in_usd
-
-            total_ini["fees_collected_token0"] += last_op.fees_collected_token0
-            total_ini["fees_collected_token1"] += last_op.fees_collected_token1
-            total_ini[
-                "total_fees_collected_in_usd"
-            ] += last_op.total_fees_collected_in_usd
-
-            total_ini["fees_uncollected_token0"] += last_op.fees_uncollected_token0
-            total_ini["fees_uncollected_token1"] += last_op.fees_uncollected_token1
-            total_ini[
-                "total_fees_uncollected_in_usd"
-            ] += last_op.total_fees_uncollected_in_usd
-            total_ini[
-                "fees_uncollected_secPassed"
-            ] += last_op.fees_uncollected_secPassed
-
-            total_ini["secPassed"] += last_op.secPassed
-
-            total_ini["impermanent_token0"] += last_op.impermanent_result_token0
-            total_ini["impermanent_token1"] += last_op.impermanent_result_token1
-
-            total_ini["underlying_token0"] += last_op.underlying_token0
-            total_ini["underlying_token1"] += last_op.underlying_token1
-            total_ini["total_underlying_in_usd"] += last_op.total_underlying_in_usd
-
-        for account in self.get_all_account_addresses():
-
-            last_op = self.last_operation_from(
-                account_address=account, from_block=b_end
-            )
-            total_end["current_result_token0"] += last_op.current_result_token0
-            total_end["current_result_token1"] += last_op.current_result_token1
-            total_end[
-                "total_current_result_in_usd"
-            ] += last_op.total_current_result_in_usd
-
-            total_end["investment_qtty_token0"] += last_op.investment_qtty_token0
-            total_end["investment_qtty_token1"] += last_op.investment_qtty_token1
-            total_end[
-                "total_investment_qtty_in_usd"
-            ] += last_op.total_investment_qtty_in_usd
-
-            total_end["fees_collected_token0"] += last_op.fees_collected_token0
-            total_end["fees_collected_token1"] += last_op.fees_collected_token1
-            total_end[
-                "total_fees_collected_in_usd"
-            ] += last_op.total_fees_collected_in_usd
-
-            total_end["fees_uncollected_token0"] += last_op.fees_uncollected_token0
-            total_end["fees_uncollected_token1"] += last_op.fees_uncollected_token1
-            total_end[
-                "total_fees_uncollected_in_usd"
-            ] += last_op.total_fees_uncollected_in_usd
-            total_end[
-                "fees_uncollected_secPassed"
-            ] += last_op.fees_uncollected_secPassed
-
-            total_end["secPassed"] += last_op.secPassed
-
-            total_end["impermanent_token0"] += last_op.impermanent_result_token0
-            total_end["impermanent_token1"] += last_op.impermanent_result_token1
-
-            total_end["underlying_token0"] += last_op.underlying_token0
-            total_end["underlying_token1"] += last_op.underlying_token1
-            total_end["total_underlying_in_usd"] += last_op.total_underlying_in_usd
-
-        # total = dict()
-        # for k, v in total_ini.items():
-        #     total[k] = total_end[k] - v
-
-        return total_ini, total_end
-
     def result(self, b_ini: int = 0, b_end: int = 0) -> tuple[user_status, user_status]:
 
-        total_ini = user_status(timestamp=0, block=b_ini)
-        total_end = user_status(timestamp=0, block=b_end)
+        total_ini = user_status(timestamp=0, block=0, account_address=self.address)
+        total_end = user_status(timestamp=0, block=0, account_address=self.address)
 
-        for account in self.get_all_account_addresses():
+        # control vars
+        all_user_accounts = self.get_all_account_addresses()
+        ini_mods = 0
+        end_mods = 0
+
+        logging.getLogger(__name__).debug(
+            f"  Total user accounts {len(all_user_accounts)}"
+        )
+
+        for account in all_user_accounts:
 
             ini_operation = self.last_operation(
                 account_address=account, from_block=b_ini
@@ -601,18 +471,66 @@ class hypervisor_db_reader:
                 account_address=account, from_block=b_end
             )
             if b_ini != ini_operation.block:
-                logging.getLogger(__name__).debug(
-                    f" Initial result for {account} is {ini_operation.block-b_ini} blocks away from target: {b_ini} <--> {ini_operation.block}"
+                ini_mods += 1
+                logging.getLogger(__name__).warning(
+                    f"[{ini_mods} of {len(all_user_accounts)}] Initial result for {account} is {ini_operation.block-b_ini} blocks away from target: {b_ini} <--> {ini_operation.block}"
                 )
             if b_end != end_operation.block:
-                logging.getLogger(__name__).debug(
-                    f" End result for {account} is {end_operation.block-b_ini} blocks away from target {b_end} <--> {end_operation.block}"
+                end_mods += 1
+                logging.getLogger(__name__).warning(
+                    f"[{end_mods} of {len(all_user_accounts)}] End result for {account} is {end_operation.block-b_ini} blocks away from target {b_end} <--> {end_operation.block}"
                 )
 
+            # set price n block (if block > block)
+            if ini_operation.block > total_ini.block:
+                total_ini.usd_price_token0 = ini_operation.usd_price_token0
+                total_ini.usd_price_token1 = ini_operation.usd_price_token1
+                total_ini.block = ini_operation.block
+                total_ini.timestamp = ini_operation.timestamp
+            if end_operation.block > total_end.block:
+                total_end.usd_price_token0 = end_operation.usd_price_token0
+                total_end.usd_price_token1 = end_operation.usd_price_token1
+                total_end.block = end_operation.block
+                total_end.timestamp = end_operation.timestamp
+
+            # sum user at ini point
             total_ini.sum_status(status=ini_operation)
             total_end.sum_status(status=end_operation)
 
         return total_ini, total_end
+
+    def result_list(self, b_ini: int = 0, b_end: int = 0) -> list[user_status]:
+
+        result = list()
+
+        for block, addresses_data in self._users_by_block.items():
+
+            if block >= b_ini and block <= b_end and block in self._report_blocks:
+
+                total_block_status = user_status(
+                    timestamp=0, block=block, account_address=self.address
+                )
+                # create block status
+                for address, operations in self._users_by_block[block].items():
+                    # if address == "0x0000000000000000000000000000000000000000":
+                    #     continue
+                    # use last operation for current address
+                    if operations[-1].timestamp > total_block_status.timestamp:
+                        total_block_status.usd_price_token0 = operations[
+                            -1
+                        ].usd_price_token0
+                        total_block_status.usd_price_token1 = operations[
+                            -1
+                        ].usd_price_token1
+                        total_block_status.timestamp = operations[-1].timestamp
+
+                    # sum user at ini point
+                    total_block_status.sum_status(status=operations[-1])
+
+                # add block status to result
+                result.append(total_block_status)
+
+        return result
 
     # General classifier
 
@@ -626,17 +544,19 @@ class hypervisor_db_reader:
 
         for block in self._status.keys():
             if not block in all_operations_blocks:
+                # add block as report block
+                self._report_blocks.add(block)
                 # create dummy operation
                 dummy = {
                     "blockHash": "dummy",
                     "blockNumber": block,
                     "address": self.address,
-                    "timestamp": 0,
+                    "timestamp": self._status[block]["timestamp"],
                     "decimals_token0": self._static["pool"]["token0"]["decimals"],
                     "decimals_token1": self._static["pool"]["token1"]["decimals"],
                     "decimals_contract": self._static["decimals"],
                     "topic": "dummy",
-                    "logIndex": 0,
+                    "logIndex": 10000,
                     "id": str(uuid.uuid4()),
                 }
                 # add summy op to operations result
@@ -663,6 +583,7 @@ class hypervisor_db_reader:
                     continue
                 # process operation
                 self._process_operation(operation)
+
                 # add operation as proceesed
                 self.ids_processed.append(operation["id"])
                 # set last block number processed
@@ -671,9 +592,6 @@ class hypervisor_db_reader:
                 logging.getLogger(__name__).debug(
                     f""" Operation already processed {operation["id"]}"""
                 )
-
-        # fill with a dummy operation the last available block data
-        # self._process_lastOperation()
 
     def _process_operation(self, operation: dict):
 
@@ -692,8 +610,10 @@ class hypervisor_db_reader:
             # retrieve new status
             op_source, op_destination = self._process_transfer(operation=operation)
             # add to collection
-            self._add_operation(operation=op_source)
-            self._add_operation(operation=op_destination)
+            if op_source:
+                self._add_operation(operation=op_source)
+            if op_destination:
+                self._add_operation(operation=op_destination)
 
         elif operation["topic"] == "rebalance":
             self._process_rebalance(operation=operation)
@@ -729,6 +649,14 @@ class hypervisor_db_reader:
         # set user address
         account_address = operation["to"].lower()
 
+        # prices
+        price_usd_t0 = Decimal(
+            self._prices[block][self._static["pool"]["token0"]["address"]]
+        )
+        price_usd_t1 = Decimal(
+            self._prices[block][self._static["pool"]["token1"]["address"]]
+        )
+
         # create result
         new_user_status = user_status(
             timestamp=operation["timestamp"],
@@ -746,35 +674,30 @@ class hypervisor_db_reader:
         # fill new status item with last data
         new_user_status.fill_from_status(status=last_op)
 
-        # calc. operation's token investment qtty
-        qtty0 = Decimal(operation["qtty_token0"]) / (
+        # calc. investment absolute values
+        investment_qtty_token0 = Decimal(operation["qtty_token0"]) / (
             Decimal(10) ** Decimal(operation["decimals_token0"])
         )
-        qtty1 = Decimal(operation["qtty_token1"]) / (
+        investment_qtty_token1 = Decimal(operation["qtty_token1"]) / (
             Decimal(10) ** Decimal(operation["decimals_token1"])
         )
-        # set status investment
-        new_user_status.investment_qtty_token0 += qtty0
-        new_user_status.investment_qtty_token1 += qtty1
-
-        # USD values
-        price_usd_t0 = Decimal(
-            self._prices[block][self._static["pool"]["token0"]["address"]]
-        )
-        price_usd_t1 = Decimal(
-            self._prices[block][self._static["pool"]["token1"]["address"]]
+        investment_shares_qtty = Decimal(operation["shares"]) / (
+            Decimal(10) ** Decimal(operation["decimals_contract"])
         )
 
+        # use above vars to mod status with new investment
+        new_user_status.shares_qtty += investment_shares_qtty
+        new_user_status.investment_qtty_token0 += investment_qtty_token0
+        new_user_status.investment_qtty_token1 += investment_qtty_token1
         new_user_status.total_investment_qtty_in_usd += (
-            qtty0 * price_usd_t0 + qtty1 * price_usd_t1
+            investment_qtty_token0 * price_usd_t0
+            + investment_qtty_token1 * price_usd_t1
         )
-
-        new_user_status.total_investment_qtty_in_token0 += qtty0 + (
-            qtty1 * (price_usd_t1 / price_usd_t0)
+        new_user_status.total_investment_qtty_in_token0 += investment_qtty_token0 + (
+            investment_qtty_token1 * (price_usd_t1 / price_usd_t0)
         )
-
-        new_user_status.total_investment_qtty_in_token1 += qtty1 + (
-            qtty0 * (price_usd_t0 / price_usd_t1)
+        new_user_status.total_investment_qtty_in_token1 += investment_qtty_token1 + (
+            investment_qtty_token0 * (price_usd_t0 / price_usd_t1)
         )
 
         # add global stats
@@ -786,15 +709,22 @@ class hypervisor_db_reader:
         return new_user_status
 
     def _process_withdraw(self, operation: dict) -> user_status:
+        # if operation["blockNumber"] == 16709879:
+        #     po = ""
 
-        # block
+        # define ease access vars
         block = operation["blockNumber"]
-        # contract address
         contract_address = operation["address"].lower()
-        # set user address
         account_address = operation["sender"].lower()
 
-        # create result
+        price_usd_t0 = Decimal(
+            self._prices[block][self._static["pool"]["token0"]["address"]]
+        )
+        price_usd_t1 = Decimal(
+            self._prices[block][self._static["pool"]["token1"]["address"]]
+        )
+
+        # create new status item
         new_user_status = user_status(
             timestamp=operation["timestamp"],
             block=block,
@@ -808,24 +738,26 @@ class hypervisor_db_reader:
         # fill new status item with last data
         new_user_status.fill_from_status(status=last_op)
 
+        # add prices to status
+        new_user_status.usd_price_token0 = price_usd_t0
+        new_user_status.usd_price_token1 = price_usd_t1
+
+        # calc. divestment absolute values
         divestment_qtty_token0 = Decimal(operation["qtty_token0"]) / (
             Decimal(10) ** Decimal(operation["decimals_token0"])
         )
         divestment_qtty_token1 = Decimal(operation["qtty_token1"]) / (
             Decimal(10) ** Decimal(operation["decimals_token1"])
         )
-
         divestment_shares_qtty = Decimal(operation["shares"]) / (
             Decimal(10) ** Decimal(operation["decimals_contract"])
         )
-
-        # below, divestment has already been substracted from last operation,
+        # calc. percentage
+        # below, divestment has not been substracted from last operation bc transfer bypassed,
         # so we add divestment_shares_qtty to calc percentage divested
-        divestment_percentage = divestment_shares_qtty / (
-            last_op.shares_qtty + divestment_shares_qtty
-        )
+        divestment_percentage = divestment_shares_qtty / last_op.shares_qtty
 
-        # qtty of investment divested
+        # calc. qtty of investment to be substracted = shares divested as percentage
         investment_divested_0 = last_op.investment_qtty_token0 * divestment_percentage
         investment_divested_1 = last_op.investment_qtty_token1 * divestment_percentage
         total_investment_divested_in_usd = (
@@ -837,8 +769,22 @@ class hypervisor_db_reader:
         total_investment_divested_in_token1 = (
             last_op.total_investment_qtty_in_token1 * divestment_percentage
         )
+        # calc. qtty of fees to be substracted ( diminishing fees collected in proportion)
+        fees_collected_divested_0 = (
+            last_op.fees_collected_token0 * divestment_percentage
+        )
+        fees_collected_divested_1 = (
+            last_op.fees_collected_token1 * divestment_percentage
+        )
+        fees_collected_divested_usd = (
+            last_op.total_fees_collected_in_usd * divestment_percentage
+        )
 
-        # what will be substracted from investment
+        # use all above calculations to modify the user status
+        # substract withrawn values from investment and collected fees
+
+        new_user_status.shares_qtty -= divestment_shares_qtty
+
         new_user_status.investment_qtty_token0 -= investment_divested_0
         new_user_status.investment_qtty_token1 -= investment_divested_1
         new_user_status.total_investment_qtty_in_usd -= total_investment_divested_in_usd
@@ -848,7 +794,10 @@ class hypervisor_db_reader:
         new_user_status.total_investment_qtty_in_token1 -= (
             total_investment_divested_in_token1
         )
-
+        new_user_status.fees_collected_token0 -= fees_collected_divested_0
+        new_user_status.fees_collected_token1 -= fees_collected_divested_1
+        new_user_status.total_fees_collected_in_usd -= fees_collected_divested_usd
+        # add to divestment vars (to keep track)
         new_user_status.divestment_base_qtty_token0 += investment_divested_0
         new_user_status.divestment_base_qtty_token1 += investment_divested_1
         new_user_status.total_divestment_base_qtty_in_usd += (
@@ -860,43 +809,19 @@ class hypervisor_db_reader:
         new_user_status.total_divestment_base_qtty_in_token1 += (
             total_investment_divested_in_token1
         )
+        new_user_status.divestment_fee_qtty_token0 += fees_collected_divested_0
+        new_user_status.divestment_fee_qtty_token1 += fees_collected_divested_1
+        new_user_status.total_divestment_fee_qtty_in_usd += fees_collected_divested_usd
 
-        new_user_status.divestment_fee_qtty_token0 += (
-            new_user_status.fees_collected_token0 * divestment_percentage
-        )
-        new_user_status.divestment_fee_qtty_token1 += (
-            new_user_status.fees_collected_token1 * divestment_percentage
-        )
-        new_user_status.total_divestment_fee_qtty_in_usd += (
-            new_user_status.total_fees_collected_in_usd * divestment_percentage
-        )
-        new_user_status.total_divestment_fee_qtty_in_token0 += (
-            new_user_status.total_fees_collected_in_token0 * divestment_percentage
-        )
-        new_user_status.total_divestment_fee_qtty_in_token1 += (
-            new_user_status.total_fees_collected_in_token1 * divestment_percentage
-        )
-
-        # TODO : closed investment in USD ..
-        # divestment result = qtty_token - (divestment% * last_investment_qtty_token)  <-- fees + ilg
-        new_user_status.closed_investment_return_token0 += divestment_qtty_token0 - (
-            investment_divested_0
-        )
-        new_user_status.closed_investment_return_token1 += divestment_qtty_token1 - (
-            investment_divested_1
-        )
-
-        # USD prices
+        # ####
+        # CLOSED return ( testing )
         try:
-            price_usd_t0 = Decimal(
-                self._prices[block][self._static["pool"]["token0"]["address"]]
+            new_user_status.closed_investment_return_token0 += (
+                divestment_qtty_token0 - (investment_divested_0)
             )
-            price_usd_t1 = Decimal(
-                self._prices[block][self._static["pool"]["token1"]["address"]]
+            new_user_status.closed_investment_return_token1 += (
+                divestment_qtty_token1 - (investment_divested_1)
             )
-
-            new_user_status.usd_price_token0 = price_usd_t0
-            new_user_status.usd_price_token1 = price_usd_t1
 
             total_divestment_qtty_in_usd = (
                 divestment_qtty_token0 * price_usd_t0
@@ -918,7 +843,6 @@ class hypervisor_db_reader:
             new_user_status.total_closed_investment_return_in_token1 += (
                 total_divestment_qtty_in_token1 - (total_investment_divested_in_token1)
             )
-
         except:
             pass
 
@@ -932,154 +856,21 @@ class hypervisor_db_reader:
 
     def _process_transfer(self, operation: dict) -> tuple[user_status, user_status]:
 
-        # TODO: check if transfer to masterchef rewards
-        # transfer to masterchef = stake
-
-        # block
-        block = operation["blockNumber"]
-        # contract address
-        contract_address = operation["address"].lower()
-        # set user address
-        address_source = operation["src"].lower()
-        address_destination = operation["dst"].lower()
-
-        # USD prices
-        price_usd_t0 = Decimal(
-            self._prices[block][self._static["pool"]["token0"]["address"]]
-        )
-        price_usd_t1 = Decimal(
-            self._prices[block][self._static["pool"]["token1"]["address"]]
-        )
-
-        # create SOURCE result
-        new_user_status_source = user_status(
-            timestamp=operation["timestamp"],
-            block=block,
-            topic=operation["topic"],
-            account_address=address_source,
-            raw_operation=operation,
-        )
-
-        # get last operation from source address
-        last_op_source = self.last_operation(
-            account_address=address_source, from_block=block
-        )
-
-        # fill new status item with last data
-        new_user_status_source.fill_from_status(status=last_op_source)
-
-        # operation share participation
-        shares_qtty = Decimal(operation["qtty"]) / (
-            Decimal(10) ** Decimal(operation["decimals_contract"])
-        )
-        # shares percentage (to be used for investments)
-        shares_qtty_percent = (
-            (shares_qtty / new_user_status_source.shares_qtty)
-            if new_user_status_source.shares_qtty != 0
-            else 0
-        )
-
-        # calc investment transfered ( with shares)
-        investment_qtty_token0_transfer = (
-            new_user_status_source.investment_qtty_token0 * shares_qtty_percent
-        )
-        investment_qtty_token1_transfer = (
-            new_user_status_source.investment_qtty_token1 * shares_qtty_percent
-        )
-        total_investment_qtty_in_usd_transfer = (
-            new_user_status_source.total_investment_qtty_in_usd * shares_qtty_percent
-        )
-        total_investment_qtty_in_token0_transfer = (
-            new_user_status_source.total_investment_qtty_in_token0 * shares_qtty_percent
-        )
-        total_investment_qtty_in_token1_transfer = (
-            new_user_status_source.total_investment_qtty_in_token1 * shares_qtty_percent
-        )
-
-        # create DESTINATION result
-        new_user_status_destination = user_status(
-            timestamp=operation["timestamp"],
-            block=block,
-            topic=operation["topic"],
-            account_address=address_destination,
-            raw_operation=operation,
-        )
-
-        # get last operation from destination address
-        last_op_destination = self.last_operation(
-            account_address=address_destination, from_block=block
-        )
-
-        # fill new status item with last data
-        new_user_status_destination.fill_from_status(status=last_op_destination)
-
-        # get current total contract_address shares qtty
-        total_shares = self.total_shares(at_block=block, check=True)
-        # total shares here donot include current operation when depositing
-        if operation["src"] == "0x0000000000000000000000000000000000000000":
-            # before deposit creation transfer
-            # add current created shares to total shares
-            total_shares += shares_qtty
-
-        elif operation["dst"] == "0x0000000000000000000000000000000000000000":
-            # before withdraw transfer (burn)
+        if operation["dst"] == "0x0000000000000000000000000000000000000000":
+            # expect a withdraw topic on next operation ( same block))
             pass
-
-        # modify SOURCE:
-        new_user_status_source.shares_qtty -= shares_qtty
-        new_user_status_source.investment_qtty_token0 -= investment_qtty_token0_transfer
-        new_user_status_source.investment_qtty_token1 -= investment_qtty_token1_transfer
-        new_user_status_source.total_investment_qtty_in_usd -= (
-            total_investment_qtty_in_usd_transfer
-        )
-        new_user_status_source.total_investment_qtty_in_token0 -= (
-            total_investment_qtty_in_token0_transfer
-        )
-        new_user_status_source.total_investment_qtty_in_token1 -= (
-            total_investment_qtty_in_token1_transfer
-        )
-
-        new_user_status_source.shares_percent = (
-            (new_user_status_source.shares_qtty / total_shares)
-            if total_shares != 0
-            else 0
-        )
-        # add global stats
-        new_user_status_source = self._add_globals_to_user_status(
-            current_operation=new_user_status_source,
-            last_operation=last_op_source,
-        )
-
-        # modify DESTINATION:
-        new_user_status_destination.shares_qtty += shares_qtty
-        new_user_status_destination.investment_qtty_token0 += (
-            investment_qtty_token0_transfer
-        )
-        new_user_status_destination.investment_qtty_token1 += (
-            investment_qtty_token1_transfer
-        )
-        new_user_status_destination.total_investment_qtty_in_usd += (
-            total_investment_qtty_in_usd_transfer
-        )
-        new_user_status_destination.total_investment_qtty_in_token0 += (
-            total_investment_qtty_in_token0_transfer
-        )
-        new_user_status_destination.total_investment_qtty_in_token1 += (
-            total_investment_qtty_in_token1_transfer
-        )
-        new_user_status_destination.shares_percent = (
-            (new_user_status_destination.shares_qtty / total_shares)
-            if total_shares != 0
-            else 0
-        )
-        # add global stats
-        new_user_status_destination = self._add_globals_to_user_status(
-            current_operation=new_user_status_destination,
-            last_operation=last_op_destination,
-        )
+        elif operation["src"] == "0x0000000000000000000000000000000000000000":
+            # expect a deposit topic on next operation ( same block)
+            pass
+        elif operation["dst"] in self._masterchefs:
+            # TODO: masterchef implementation
+            pass
+        else:
+            # transfer all values to other user address
+            return self._transfer_to_user(operation=operation)
 
         # result
-        return new_user_status_source, new_user_status_destination
+        return None, None
 
     def _process_rebalance(self, operation: dict):
         """Rebalance affects all users positions
@@ -1112,74 +903,24 @@ class hypervisor_db_reader:
         # share fees with all acoounts proportionally
         self._share_fees_with_acounts(operation)
 
-    def _process_lastOperation(self):
-        """calcs uncollected fees for an inexistent last operation using the last available block"""
-        # database link
-        mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-        global_db_manager = database_global(mongo_url=mongo_url)
-
-        # get last status block
-        last_block = max(list(self._status.keys()))
-
-        # get last block timestamp
-        last_timestamp = global_db_manager.get_timestamp(
-            network=self.network, block=last_block
-        )[0]["timestamp"]
-
-        # for each address
-        for account_address in self.get_all_account_addresses(at_block=last_block):
-
-            # create result
-            new_user_status = user_status(
-                timestamp=last_timestamp,
-                block=last_block,
-                topic="last",
-                account_address=account_address,
-                raw_operation={"logIndex": 1},
-            )
-            # get last operation
-            last_op = self.last_operation(
-                account_address=account_address, from_block=last_block
-            )
-
-            # fill new status item with last data
-            new_user_status.fill_from_status(status=last_op)
-
-            # add globals
-            new_user_status = self._add_globals_to_user_status(
-                current_operation=new_user_status, last_operation=last_op
-            )
-
-            # add to result
-            self._add_operation(operation=new_user_status)
-
     def _process_dummy(self, operation: dict):
-        # database link
-        mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-        global_db_manager = database_global(mongo_url=mongo_url)
-
-        # block
-        block = operation["blockNumber"]
-
-        # block's timestamp
-        timestamp = global_db_manager.get_timestamp(network=self.network, block=block)[
-            0
-        ]["timestamp"]
 
         # for each address
-        for account_address in self.get_all_account_addresses(at_block=block):
+        for account_address in self.get_all_account_addresses(
+            at_block=operation["blockNumber"]
+        ):
 
             # create result
             new_user_status = user_status(
-                timestamp=timestamp,
-                block=block,
+                timestamp=operation["timestamp"],
+                block=operation["blockNumber"],
                 topic="dummy",
                 account_address=account_address,
                 raw_operation=operation,
             )
             # get last operation
             last_op = self.last_operation(
-                account_address=account_address, from_block=block
+                account_address=account_address, from_block=operation["blockNumber"]
             )
 
             # fill new status item with last data
@@ -1195,13 +936,23 @@ class hypervisor_db_reader:
 
     def _share_fees_with_acounts(self, operation: dict):
 
+        # check if this is the last operation of the block
+        if not self._is_last_logIndex(
+            logIndex=operation["logIndex"], block=operation["blockNumber"]
+        ):
+            # share fees now
+            raise ValueError(
+                " Sharing fees in a non closed block !!! there are more operations after thins one ion the same block that may affect fee sharing --> code something "
+            )
+
         # block
         block = operation["blockNumber"]
         # contract address
         contract_address = operation["address"].lower()
 
         # get current total contract_address shares qtty
-        total_shares = self.total_shares(at_block=block, check=False)
+        # total_shares = self.total_shares(at_block=block)
+        total_shares = self.total_supply(block=block)
 
         fees_collected_token0 = Decimal(operation["qtty_token0"]) / (
             Decimal(10) ** Decimal(operation["decimals_token0"])
@@ -1295,15 +1046,6 @@ class hypervisor_db_reader:
                 + (fees_collected_token1 * price_usd_t1)
             ) * user_share
 
-            new_user_status.total_fees_collected_in_token0 += (
-                fees_collected_token0
-                + (fees_collected_token1 * (price_usd_t1 / price_usd_t0))
-            ) * user_share
-            new_user_status.total_fees_collected_in_token1 += (
-                fees_collected_token1
-                + (fees_collected_token0 * (price_usd_t0 / price_usd_t1))
-            ) * user_share
-
             # get last operation from destination address
             last_op = self.last_operation(
                 account_address=account_address, from_block=block
@@ -1354,6 +1096,190 @@ class hypervisor_db_reader:
                         (Decimal("1") - ctrl_total_percentage_applied),
                     )
                 )
+
+    def _transfer_to_user(self, operation: dict) -> tuple[user_status, user_status]:
+
+        # block
+        block = operation["blockNumber"]
+        # contract address
+        contract_address = operation["address"].lower()
+        # set user address
+        address_source = operation["src"].lower()
+        address_destination = operation["dst"].lower()
+
+        # USD prices
+        price_usd_t0 = Decimal(
+            self._prices[block][self._static["pool"]["token0"]["address"]]
+        )
+        price_usd_t1 = Decimal(
+            self._prices[block][self._static["pool"]["token1"]["address"]]
+        )
+        # get current total shares
+        total_shares = self.total_supply(block=block)
+
+        # create SOURCE result
+        new_user_status_source = user_status(
+            timestamp=operation["timestamp"],
+            block=block,
+            topic=operation["topic"],
+            account_address=address_source,
+            raw_operation=operation,
+        )
+        # get last operation from source address
+        last_op_source = self.last_operation(
+            account_address=address_source, from_block=block
+        )
+        # fill new status item with last data
+        new_user_status_source.fill_from_status(status=last_op_source)
+
+        shares_qtty = Decimal(operation["qtty"]) / Decimal(
+            10 ** operation["decimals_contract"]
+        )
+        # self shares percentage used for investments mod calculations
+        shares_qtty_percent = (
+            (shares_qtty / new_user_status_source.shares_qtty)
+            if new_user_status_source.shares_qtty != 0
+            else 0
+        )
+
+        # calc investment transfered ( with shares)
+        investment_qtty_token0_transfer = (
+            new_user_status_source.investment_qtty_token0 * shares_qtty_percent
+        )
+        investment_qtty_token1_transfer = (
+            new_user_status_source.investment_qtty_token1 * shares_qtty_percent
+        )
+        total_investment_qtty_in_usd_transfer = (
+            new_user_status_source.total_investment_qtty_in_usd * shares_qtty_percent
+        )
+        total_investment_qtty_in_token0_transfer = (
+            new_user_status_source.total_investment_qtty_in_token0 * shares_qtty_percent
+        )
+        total_investment_qtty_in_token1_transfer = (
+            new_user_status_source.total_investment_qtty_in_token1 * shares_qtty_percent
+        )
+        # calc fees collected transfered ( with shares)
+        fees_collected_token0_transfer = (
+            new_user_status_source.fees_collected_token0 * shares_qtty_percent
+        )
+        fees_collected_token1_transfer = (
+            new_user_status_source.fees_collected_token1 * shares_qtty_percent
+        )
+        total_fees_collected_in_usd_transfer = (
+            new_user_status_source.total_fees_collected_in_usd * shares_qtty_percent
+        )
+
+        # modify SOURCE address with divestment values ( substract )
+        new_user_status_source.shares_qtty -= shares_qtty
+        new_user_status_source.investment_qtty_token0 -= investment_qtty_token0_transfer
+
+        new_user_status_source.investment_qtty_token1 -= investment_qtty_token1_transfer
+
+        new_user_status_source.total_investment_qtty_in_usd -= (
+            total_investment_qtty_in_usd_transfer
+        )
+
+        new_user_status_source.total_investment_qtty_in_token0 -= (
+            total_investment_qtty_in_token0_transfer
+        )
+
+        new_user_status_source.total_investment_qtty_in_token1 -= (
+            total_investment_qtty_in_token1_transfer
+        )
+
+        new_user_status_source.fees_collected_token0 -= fees_collected_token0_transfer
+
+        new_user_status_source.fees_collected_token1 -= fees_collected_token1_transfer
+
+        new_user_status_source.total_fees_collected_in_usd -= (
+            total_fees_collected_in_usd_transfer
+        )
+
+        # refresh shares percentage now
+        new_user_status_source.shares_percent = (
+            (new_user_status_source.shares_qtty / total_shares)
+            if total_shares != 0
+            else 0
+        )
+        # add global stats to status
+        new_user_status_source = self._add_globals_to_user_status(
+            current_operation=new_user_status_source,
+            last_operation=last_op_source,
+        )
+
+        # create DESTINATION result
+        new_user_status_destination = user_status(
+            timestamp=operation["timestamp"],
+            block=block,
+            topic=operation["topic"],
+            account_address=address_destination,
+            raw_operation=operation,
+        )
+
+        # get last operation from destination address
+        last_op_destination = self.last_operation(
+            account_address=address_destination, from_block=block
+        )
+
+        # fill new status item with last data
+        new_user_status_destination.fill_from_status(status=last_op_destination)
+
+        # modify DESTINATION:
+        new_user_status_destination.shares_qtty += shares_qtty
+        new_user_status_destination.investment_qtty_token0 += (
+            investment_qtty_token0_transfer
+        )
+
+        new_user_status_destination.investment_qtty_token1 += (
+            investment_qtty_token1_transfer
+        )
+
+        new_user_status_destination.total_investment_qtty_in_usd += (
+            total_investment_qtty_in_usd_transfer
+        )
+
+        new_user_status_destination.total_investment_qtty_in_token0 += (
+            total_investment_qtty_in_token0_transfer
+        )
+        new_user_status_destination.total_investment_qtty_in_token1 += (
+            total_investment_qtty_in_token1_transfer
+        )
+        new_user_status_destination.fees_collected_token0 += (
+            fees_collected_token0_transfer
+        )
+
+        new_user_status_destination.fees_collected_token1 += (
+            fees_collected_token1_transfer
+        )
+
+        new_user_status_destination.total_fees_collected_in_usd += (
+            total_fees_collected_in_usd_transfer
+        )
+
+        new_user_status_destination.shares_percent = (
+            (new_user_status_destination.shares_qtty / total_shares)
+            if total_shares != 0
+            else 0
+        )
+
+        # seconds passed may be zero (first time address) or smaller than source. pick max for destination
+        if new_user_status_destination.secPassed < new_user_status_source.secPassed:
+            new_user_status_destination.secPassed = new_user_status_source.secPassed
+
+        # uncollected fees seconds passed may be zero due to new address receiving first time funds
+        if new_user_status_destination.fees_uncollected_secPassed == 0:
+            new_user_status_destination.fees_uncollected_secPassed = (
+                new_user_status_source.fees_uncollected_secPassed
+            )
+
+        # add global stats
+        new_user_status_destination = self._add_globals_to_user_status(
+            current_operation=new_user_status_destination,
+            last_operation=last_op_destination,
+        )
+
+        # result
+        return new_user_status_source, new_user_status_destination
 
     # Status transformer
     def _convert_status(self, status: dict) -> dict:
@@ -1516,7 +1442,7 @@ class hypervisor_db_reader:
 
     # Collection
     def _add_operation(self, operation: user_status):
-        """
+        """add operation to users by block
 
         Args:
             operation (user_status):
@@ -1554,13 +1480,6 @@ class hypervisor_db_reader:
         last_operation: user_status,
     ) -> user_status:
 
-        if last_operation.block == 0:
-            # first time return item as it is
-            return current_operation
-
-        # get hypervisor status at block
-        current_status_data = self._status[current_operation.block]
-
         # USD prices
         price_usd_t0 = Decimal(
             self._prices[current_operation.block][
@@ -1577,18 +1496,37 @@ class hypervisor_db_reader:
         current_operation.usd_price_token0 = price_usd_t0
         current_operation.usd_price_token1 = price_usd_t1
 
+        # get hypervisor status at block
+        current_status_data = self._status[current_operation.block]
+
+        # modify shares percentage
+        total_shares = self.total_supply(block=current_operation.block)
+        current_operation.shares_percent = (
+            (current_operation.shares_qtty / total_shares) if total_shares != 0 else 0
+        )
+
         # get current block -1 status
-        if not (current_operation.block - 1) in self._status:
+        # avoid first time block ( block == 0)
+        # avoid dummy operations (  syntetic created operations mixing status blocks with operations)
+        if (
+            last_operation.block != 0
+            and current_operation.topic != "dummy"
+            and not (current_operation.block - 1) in self._status
+        ):
             logging.getLogger(__name__).error(
                 f" Could not find block {last_operation.block} in status for hype {self.address}"
             )
 
         # get last operation block status
-        if not last_operation.block in self._status:
+        if (
+            last_operation.block != 0
+            and current_operation.topic != "dummy"
+            and not last_operation.block in self._status
+        ):
             logging.getLogger(__name__).error(
                 f" Could not find block {last_operation.block} in status for hype {self.address}"
             )
-        last_status_data = self._status[last_operation.block]
+        # last_status_data = self._status[last_operation.block]
 
         # set current_operation's proportional uncollected fees
         current_operation.fees_uncollected_token0 = (
@@ -1604,24 +1542,32 @@ class hypervisor_db_reader:
             + current_operation.fees_uncollected_token1 * price_usd_t1
         )
 
-        current_operation.total_fees_uncollected_in_token0 = (
-            current_operation.fees_uncollected_token0
-            + (
-                current_operation.fees_uncollected_token1
-                * (price_usd_t1 / price_usd_t0)
-            )
+        current_operation.fees_owed_token0 = (
+            Decimal(current_status_data["tvl"]["fees_owed_token0"])
+            * current_operation.shares_percent
         )
-        current_operation.total_fees_uncollected_in_token1 = (
-            current_operation.fees_uncollected_token1
-            + (
-                current_operation.fees_uncollected_token0
-                * (price_usd_t0 / price_usd_t1)
-            )
+        current_operation.fees_owed_token1 = (
+            Decimal(current_status_data["tvl"]["fees_owed_token1"])
+            * current_operation.shares_percent
+        )
+        current_operation.total_fees_owed_in_usd = (
+            current_operation.fees_owed_token0 * price_usd_t0
+            + current_operation.fees_owed_token1 * price_usd_t1
         )
 
-        current_operation.fees_uncollected_secPassed = (
-            current_operation.timestamp - last_operation.timestamp
-        )
+        # avoid calc seconds passed on new created items ( think about transfers)
+        if last_operation.block != 0:
+            # Decide wether to add or set seconds passed based on topic ( always set but not on dummy)
+            if current_operation.topic == "dummy":
+                # all secs passed since last block processed
+                current_operation.fees_uncollected_secPassed += (
+                    current_operation.timestamp - last_operation.timestamp
+                )
+            else:
+                # set uncollected fees secs passed since last collection
+                current_operation.fees_uncollected_secPassed = (
+                    current_operation.timestamp - last_operation.timestamp
+                )
 
         # set current_operation's proportional tvl ( underlying tokens value) + uncollected fees
         # WARN: underlying tokens can be greater than TVL
@@ -1647,83 +1593,47 @@ class hypervisor_db_reader:
         )
 
         # add seconds passed since
-        current_operation.secPassed += (
-            current_operation.timestamp - last_operation.timestamp
+        # avoid calc seconds passed on new created items ( think about transfers)
+        if last_operation.block != 0:
+            current_operation.secPassed += (
+                current_operation.timestamp - last_operation.timestamp
+            )
+
+        # current absolute result
+        current_operation.current_result_token0 = (
+            current_operation.underlying_token0
+            - current_operation.investment_qtty_token0
+        )
+        current_operation.current_result_token1 = (
+            current_operation.underlying_token1
+            - current_operation.investment_qtty_token1
+        )
+        current_operation.total_current_result_in_usd = (
+            current_operation.total_underlying_in_usd
+            - current_operation.total_investment_qtty_in_usd
+        )
+        current_operation.total_current_result_in_token0 = (
+            current_operation.total_underlying_in_token0
+            - current_operation.total_investment_qtty_in_token0
+        )
+        current_operation.total_current_result_in_token1 = (
+            current_operation.total_underlying_in_token1
+            - current_operation.total_investment_qtty_in_token1
         )
 
-        if current_operation.secPassed > 0:
-            # current absolute result
-            current_operation.current_result_token0 = (
-                current_operation.underlying_token0
-                - current_operation.investment_qtty_token0
-            )
-            current_operation.current_result_token1 = (
-                current_operation.underlying_token1
-                - current_operation.investment_qtty_token1
-            )
-            current_operation.total_current_result_in_usd = (
-                current_operation.total_underlying_in_usd
-                - current_operation.total_investment_qtty_in_usd
-            )
-            current_operation.total_current_result_in_token0 = (
-                current_operation.total_underlying_in_token0
-                - current_operation.total_investment_qtty_in_token0
-            )
-            current_operation.total_current_result_in_token1 = (
-                current_operation.total_underlying_in_token1
-                - current_operation.total_investment_qtty_in_token1
-            )
-
-        else:
-            # same block operations = transfer -> deposit or withdraw
-            return current_operation
-
-        # set impermanent loss
-        # i= last operation block
-        # e= current operation block -1
-        #   IL = TVLi - TVLe
-        #   ILyear = ( IL / (Te-Ti) ) * Tyear
-        #   IL% = ( ILyear / TVLi )
-        #   FeeYield = UFe-UFi
-        #   FeeYieldYear = ( FeeYield / (Te-Ti) ) * Tyear
-        #   FeeYieldYear% = FeeYieldYear / TVLi
-        #
-
-        # time passed between
-        # TODO: use pre_current_status_data timestamp and not current operation
-        # pre_current_status_data = self._status[current_operation.block - 1]
-        if current_operation.secPassed > 0:
-            # define value locked of the position before current operation
-
-            # IL
-            current_operation.impermanent_result_token0 = (
-                current_operation.current_result_token0
-                - current_operation.fees_uncollected_token0
-                - current_operation.fees_collected_token0
-            )
-            current_operation.impermanent_result_token1 = (
-                current_operation.current_result_token1
-                - current_operation.fees_uncollected_token1
-                - current_operation.fees_collected_token1
-            )
-            current_operation.total_impermanent_result_in_usd = (
-                current_operation.total_current_result_in_usd
-                - current_operation.total_fees_uncollected_in_usd
-                - current_operation.total_fees_collected_in_usd
-            )
-            current_operation.total_impermanent_result_in_token0 = (
-                current_operation.total_current_result_in_token0
-                - current_operation.total_fees_uncollected_in_token0
-                - current_operation.total_fees_collected_in_token0
-            )
-            current_operation.total_impermanent_result_in_token1 = (
-                current_operation.total_current_result_in_token1
-                - current_operation.total_fees_uncollected_in_token1
-                - current_operation.total_fees_collected_in_token1
-            )
-
-        else:
-            logging.getlogger(__name__).error("seconds passed between operations is 0")
+        # Comparison results ( impermanent)
+        current_operation.impermanent_lp_vs_hodl_usd = (
+            current_operation.total_underlying_in_usd
+            - current_operation.total_investment_qtty_in_usd
+        )
+        current_operation.impermanent_lp_vs_hodl_token0 = (
+            current_operation.total_underlying_in_usd
+            - (current_operation.total_investment_qtty_in_token0 * price_usd_t0)
+        )
+        current_operation.impermanent_lp_vs_hodl_token1 = (
+            current_operation.total_underlying_in_usd
+            - (current_operation.total_investment_qtty_in_token1 * price_usd_t1)
+        )
 
         return current_operation
 
@@ -1756,11 +1666,14 @@ class hypervisor_db_reader:
             account_address=account_address,
         )
 
-    def get_all_account_addresses(self, at_block: int = 0) -> list[str]:
+    def get_all_account_addresses(
+        self, at_block: int = 0, with_shares: bool = False
+    ) -> list[str]:
         """Get a unique list of addresses
 
         Args:
             at_block (int, optional): . Defaults to 0.
+            with_shares (bool, optional) Include only addresses with shares > 0 ?
 
         Returns:
             list[str]: of account addresses
@@ -1771,9 +1684,19 @@ class hypervisor_db_reader:
         if at_block > 0:
             block_list = [x for x in block_list if x <= at_block]
 
-        # build a list of addresses
-        for block in block_list:
-            addresses_list.update(list(self._users_by_block[block].keys()))
+        if with_shares:
+            for block in block_list:
+                for address, status_list in self._users_by_block[block].items():
+                    try:
+                        if status_list[-1].shares_qtty > 0:
+                            addresses_list.add(address)
+                    except:
+                        po = ""
+                        pass
+        else:
+            # build a list of addresses
+            for block in block_list:
+                addresses_list.update(list(self._users_by_block[block].keys()))
 
         # return unique list
         return list(addresses_list)
@@ -1786,24 +1709,30 @@ class hypervisor_db_reader:
 
         return sorted(result, key=lambda x: (x.block, x.raw_operation["logIndex"]))
 
-    def get_usd_price(self, address: str, block: int, network: str) -> dict:
-        # database link
-        global_db_manager = database_global(
-            mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    def _filter_operations(self, block: int) -> int:
+        """Get the all operations of the specified block
+
+        Returns:
+            int: log Index number
+        """
+        return sorted(
+            [x for x in self._operations if x["blockNumber"] == block],
+            key=lambda x: (x["logIndex"]),
         )
 
-        result = global_db_manager.get_price_usd(
-            network=network, block=block, address=address
-        )
-        if len(result) == 0:
-            result = self.get_usd_price_closestBlock(
-                address=address, block=block, network=network
-            )
-            logger.getLogger(__name__).warning(
-                f" Price for {address} at block {block} is not in db so price at block {result['block']} has been used instead [{block-result['block']} diff.] "
-            )
+    def _is_last_logIndex(self, logIndex: int, block: int) -> bool:
+        try:
+            lastlLogIndex = self._filter_operations(block=block)
 
-        return result[0]
+            if lastlLogIndex[-1]["logIndex"] == logIndex:
+                # do share fees when fired
+                return True
+
+        except:
+            # there are no operations means its a dummy unique in a block operation
+            return True
+
+        return False
 
     def _get_block(self, timestamp: int) -> dict:
         # database link
@@ -1830,6 +1759,17 @@ class hypervisor_db_reader:
 
         return result[0]
 
+    def _get_closest_users_by_block(self, block=int) -> int:
+        """Find the closest block in users by block dict
+
+        Args:
+            block (_type_, optional): . Defaults to int.
+
+        Returns:
+            int: block
+        """
+        return min(self._users_by_block.keys(), key=lambda x: abs(x - block))
+
     # checks
     def check_totalSupply(self, t_shares, at_block: int = 0):
 
@@ -1852,7 +1792,7 @@ class hypervisor_db_reader:
 
                 if t_shares_deviation > Decimal("0.001"):
                     logging.getLogger(__name__).warning(
-                        " Calculated total supply [{:,.0f}] for {} is different from its saved status [{:,.0f}] deviation:{:,.5%}  block {} [{} {}]".format(
+                        " Calculated total supply [{}] for {} is different from its saved status [{}] deviation:{:,.2%}  block {} [{} {}]".format(
                             t_shares,
                             self.address,
                             t_supply,
@@ -1874,236 +1814,6 @@ class hypervisor_db_reader:
             )
 
 
-def print_hype_result(hype):
-
-    b_ini = hype._get_block(
-        timestamp=int((datetime.utcnow() - timedelta(days=6)).timestamp())
-    )
-    b_end = hype._get_block(timestamp=int(datetime.utcnow().timestamp()))
-
-    # hype_result = hype.result_vars()
-
-    result_ini, result_end = hype.result_vars2(
-        b_ini=b_ini["block"], b_end=b_end["block"]
-    )
-    result = dict()
-    for k, v in result_ini.items():
-        if "investment" in k:
-            result[k] = v
-        else:
-            result[k] = result_end[k] - v
-
-    for hype_result in [result_ini, result_end, result]:
-
-        # PRINT HEAD
-        logging.getLogger(__name__).info(" ")
-        logging.getLogger(__name__).info(
-            f""" HYPERVISOR: {hype.address} {hype.symbol}"""
-        )
-        logging.getLogger(__name__).info(
-            f"""    {hype.protocol}'s {hype.network} {hype.dex}  """
-        )
-        logging.getLogger(__name__).info(
-            f"""    from block {b_ini['block']} to {b_end['block']} """
-        )
-        logging.getLogger(__name__).info(
-            f"""    from timestamp {b_ini['timestamp']} to {b_end['timestamp']} """
-        )
-        logging.getLogger(__name__).info(
-            f"""    from timestamp {datetime.fromtimestamp(b_ini['timestamp'])} to {datetime.fromtimestamp(b_end['timestamp'])} """
-        )
-        # PRINT BODY
-        try:
-            hype_yield_uncollected_0 = (
-                (
-                    hype_result["fees_uncollected_token0"]
-                    / hype_result["fees_uncollected_secPassed"]
-                )
-                if hype_result["fees_uncollected_secPassed"] > 0
-                else 0
-            )
-            hype_yield_uncollected_1 = (
-                (
-                    hype_result["fees_uncollected_token1"]
-                    / hype_result["fees_uncollected_secPassed"]
-                )
-                if hype_result["fees_uncollected_secPassed"] > 0
-                else 0
-            )
-            hype_yield_collected_0 = (
-                (hype_result["fees_collected_token0"] / hype_result["secPassed"])
-                if hype_result["secPassed"] > 0
-                else 0
-            )
-            hype_yield_collected_1 = (
-                (hype_result["fees_collected_token1"] / hype_result["secPassed"])
-                if hype_result["secPassed"] > 0
-                else 0
-            )
-
-            hype_yield_0 = (hype_yield_collected_0 + hype_yield_uncollected_0) * (
-                60 * 60 * 24 * 365
-            )
-            hype_yield_1 = (hype_yield_collected_1 + hype_yield_uncollected_1) * (
-                60 * 60 * 24 * 365
-            )
-
-            hype_return_year_0 = (
-                (hype_result["current_result_token0"] / hype_result["secPassed"])
-                if hype_result["secPassed"] > 0
-                else 0
-            ) * (60 * 60 * 24 * 365)
-            hype_return_year_1 = (
-                (hype_result["current_result_token1"] / hype_result["secPassed"])
-                if hype_result["secPassed"] > 0
-                else 0
-            ) * (60 * 60 * 24 * 365)
-            hype_return_year_0_percent = (
-                (hype_return_year_0 / hype_result["investment_qtty_token0"])
-                if hype_result["investment_qtty_token0"] > 0
-                else 0
-            )
-            hype_return_year_1_percent = (
-                (hype_return_year_1 / hype_result["investment_qtty_token1"])
-                if hype_result["investment_qtty_token1"] > 0
-                else 0
-            )
-
-            logging.getLogger(__name__).info(" ")
-            logging.getLogger(__name__).info(
-                " result usd: {:,.2f} [ {:,.2%} over investment]".format(
-                    hype_result["total_current_result_in_usd"],
-                    (
-                        hype_result["total_current_result_in_usd"]
-                        / hype_result["total_investment_qtty_in_usd"]
-                    )
-                    if hype_result["total_investment_qtty_in_usd"] > 0
-                    else 0,
-                )
-            )
-            logging.getLogger(__name__).info(
-                " result token 0: {:,.2f} [ {:,.2%} over investment]".format(
-                    hype_result["current_result_token0"],
-                    (
-                        hype_result["current_result_token0"]
-                        / hype_result["investment_qtty_token0"]
-                    )
-                    if hype_result["investment_qtty_token0"] > 0
-                    else 0,
-                )
-            )
-            logging.getLogger(__name__).info(
-                " result token 1: {:,.2f} [ {:,.2%} over investment]".format(
-                    hype_result["current_result_token1"],
-                    (
-                        hype_result["current_result_token1"]
-                        / hype_result["investment_qtty_token1"]
-                    )
-                    if hype_result["investment_qtty_token1"] > 0
-                    else 0,
-                )
-            )
-
-            logging.getLogger(__name__).info(
-                " yearly result token 0: {:,.2f} [ {:,.2%} over investment]".format(
-                    hype_return_year_0,
-                    hype_return_year_0_percent,
-                )
-            )
-            logging.getLogger(__name__).info(
-                " yearly result token 1: {:,.2f} [ {:,.2%} over investment]".format(
-                    hype_return_year_1,
-                    hype_return_year_1_percent,
-                )
-            )
-
-            logging.getLogger(__name__).info(
-                " impermanent token 0: {:,.2f} [ {:,.2%} over investment]".format(
-                    hype_result["impermanent_token0"],
-                    (
-                        hype_result["impermanent_token0"]
-                        / hype_result["investment_qtty_token0"]
-                    )
-                    if hype_result["investment_qtty_token0"] > 0
-                    else 0,
-                )
-            )
-            logging.getLogger(__name__).info(
-                " impermanent token 1: {:,.2f} [ {:,.2%} over investment]".format(
-                    hype_result["impermanent_token1"],
-                    (
-                        hype_result["impermanent_token1"]
-                        / hype_result["investment_qtty_token1"]
-                    )
-                    if hype_result["investment_qtty_token1"] > 0
-                    else 0,
-                )
-            )
-
-            logging.getLogger(__name__).info(
-                " investment usd: {:,.2f}".format(
-                    hype_result["total_investment_qtty_in_usd"]
-                )
-            )
-            logging.getLogger(__name__).info(
-                " investment token 0: {:,.2f}".format(
-                    hype_result["investment_qtty_token0"]
-                )
-            )
-            logging.getLogger(__name__).info(
-                " investment token 1: {:,.2f}".format(
-                    hype_result["investment_qtty_token1"]
-                )
-            )
-
-            logging.getLogger(__name__).info(
-                " underlyin usd: {:,.2f}".format(hype_result["total_underlying_in_usd"])
-            )
-            logging.getLogger(__name__).info(
-                " underlyin token 0: {:,.2f}".format(hype_result["underlying_token0"])
-            )
-            logging.getLogger(__name__).info(
-                " underlyin token 1: {:,.2f}".format(hype_result["underlying_token1"])
-            )
-
-            logging.getLogger(__name__).info(
-                " fees colected usd: {:,.2f}".format(
-                    hype_result["total_fees_collected_in_usd"]
-                )
-            )
-            logging.getLogger(__name__).info(
-                " fees colected token 0: {:,.2f}".format(
-                    hype_result["fees_collected_token0"]
-                )
-            )
-            logging.getLogger(__name__).info(
-                " fees colected token 1: {:,.2f}".format(
-                    hype_result["fees_collected_token1"]
-                )
-            )
-
-            logging.getLogger(__name__).info(
-                " hype yield0 year: {:,.2f}  [ {:,.2%} over investment] ".format(
-                    hype_yield_0,
-                    (hype_yield_0 / hype_result["investment_qtty_token0"])
-                    if hype_result["investment_qtty_token0"] > 0
-                    else 0,
-                )
-            )
-            logging.getLogger(__name__).info(
-                " hype yield1 year: {:,.2f}  [ {:,.2%} over investment]".format(
-                    hype_yield_1,
-                    (hype_yield_1 / hype_result["investment_qtty_token1"])
-                    if hype_result["investment_qtty_token1"] > 0
-                    else 0,
-                )
-            )
-            logging.getLogger(__name__).info(" ")
-            logging.getLogger(__name__).info(" ")
-        except:
-            logging.getLogger(__name__).exception(f" errr ")
-
-
 def print_user_status(status: user_status):
     logging.getLogger(__name__).info("")
     logging.getLogger(__name__).info(
@@ -2112,10 +1822,8 @@ def print_user_status(status: user_status):
     logging.getLogger(__name__).info("")
     logging.getLogger(__name__).info("\tAbsolute situation:  ( in USD )")
     logging.getLogger(__name__).info(
-        "\tMarket value (tvl):\t {:,.2f}\t [{:+,.2%} vs investment]".format(
-            status.total_underlying_in_usd,
-            (status.total_underlying_in_usd - status.total_investment_qtty_in_usd)
-            / status.total_investment_qtty_in_usd,
+        "\tMarket value (tvl):\t {:,.2f}\t ".format(
+            status.total_underlying_in_usd if status.total_underlying_in_usd else 0,
         )
     )
     logging.getLogger(__name__).info(
@@ -2125,7 +1833,9 @@ def print_user_status(status: user_status):
                 (status.total_investment_qtty_in_token0 * status.usd_price_token0)
                 - status.total_underlying_in_usd
             )
-            / status.total_underlying_in_usd,
+            / status.total_underlying_in_usd
+            if status.total_underlying_in_usd
+            else 0,
         )
     )
     logging.getLogger(__name__).info(
@@ -2135,7 +1845,9 @@ def print_user_status(status: user_status):
                 (status.total_investment_qtty_in_token1 * status.usd_price_token1)
                 - status.total_underlying_in_usd
             )
-            / status.total_underlying_in_usd,
+            / status.total_underlying_in_usd
+            if status.total_underlying_in_usd
+            else 0,
         )
     )
 
@@ -2143,19 +1855,33 @@ def print_user_status(status: user_status):
         "\tFees generated:\t {:,.2f}\t [{:,.2%} vs investment]".format(
             status.total_fees_collected_in_usd + status.total_fees_uncollected_in_usd,
             (status.total_fees_collected_in_usd + status.total_fees_uncollected_in_usd)
-            / status.total_investment_qtty_in_usd,
+            / status.total_investment_qtty_in_usd
+            if status.total_investment_qtty_in_usd
+            else 0,
         )
     )
     logging.getLogger(__name__).info(
         "\t   Fees collected:\t {:,.2f}\t [{:,.2%} vs investment]".format(
             status.total_fees_collected_in_usd,
-            status.total_fees_collected_in_usd / status.total_investment_qtty_in_usd,
+            status.total_fees_collected_in_usd / status.total_investment_qtty_in_usd
+            if status.total_investment_qtty_in_usd
+            else 0,
+        )
+    )
+    logging.getLogger(__name__).info(
+        "\t   Fees owed:\t {:,.2f}\t [{:,.2%} vs investment]".format(
+            status.total_fees_owed_in_usd,
+            status.total_fees_owed_in_usd / status.total_investment_qtty_in_usd
+            if status.total_investment_qtty_in_usd
+            else 0,
         )
     )
     logging.getLogger(__name__).info(
         "\t   Fees uncollected:\t {:,.2f}\t [{:,.2%} vs investment]".format(
             status.total_fees_uncollected_in_usd,
-            status.total_fees_uncollected_in_usd / status.total_investment_qtty_in_usd,
+            status.total_fees_uncollected_in_usd / status.total_investment_qtty_in_usd
+            if status.total_investment_qtty_in_usd
+            else 0,
         )
     )
 
@@ -2163,26 +1889,64 @@ def print_user_status(status: user_status):
         "\tInvestment:\t {:,.2f}".format(status.total_investment_qtty_in_usd)
     )
     logging.getLogger(__name__).info(
-        "\t   total converted in token0:\t {:,.2f}".format(
-            status.total_investment_qtty_in_token0
+        "\t   total token0:\t {:,.2f}".format(
+            status.total_investment_qtty_in_token0,
         )
     )
     logging.getLogger(__name__).info(
-        "\t   total converted in token1:\t {:,.2f}".format(
-            status.total_investment_qtty_in_token1
+        "\t   total token1:\t {:,.2f} ".format(
+            status.total_investment_qtty_in_token1,
         )
     )
 
     logging.getLogger(__name__).info(
         "\tNet market gains:\t {:,.2f}\t [{:+,.2%} vs investment]".format(
             status.total_current_result_in_usd,
-            status.total_current_result_in_usd / status.total_investment_qtty_in_usd,
+            status.total_current_result_in_usd / status.total_investment_qtty_in_usd
+            if status.total_investment_qtty_in_usd
+            else 0,
         )
     )
 
     logging.getLogger(__name__).info(
         "\tShares:\t {:,.2f}\t [{:,.2%} over total]".format(
             status.shares_qtty, status.shares_percent
+        )
+    )
+    logging.getLogger(__name__).info("\tImpermanent loss:")
+    logging.getLogger(__name__).info(
+        "\t   LP vs HOLDING USD:\t {:,.2f}\t [{:,.2%}]".format(
+            status.total_underlying_in_usd - status.total_investment_qtty_in_usd,
+            (status.total_underlying_in_usd - status.total_investment_qtty_in_usd)
+            / status.total_underlying_in_usd
+            if status.total_underlying_in_usd
+            else 0,
+        )
+    )
+    logging.getLogger(__name__).info(
+        "\t   LP vs HOLDING token0:\t {:,.2f}\t [{:,.2%}]".format(
+            status.total_underlying_in_usd
+            - (status.total_investment_qtty_in_token0 * status.usd_price_token0),
+            (
+                status.total_underlying_in_usd
+                - (status.total_investment_qtty_in_token0 * status.usd_price_token0)
+            )
+            / status.total_underlying_in_usd
+            if status.total_underlying_in_usd
+            else 0,
+        )
+    )
+    logging.getLogger(__name__).info(
+        "\t   LP vs HOLDING token1:\t {:,.2f}\t [{:,.2%}]".format(
+            status.total_underlying_in_usd
+            - (status.total_investment_qtty_in_token1 * status.usd_price_token1),
+            (
+                status.total_underlying_in_usd
+                - (status.total_investment_qtty_in_token1 * status.usd_price_token1)
+            )
+            / status.total_underlying_in_usd
+            if status.total_underlying_in_usd
+            else 0,
         )
     )
 
@@ -2192,27 +1956,95 @@ def print_user_status(status: user_status):
     anual_fees = (
         (status.total_fees_collected_in_usd + status.total_fees_uncollected_in_usd)
         / status.secPassed
+        if status.secPassed
+        else 0
     ) * (60 * 60 * 24 * 365)
-    anual_roi = ((status.total_current_result_in_usd) / status.secPassed) * (
-        60 * 60 * 24 * 365
-    )
+    anual_roi = (
+        (status.total_current_result_in_usd) / status.secPassed
+        if status.secPassed
+        else 0
+    ) * (60 * 60 * 24 * 365)
     # anual_roi_token0 = ((status.current_result_token0)/status.secPassed)*(60*60*24*365)
     # anual_roi_token1 = ((status.current_result_token1)/status.secPassed)*(60*60*24*365)
 
     logging.getLogger(__name__).info(
         "\tAnualized fees:\t {:,.2%} vs market value".format(
             anual_fees / status.total_underlying_in_usd
+            if status.total_underlying_in_usd
+            else 0
         )
     )
     logging.getLogger(__name__).info(
         "\tAnualized return on investment:\t {:,.2%}".format(
             anual_roi / status.total_investment_qtty_in_usd
+            if status.total_investment_qtty_in_usd
+            else 0
         )
     )
     # logging.getLogger(__name__).info("\t   vs HODL token0:\t {:,.2f}\t [{:,.2%} vs market value]".format(anual_roi_token0/status.underlying_token0, (status.investment_qtty_token0*usd_price_token0)-status.total_underlying_in_usd))
     # logging.getLogger(__name__).info("\t   vs HODL token1:\t {:,.2f}\t [{:,.2%} vs market value]".format(status.investment_qtty_token1*usd_price_token1, (status.investment_qtty_token1*usd_price_token1)-status.total_underlying_in_usd))
 
     logging.getLogger(__name__).info("")
+
+
+def user_status_to_csv(status_list: list, folder: str, network: str):
+
+    result = list()
+    for r in status_list:
+        result.append(r.toDict())
+
+    csv_columns = [
+        "account_address",
+        "block",
+        "timestamp",
+        "usd_price_token0",
+        "usd_price_token1",
+        "shares_qtty",
+        "shares_percent",
+        "secPassed",
+        "investment_qtty_token0",
+        "investment_qtty_token1",
+        "total_investment_qtty_in_usd",
+        "total_investment_qtty_in_token0",
+        "total_investment_qtty_in_token1",
+        "underlying_token0",
+        "underlying_token1",
+        "total_underlying_in_usd",
+        "fees_collected_token0",
+        "fees_collected_token1",
+        "total_fees_collected_in_usd",
+        "fees_owed_token0",
+        "fees_owed_token1",
+        "total_fees_owed_in_usd",
+        "fees_uncollected_token0",
+        "fees_uncollected_token1",
+        "total_fees_uncollected_in_usd",
+        "fees_uncollected_secPassed",
+        "current_result_token0",
+        "current_result_token1",
+        "total_current_result_in_usd",
+        "impermanent_lp_vs_hodl_usd",
+        "impermanent_lp_vs_hodl_token0",
+        "impermanent_lp_vs_hodl_token1",
+    ]
+    csv_columns.extend([x for x in list(result[-1].keys()) if x not in csv_columns])
+    # topic
+    # closed_investment_return_token0	closed_investment_return_token1	current_result_token0		divestment_base_qtty_token0	divestment_base_qtty_token1	divestment_fee_qtty_token0	divestment_fee_qtty_token1							total_closed_investment_return_in_token0	total_closed_investment_return_in_token1	total_closed_investment_return_in_usd	total_current_result_in_token0	total_current_result_in_token1		total_divestment_base_qtty_in_token0	total_divestment_base_qtty_in_token1	total_divestment_base_qtty_in_usd	otal_divestment_fee_qtty_in_usd		impermanent_lp_vs_hodl_usd		total_underlying_in_token0	total_underlying_in_token1
+
+    # set filename
+    csv_filename = "{}_{}_from_{}_{}.csv".format(
+        network, result[-1]["account_address"], result[0]["block"], result[-1]["block"]
+    )
+    csv_filename = os.path.join(folder, csv_filename)
+
+    # remove file
+    try:
+        os.remove(csv_filename)
+    except:
+        pass
+
+    # save result to csv file
+    file_utilities.SaveCSV(filename=csv_filename, columns=csv_columns, rows=result)
 
 
 def get_hypervisor_addresses(network: str, protocol: str) -> list[str]:
@@ -2255,11 +2087,13 @@ def get_hypervisor_addresses(network: str, protocol: str) -> list[str]:
 
 
 def test():
-    network = "ethereum"
+    network = "polygon"
     protocol = "gamma"
 
+    b_ini = 0
+    b_end = 0
     # hypervisor_addresses = get_hypervisor_addresses(network=network, protocol=protocol)
-    hypervisor_addresses = ["0x35abccd8e577607275647edab08c537fa32cc65e".lower()]
+    # hypervisor_addresses = ["0x35abccd8e577607275647edab08c537fa32cc65e".lower()]
     for address in hypervisor_addresses:
         hype = hypervisor_db_reader(
             hypervisor_address=address, network=network, protocol=protocol
@@ -2267,19 +2101,40 @@ def test():
         try:
             hype._process_operations()
 
-            b_ini = hype._get_block(
-                timestamp=int((datetime.utcnow() - timedelta(days=8)).timestamp())
-            )
-            b_end = hype._get_block(timestamp=int(datetime.utcnow().timestamp()))
-            hype_status_ini, hype_status_end = hype.result(
+            # usr_status_list = hype.get_account_info(
+            #     account_address="0x09c46a907ba6167c50423ca130ad123dc6ec9862".lower()
+            # )  # block 14484376
+
+            # # save
+            # user_status_to_csv(
+            #     status_list=usr_status_list,
+            #     folder=PARENT_FOLDER + "/tests",
+            #     network=network,
+            # )
+            # # print user result
+            # print_user_status(usr_status_list[-1])
+
+            # print Total Hypervisor results
+            if b_ini == 0:
+                b_ini = hype._get_block(
+                    timestamp=int((datetime.utcnow() - timedelta(days=7)).timestamp())
+                )
+                b_end = hype._get_block(timestamp=int(datetime.utcnow().timestamp()))
+
+            hype_status_list = hype.result_list(
                 b_ini=b_ini["block"], b_end=b_end["block"]
             )
-            print_user_status(hype_status_ini)
-            print_user_status(hype_status_end)
 
-            print_hype_result(hype)
+            user_status_to_csv(
+                status_list=hype_status_list,
+                folder=PARENT_FOLDER + "/tests",
+                network=network,
+            )
+
+            print_user_status(hype_status_list[-1])
+
         except:
-            logging.getLogger(__name__).exception(" fiuk ")
+            logging.getLogger(__name__).exception(" yeeep ")
 
 
 # START ####################################################################################################################
