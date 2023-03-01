@@ -392,6 +392,7 @@ class price_scraper:
         except:
             pass
 
+        # try thegraph
         try:
             block_data = self.thegraph_block_connector.get_all_results(
                 network=network,
