@@ -841,6 +841,32 @@ def create_tokenBlocks_allTokensButWeth(protocol: str, network: str) -> set:
     return result
 
 
+def create_tokenBlocks_allTokens(protocol: str, network: str) -> set:
+    """create a total list of token addresses
+
+    Args:
+        protocol (str):
+        network (str):
+
+    Returns:
+        dict:
+    """
+    # setup database managers
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_name = f"{network}_{protocol}"
+    local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
+
+    result = set()
+    for status in local_db_manager.get_items_from_database(collection_name="status"):
+        result.add(
+            "{}_{}_{}".format(
+                network, status["block"], status["pool"][f"token{i}"]["address"]
+            )
+        )
+
+    return result
+
+
 def create_tokenBlocks_topTokens(protocol: str, network: str, limit: int = 5) -> set:
     """Create a list of blocks for each TOP token address
 
