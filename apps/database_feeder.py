@@ -479,7 +479,7 @@ def feed_hypervisor_status(
 
     # create a unique list of blocks addresses from database to be processed including:
     #       operation blocks and their block-1 relatives
-    #       block every day at 0:00
+    #       block every 20 min
     toProcess_block_address = dict()
     for x in local_db.get_unique_operations_addressBlock():
         # add operation addressBlock to be processed
@@ -490,23 +490,30 @@ def feed_hypervisor_status(
             "block": x["block"] - 1,
         }
 
-    # add latest block to all hypervisors
-    # create a dummy erc20 obj as helper ( use only web3wrap functions)
-    # dummy_helper = erc20_cached(
-    #     address="0x0000000000000000000000000000000000000000", network=network
-    # )
-    latest_block = (
-        erc20_cached(
-            address="0x0000000000000000000000000000000000000000", network=network
+    # add latest block to all hypervisors every 20 min
+    try:
+        if datetime.utcnow().timestamp() - local_db.get_max_field(
+            collection="status", field="timestamp"
+        )[0] > (60 * 20):
+
+            latest_block = (
+                erc20_cached(
+                    address="0x0000000000000000000000000000000000000000",
+                    network=network,
+                )
+                ._w3.eth.get_block("latest")
+                .number
+            )
+
+            for address in static_info.keys():
+                toProcess_block_address[f"""{address}_{latest_block}"""] = {
+                    "address": address,
+                    "block": latest_block,
+                }
+    except:
+        logging.getLogger(__name__).exception(
+            " unexpected error while adding new blocks to status scrape process "
         )
-        ._w3.eth.get_block("latest")
-        .number
-    )
-    for address in static_info.keys():
-        toProcess_block_address[f"""{address}_{latest_block}"""] = {
-            "address": address,
-            "block": latest_block,
-        }
 
     if rewrite:
         # rewrite all address blocks
