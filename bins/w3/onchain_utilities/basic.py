@@ -7,7 +7,7 @@ from decimal import Decimal
 from web3 import Web3, exceptions
 from web3.middleware import geth_poa_middleware
 
-from bins.configuration import CONFIGURATION
+from bins.configuration import CONFIGURATION, WEB3_CHAIN_IDS
 from bins.general import file_utilities
 from bins.cache import cache_utilities
 
@@ -72,8 +72,8 @@ class web3wrap:
 
     def setup_cache(self):
         # define network
-        if self._network in CONFIGURATION.WEB3_CHAIN_IDS:
-            self._chain_id = CONFIGURATION.WEB3_CHAIN_IDS[self._network]
+        if self._network in WEB3_CHAIN_IDS:
+            self._chain_id = WEB3_CHAIN_IDS[self._network]
         else:
             self._chain_id = self.w3.eth.chain_id
 
