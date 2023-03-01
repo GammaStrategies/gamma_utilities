@@ -10,13 +10,6 @@ from pathlib import Path
 from web3.exceptions import ContractLogicError
 
 
-if __name__ == "__main__":
-    # append parent directory pth
-    CURRENT_FOLDER = os.path.dirname(os.path.realpath(__file__))
-    PARENT_FOLDER = os.path.dirname(CURRENT_FOLDER)
-    sys.path.append(PARENT_FOLDER)
-
-
 from bins.configuration import CONFIGURATION, HYPERVISOR_REGISTRIES
 from bins.general.general_utilities import (
     convert_string_datetime,
@@ -40,6 +33,45 @@ from bins.formulas.univ3_formulas import sqrtPriceX96_to_price_float
 
 
 # mod apps
+def check_prices():
+    """Check price errors from debug and price logs and try to scrape again"""
+    try:
+        # load log files
+        price_log_file = logging.getLogger("price").handlers[0].baseFilename
+        debug_log_file = logging.getLogger("debug").handlers[0].baseFilename
+        # read both files in seach for price err
+        for log_file in [price_log_file, debug_log_file]:
+            network_token_blocks = get_failed_prices_from_log(log_file=log_file)
+            for network, addresses in network_token_blocks.items():
+                for address, blocks in addresses.items():
+                    for block, counter in blocks.items():
+                        # block is string
+                        block = int(block)
+                        # counter = number of times found in logs
+                        price = get_price(
+                            network=network, token_address=address, block=block
+                        )
+                        if price != 0:
+                            logging.getLogger(__name__).debug(
+                                f" Added price for {network}'s {address} at block {block}"
+                            )
+                            add_price_to_token(
+                                network=network,
+                                token_address=address,
+                                block=block,
+                                price=price,
+                            )
+                        else:
+                            logging.getLogger(__name__).debug(
+                                f" Could not find price for {network}'s {address} at block {block}"
+                            )
+    except:
+        logging.getLogger(__name__).exception(
+            " unexpected error checking prices from log"
+        )
+
+
+# one time utils
 def replace_blocks_to_int(network: str, protocol: str = "gamma"):
 
     # setup database managers
@@ -149,41 +181,6 @@ def add_timestamps_to_status(network: str, protocol: str = "gamma"):
 
                 # update progress
                 progress_bar.update(1)
-
-
-def check_prices():
-
-    try:
-        # load log file
-        log_file = logging.getLogger("price").handlers[0].baseFilename
-        network_token_blocks = get_failed_prices_from_log(log_file=log_file)
-        for network, addresses in network_token_blocks.items():
-            for address, blocks in addresses.items():
-                for block, counter in blocks.items():
-                    # block is string
-                    block = int(block)
-                    # counter = number of times found in logs
-                    price = get_price(
-                        network=network, token_address=address, block=block
-                    )
-                    if price != 0:
-                        logging.getLogger(__name__).debug(
-                            f" Added price for {network}'s {address} at block {block}"
-                        )
-                        add_price_to_token(
-                            network=network,
-                            token_address=address,
-                            block=block,
-                            price=price,
-                        )
-                    else:
-                        logging.getLogger(__name__).debug(
-                            f" Could not find price for {network}'s {address} at block {block}"
-                        )
-    except:
-        logging.getLogger(__name__).exception(
-            " unexpected error checking prices from log"
-        )
 
 
 # helpers
@@ -437,30 +434,3 @@ def main(option: str, **kwargs):
         raise NotImplementedError(
             f" Can't find any action to be taken from {option} checks option"
         )
-
-
-# START ####################################################################################################################
-if __name__ == "__main__":
-    os.chdir(PARENT_FOLDER)
-
-    ##### main ######
-    __module_name = Path(os.path.abspath(__file__)).stem
-    logging.getLogger(__name__).info(
-        " Start {}   ----------------------> ".format(__module_name)
-    )
-    # start time log
-    _startime = datetime.utcnow()
-
-    check_prices()
-    auto_get_prices()
-
-    # end time log
-    # _timelapse = datetime.utcnow() - _startime
-    logging.getLogger(__name__).info(
-        " took {} to complete".format(
-            log_time_passed.get_timepassed_string(start_time=_startime)
-        )
-    )
-    logging.getLogger(__name__).info(
-        " Exit {}    <----------------------".format(__module_name)
-    )
