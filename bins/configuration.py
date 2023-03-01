@@ -35,6 +35,15 @@ CONFIGURATION["_custom_"]["cml_parameters"] = cml_parameters
 
 #### ADD STATIC CONFIG HERE ####
 
+WEB3_CHAIN_IDS = {
+    "ethereum": 1,
+    "polygon": 137,
+    "optimism": 10,
+    "arbitrum": 42161,
+    # "celo": 0,
+}
+
+
 HYPERVISOR_REGISTRIES = {
     "uniswapv3": {
         "ethereum": "0x31ccdb5bd6322483bebd0787e1dabd1bf1f14946",

@@ -72,7 +72,11 @@ class web3wrap:
 
     def setup_cache(self):
         # define network
-        self._chain_id = self.w3.eth.chain_id
+        if self._network in CONFIGURATION.WEB3_CHAIN_IDS:
+            self._chain_id = CONFIGURATION.WEB3_CHAIN_IDS[self._network]
+        else:
+            self._chain_id = self.w3.eth.chain_id
+
         # made up a descriptive cahce file name
         cache_filename = "{}_{}".format(self._chain_id, self.address.lower())
         # create cache helper
