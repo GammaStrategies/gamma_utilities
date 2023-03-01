@@ -6,7 +6,7 @@ import concurrent.futures
 
 from web3 import Web3
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from dataclasses import dataclass, field, asdict, InitVar
 from decimal import Decimal, getcontext
 
@@ -27,6 +27,184 @@ from bins.w3.onchain_utilities.protocols import (
     gamma_hypervisor_cached,
     gamma_hypervisor_quickswap_cached,
 )
+
+
+from apps.database_analysis import (
+    hypervisor_db_reader,
+    get_hypervisor_addresses,
+    user_status,
+)
+
+
+def compare(
+    network: str, protocol: str, block: int = 0, hypervisor_addresses: list = []
+):
+
+    if len(hypervisor_addresses) == 0:
+        hypervisor_addresses = get_hypervisor_addresses(
+            network=network, protocol=protocol
+        )
+
+    for address in hypervisor_addresses:
+        hype = hypervisor_db_reader(
+            hypervisor_address=address, network=network, protocol=protocol
+        )
+        try:
+            # load all hype's user status
+            hype._process_operations()
+
+            # define blocks if not already ( 7 day )
+            if block == 0:
+                block = hype._get_closest_users_by_block(
+                    block=hype._get_block(
+                        timestamp=int(
+                            (datetime.utcnow() - timedelta(days=7)).timestamp()
+                        )
+                    )["block"],
+                    report_only=True,
+                )
+
+            # database hype status
+            hype_status = hype.result(block=block)
+
+            # compare with thegraph
+            compare_with_subgraph2(status=hype_status, network=network, dex=hype.dex)
+
+        except:
+            logging.getLogger(__name__).exception(
+                " Unexpected error comparing database data with thegraph"
+            )
+
+
+def compare_with_subgraph2(status: user_status, network: str, dex: str):
+
+    # when crossed, a side check text will appear in log
+    max_deviation = 0.0009
+
+    block = status.block
+
+    try:
+
+        graph_helper = gamma_scraper(
+            cache=False, cache_savePath="data/cache", convert=True
+        )
+
+        hype_graph = graph_helper.get_all_results(
+            network=network,
+            query_name=f"uniswapV3Hypervisors_{dex}",
+            block=""" number:{} """.format(block),
+            where=f""" id: "{status.account_address.lower()}" """,
+        )[0]
+
+        shares = status.shares_qtty
+        tvl0 = status.tvl_token0
+        tvl1 = status.tvl_token1
+        fees0 = status.fees_collected_token0 + status.divestment_fee_qtty_token0
+        fees1 = status.fees_collected_token1 + status.divestment_fee_qtty_token1
+
+        # comparison thegraph - web3
+        totalSupply_diff = Decimal(hype_graph["totalSupply"]) - shares
+        totalSupply_deviation = (
+            totalSupply_diff / Decimal(hype_graph["totalSupply"])
+            if Decimal(hype_graph["totalSupply"]) > 0
+            else 0
+        )
+
+        tvl0_diff = Decimal(hype_graph["tvl0"]) - tvl0
+        tvl0_deviation = (
+            tvl0_diff / Decimal(hype_graph["tvl0"])
+            if Decimal(hype_graph["tvl0"]) > 0
+            else 0
+        )
+        tvl1_diff = Decimal(hype_graph["tvl1"]) - tvl1
+        tvl1_deviation = (
+            tvl1_diff / Decimal(hype_graph["tvl1"])
+            if Decimal(hype_graph["tvl1"]) > 0
+            else 0
+        )
+
+        fees0_diff = Decimal(hype_graph["grossFeesClaimed0"]) - fees0
+        fees0_deviation = (
+            fees0_diff / Decimal(hype_graph["grossFeesClaimed0"])
+            if Decimal(hype_graph["grossFeesClaimed0"]) > 0
+            else 0
+        )
+        fees1_diff = Decimal(hype_graph["grossFeesClaimed1"]) - fees1
+        fees1_deviation = (
+            fees1_diff / Decimal(hype_graph["grossFeesClaimed1"])
+            if Decimal(hype_graph["grossFeesClaimed1"]) > 0
+            else 0
+        )
+
+        logging.getLogger(__name__).info(" ")
+        logging.getLogger(__name__).info(
+            f""" HYPERVISOR: {status.account_address} {hype_graph["symbol"]} """
+        )
+        logging.getLogger(__name__).info(
+            """         max. deviation is set to {:,.6%}""".format(max_deviation)
+        )
+        logging.getLogger(__name__).info(
+            """ THE GRAPH <-->  WEB3  ==  ( THEGRAPH - WEB3)  [deviation]"""
+        )
+        logging.getLogger(__name__).info(""" Total supply: """)
+        logging.getLogger(__name__).info(
+            """ {}  <--> {}   ==  {}  [{:,.2%}] {}""".format(
+                hype_graph["totalSupply"],
+                shares,
+                totalSupply_diff,
+                totalSupply_deviation,
+                "<--check " if abs(totalSupply_deviation) > max_deviation else "",
+            )
+        )
+        logging.getLogger(__name__).info(""" Total value locked: """)
+        logging.getLogger(__name__).info(
+            """ token 0:    {:,.2f}  <--> {:,.2f}  ==  {}  [{:,.2%}] {}""".format(
+                hype_graph["tvl0"],
+                tvl0,
+                tvl0_diff,
+                tvl0_deviation,
+                "<--check " if abs(tvl0_deviation) > max_deviation else "",
+            )
+        )
+        logging.getLogger(__name__).info(
+            """ token 1:    {:,.2f}  <--> {:,.2f}  ==  {}  [{:,.2%}] {}""".format(
+                hype_graph["tvl1"],
+                tvl1,
+                tvl1_diff,
+                tvl1_deviation,
+                "<--check " if abs(tvl1_deviation) > max_deviation else "",
+            )
+        )
+        logging.getLogger(__name__).info(""" Total fees: """)
+        logging.getLogger(__name__).info(
+            """ token 0:    {:,.2f}  <--> {:,.2f}  ==  {}  [{:,.2%}] {}""".format(
+                hype_graph["grossFeesClaimed0"],
+                fees0,
+                fees0_diff,
+                fees0_deviation,
+                "<--check " if abs(fees0_deviation) > max_deviation else "",
+            )
+        )
+        logging.getLogger(__name__).info(
+            """ token 1:    {:,.2f}  <--> {:,.2f}   ==  {}  [{:,.2%}] {}""".format(
+                hype_graph["grossFeesClaimed1"],
+                fees1,
+                fees1_diff,
+                fees1_deviation,
+                "<--check " if abs(fees1_deviation) > max_deviation else "",
+            )
+        )
+        # remainder
+        # logging.getLogger(__name__).info(" ")
+        # logging.getLogger(__name__).info(
+        #     """ remainder fees : 0: {}    1: {}  """.format(
+        #         global_data["fee0_remainder"], global_data["fee1_remainder"]
+        #     )
+        # )
+    except:
+        logging.getLogger(__name__).exception(
+            f" Unexpected error while comparing {status.account_address} result with subgraphs data.  --> err: {sys.exc_info()[0]}"
+        )
 
 
 # DECIMAL ####################################
@@ -3616,7 +3794,12 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.utcnow()
 
-    compare_web3_thegraph(decimal_meth=True)
+    # compare_web3_thegraph(decimal_meth=True)
+
+    network = "ethereum"
+    protocol = "gamma"
+    block = 0
+    compare(network=network, protocol=protocol, block=block)
 
     # end time log
     logging.getLogger(__name__).info(
