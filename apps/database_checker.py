@@ -196,11 +196,74 @@ def add_price_to_token(network: str, token_address: str, block: int, price: floa
         "network": network,
         "block": int(block),
         "address": token_address,
-        "price": float(price_usd),
+        "price": float(price),
         "origin": "manual",
     }
 
     global_db_manager.save_item_to_database(data=data, collection_name="usd_prices")
+
+
+def get_price(network: str, token_address: str, block: int) -> float:
+
+    price_helper = price_scraper(cache=False)
+
+    return price_helper.get_price(network=network, token_id=token_address, block=block)
+
+
+def auto_get_prices():
+
+    # set prices to get
+    address_block_list = {
+        # "ethereum": {
+        #     "0xf4dc48d260c93ad6a96c5ce563e70ca578987c74": [14982409],
+        #     "0x0642026e7f0b6ccac5925b4e7fa61384250e1701": [15171687],
+        #     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": [16701232],
+        #     "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9": [13047429],
+        #     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": [14953317, 12825206],
+        #     "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599": [12957386],
+        #     "0x77fba179c79de5b7653f68b5039af940ada60ce0": [12996888],
+        #     "0x7d1afa7b718fb893db30a3abc0cfc608aacfebb0": [12948766],
+        # },
+        # "polygon": {
+        #     "0xc2132d05d31c914a87c6611c10748aeb04b58e8f": [
+        #         39745459,
+        #         39745460,
+        #         39745491,
+        #         39745492,
+        #         39745534,
+        #         39745535,
+        #         39745541,
+        #         39745542,
+        #         39746053,
+        #         39746054,
+        #         39746062,
+        #         39746063,
+        #         39068569,
+        #         39423640,
+        #         39613083,
+        #         39616413,
+        #     ]
+        # }
+    }
+
+    # address_block_list[] = []
+
+    # loop query n save
+    for network, data in address_block_list.items():
+        for address, blocks in data.items():
+            for block in blocks:
+                price = get_price(network=network, token_address=address, block=block)
+                if price != 0:
+                    logging.getLogger(__name__).debug(
+                        f" Added price for {network}'s {address} at block {block}"
+                    )
+                    add_price_to_token(
+                        network=network, token_address=address, block=block, price=price
+                    )
+                else:
+                    logging.getLogger(__name__).debug(
+                        f" Could not add price for {network}'s {address} at block {block}"
+                    )
 
 
 # checks
@@ -357,6 +420,8 @@ if __name__ == "__main__":
     )
     # start time log
     _startime = datetime.utcnow()
+
+    auto_get_prices()
 
     # end time log
     # _timelapse = datetime.utcnow() - _startime
