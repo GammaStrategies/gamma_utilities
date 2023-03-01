@@ -858,11 +858,12 @@ def create_tokenBlocks_allTokens(protocol: str, network: str) -> set:
 
     result = set()
     for status in local_db_manager.get_items_from_database(collection_name="status"):
-        result.add(
-            "{}_{}_{}".format(
-                network, status["block"], status["pool"][f"token{i}"]["address"]
+        for i in [0, 1]:
+            result.add(
+                "{}_{}_{}".format(
+                    network, status["block"], status["pool"][f"token{i}"]["address"]
+                )
             )
-        )
 
     return result
 
