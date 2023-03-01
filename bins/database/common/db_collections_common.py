@@ -630,7 +630,7 @@ class database_local(db_collections_common):
         return self.get_items_from_database(
             collection_name=collection,
             aggregate=self.query_max(field=field),
-        )[0]
+        )
 
     @staticmethod
     def query_unique_addressBlocks() -> list[dict]:
