@@ -433,15 +433,6 @@ def get_failed_prices_from_log(log_file: str) -> dict:
 
 def main(option: str, **kwargs):
 
-    price = 0.1
-    for block in [13856873, 13856900, 13864770, 13856874, 13856901, 13864769]:
-        add_price_to_token(
-            network="ethereum",
-            token_address="0xb41f289d699c5e79a51cb29595c203cfae85f32a",
-            block=block,
-            price=price,
-        )
-
     if option == "prices":
         check_prices()
     else:
