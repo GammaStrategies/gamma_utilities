@@ -44,7 +44,7 @@ def check_prices():
             if "debug" in x.name
         ][0]
         # read both files in seach for price err
-        for log_file in [price_log_file, debug_log_file]:
+        for log_file in [debug_log_file, price_log_file]:
             network_token_blocks = get_failed_prices_from_log(log_file=log_file)
             for network, addresses in network_token_blocks.items():
                 for address, blocks in addresses.items():
@@ -258,7 +258,7 @@ def auto_get_prices():
         # }
     }
 
-    # address_block_list[] = []
+    # address_block_list["ethereum"] = {"0xb41f289d699c5e79a51cb29595c203cfae85f32a":[13856873,13856900,13864770,13856874,13856901,13864769]}
 
     # loop query n save
     for network, data in address_block_list.items():
@@ -393,6 +393,7 @@ def get_failed_prices_from_log(log_file: str) -> dict:
     """
     pricelog_regx = "\-\s\s(?P<network>.*)'s\stoken\s(?P<address>.*)\sprice\sat\sblock\s(?P<block>\d*)\snot\sfound"
     debug_regx = "No\sprice\sfor\s(?P<address>.*)\sat\sblock\s(?P<block>\d*).*\[(?P<network>.*)\s(?P<dex>.*)\]"
+    debug_regx2 = "No\sprice\sfor\s(?P<network>.*)'s\s(?P<symbol>.*)\s\((?P<address>.*)\).*at\sblock\s(?P<block>\d*)"
     # groups->  network, symbol, address, block
 
     # load file
@@ -403,7 +404,7 @@ def get_failed_prices_from_log(log_file: str) -> dict:
     # set a var
     network_token_blocks = dict()
 
-    for regx_txt in [pricelog_regx, debug_regx]:
+    for regx_txt in [debug_regx, pricelog_regx, debug_regx2]:
 
         # search pattern
         matches = re.finditer(regx_txt, log_file_content)
@@ -415,13 +416,13 @@ def get_failed_prices_from_log(log_file: str) -> dict:
                 block = match.group("block")
 
                 # network
-                if not network in network_token_blocks.keys():
+                if not network in network_token_blocks:
                     network_token_blocks[network] = dict()
                 # address
-                if not address in network_token_blocks[network].keys():
+                if not address in network_token_blocks[network]:
                     network_token_blocks[network][address] = dict()
                 # block
-                if not block in network_token_blocks[network][address].keys():
+                if not block in network_token_blocks[network][address]:
                     network_token_blocks[network][address][block] = 0
 
                 # counter ( times encountered)
@@ -431,6 +432,15 @@ def get_failed_prices_from_log(log_file: str) -> dict:
 
 
 def main(option: str, **kwargs):
+
+    price = 0.1
+    for block in [13856873, 13856900, 13864770, 13856874, 13856901, 13864769]:
+        add_price_to_token(
+            network="ethereum",
+            token_address="0xb41f289d699c5e79a51cb29595c203cfae85f32a",
+            block=block,
+            price=price,
+        )
 
     if option == "prices":
         check_prices()

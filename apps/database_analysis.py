@@ -544,7 +544,9 @@ class hypervisor_db_reader:
                 total_block_status.usd_price_token1 = operations[-1].usd_price_token1
                 total_block_status.timestamp = operations[-1].timestamp
                 total_block_status.secPassed = operations[-1].secPassed
-                total_block_status.secPassed = operations[-1].fees_uncollected_secPassed
+                total_block_status.fees_uncollected_secPassed = operations[
+                    -1
+                ].fees_uncollected_secPassed
 
             # sum user last operation
             total_block_status.sum_status(status=operations[-1])
@@ -562,7 +564,8 @@ class hypervisor_db_reader:
         Returns:
             list[user_status]: of hypervisor status at blocks
         """
-
+        if b_end == 0:
+            b_end = sys.maxsize
         result = list()
         for block, addresses_data in self._users_by_block.items():
             if block >= b_ini and block <= b_end and block in self._report_blocks:
@@ -2054,15 +2057,23 @@ def print_status(status: user_status, symbol: str = "", network: str = ""):
     logging.getLogger(__name__).info(
         "\t   total in token0:\t {:,.2f}   [at usdprice: {:,.2f}]".format(
             status.total_investment_qtty_in_token0,
-            status.total_investment_qtty_in_usd
-            / status.total_investment_qtty_in_token0,
+            (
+                status.total_investment_qtty_in_usd
+                / status.total_investment_qtty_in_token0
+            )
+            if status.total_investment_qtty_in_token0 > 0
+            else 0,
         )
     )
     logging.getLogger(__name__).info(
         "\t   total in token1:\t {:,.2f}   [at usdprice: {:,.2f}]".format(
             status.total_investment_qtty_in_token1,
-            status.total_investment_qtty_in_usd
-            / status.total_investment_qtty_in_token1,
+            (
+                status.total_investment_qtty_in_usd
+                / status.total_investment_qtty_in_token1
+            )
+            if status.total_investment_qtty_in_token1 > 0
+            else 0,
         )
     )
 
@@ -2110,26 +2121,29 @@ def print_status(status: user_status, symbol: str = "", network: str = ""):
     logging.getLogger(__name__).info("\tRelative situation:  ( all in USD )")
 
     # collected + owed + divested / total seconds  +  uncollected / uncollected seconds
-    anual_fees = (
+    second_fees_collected = (
         (
             (
-                (
-                    status.total_fees_collected_in_usd
-                    + status.total_fees_owed_in_usd
-                    + status.total_divestment_fee_qtty_in_usd
-                )
-                / status.secPassed
+                status.total_fees_collected_in_usd
+                + status.total_fees_owed_in_usd
+                + status.total_divestment_fee_qtty_in_usd
             )
-            if status.secPassed
-            else 0
+            / status.secPassed
         )
-        + (status.total_fees_uncollected_in_usd / status.fees_uncollected_secPassed)
+        if status.secPassed
+        else 0
+    )
+    second_fees_uncollected = (
+        (status.total_fees_uncollected_in_usd / status.fees_uncollected_secPassed)
         if status.fees_uncollected_secPassed
         else 0
-    ) * (60 * 60 * 24 * 365)
+    )
+    anual_fees = (second_fees_collected + second_fees_uncollected) * (
+        60 * 60 * 24 * 365
+    )
 
     anual_roi = (
-        (status.total_current_result_in_usd) / status.secPassed
+        (status.total_current_result_in_usd / status.secPassed)
         if status.secPassed
         else 0
     ) * (60 * 60 * 24 * 365)
@@ -2289,8 +2303,7 @@ def get_hypervisor_addresses(network: str, protocol: str) -> list[str]:
     return result
 
 
-def test():
-    network = "ethereum"
+def test(network: str):
     protocol = "gamma"
 
     b_ini = 0
@@ -2320,21 +2333,22 @@ def test():
             # print_status(usr_status_list[-1])
 
             # print Total Hypervisor results
-            if b_ini == 0:
-                b_ini = hype._get_block(
-                    timestamp=int((datetime.utcnow() - timedelta(days=35)).timestamp())
-                )
-                b_end = hype._get_block(
-                    timestamp=int((datetime.utcnow() - timedelta(days=15)).timestamp())
-                )
+            # if b_ini == 0:
+            #     b_ini = hype._get_block(
+            #         timestamp=int((datetime.utcnow() - timedelta(days=35)).timestamp())
+            #     )
+            #     b_end = hype._get_block(
+            #         timestamp=int((datetime.utcnow() - timedelta(days=15)).timestamp())
+            #     )
 
-            hype_status_list = hype.result_list(
-                b_ini=b_ini["block"], b_end=b_end["block"]
-            )
+            # hype_status_list = hype.result_list(
+            #     b_ini=b_ini["block"], b_end=b_end["block"]
+            # )
+            hype_status_list = hype.result_list()
 
             user_status_to_csv(
                 status_list=hype_status_list,
-                folder=PARENT_FOLDER + "/tests",
+                folder="tests",
                 network=network,
                 symbol=hype.symbol,
             )
@@ -2371,6 +2385,11 @@ def memory_test():
     pdb.set_trace()
 
 
+def main(option: str, **kwargs):
+
+    test(network=option)
+
+
 # START ####################################################################################################################
 if __name__ == "__main__":
     os.chdir(PARENT_FOLDER)
@@ -2384,7 +2403,7 @@ if __name__ == "__main__":
     _startime = datetime.utcnow()
 
     # profile_test()
-    test()
+    test("ethereum")
 
     # end time log
     _timelapse = datetime.utcnow() - _startime

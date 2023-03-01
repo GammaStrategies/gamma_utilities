@@ -42,6 +42,13 @@ def parse_commandLine_args():
         help=" execute checks ",
     )
 
+    # analysis
+    par_analysis = exGroup.add_argument(
+        "--analysis",
+        choices=["ethereum", "optimism", "polygon", "arbitrum"],
+        help=" execute analysis ",
+    )
+
     # debug
     par_main.add_argument(
         "--debug",
