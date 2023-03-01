@@ -2359,30 +2359,28 @@ def test(network: str):
             logging.getLogger(__name__).exception(" yeeep ")
 
 
-from guppy import hpy
+# from guppy import hpy
+# def memory_test():
+#     network = "polygon"
+#     protocol = "gamma"
+#     address = "0x02203f2351e7ac6ab5051205172d3f772db7d814".lower()
+#     hp = hpy()
 
+#     before = hp.heap()
 
-def memory_test():
-    network = "polygon"
-    protocol = "gamma"
-    address = "0x02203f2351e7ac6ab5051205172d3f772db7d814".lower()
-    hp = hpy()
+#     hype = hypervisor_db_reader(
+#         hypervisor_address=address, network=network, protocol=protocol
+#     )
 
-    before = hp.heap()
+#     hype._process_operations()
 
-    hype = hypervisor_db_reader(
-        hypervisor_address=address, network=network, protocol=protocol
-    )
+#     after = hp.heap()
 
-    hype._process_operations()
+#     leftover = after - before
 
-    after = hp.heap()
+#     import pdb
 
-    leftover = after - before
-
-    import pdb
-
-    pdb.set_trace()
+#     pdb.set_trace()
 
 
 def main(option: str, **kwargs):
