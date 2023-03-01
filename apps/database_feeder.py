@@ -494,7 +494,7 @@ def feed_hypervisor_status(
     try:
         if datetime.utcnow().timestamp() - local_db.get_max_field(
             collection="status", field="timestamp"
-        )[0] > (60 * 20):
+        )[0]["max"] > (60 * 20):
 
             latest_block = (
                 erc20_cached(
