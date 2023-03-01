@@ -38,7 +38,11 @@ def check_prices():
     try:
         # load log files
         price_log_file = logging.getLogger("price").handlers[0].baseFilename
-        debug_log_file = logging.getLogger("debug").handlers[0].baseFilename
+        debug_log_file = [
+            x.baseFilename
+            for x in logging.getLoggerClass().root.handlers
+            if "debug" in x.name
+        ][0]
         # read both files in seach for price err
         for log_file in [price_log_file, debug_log_file]:
             network_token_blocks = get_failed_prices_from_log(log_file=log_file)
