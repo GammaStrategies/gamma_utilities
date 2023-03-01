@@ -618,6 +618,20 @@ class database_local(db_collections_common):
             aggregate=self.query_status_mostUsed_token1(limit=limit),
         )
 
+    def get_max_field(self, collection: str, field: str) -> list:
+        """get the maximum field present in db
+        Args:
+            collection (str): _description_
+            field (str): _description_
+
+        Returns:
+            list: of { "max": <value>}
+        """
+        return self.get_items_from_database(
+            collection_name=collection,
+            aggregate=self.query_max(field=field),
+        )[0]
+
     @staticmethod
     def query_unique_addressBlocks() -> list[dict]:
         """retriev
@@ -733,6 +747,18 @@ class database_local(db_collections_common):
                 "$project": {
                     "token": "$_id.token1",
                     "symbol": "$symbol",
+                }
+            },
+            {"$unset": ["_id"]},
+        ]
+
+    @staticmethod
+    def query_max(field: str) -> list[dict]:
+        return [
+            {
+                "$group": {
+                    "_id": "id",
+                    "max": {"$max": f"${field}"},
                 }
             },
             {"$unset": ["_id"]},
