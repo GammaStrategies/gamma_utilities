@@ -151,28 +151,39 @@ def add_timestamps_to_status(network: str, protocol: str = "gamma"):
                 progress_bar.update(1)
 
 
-def add_manual_prices():
-    network = "polygon"
+def check_prices():
 
-    address = "0xc2132d05d31c914a87c6611c10748aeb04b58e8f"  # USDT
-    blocks = [
-        39745459,
-        39745460,
-        39745491,
-        39745492,
-        39745534,
-        39745535,
-        39745541,
-        39745542,
-        39746053,
-        39746054,
-        39746062,
-        39746063,
-        39068569,
-        39423640,
-        39613083,
-        39616413,
-    ]
+    try:
+        # load log file
+        log_file = logging.getLogger("price").handlers[0].baseFilename
+        network_token_blocks = get_failed_prices_from_log(log_file=log_file)
+        for network, addresses in network_token_blocks.items():
+            for address, blocks in addresses.items():
+                for block, counter in blocks.items():
+                    # block is string
+                    block = int(block)
+                    # counter = number of times found in logs
+                    price = get_price(
+                        network=network, token_address=address, block=block
+                    )
+                    if price != 0:
+                        logging.getLogger(__name__).debug(
+                            f" Added price for {network}'s {address} at block {block}"
+                        )
+                        add_price_to_token(
+                            network=network,
+                            token_address=address,
+                            block=block,
+                            price=price,
+                        )
+                    else:
+                        logging.getLogger(__name__).debug(
+                            f" Could not find price for {network}'s {address} at block {block}"
+                        )
+    except:
+        logging.getLogger(__name__).exception(
+            " unexpected error checking prices from log"
+        )
 
 
 # helpers
@@ -379,8 +390,8 @@ def get_failed_prices_from_log(log_file: str) -> dict:
     Return: {  <network>: {<address>: {<block>:<counter>}}}
 
     """
-
-    regx_txt = "No\sprice\sfor\s(.*)'s\s(.*)\s\((.*)\)(?:.*block)\s(\d*)"
+    pricelog_regx = "\-\s\s(?P<network>.*)'s\stoken\s(?P<address>.*)\sprice\sat\sblock\s(?P<block>\d*)\snot\sfound"
+    debug_regx = "No\sprice\sfor\s(?P<address>.*)\sat\sblock\s(?P<block>\d*).*\[(?P<network>.*)\s(?P<dex>.*)\]"
     # groups->  network, symbol, address, block
 
     # load file
@@ -388,25 +399,44 @@ def get_failed_prices_from_log(log_file: str) -> dict:
     with open(log_file, encoding="utf8") as f:
         log_file_content = f.read()
 
-    # search pattern
-    results = re.search(regx_txt, log_file_content)
     # set a var
     network_token_blocks = dict()
-    for result in results:
-        # network
-        if not result[0] in network_token_blocks.keys():
-            network_token_blocks[result[0]] = dict()
-        # address
-        if not result[2] in network_token_blocks[result[0]].keys():
-            network_token_blocks[result[0]][result[2]] = dict()
-        # block
-        if not result[3] in network_token_blocks[result[0]][result[2]].keys():
-            network_token_blocks[result[0]][result[2]][result[3]] = 0
 
-        # counter ( times encountered)
-        network_token_blocks[result[0]][result[2]][result[3]] += 1
+    for regx_txt in [pricelog_regx, debug_regx]:
+
+        # search pattern
+        matches = re.finditer(regx_txt, log_file_content)
+
+        if matches:
+            for match in matches:
+                network = match.group("network")
+                address = match.group("address")
+                block = match.group("block")
+
+                # network
+                if not network in network_token_blocks.keys():
+                    network_token_blocks[network] = dict()
+                # address
+                if not address in network_token_blocks[network].keys():
+                    network_token_blocks[network][address] = dict()
+                # block
+                if not block in network_token_blocks[network][address].keys():
+                    network_token_blocks[network][address][block] = 0
+
+                # counter ( times encountered)
+                network_token_blocks[network][address][block] += 1
 
     return network_token_blocks
+
+
+def main(option: str, **kwargs):
+
+    if option == "prices":
+        check_prices()
+    else:
+        raise NotImplementedError(
+            f" Can't find any action to be taken from {option} checks option"
+        )
 
 
 # START ####################################################################################################################
@@ -421,6 +451,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.utcnow()
 
+    check_prices()
     auto_get_prices()
 
     # end time log

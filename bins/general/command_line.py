@@ -35,6 +35,13 @@ def parse_commandLine_args():
         help=" infinite loop service for the specified network using the Gamma protocol",
     )
 
+    # checks
+    par_check = exGroup.add_argument(
+        "--check",
+        choices=["prices"],
+        help=" execute checks ",
+    )
+
     # debug
     par_main.add_argument(
         "--debug",

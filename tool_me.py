@@ -9,7 +9,7 @@ os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 from bins.configuration import CONFIGURATION
 from bins.general.general_utilities import log_time_passed
-from apps import database_feeder, database_feeder_service
+from apps import database_feeder, database_feeder_service, database_checker
 
 
 # START ####################################################################################################################
@@ -36,12 +36,17 @@ if __name__ == "__main__":
             option=CONFIGURATION["_custom_"]["cml_parameters"].service
         )
     elif CONFIGURATION["_custom_"]["cml_parameters"].service_network:
+        # service loop specific
         database_feeder_service.main(
             option="network",
             network=CONFIGURATION["_custom_"]["cml_parameters"].service_network,
             protocol="gamma",
         )
+    elif CONFIGURATION["_custom_"]["cml_parameters"].check:
+        # checks
+        database_checker.main(option=CONFIGURATION["_custom_"]["cml_parameters"].check)
     else:
+        # nothin todo
         logging.getLogger(__name__).info(" Nothing to do. How u doin? ")
 
     logging.getLogger(__name__).info(
