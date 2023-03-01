@@ -1,4 +1,5 @@
 import sys
+import os
 
 from bins.general.general_utilities import (
     convert_commandline_arguments,
@@ -24,13 +25,20 @@ CONFIGURATION = (
 # check configuration
 check_configuration_file(CONFIGURATION)
 
-# setup logging
-log_helper.setup_logging(customconf=CONFIGURATION)
-
 # add cml_parameters into loaded config ( this is used later on to load again the config file to be able to update on-the-fly vars)
 if not "_custom_" in CONFIGURATION.keys():
     CONFIGURATION["_custom_"] = dict()
 CONFIGURATION["_custom_"]["cml_parameters"] = cml_parameters
+
+# add log subfolder if set
+if CONFIGURATION["_custom_"]["cml_parameters"].log_subfolder:
+    CONFIGURATION["logs"]["save_path"] = os.path.join(
+        CONFIGURATION["logs"]["save_path"],
+        CONFIGURATION["_custom_"]["cml_parameters"].log_subfolder,
+    )
+
+# setup logging
+log_helper.setup_logging(customconf=CONFIGURATION)
 
 
 #### ADD STATIC CONFIG HERE ####

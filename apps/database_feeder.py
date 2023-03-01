@@ -8,13 +8,6 @@ from datetime import date
 from pathlib import Path
 from web3.exceptions import ContractLogicError
 
-if __name__ == "__main__":
-    # append parent directory pth
-    CURRENT_FOLDER = os.path.dirname(os.path.realpath(__file__))
-    PARENT_FOLDER = os.path.dirname(CURRENT_FOLDER)
-    sys.path.append(PARENT_FOLDER)
-
-
 from bins.configuration import CONFIGURATION, HYPERVISOR_REGISTRIES
 from bins.general.general_utilities import (
     convert_string_datetime,
@@ -1261,29 +1254,3 @@ def main(option="operations"):
                         protocol=protocol, network=network
                     ),
                 )
-
-
-# START ####################################################################################################################
-if __name__ == "__main__":
-    os.chdir(PARENT_FOLDER)
-
-    ##### main ######
-    __module_name = Path(os.path.abspath(__file__)).stem
-    logging.getLogger(__name__).info(
-        " Start {}   ----------------------> ".format(__module_name)
-    )
-    # start time log
-    _startime = datetime.utcnow()
-
-    main("static")
-
-    # end time log
-    # _timelapse = datetime.utcnow() - _startime
-    logging.getLogger(__name__).info(
-        " took {} to complete".format(
-            log_time_passed.get_timepassed_string(start_time=_startime)
-        )
-    )
-    logging.getLogger(__name__).info(
-        " Exit {}    <----------------------".format(__module_name)
-    )

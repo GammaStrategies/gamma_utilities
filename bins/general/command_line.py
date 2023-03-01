@@ -7,10 +7,13 @@ def parse_commandLine_args():
     par_main = argparse.ArgumentParser(
         prog="tool_me.py", description=" Gamma tools ", epilog=""
     )
-    # parser.add_argument("square", type=int,
-    #                     help="display a square of a given number")
+
     par_main.add_argument(
         "-c", "--config", type=str, help="load custom configuration .yaml file"
+    )
+
+    par_main.add_argument(
+        "--log_subfolder", type=str, help="specify a subfolder log name to save logs to"
     )
 
     # exclusive group
