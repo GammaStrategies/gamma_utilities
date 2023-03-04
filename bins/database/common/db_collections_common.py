@@ -1,8 +1,9 @@
 import logging
+import sys
 from dataclasses import dataclass, field, asdict, InitVar
 
-from bson.decimal128 import Decimal128
-from decimal import Decimal
+from bson.decimal128 import Decimal128, create_decimal128_context
+from decimal import Decimal, localcontext
 from datetime import datetime
 
 from bins.database.common.db_managers import MongoDbManager
@@ -149,7 +150,9 @@ class db_collections_common:
                 for l in v:
                     MongoDbManager.convert_decimal_to_d128(l)
             elif isinstance(v, Decimal):
-                item[k] = Decimal128(str(v))
+                decimal128_ctx = create_decimal128_context()
+                with localcontext(decimal128_ctx) as ctx:
+                    item[k] = Decimal128(ctx.create_decimal(str(v)))
 
         return item
 
@@ -254,7 +257,7 @@ class database_global(db_collections_common):
         network: str,
         block: int,
         address: str,
-    ) -> dict:
+    ) -> list[dict]:
         """get usd price from block
 
         Args:
@@ -263,7 +266,7 @@ class database_global(db_collections_common):
             address (str): token address
 
         Returns:
-            dict: price dict obj
+            list[dict]: list of price dict obj
         """
         return self.get_items_from_database(
             collection_name="usd_prices",
@@ -443,6 +446,15 @@ class database_local(db_collections_common):
                 supply: 0,  # total Suply
 
                 }
+
+    "user_status":
+        item-> {id: <wallet_address>_<block_number>
+                network:
+                block:
+                address:  <wallet_address>
+                ...
+
+                }
     """
 
     def __init__(
@@ -453,48 +465,47 @@ class database_local(db_collections_common):
             "static": {"id": True},
             "operations": {"id": True},
             "status": {"id": True},
+            "user_status": {"id": True},
         },
     ):
         super().__init__(
             mongo_url=mongo_url, db_name=db_name, db_collections=db_collections
         )
 
-    def get_items(self, collection_name: str, **kwargs) -> list:
-        """Any
+    # static
 
-        Returns:
-            list: of results
-        """
-        return self.get_items_from_database(collection_name=collection_name, **kwargs)
-
-    # specific collection related
     def set_static(self, data: dict):
         data["id"] = data["address"]
         self.save_item_to_database(data=data, collection_name="static")
 
-    def set_operation(self, data: dict):
-        self.replace_item_to_database(data=data, collection_name="operations")
-
-    def set_status(self, data: dict):
-        # define database id
-        data["id"] = f"{data['address']}_{data['block']}"
-        self.save_item_to_database(data=data, collection_name="status")
-
-    def get_all_status(self, hypervisor_address: str) -> list:
-        """find all hypervisor status from db
-            sort by lowest block first
-
-        Args:
-            hypervisor_address (str): address
+    def get_unique_tokens(self) -> list:
+        """Get a unique token list from static database
 
         Returns:
-            list: hypervisor status list
+            list:
         """
-        find = {"address": hypervisor_address}
-        sort = [("block", 1)]
         return self.get_items_from_database(
-            collection_name="status", find=find, sort=sort
+            collection_name="static", aggregate=self.query_unique_token_addresses()
         )
+
+    def get_mostUsed_tokens1(self, limit: int = 5) -> list:
+        """Return the addresses of the top used tokens1, present in static database
+
+        Args:
+            limit (int, optional): . Defaults to 5.
+
+        Returns:
+            list: of {"token":<address>}
+        """
+        return self.get_items_from_database(
+            collection_name="static",
+            aggregate=self.query_status_mostUsed_token1(limit=limit),
+        )
+
+    # operation
+
+    def set_operation(self, data: dict):
+        self.replace_item_to_database(data=data, collection_name="operations")
 
     def get_all_operations(self, hypervisor_address: str) -> list:
         """find all hypervisor operations from db
@@ -527,21 +538,6 @@ class database_local(db_collections_common):
             ),
         )
 
-    def get_hype_status_btwn_blocks(
-        self,
-        hypervisor_address: str,
-        block_ini: int,
-        block_end: int,
-    ) -> list:
-        return self.query_items_from_database(
-            collection_name="status",
-            query=self.query_status_btwn_blocks(
-                hypervisor_address=hypervisor_address,
-                block_ini=block_ini,
-                block_end=block_end,
-            ),
-        )
-
     def get_unique_operations_addressBlock(self) -> list:
         """Retrieve a list of unique blocks + hypervisor addresses present in operations collection
 
@@ -569,6 +565,44 @@ class database_local(db_collections_common):
             collection_name="operations", aggregate=query
         )
 
+    # status
+
+    def set_status(self, data: dict):
+        # define database id
+        data["id"] = f"{data['address']}_{data['block']}"
+        self.save_item_to_database(data=data, collection_name="status")
+
+    def get_all_status(self, hypervisor_address: str) -> list:
+        """find all hypervisor status from db
+            sort by lowest block first
+
+        Args:
+            hypervisor_address (str): address
+
+        Returns:
+            list: hypervisor status list
+        """
+        find = {"address": hypervisor_address}
+        sort = [("block", 1)]
+        return self.get_items_from_database(
+            collection_name="status", find=find, sort=sort
+        )
+
+    def get_hype_status_btwn_blocks(
+        self,
+        hypervisor_address: str,
+        block_ini: int,
+        block_end: int,
+    ) -> list:
+        return self.query_items_from_database(
+            collection_name="status",
+            query=self.query_status_btwn_blocks(
+                hypervisor_address=hypervisor_address,
+                block_ini=block_ini,
+                block_end=block_end,
+            ),
+        )
+
     def get_unique_status_addressBlock(self) -> list:
         """Retrieve a list of unique blocks + hypervisor addresses present in status collection
 
@@ -594,29 +628,45 @@ class database_local(db_collections_common):
         ]
         return self.get_items_from_database(collection_name="status", aggregate=query)
 
-    def get_unique_tokens(self) -> list:
-        """Get a unique token list from static database
+    # user status
 
-        Returns:
-            list:
+    def set_user_status(self, data: dict):
         """
-        return self.get_items_from_database(
-            collection_name="static", aggregate=self.query_unique_token_addresses()
-        )
-
-    def get_mostUsed_tokens1(self, limit: int = 5) -> list:
-        """Return the addresses of the top used tokens1, present in static database
 
         Args:
-            limit (int, optional): . Defaults to 5.
+            data (dict):
+        """
+        # define database id
+        data[
+            "id"
+        ] = f"{data['address']}_{data['block']}_{data['logIndex']}_{data['hypervisor_address']}"
+
+        # convert decimal to bson compatible and save
+        self.replace_item_to_database(data=data, collection_name="user_status")
+
+    def get_user_status(
+        self, address: str, block_ini: int = 0, block_end: int = 0
+    ) -> list:
+
+        # convert bson to Decimal
+        find = {"address": address}
+        sort = [("block", 1)]
+        return [
+            self.convert_d128_to_decimal(item=item)
+            for item in self.get_items_from_database(
+                collection_name="user_status", find=find, sort=sort
+            )
+        ]
+
+    # all
+
+    def get_items(self, collection_name: str, **kwargs) -> list:
+        """Any
 
         Returns:
-            list: of {"token":<address>}
+            list: of results
         """
-        return self.get_items_from_database(
-            collection_name="static",
-            aggregate=self.query_status_mostUsed_token1(limit=limit),
-        )
+        return self.get_items_from_database(collection_name=collection_name, **kwargs)
 
     def get_max_field(self, collection: str, field: str) -> list:
         """get the maximum field present in db
@@ -631,6 +681,8 @@ class database_local(db_collections_common):
             collection_name=collection,
             aggregate=self.query_max(field=field),
         )
+
+    # queries
 
     @staticmethod
     def query_unique_addressBlocks() -> list[dict]:

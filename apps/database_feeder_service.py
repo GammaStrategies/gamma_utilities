@@ -88,6 +88,8 @@ def price_sequence_loop(protocol: str, network: str):
 # services
 def local_db_service():
     """feed all local database collections in an infinite loop"""
+    # send eveyone service ON
+    logging.getLogger("telegram").info(" Local database feeding loop started")
     try:
         while True:
             for protocol in CONFIGURATION["script"]["protocols"].keys():
@@ -108,6 +110,9 @@ def local_db_service():
 
 def global_db_service():
     """feed global database collections in an infinite loop"""
+
+    # send eveyone service ON
+    logging.getLogger("telegram").info(" Global database feeding loop started")
     try:
         while True:
             for protocol in CONFIGURATION["script"]["protocols"].keys():
