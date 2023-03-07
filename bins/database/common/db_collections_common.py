@@ -145,10 +145,10 @@ class db_collections_common:
 
         for k, v in list(item.items()):
             if isinstance(v, dict):
-                MongoDbManager.convert_decimal_to_d128(v)
+                db_collections_common.convert_decimal_to_d128(v)
             elif isinstance(v, list):
                 for l in v:
-                    MongoDbManager.convert_decimal_to_d128(l)
+                    db_collections_common.convert_decimal_to_d128(l)
             elif isinstance(v, Decimal):
                 decimal128_ctx = create_decimal128_context()
                 with localcontext(decimal128_ctx) as ctx:
@@ -173,10 +173,10 @@ class db_collections_common:
 
         for k, v in list(item.items()):
             if isinstance(v, dict):
-                MongoDbManager.convert_d128_to_decimal(v)
+                db_collections_common.convert_d128_to_decimal(v)
             elif isinstance(v, list):
                 for l in v:
-                    MongoDbManager.convert_d128_to_decimal(l)
+                    db_collections_common.convert_d128_to_decimal(l)
             elif isinstance(v, Decimal128):
                 item[k] = v.to_decimal()
 
