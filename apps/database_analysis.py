@@ -1956,11 +1956,18 @@ def print_status(status: user_status, symbol: str = "", network: str = ""):
     logging.getLogger(__name__).info("")
 
 
-def user_status_to_csv(status_list: list, folder: str, network: str, symbol: str):
+def user_status_to_csv(status_list: list[dict], folder: str, network: str, symbol: str):
+    """save data to csv file
 
-    result = list()
-    for r in status_list:
-        result.append(convert_to_dict(status=r))
+    Args:
+        status_list (list[dict]): list of user status converted to dict
+        folder (str): where to save
+        network (str):
+        symbol (str): hypervisor symbol
+    """
+    # result = list()
+    # for r in status_list:
+    #     result.append(convert_to_dict(status=r))
 
     csv_columns = [
         "address",
@@ -1999,7 +2006,9 @@ def user_status_to_csv(status_list: list, folder: str, network: str, symbol: str
         "impermanent_lp_vs_hodl_token0",
         "impermanent_lp_vs_hodl_token1",
     ]
-    csv_columns.extend([x for x in list(result[-1].keys()) if x not in csv_columns])
+    csv_columns.extend(
+        [x for x in list(status_list[-1].keys()) if x not in csv_columns]
+    )
     # topic
     # closed_investment_return_token0	closed_investment_return_token1	current_result_token0		divestment_base_qtty_token0	divestment_base_qtty_token1	divestment_fee_qtty_token0	divestment_fee_qtty_token1							total_closed_investment_return_in_token0	total_closed_investment_return_in_token1	total_closed_investment_return_in_usd	total_current_result_in_token0	total_current_result_in_token1		total_divestment_base_qtty_in_token0	total_divestment_base_qtty_in_token1	total_divestment_base_qtty_in_usd	otal_divestment_fee_qtty_in_usd		impermanent_lp_vs_hodl_usd		total_underlying_in_token0	total_underlying_in_token1
 
@@ -2007,9 +2016,9 @@ def user_status_to_csv(status_list: list, folder: str, network: str, symbol: str
     csv_filename = "{}_{}_{}_from_{}_{}.csv".format(
         network,
         symbol,
-        result[-1]["address"],
-        result[0]["block"],
-        result[-1]["block"],
+        status_list[-1]["address"],
+        status_list[0]["block"],
+        status_list[-1]["block"],
     )
     csv_filename = os.path.join(folder, csv_filename)
 
@@ -2020,7 +2029,7 @@ def user_status_to_csv(status_list: list, folder: str, network: str, symbol: str
         pass
 
     # save result to csv file
-    file_utilities.SaveCSV(filename=csv_filename, columns=csv_columns, rows=result)
+    file_utilities.SaveCSV(filename=csv_filename, columns=csv_columns, rows=status_list)
 
 
 def get_hypervisor_addresses(network: str, protocol: str) -> list[str]:
@@ -2130,30 +2139,73 @@ def test_new(network: str):
             f" --->  Starting analysis for {network}'s {address}"
         )
 
+        hype_new = user_status_hypervisor_builder(
+            hypervisor_address=address, network=network, protocol=protocol
+        )
+        hype_status_list = list()
+        try:
+
+            hype_new._process_operations()
+
+            hype_status_list = hype_new.result_list()
+
+            user_status_to_csv(
+                status_list=[
+                    hype_new.convert_user_status_to_dict(r) for r in hype_status_list
+                ],
+                folder="tests",
+                network=network,
+                symbol=hype_new.symbol,
+            )
+
+            print_status(
+                hype_status_list[-1], symbol=hype_new.symbol, network=hype_new.network
+            )
+        except:
+            logging.getLogger(__name__).exception(" yeeep ")
+
+        try:
+            fees_direct = get_fees(
+                network=network,
+                hype_address=address,
+                max_block=hype_status_list[-1].block,
+            )
+            fees_collected_usd = (
+                hype_status_list[-1].usd_price_token0 * fees_direct["qtty_token0"]
+                + hype_status_list[-1].usd_price_token1 * fees_direct["qtty_token1"]
+            )
+
+            comparable_info = hype_status_list[-1]._get_comparable()
+
+            if fees_direct["qtty_token0"] - comparable_info[
+                "fees_collected_token0"
+            ] != Decimal("0"):
+                logging.getLogger(__name__).error(
+                    " Total collected fees 0 do not match with database data -> {} vs {}".format(
+                        comparable_info["fees_collected_token0"],
+                        fees_direct["qtty_token0"],
+                    )
+                )
+            if fees_direct["qtty_token1"] - comparable_info[
+                "fees_collected_token1"
+            ] != Decimal("0"):
+                logging.getLogger(__name__).error(
+                    " Total collected fees 1 do not match with database data -> {} vs {}".format(
+                        comparable_info["fees_collected_token1"],
+                        fees_direct["qtty_token1"],
+                    )
+                )
+        except:
+            pass
+
+        # OLD TEMA
+
         # hype_old = hypervisor_db_reader(
         #     hypervisor_address=address, network=network, protocol=protocol
         # )
         # try:
         #     hype_old._process_operations()
-        # except:
-        #     pass
-
-        hype_new = user_status_hypervisor_builder(
-            hypervisor_address=address, network=network, protocol=protocol
-        )
-
-        # try:
-        #     hype_status_list_new = hype_new.result_list()
-        #     print_status(
-        #         hype_status_list_new[-1],
-        #         symbol=hype_new.symbol,
-        #         network=hype_new.network,
-        #     )
-
-        #     hype_status_old_atBlock = hype_old.result(
-        #         block=hype_status_list_new[-1].block
-        #     )
-        #     # hype_status_list_old = hype_old.result_list()
+        #     hype_status_old_atBlock = hype_old.result(block=hype_status_list[-1].block)
         #     print_status(
         #         hype_status_old_atBlock,
         #         symbol=hype_old.symbol,
@@ -2161,27 +2213,69 @@ def test_new(network: str):
         #     )
 
         # except:
-        #     pass
+        #     logging.getLogger(__name__).exception(" yeeep OLD")
 
-        try:
 
-            hype_new._process_operations()
+def get_fees(network: str, hype_address: str, max_block: int) -> dict:
+    """Get collected fees till defined max block
 
-            hype_status_list = hype_new.result_list()
+    Args:
+        network (str):
+        hype_address (str):
+        max_block (int):
 
-            # user_status_to_csv(
-            #     status_list=hype_status_list,
-            #     folder="tests",
-            #     network=network,
-            #     symbol=hype.symbol,
-            # )
+    Returns:
+        dict: {
+                        "_id" : {
+                            "address" : "0x9a98bffabc0abf291d6811c034e239e916bbcec0"
+                        },
+                        "qtty_token0" : NumberInt(0),
+                        "qtty_token1" : NumberInt(0)
+                    }
+    """
+    protocol = "gamma"
+    query = [
+        {
+            "$match": {
+                "address": hype_address,
+                "topic": {"$in": ["rebalance", "feeBurn"]},
+                "blockNumber": {"$lte": max_block},
+            }
+        },
+        {
+            "$project": {
+                "address": "$address",
+                "qtty_token0": {
+                    "$divide": [
+                        {"$toDecimal": "$qtty_token0"},
+                        {"$pow": [10, "$decimals_token0"]},
+                    ]
+                },
+                "qtty_token1": {
+                    "$divide": [
+                        {"$toDecimal": "$qtty_token1"},
+                        {"$pow": [10, "$decimals_token1"]},
+                    ]
+                },
+            }
+        },
+        {
+            "$group": {
+                "_id": {"address": "$address"},
+                "qtty_token0": {"$sum": "$qtty_token0"},
+                "qtty_token1": {"$sum": "$qtty_token1"},
+            }
+        },
+    ]
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_name = f"{network}_{protocol}"
+    local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
 
-            print_status(
-                hype_status_list[-1], symbol=hype_new.symbol, network=hype_new.network
-            )
-
-        except:
-            logging.getLogger(__name__).exception(" yeeep ")
+    return local_db_manager.convert_d128_to_decimal(
+        local_db_manager.query_items_from_database(
+            collection_name="operations", query=query
+        )[0]
+    )
 
 
 def test_problematic():
@@ -2202,7 +2296,469 @@ def test_problematic():
         hype_new._process_operations()
 
 
-#
+def test_fees_raw():
+    protocol = "gamma"
+    network = "ethereum"
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_name = f"{network}_{protocol}"
+    local_db_helper = database_local(mongo_url=mongo_url, db_name=db_name)
+
+    # pick two dates
+    ini_date = datetime.utcnow() - timedelta(days=1)
+    end_date = ini_date + timedelta(days=1)
+
+    ini_timestamp = ini_date.timestamp()
+    end_timestamp = end_date.timestamp()
+
+    # get all hypervisors
+    hypervisor_addresses = get_hypervisor_addresses(network=network, protocol=protocol)
+    # hypervisor_addresses = ["0x9a98bffabc0abf291d6811c034e239e916bbcec0"]
+    for address in hypervisor_addresses:
+        logging.getLogger(__name__).info(f" --->  Start for {network}'s {address}")
+        # get all operations
+        find = {
+            "address": address,
+            "topic": {"$in": ["deposit", "withdraw", "rebalance", "feeBurn"]},
+            "$and": [
+                {"timestamp": {"$gte": int(ini_timestamp)}},
+                {"timestamp": {"$lte": int(end_timestamp)}},
+            ],
+        }
+
+        sort = [("blockNumber", 1), ("logIndex", 1)]
+        operations = local_db_helper.get_items_from_database(
+            collection_name="operations", find=find, sort=sort
+        )
+
+        # get all status
+        hype_status = {
+            x["block"]: convert_hypervisor_status_fromDb(x)
+            for x in local_db_helper.get_items_from_database(
+                collection_name="status",
+                find={
+                    "address": address,
+                    "$and": [
+                        {"timestamp": {"$gte": int(ini_timestamp)}},
+                        {"timestamp": {"$lte": int(end_timestamp)}},
+                    ],
+                },
+                sort=[("timestamp", 1)],
+            )
+        }
+
+        if len(operations) > 0:
+
+            process_by_operations(
+                operations=operations,
+                hype_status=hype_status,
+                local_db_helper=local_db_helper,
+                ini_timestamp=ini_timestamp,
+                end_timestamp=end_timestamp,
+            )
+        else:
+            # get the last operation
+            # query_operation = [
+            #     {
+            #         "$match": {
+            #             "address": address,
+            #             "topic": {
+            #                 "$in": ["deposit", "withdraw", "rebalance", "feeBurn"]
+            #             },
+            #         }
+            #     },
+            #     {"$sort": {"blockNumber": -1, "logIndex": -1}},
+            #     {
+            #         "$group": {
+            #             "_id": {"address": "$address"},
+            #             "last_doc": {"$first": "$$ROOT"},
+            #         }
+            #     },
+            #     {"$replaceRoot": {"newRoot": "$last_doc"}},
+            # ]
+            # operation = local_db_helper.query_items_from_database(
+            #     collection_name="operations", query=query_operation
+            # )[0]
+
+            # find = {
+            #     "address": address,
+            #     "$and": [
+            #         {"block": {"$gte": int(operation["blockNumber"])}},
+            #     ],
+            # }
+            # hype_status = {
+            #     x["block"]: convert_hypervisor_status_fromDb(x)
+            #     for x in local_db_helper.get_items_from_database(
+            #         collection_name="status", find=find, sort=[("timestamp", 1)]
+            #     )
+            # }
+            process_by_status(hype_status, local_db_helper)
+
+
+def process_by_operations(
+    operations: list, hype_status: dict, local_db_helper, ini_timestamp, end_timestamp
+):
+
+    seconds_passed = 0
+    fees_uncollected_token0 = 0
+    fees_uncollected_token1 = 0
+    first_totalAmounts_token0 = 0
+    first_totalAmounts_token1 = 0
+
+    for operation in operations:
+        current_block = operation["blockNumber"]
+        query_last_operation = [
+            {
+                "$match": {
+                    "address": operation["address"],
+                    "topic": {"$in": ["deposit", "withdraw", "rebalance", "feeBurn"]},
+                    "blockNumber": {"$lt": current_block},
+                }
+            },
+            {"$sort": {"blockNumber": -1, "logIndex": -1}},
+            {
+                "$group": {
+                    "_id": {"address": "$address"},
+                    "last_doc": {"$first": "$$ROOT"},
+                }
+            },
+            {"$replaceRoot": {"newRoot": "$last_doc"}},
+        ]
+
+        last_operation = local_db_helper.query_items_from_database(
+            collection_name="operations", query=query_last_operation
+        )[0]
+
+        query_last_status = [
+            {
+                "$match": {
+                    "address": last_operation["address"],
+                    "block": last_operation["blockNumber"],
+                }
+            },
+            {"$sort": {"block": -1}},
+            {
+                "$group": {
+                    "_id": {"address": "$address"},
+                    "last_doc": {"$first": "$$ROOT"},
+                }
+            },
+            {"$replaceRoot": {"newRoot": "$last_doc"}},
+        ]
+        last_status = convert_hypervisor_status_fromDb(
+            local_db_helper.query_items_from_database(
+                collection_name="status", query=query_last_status
+            )[0]
+        )
+
+        seconds_passed += (
+            hype_status[current_block - 1]["timestamp"] - last_status["timestamp"]
+        )
+
+        fees_uncollected_token0 += (
+            hype_status[current_block - 1]["fees_uncollected"]["qtty_token0"]
+            - last_status["fees_uncollected"]["qtty_token0"]
+        )
+        fees_uncollected_token1 += (
+            hype_status[current_block - 1]["fees_uncollected"]["qtty_token1"]
+            - last_status["fees_uncollected"]["qtty_token1"]
+        )
+
+        if first_totalAmounts_token0 + first_totalAmounts_token1 == 0:
+            first_totalAmounts_token0 = last_status["totalAmounts"]["total0"]
+            first_totalAmounts_token1 = last_status["totalAmounts"]["total1"]
+
+    yearly_fees_token0 = (fees_uncollected_token0 / seconds_passed) * (
+        60 * 60 * 24 * 365
+    )
+    yearly_fees_token1 = (fees_uncollected_token1 / seconds_passed) * (
+        60 * 60 * 24 * 365
+    )
+    print(" ...by operations")
+    print(
+        "      data from {} to {}".format(
+            datetime.fromtimestamp(ini_timestamp),
+            datetime.fromtimestamp(end_timestamp),
+        )
+    )
+
+    print(" fees_uncollected_token0: {}".format(fees_uncollected_token0))
+    print(" fees_uncollected_token1: {}".format(fees_uncollected_token1))
+    print(" data timeframe in days: {}".format(seconds_passed / (60 * 60 * 24)))
+
+    print(
+        " Yearly token0: {}    {:,.2%}".format(
+            yearly_fees_token0, yearly_fees_token0 / first_totalAmounts_token0
+        )
+    )
+    print(
+        " Yearly token1: {}    {:,.2%}".format(
+            yearly_fees_token1, yearly_fees_token1 / first_totalAmounts_token1
+        )
+    )
+
+
+def process_by_status(hype_status: dict, local_db_helper):
+
+    # opeartion is initial
+    # hype_status last is the end
+
+    initial_status = hype_status[min(hype_status.keys())]
+    last_status = hype_status[max(hype_status.keys())]
+
+    seconds_passed = last_status["timestamp"] - initial_status["timestamp"]
+    fees_uncollected_token0 = (
+        last_status["fees_uncollected"]["qtty_token0"]
+        - initial_status["fees_uncollected"]["qtty_token0"]
+    )
+    fees_uncollected_token1 = (
+        last_status["fees_uncollected"]["qtty_token1"]
+        - initial_status["fees_uncollected"]["qtty_token1"]
+    )
+    first_totalAmounts_token0 = initial_status["totalAmounts"]["total0"]
+    first_totalAmounts_token1 = initial_status["totalAmounts"]["total1"]
+
+    yearly_fees_token0 = (fees_uncollected_token0 / seconds_passed) * (
+        60 * 60 * 24 * 365
+    )
+    yearly_fees_token1 = (fees_uncollected_token1 / seconds_passed) * (
+        60 * 60 * 24 * 365
+    )
+
+    print(" ...by status")
+    print(
+        "      data from {} to {}".format(
+            datetime.fromtimestamp(initial_status["timestamp"]),
+            datetime.fromtimestamp(last_status["timestamp"]),
+        )
+    )
+
+    print(" fees_uncollected_token0: {}".format(fees_uncollected_token0))
+    print(" fees_uncollected_token1: {}".format(fees_uncollected_token1))
+    print(" data timeframe in days: {}".format(seconds_passed / (60 * 60 * 24)))
+
+    print(
+        " Yearly token0: {}    {:,.2%}".format(
+            yearly_fees_token0,
+            (yearly_fees_token0 / first_totalAmounts_token0)
+            if first_totalAmounts_token0
+            else 1
+            if yearly_fees_token0 > 0
+            else 0,
+        )
+    )
+    print(
+        " Yearly token1: {}    {:,.2%}".format(
+            yearly_fees_token1,
+            (yearly_fees_token1 / first_totalAmounts_token1)
+            if first_totalAmounts_token1 > 0
+            else 1
+            if yearly_fees_token1 > 0
+            else 0,
+        )
+    )
+
+
+def convert_hypervisor_status_fromDb(hype_status: dict) -> dict:
+    """convert database hypervisor status text fields
+        to numbers.
+
+    Args:
+        hype_status (dict): hypervisor status database obj
+
+    Returns:
+        dict: same converted
+    """
+    # decimals
+    decimals_token0 = hype_status["pool"]["token0"]["decimals"]
+    decimals_token1 = hype_status["pool"]["token1"]["decimals"]
+    decimals_contract = hype_status["decimals"]
+
+    hype_status["baseUpper"] = int(hype_status["baseUpper"])
+    hype_status["baseLower"] = int(hype_status["baseLower"])
+
+    hype_status["basePosition"]["liquidity"] = int(
+        hype_status["basePosition"]["liquidity"]
+    )
+    hype_status["basePosition"]["amount0"] = int(hype_status["basePosition"]["amount0"])
+    hype_status["basePosition"]["amount1"] = int(hype_status["basePosition"]["amount1"])
+    hype_status["limitPosition"]["liquidity"] = int(
+        hype_status["limitPosition"]["liquidity"]
+    )
+    hype_status["limitPosition"]["amount0"] = int(
+        hype_status["limitPosition"]["amount0"]
+    )
+    hype_status["limitPosition"]["amount1"] = int(
+        hype_status["limitPosition"]["amount1"]
+    )
+
+    hype_status["currentTick"] = int(hype_status["currentTick"])
+
+    hype_status["deposit0Max"] = Decimal(hype_status["baseLower"]) / Decimal(
+        10**decimals_token0
+    )
+    hype_status["deposit1Max"] = Decimal(hype_status["baseLower"]) / Decimal(
+        10**decimals_token1
+    )
+
+    hype_status["fees_uncollected"]["qtty_token0"] = Decimal(
+        hype_status["fees_uncollected"]["qtty_token0"]
+    ) / Decimal(10**decimals_token0)
+    hype_status["fees_uncollected"]["qtty_token1"] = Decimal(
+        hype_status["fees_uncollected"]["qtty_token1"]
+    ) / Decimal(10**decimals_token1)
+
+    hype_status["limitUpper"] = int(hype_status["limitUpper"])
+    hype_status["limitLower"] = int(hype_status["limitLower"])
+
+    hype_status["maxTotalSupply"] = int(hype_status["maxTotalSupply"]) / Decimal(
+        10**decimals_contract
+    )
+
+    hype_status["pool"]["feeGrowthGlobal0X128"] = int(
+        hype_status["pool"]["feeGrowthGlobal0X128"]
+    )
+    hype_status["pool"]["feeGrowthGlobal1X128"] = int(
+        hype_status["pool"]["feeGrowthGlobal1X128"]
+    )
+    hype_status["pool"]["liquidity"] = int(hype_status["pool"]["liquidity"])
+    hype_status["pool"]["maxLiquidityPerTick"] = int(
+        hype_status["pool"]["maxLiquidityPerTick"]
+    )
+
+    # choose by dex
+    if hype_status["dex"] == "uniswapv3":
+        # uniswap
+        hype_status["pool"]["protocolFees"][0] = int(
+            hype_status["pool"]["protocolFees"][0]
+        )
+        hype_status["pool"]["protocolFees"][1] = int(
+            hype_status["pool"]["protocolFees"][1]
+        )
+
+        hype_status["pool"]["slot0"]["sqrtPriceX96"] = int(
+            hype_status["pool"]["slot0"]["sqrtPriceX96"]
+        )
+        hype_status["pool"]["slot0"]["tick"] = int(hype_status["pool"]["slot0"]["tick"])
+        hype_status["pool"]["slot0"]["observationIndex"] = int(
+            hype_status["pool"]["slot0"]["observationIndex"]
+        )
+        hype_status["pool"]["slot0"]["observationCardinality"] = int(
+            hype_status["pool"]["slot0"]["observationCardinality"]
+        )
+        hype_status["pool"]["slot0"]["observationCardinalityNext"] = int(
+            hype_status["pool"]["slot0"]["observationCardinalityNext"]
+        )
+
+        hype_status["pool"]["tickSpacing"] = int(hype_status["pool"]["tickSpacing"])
+
+    elif hype_status["dex"] == "quickswap":
+        # quickswap
+        hype_status["pool"]["globalState"]["sqrtPriceX96"] = int(
+            hype_status["pool"]["globalState"]["sqrtPriceX96"]
+        )
+        hype_status["pool"]["globalState"]["tick"] = int(
+            hype_status["pool"]["globalState"]["tick"]
+        )
+        hype_status["pool"]["globalState"]["fee"] = int(
+            hype_status["pool"]["globalState"]["fee"]
+        )
+        hype_status["pool"]["globalState"]["timepointIndex"] = int(
+            hype_status["pool"]["globalState"]["timepointIndex"]
+        )
+    else:
+        raise NotImplementedError(" dex {} not implemented ")
+
+    hype_status["pool"]["token0"]["totalSupply"] = Decimal(
+        hype_status["pool"]["token0"]["totalSupply"]
+    ) / Decimal(10**decimals_token0)
+    hype_status["pool"]["token1"]["totalSupply"] = Decimal(
+        hype_status["pool"]["token1"]["totalSupply"]
+    ) / Decimal(10**decimals_token1)
+
+    hype_status["qtty_depoloyed"]["qtty_token0"] = Decimal(
+        hype_status["qtty_depoloyed"]["qtty_token0"]
+    ) / Decimal(10**decimals_token0)
+    hype_status["qtty_depoloyed"]["qtty_token1"] = Decimal(
+        hype_status["qtty_depoloyed"]["qtty_token1"]
+    ) / Decimal(10**decimals_token1)
+    hype_status["qtty_depoloyed"]["fees_owed_token0"] = Decimal(
+        hype_status["qtty_depoloyed"]["fees_owed_token0"]
+    ) / Decimal(10**decimals_token0)
+    hype_status["qtty_depoloyed"]["fees_owed_token1"] = Decimal(
+        hype_status["qtty_depoloyed"]["fees_owed_token1"]
+    ) / Decimal(10**decimals_token1)
+
+    hype_status["tickSpacing"] = int(hype_status["tickSpacing"])
+
+    hype_status["totalAmounts"]["total0"] = Decimal(
+        hype_status["totalAmounts"]["total0"]
+    ) / Decimal(10**decimals_token0)
+    hype_status["totalAmounts"]["total1"] = Decimal(
+        hype_status["totalAmounts"]["total1"]
+    ) / Decimal(10**decimals_token1)
+
+    hype_status["totalSupply"] = Decimal(hype_status["totalSupply"]) / Decimal(
+        10**decimals_contract
+    )
+
+    hype_status["tvl"]["parked_token0"] = Decimal(
+        hype_status["tvl"]["parked_token0"]
+    ) / Decimal(10**decimals_token0)
+    hype_status["tvl"]["parked_token1"] = Decimal(
+        hype_status["tvl"]["parked_token1"]
+    ) / Decimal(10**decimals_token1)
+    hype_status["tvl"]["deployed_token0"] = Decimal(
+        hype_status["tvl"]["deployed_token0"]
+    ) / Decimal(10**decimals_token0)
+    hype_status["tvl"]["deployed_token1"] = Decimal(
+        hype_status["tvl"]["deployed_token1"]
+    ) / Decimal(10**decimals_token1)
+    hype_status["tvl"]["fees_owed_token0"] = Decimal(
+        hype_status["tvl"]["fees_owed_token0"]
+    ) / Decimal(10**decimals_token0)
+    hype_status["tvl"]["fees_owed_token1"] = Decimal(
+        hype_status["tvl"]["fees_owed_token1"]
+    ) / Decimal(10**decimals_token1)
+    hype_status["tvl"]["tvl_token0"] = Decimal(
+        hype_status["tvl"]["tvl_token0"]
+    ) / Decimal(10**decimals_token0)
+    hype_status["tvl"]["tvl_token1"] = Decimal(
+        hype_status["tvl"]["tvl_token1"]
+    ) / Decimal(10**decimals_token1)
+
+    return hype_status
+
+
+def grouped(iterable, n):
+    "s -> (s0,s1,s2,...sn-1), (sn,sn+1,sn+2,...s2n-1), (s2n,s2n+1,s2n+2,...s3n-1), ..."
+    return zip(*[iter(iterable)] * n)
+
+
+from bins.database.db_raw_direct_info import direct_db_hypervisor_info
+
+
+def test_fees_raw____222():
+    protocol = "gamma"
+    network = "ethereum"
+
+    # pick two dates
+    # ini_date = datetime.utcnow() - timedelta(days=2)
+    # end_date = ini_date + timedelta(days=1)
+    end_date = datetime.utcnow()
+    ini_date = end_date - timedelta(days=7)
+
+    # get all hypervisors
+    hypervisor_addresses = get_hypervisor_addresses(network=network, protocol=protocol)
+    for address in hypervisor_addresses:
+        logging.getLogger(__name__).info(f" --->  Start for {network}'s {address}")
+        hype = direct_db_hypervisor_info(
+            hypervisor_address=address, network=network, protocol=protocol
+        )
+        hype_data = hype.get_data(ini_date=ini_date, end_date=end_date)
+
+        print(hype_data)
+
+
 #
 #
 #
@@ -2232,6 +2788,8 @@ def test_problematic():
 
 def main(option: str, **kwargs):
 
+    test_fees_raw____222()
+    # test_fees_raw()
     test_new(network=option)
 
 

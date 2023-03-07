@@ -118,7 +118,7 @@ def feed_hypervisor_static(
         for address in hypervisor_addresses_registry:
             if address.lower() in hypervisor_addresses_db:
                 logging.getLogger(__name__).debug(
-                    f"   0x..{address[-4:]} hypervisor static info already in db"
+                    f"   {address} hypervisor static info already in db"
                 )
             else:
                 hypervisor_addresses.append(address)
@@ -496,6 +496,10 @@ def feed_hypervisor_status(
                 )
                 ._w3.eth.get_block("latest")
                 .number
+            )
+
+            logging.getLogger(__name__).debug(
+                f" Adding the latest block [{latest_block}] to all addresses for status to be scraped "
             )
 
             for address in static_info.keys():
