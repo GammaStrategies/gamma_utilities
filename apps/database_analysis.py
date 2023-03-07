@@ -2788,7 +2788,7 @@ def test_fees_raw____222():
 
 def main(option: str, **kwargs):
 
-    test_fees_raw____222()
+    #test_fees_raw____222()
     # test_fees_raw()
     test_new(network=option)
 
