@@ -1222,9 +1222,17 @@ def feed_timestamp_blocks(network: str, protocol: str, threaded: bool = True):
 
 def feed_user_status(network: str, protocol: str):
 
-    for address in get_hypervisor_addresses(network=network, protocol=protocol):
-        logging.getLogger(__name__).info(
-            f">Feeding {protocol}'s {network} user status information"
+    addresses = get_hypervisor_addresses(network=network, protocol=protocol)
+    logging.getLogger(__name__).info(
+        f">Feeding {protocol}'s {network} user status information for {len(addresses)} hypervisors"
+    )
+
+    for idx, address in enumerate(addresses):
+
+        logging.getLogger(__name__).debug(
+            "   [{} of {}] Building {}'s {} user status".format(
+                idx, len(addresses), network, address
+            )
         )
 
         hype_new = user_status_hypervisor_builder(
@@ -1235,7 +1243,7 @@ def feed_user_status(network: str, protocol: str):
             hype_new._process_operations()
         except:
             logging.getLogger(__name__).exception(
-                f" Unexpected error while feeding user status of {address}"
+                f" Unexpected error while feeding user status of {network}'s  {address}"
             )
 
 
