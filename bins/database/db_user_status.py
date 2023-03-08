@@ -946,7 +946,7 @@ class user_status_hypervisor_builder:
                     # discard block close to a block to process
                     logging.getLogger(__name__).debug(
                         " block {} has not been included in {} [{}] user status creation because it is {} blocks close to (already/to be) processed block".format(
-                            hype_status["block"], self.address, self.symbol, _close
+                            hype_status["block"], self.address, self.symbol, _closest
                         )
                     )
                     continue
