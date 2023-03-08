@@ -923,6 +923,8 @@ class user_status_hypervisor_builder:
         # control var
         initial_length = len(result)
 
+        combined_blocks = list(blocks_to_process) + list(user_status_blocks_processed)
+
         # for each status block not in operations, add report op
         for hype_status in sorted(
             self.get_hypervisor_status_byMinutes(minutes=60),
@@ -930,24 +932,24 @@ class user_status_hypervisor_builder:
             reverse=False,
         ):
 
-            # discart close to blocks (<10>)
-            _closest = min(
-                blocks_to_process + user_status_blocks_processed,
-                key=lambda x: abs(x - hype_status["block"]),
-            )
-            if _closest < 10:
-                # discard block close to a block to process
-                logging.getLogger(__name__).debug(
-                    " block {} has not been included in {} [{}] user status creation because it is {} blocks close to (already/to be) processed block".format(
-                        hype_status["block"], self.address, self.symbol, _close
-                    )
-                )
-                continue
-
             if (
                 not hype_status["block"] in blocks_to_process
                 and not hype_status["block"] in user_status_blocks_processed
             ):
+
+                # discart close to blocks (<10>)
+                _closest = min(
+                    combined_blocks,
+                    key=lambda x: abs(x - hype_status["block"]),
+                )
+                if abs(_closest - hype_status["block"]) < 10:
+                    # discard block close to a block to process
+                    logging.getLogger(__name__).debug(
+                        " block {} has not been included in {} [{}] user status creation because it is {} blocks close to (already/to be) processed block".format(
+                            hype_status["block"], self.address, self.symbol, _close
+                        )
+                    )
+                    continue
                 # add report operation to operations tobe processed
                 result.append(
                     {
