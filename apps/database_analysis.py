@@ -334,7 +334,9 @@ def user_status_to_csv(status_list: list[dict], folder: str, network: str, symbo
     file_utilities.SaveCSV(filename=csv_filename, columns=csv_columns, rows=status_list)
 
 
-def get_hypervisor_addresses(network: str, protocol: str) -> list[str]:
+def get_hypervisor_addresses(
+    network: str, protocol: str, user_address: str = None
+) -> list[str]:
 
     result = list()
     # get database configuration
@@ -356,9 +358,17 @@ def get_hypervisor_addresses(network: str, protocol: str) -> list[str]:
 
     # retrieve all addresses from database
     local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
-    result = local_db_manager.get_distinct_items_from_database(
-        collection_name="operations", field="address"
-    )
+
+    if user_address:
+        result = local_db_manager.get_distinct_items_from_database(
+            collection_name="user_status",
+            field="hypervisor_address",
+            condition={"address": user_address},
+        )
+    else:
+        result = local_db_manager.get_distinct_items_from_database(
+            collection_name="static", field="address"
+        )
 
     # apply black list
     logging.getLogger(__name__).debug(
@@ -541,6 +551,56 @@ def sumary_network(
             )
 
 
+def sumary_user(
+    network: str,
+    protocol: str,
+    user_address: str,
+    ini_date: datetime = None,
+    end_date: datetime = None,
+):
+
+    hypervisor_addresses = get_hypervisor_addresses(
+        network=network, protocol=protocol, user_address=user_address.lower()
+    )
+
+    # set timeframe
+    if end_date == None:
+        end_date = datetime.utcnow()
+    if ini_date == None or ini_date >= end_date:
+        ini_date = end_date - timedelta(days=7)
+
+    # convert dates to timestamps
+    ini_timestamp = ini_date.timestamp()
+    end_timestamp = end_date.timestamp()
+
+    for address in hypervisor_addresses:
+        logging.getLogger(__name__).info(
+            f" --->  Starting analysis for {network}'s {address} (user address: {user_address})"
+        )
+
+        hype_new = user_status_hypervisor_builder(
+            hypervisor_address=address, network=network, protocol=protocol
+        )
+        try:
+
+            hype_status_list = hype_new.account_result_list(address=user_address)
+
+            user_status_to_csv(
+                status_list=[
+                    hype_new.convert_user_status_to_dict(r) for r in hype_status_list
+                ],
+                folder="tests",
+                network=network,
+                symbol=hype_new.symbol,
+            )
+
+            print_status(
+                hype_status_list[-1], symbol=hype_new.symbol, network=hype_new.network
+            )
+        except:
+            logging.getLogger(__name__).exception(" error ")
+
+
 def main(option: str, **kwargs):
 
     # get dates range from command line
@@ -555,7 +615,15 @@ def main(option: str, **kwargs):
 
     # check if user address to analyze
     if CONFIGURATION["_custom_"]["cml_parameters"].user_address:
-        pass
+        sumary_user(
+            network=option,
+            protocol="gamma",
+            user_address=CONFIGURATION["_custom_"][
+                "cml_parameters"
+            ].user_address.lower(),
+            ini_date=ini_datetime,
+            end_date=end_datetime,
+        )
 
     elif CONFIGURATION["_custom_"]["cml_parameters"].hypervisor_address:
         pass
