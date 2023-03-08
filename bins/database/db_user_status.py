@@ -929,7 +929,7 @@ class user_status_hypervisor_builder:
 
         # add report dummy operations once every day
         for hype_status in sorted(
-            self.get_hypervisor_status_byMinutes(minutes=60 * 24),
+            self.get_hypervisor_status_byDay(),
             key=lambda x: (x["block"]),
             reverse=False,
         ):
@@ -2314,9 +2314,9 @@ class user_status_hypervisor_builder:
             )
         ]
 
-    def get_hypervisor_status_byMinutes(self, minutes: int = 60) -> list[dict]:
-        """Get a list of status separated by a minimum of <minutes> defined
-
+    def get_hypervisor_status_byDay(self) -> list[dict]:
+        """Get a list of status separated by days
+            sorted by date from past to present
         Returns:
             list[int]:
         """
@@ -2336,20 +2336,14 @@ class user_status_hypervisor_builder:
             {
                 "$group": {
                     "_id": {
-                        "year": {"$year": "$datetime"},
-                        "dayOfYear": {"$dayOfYear": "$datetime"},
-                        "hour": {"$hour": "$datetime"},
-                        "interval": {
-                            "$subtract": [
-                                {"$minute": "$datetime"},
-                                {"$mod": [{"$minute": "$datetime"}, minutes]},
-                            ]
-                        },
+                        "d": {"$dayOfMonth": "$datetime"},
+                        "m": {"$month": "$datetime"},
+                        "y": {"$year": "$datetime"},
                     },
                     "status": {"$first": "$$ROOT"},
                 }
             },
-            {"$sort": {"block": -1}},
+            {"$sort": {"_id.y": 1, "_id.m": 1, "_id.d": 1}},
         ]
         return [
             x["status"]
