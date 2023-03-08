@@ -945,8 +945,11 @@ class user_status_hypervisor_builder:
                 if abs(_closest - hype_status["block"]) < 10:
                     # discard block close to a block to process
                     logging.getLogger(__name__).debug(
-                        " block {} has not been included in {} [{}] user status creation because it is {} blocks close to (already/to be) processed block".format(
-                            hype_status["block"], self.address, self.symbol, _closest
+                        " Block {} has not been included in {} [{}] user status creation because it is {} blocks close to (already/to be) processed block".format(
+                            hype_status["block"],
+                            self.address,
+                            self.symbol,
+                            _closest - hype_status["block"],
                         )
                     )
                     continue
