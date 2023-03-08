@@ -577,14 +577,16 @@ class user_status_hypervisor_builder:
         except IndexError:
             if exclude_address == "":
                 logging.getLogger(__name__).exception(
-                    " Unexpected error calc total shares (exclude_address is set) --> query:  {} ".format(
-                        query
+                    " [{}] Unexpected error calc total shares (exclude_address is set) --> query:  {} ".format(
+                        self.network, query
                     )
                 )
             # may just be that there are no shares besides current excluded address
         except:
             logging.getLogger(__name__).exception(
-                " unexpected error calc total shares--> query:  {} ".format(query)
+                " [{}] Unexpected error calc total shares--> query:  {} ".format(
+                    self.network, query
+                )
             )
 
         return Decimal("0")
@@ -925,9 +927,9 @@ class user_status_hypervisor_builder:
 
         combined_blocks = list(blocks_to_process) + list(user_status_blocks_processed)
 
-        # for each status block not in operations, add report op
+        # add report dummy operations once every day
         for hype_status in sorted(
-            self.get_hypervisor_status_byMinutes(minutes=60),
+            self.get_hypervisor_status_byMinutes(minutes=60 * 24),
             key=lambda x: (x["block"]),
             reverse=False,
         ):
@@ -937,12 +939,12 @@ class user_status_hypervisor_builder:
                 and not hype_status["block"] in user_status_blocks_processed
             ):
 
-                # discart close to blocks (<10>)
+                # discart close to blocks (<30>)
                 _closest = min(
                     combined_blocks,
                     key=lambda x: abs(x - hype_status["block"]),
                 )
-                if abs(_closest - hype_status["block"]) < 10:
+                if abs(_closest - hype_status["block"]) < 30:
                     # discard block close to a block to process
                     logging.getLogger(__name__).debug(
                         " Block {} has not been included in {} [{}] user status creation because it is {} blocks close to (already/to be) processed block".format(
