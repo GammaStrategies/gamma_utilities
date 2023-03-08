@@ -498,7 +498,7 @@ def sumary_network(
                 )
             )
             logging.getLogger(__name__).info(
-                "\r return: {:,.2%}  ->  feeAPY: {:,.2%}   feeAPR: {:,.2%}".format(
+                "\t return: {:,.2%}  ->  feeAPY: {:,.2%}   feeAPR: {:,.2%}".format(
                     summary["current_return_percent"],
                     summary["feeAPY"],
                     summary["feeAPR"],
@@ -525,7 +525,7 @@ def sumary_network(
                 )
             )
             logging.getLogger(__name__).info(
-                " \r  {} [{:,.2%}] have positive results and {} [{:,.2%}] negative".format(
+                " \t  {} [{:,.2%}] have positive results and {} [{:,.2%}] negative".format(
                     positive_result,
                     positive_result / total_users,
                     negative_result,
@@ -553,7 +553,18 @@ def main(option: str, **kwargs):
     except:
         end_datetime = None
 
-    # execute summary
-    sumary_network(
-        network=option, protocol="gamma", ini_date=ini_datetime, end_date=end_datetime
-    )
+    # check if user address to analyze
+    if CONFIGURATION["_custom_"]["cml_parameters"].user_address:
+        pass
+
+    elif CONFIGURATION["_custom_"]["cml_parameters"].hypervisor_address:
+        pass
+
+    else:
+        # execute summary
+        sumary_network(
+            network=option,
+            protocol="gamma",
+            ini_date=ini_datetime,
+            end_date=end_datetime,
+        )
