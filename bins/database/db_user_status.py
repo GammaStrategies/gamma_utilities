@@ -919,14 +919,16 @@ class user_status_hypervisor_builder:
         # construct the todo block list
         blocks_to_process = set([x["blockNumber"] for x in result])
 
-        # mix blocks to process ( extracted from operations) with the last 10 blocks from hypervisor status
+        # mix blocks to process ( extracted from operations)
         # control var
         initial_length = len(result)
 
         # for each status block not in operations, add report op
         for hype_status in sorted(
-            self.get_hypervisor_status(), key=lambda x: (x["block"]), reverse=False
-        )[-10:]:
+            self.get_hypervisor_status_byMinutes(minutes=60),
+            key=lambda x: (x["block"]),
+            reverse=False,
+        ):
 
             if (
                 not hype_status["block"] in blocks_to_process
@@ -2288,6 +2290,50 @@ class user_status_hypervisor_builder:
             self.convert_hypervisor_status_fromDb(hype_status=x)
             for x in self.local_db_manager.get_items_from_database(
                 collection_name="status", find=find, sort=sort
+            )
+        ]
+
+    def get_hypervisor_status_byMinutes(self, minutes: int = 60) -> list[dict]:
+        """Get a list of status separated by a minimum of <minutes> defined
+
+        Returns:
+            list[int]:
+        """
+
+        # get a list of status blocks separated at least by 1 hour
+        query = [
+            {
+                "$match": {
+                    "address": self.address,
+                }
+            },
+            {
+                "$addFields": {
+                    "datetime": {"$toDate": {"$multiply": ["$timestamp", 1000]}}
+                }
+            },
+            {
+                "$group": {
+                    "_id": {
+                        "year": {"$year": "$datetime"},
+                        "dayOfYear": {"$dayOfYear": "$datetime"},
+                        "hour": {"$hour": "$datetime"},
+                        "interval": {
+                            "$subtract": [
+                                {"$minute": "$datetime"},
+                                {"$mod": [{"$minute": "$datetime"}, minutes]},
+                            ]
+                        },
+                    },
+                    "status": {"$first": "$$ROOT"},
+                }
+            },
+            {"$sort": {"block": -1}},
+        ]
+        return [
+            x["status"]
+            for x in self.local_db_manager.query_items_from_database(
+                collection_name="status", query=query
             )
         ]
 
