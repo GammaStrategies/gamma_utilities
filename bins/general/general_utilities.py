@@ -196,6 +196,11 @@ def convert_string_datetime(string: str) -> dt.datetime:
             return dt.datetime.strptime(string, "%Y-%m-%dT%H:%M:%S.%fZ")
         except:
             pass
+        # POSIBILITY 03
+        try:
+            return dt.datetime.strptime(string, "%Y-%m-%d")
+        except:
+            pass
 
 
 class time_controller:
