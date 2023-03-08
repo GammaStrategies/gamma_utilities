@@ -25,6 +25,7 @@ from bins.w3.onchain_utilities.protocols import (
 from bins.w3.onchain_utilities.basic import erc20_cached
 
 from bins.database.common.db_collections_common import database_local, database_global
+from bins.database.db_user_status import user_status_hypervisor_builder
 from bins.mixed.price_utilities import price_scraper
 
 from bins.formulas.univ3_formulas import sqrtPriceX96_to_price_float
@@ -1216,6 +1217,70 @@ def feed_timestamp_blocks(network: str, protocol: str, threaded: bool = True):
         pass
 
 
+### user Status #######################
+
+
+def feed_user_status(network: str, protocol: str):
+
+    for address in get_hypervisor_addresses(network=network, protocol=protocol):
+        logging.getLogger(__name__).info(
+            f">Feeding {protocol}'s {network} user status information"
+        )
+
+        hype_new = user_status_hypervisor_builder(
+            hypervisor_address=address, network=network, protocol=protocol
+        )
+        hype_status_list = list()
+        try:
+            hype_new._process_operations()
+        except:
+            logging.getLogger(__name__).exception(
+                f" Unexpected error while feeding user status of {address}"
+            )
+
+
+def get_hypervisor_addresses(network: str, protocol: str) -> list[str]:
+
+    result = list()
+    # get database configuration
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_name = f"{network}_{protocol}"
+
+    # get blacklisted hypervisors
+    blacklisted = (
+        CONFIGURATION.get("script", {})
+        .get("protocols", {})
+        .get(protocol, {})
+        .get("filters", {})
+        .get("hypervisors_not_included", {})
+        .get(network, [])
+    )
+    # check n clean
+    if blacklisted == None:
+        blacklisted = []
+
+    # retrieve all addresses from database
+    local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
+    result = local_db_manager.get_distinct_items_from_database(
+        collection_name="static", field="address"
+    )
+
+    # apply black list
+    logging.getLogger(__name__).debug(
+        f" Number of hypervisors to process before applying filters: {len(result)}"
+    )
+    # filter blacklisted
+    result = [x for x in result if not x in blacklisted]
+    logging.getLogger(__name__).debug(
+        f" Number of hypervisors to process after applying filters: {len(result)}"
+    )
+
+    return result
+
+
+####### main ###########
+
+
 def main(option="operations"):
 
     for protocol in CONFIGURATION["script"]["protocols"].keys():
@@ -1248,6 +1313,10 @@ def main(option="operations"):
                 feed_hypervisor_status(
                     protocol=protocol, network=network, threaded=True
                 )
+            elif option == "user_status":
+                # feed database with user status
+                feed_user_status(protocol=protocol, network=network)
+
             elif option == "prices":
                 # feed database with prices from all status
                 # feed_prices(protocol=protocol, network=network, token_blocks=self._create_tokenBlocks_allTokens(protocol=protocol, network=network))

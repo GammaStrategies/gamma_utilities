@@ -8,7 +8,7 @@ os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 
 from bins.configuration import CONFIGURATION
-from bins.general.general_utilities import log_time_passed
+from bins.general.general_utilities import log_time_passed, convert_string_datetime
 from apps import (
     database_feeder,
     database_feeder_service,
@@ -30,6 +30,32 @@ if __name__ == "__main__":
     )
     # start time log
     _startime = datetime.utcnow()
+
+    # convert datetimes if exist
+    if CONFIGURATION["_custom_"]["cml_parameters"].ini_datetime:
+        # convert to datetime
+        try:
+            CONFIGURATION["_custom_"][
+                "cml_parameters"
+            ].ini_datetime = convert_string_datetime(
+                string=CONFIGURATION["_custom_"]["cml_parameters"].ini_datetime
+            )
+        except:
+            logging.getLogger(__name__).error(
+                f" Can't convert command line passed ini datetime-> {CONFIGURATION['_custom_']['cml_parameters'].ini_datetime}"
+            )
+    if CONFIGURATION["_custom_"]["cml_parameters"].end_datetime:
+        # convert to datetime
+        try:
+            CONFIGURATION["_custom_"][
+                "cml_parameters"
+            ].end_datetime = convert_string_datetime(
+                string=CONFIGURATION["_custom_"]["cml_parameters"].end_datetime
+            )
+        except:
+            logging.getLogger(__name__).error(
+                f" Can't convert command line passed end datetime-> {CONFIGURATION['_custom_']['cml_parameters'].end_datetime}"
+            )
 
     # choose the first of the  parsed options
     if CONFIGURATION["_custom_"]["cml_parameters"].db_feed:

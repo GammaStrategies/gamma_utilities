@@ -22,7 +22,7 @@ def parse_commandLine_args():
     # manual database feed
     par_db_feed = exGroup.add_argument(
         "--db_feed",
-        choices=["operations", "status", "static", "prices"],
+        choices=["operations", "status", "static", "prices", "user_status"],
         help="feed database",
     )
 
@@ -56,6 +56,18 @@ def parse_commandLine_args():
     par_main.add_argument(
         "--debug",
         help=" debug mode",
+    )
+
+    # datetimes
+    par_main.add_argument(
+        "--ini_datetime",
+        type=str,
+        help="specify an initial datetime: format Y-m-dTH:M:S ",
+    )
+    par_main.add_argument(
+        "--end_datetime",
+        type=str,
+        help="specify an ending datetime: format Y-m-dTH:M:S ",
     )
 
     # print helpwhen no command is passed
