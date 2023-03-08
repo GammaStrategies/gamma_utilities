@@ -69,6 +69,16 @@ def parse_commandLine_args():
         type=str,
         help="specify an ending datetime: format Y-m-dTH:M:S ",
     )
+    par_main.add_argument(
+        "--user_address",
+        type=str,
+        help="specify a user address to be analyzed",
+    )
+    par_main.add_argument(
+        "--hypervisor_address",
+        type=str,
+        help="specify a hypervisor address to be analyzed",
+    )
 
     # print helpwhen no command is passed
     return par_main.parse_args(args=None if sys.argv[1:] else ["--help"])
