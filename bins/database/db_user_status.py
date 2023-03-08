@@ -741,39 +741,39 @@ class user_status_hypervisor_builder:
 
         return total_block_status
 
-    def result_list_original(self, b_ini: int = 0, b_end: int = 0) -> list[user_status]:
-        """Hypervisor results between the specified blocks
+    # def result_list_original(self, b_ini: int = 0, b_end: int = 0) -> list[user_status]:
+    #     """Hypervisor results between the specified blocks
 
-        Args:
-            b_ini (int, optional): initial block. Defaults to 0.
-            b_end (int, optional): end block. Defaults to 0.
+    #     Args:
+    #         b_ini (int, optional): initial block. Defaults to 0.
+    #         b_end (int, optional): end block. Defaults to 0.
 
-        Returns:
-            list[user_status]: of hypervisor status at blocks
-        """
-        result = list()
-        if b_end == 0:
-            b_end = sys.maxsize
-        # define alowed topics to return ( be aware that blocks not in predefined topics list may not have all addresses in the block, underreporting values)
-        topics = ["report", "zeroBurn", "rebalance"]
-        # get a unique block list of all hype users status
-        condition = {
-            "hypervisor_address": self.address,
-            "$and": [
-                {"block": {"$gte": b_ini}},
-                {"block": {"$lte": b_end}},
-                {"topic": {"$in": topics}},
-            ],
-        }
-        blocks = sorted(
-            self.local_db_manager.get_distinct_items_from_database(
-                collection_name="user_status", field="block", condition=condition
-            )
-        )
-        for block in blocks:
-            result.append(self.result(block=block))
+    #     Returns:
+    #         list[user_status]: of hypervisor status at blocks
+    #     """
+    #     result = list()
+    #     if b_end == 0:
+    #         b_end = sys.maxsize
+    #     # define alowed topics to return ( be aware that blocks not in predefined topics list may not have all addresses in the block, underreporting values)
+    #     topics = ["report", "zeroBurn", "rebalance"]
+    #     # get a unique block list of all hype users status
+    #     condition = {
+    #         "hypervisor_address": self.address,
+    #         "$and": [
+    #             {"block": {"$gte": b_ini}},
+    #             {"block": {"$lte": b_end}},
+    #             {"topic": {"$in": topics}},
+    #         ],
+    #     }
+    #     blocks = sorted(
+    #         self.local_db_manager.get_distinct_items_from_database(
+    #             collection_name="user_status", field="block", condition=condition
+    #         )
+    #     )
+    #     for block in blocks:
+    #         result.append(self.result(block=block))
 
-        return result
+    #     return result
 
     def account_result(
         self, address: str, block: int = 0, logIndex: int = 0
@@ -2861,3 +2861,145 @@ class user_status_hypervisor_builder:
                 result.append(item)
 
         return result
+
+    def result_list_timestamp(
+        self, t_ini: int = 0, t_end: int = 0
+    ) -> list[user_status]:
+        """Hypervisor results between the specified blocks
+
+        Args:
+            b_ini (int, optional): initial timestamp. Defaults to 0.
+            b_end (int, optional): end timestamp. Defaults to 0.
+
+        Returns:
+            list[user_status]: of hypervisor status at blocks
+        """
+        result = list()
+        if t_end == 0:
+            t_end = datetime.utcnow().timestamp()
+        if t_ini == 0:
+            t_ini = t_end - timedelta(days=1)
+
+        # define alowed topics to return ( be aware that blocks not in predefined topics list may not have all addresses in the block, underreporting values)
+        topics = ["report", "zeroBurn", "rebalance"]
+        # get a unique block list of all hype users status
+        condition = {
+            "hypervisor_address": self.address,
+            "$and": [
+                {"timestamp": {"$gte": t_ini}},
+                {"timestamp": {"$lte": t_end}},
+                {"topic": {"$in": topics}},
+            ],
+        }
+
+        # go thread all
+        with concurrent.futures.ThreadPoolExecutor() as ex:
+            for item in ex.map(
+                self.result,
+                sorted(
+                    self.local_db_manager.get_distinct_items_from_database(
+                        collection_name="user_status",
+                        field="block",
+                        condition=condition,
+                    )
+                ),
+            ):
+                result.append(item)
+
+        return result
+
+    def sumary_result(self, t_ini: int = 0, t_end: int = 0) -> dict():
+
+        status_list = self.result_list_timestamp(t_ini=t_ini, t_end=t_end)
+
+        # set vars for mental health
+        ini_status = status_list[0]
+        end_status = status_list[-1]
+
+        days_passed = (end_status.timestamp - ini_status.timestamp) / (60 * 60 * 24)
+
+        # value of investment at the beguining of the period
+        ini_investment = (
+            ini_status.underlying_token0 * ini_status.usd_price_token0
+        ) + (ini_status.underlying_token1 * ini_status.usd_price_token1)
+        # add additional investments between periods using the usd value at the time it happened
+        ini_investment += (
+            end_status.total_investment_qtty_in_usd
+            - ini_status.total_investment_qtty_in_usd
+        )
+
+        # value of investment at the end of the period
+        end_investment = (
+            end_status.underlying_token0 * end_status.usd_price_token0
+        ) + (end_status.underlying_token1 * end_status.usd_price_token1)
+
+        # fees earned at initial price ( including fees divested). This avoids negative fees due to conversion but needs aditional info ( price variation effect)
+        fees_earned = (
+            (
+                end_status.fees_collected_token0
+                + end_status.fees_owed_token0
+                + end_status.fees_uncollected_token0
+                + end_status.divestment_fee_qtty_token0
+                - ini_status.fees_collected_token0
+                - ini_status.fees_owed_token0
+                - ini_status.fees_uncollected_token0
+                - ini_status.divestment_fee_qtty_token0
+            )
+            * ini_status.usd_price_token0
+        ) + (
+            (
+                end_status.fees_collected_token1
+                + end_status.fees_owed_token1
+                + end_status.fees_uncollected_token1
+                + end_status.divestment_fee_qtty_token1
+                - ini_status.fees_collected_token1
+                - ini_status.fees_owed_token1
+                - ini_status.fees_uncollected_token1
+                - ini_status.divestment_fee_qtty_token1
+            )
+            * ini_status.usd_price_token1
+        )
+
+        # value of token price variation affecting the position
+        price_variation = (
+            end_status.usd_price_token0 - ini_status.usd_price_token0
+        ) * ini_status.underlying_token0 + (
+            end_status.usd_price_token1 - ini_status.usd_price_token1
+        ) * ini_status.underlying_token1
+
+        # to be defined: change of asset allocation effect on position
+        asset_alloc_variation = (
+            (
+                (ini_status.underlying_token0 * ini_status.usd_price_token0)
+                / ini_investment
+            )
+            - (
+                (end_status.underlying_token0 * end_status.usd_price_token0)
+                / end_investment
+            )
+        ) * (end_status.usd_price_token0 - ini_status.usd_price_token0)
+        asset_alloc_variation += (
+            (
+                (ini_status.underlying_token1 * ini_status.usd_price_token1)
+                / ini_investment
+            )
+            - (
+                (end_status.underlying_token1 * end_status.usd_price_token1)
+                / end_investment
+            )
+        ) * (end_status.usd_price_token1 - ini_status.usd_price_token1)
+
+        return {
+            "date_from": ini_status.timestamp,
+            "date_to": end_status.timestamp,
+            "block_ini": ini_status.block,
+            "block_end": end_status.block,
+            "current_return": (end_investment - ini_investment),
+            "current_return_percent": (end_investment - ini_investment)
+            / ini_investment,
+            "yearly_fees": (fees_earned / Decimal(days_passed)) * 365,
+            "feeAPY": ((fees_earned / Decimal(days_passed)) / ini_investment + 1)
+            ** (365)
+            - 1,
+            "feeAPR": ((fees_earned / Decimal(days_passed)) / ini_investment) * 365,
+        }
