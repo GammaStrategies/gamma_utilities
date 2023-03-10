@@ -3,8 +3,7 @@ import sys
 import logging
 import tqdm
 import concurrent.futures
-from datetime import datetime
-from datetime import date
+from datetime import datetime, date, timedelta
 from pathlib import Path
 from web3.exceptions import ContractLogicError
 
