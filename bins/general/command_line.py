@@ -22,7 +22,14 @@ def parse_commandLine_args():
     # manual database feed
     par_db_feed = exGroup.add_argument(
         "--db_feed",
-        choices=["operations", "status", "static", "prices", "user_status"],
+        choices=[
+            "operations",
+            "status",
+            "static",
+            "prices",
+            "user_status",
+            "impermanent_v1",
+        ],
         help="feed database",
     )
 

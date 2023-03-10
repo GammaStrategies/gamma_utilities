@@ -131,7 +131,7 @@ class db_collections_common:
     @staticmethod
     def convert_decimal_to_d128(item: dict) -> dict:
         """Converts a dictionary decimal values to BSON.decimal128, recursivelly.
-            The function iterates a dict looking for types of Decimal128 and converts them to Decimal.
+            The function iterates a dict looking for types of Decimal and converts them to Decimal128.
             Embedded dictionaries and lists are called recursively.
 
         Args:
@@ -159,7 +159,7 @@ class db_collections_common:
     @staticmethod
     def convert_d128_to_decimal(item: dict) -> dict:
         """Converts a dictionary decimal128 values to decimal, recursivelly.
-            The function iterates a dict looking for types of Decimal and converts them to Decimal128.
+            The function iterates a dict looking for types of Decimal128 and converts them to Decimal.
             Embedded dictionaries and lists are called recursively.
 
         Args:
@@ -179,6 +179,32 @@ class db_collections_common:
                     db_collections_common.convert_d128_to_decimal(l)
             elif isinstance(v, Decimal128):
                 item[k] = v.to_decimal()
+
+        return item
+
+    @staticmethod
+    def convert_decimal_to_float(item: dict) -> dict:
+        """Converts a dictionary decimal values to float, recursivelly.
+            The function iterates a dict looking for types of Decimal and converts them to float.
+            Embedded dictionaries and lists are called recursively.
+
+        Args:
+            item (dict):
+
+        Returns:
+            dict: converted values dict
+        """
+        if item is None:
+            return None
+
+        for k, v in list(item.items()):
+            if isinstance(v, dict):
+                db_collections_common.convert_decimal_to_float(v)
+            elif isinstance(v, list):
+                for l in v:
+                    db_collections_common.convert_decimal_to_float(l)
+            elif isinstance(v, Decimal):
+                item[k] = float(v)
 
         return item
 

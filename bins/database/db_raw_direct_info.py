@@ -5,6 +5,8 @@ from decimal import Decimal, getcontext
 from bins.configuration import CONFIGURATION
 from bins.database.common.db_collections_common import database_local, database_global
 
+from datetime import datetime, timedelta
+
 
 class direct_db_hypervisor_info:
     def __init__(self, hypervisor_address: str, network: str, protocol: str):
@@ -202,7 +204,61 @@ class direct_db_hypervisor_info:
             collection_name="status", find=find, sort=sort
         )
 
+    def get_status_byDay(
+        self, ini_timestamp: int = 0, end_timestamp: int = 0
+    ) -> list[dict]:
+        """Get a list of status separated by days
+            sorted by date from past to present
+
+        Returns:
+            list[int]:
+        """
+
+        # get a list of status blocks separated at least by 1 hour
+        query = [
+            {
+                "$match": {
+                    "address": self.address,
+                }
+            },
+            {
+                "$addFields": {
+                    "datetime": {"$toDate": {"$multiply": ["$timestamp", 1000]}}
+                }
+            },
+            {
+                "$group": {
+                    "_id": {
+                        "d": {"$dayOfMonth": "$datetime"},
+                        "m": {"$month": "$datetime"},
+                        "y": {"$year": "$datetime"},
+                    },
+                    "status": {"$first": "$$ROOT"},
+                }
+            },
+            {"$sort": {"_id.y": 1, "_id.m": 1, "_id.d": 1}},
+        ]
+        # filter date if defined
+        if ini_timestamp != 0 and end_timestamp != 0:
+            query[0]["$match"]["$and"] = [
+                {"timestamp": {"$gte": int(ini_timestamp)}},
+                {"timestamp": {"$lte": int(end_timestamp)}},
+            ]
+
+        elif ini_timestamp != 0:
+            query[0]["$match"]["timestamp"] = {"$gte": int(ini_timestamp)}
+        elif end_timestamp != 0:
+            query[0]["$match"]["timestamp"] = {"$lte": int(end_timestamp)}
+        # return status list
+        return [
+            x["status"]
+            for x in self.local_db_manager.query_items_from_database(
+                collection_name="status", query=query
+            )
+        ]
+
     def get_data(self, ini_date: datetime = None, end_date: datetime = None) -> dict:
+
         # convert to timestamps
         ini_timestamp = ini_date.timestamp()
         end_timestamp = end_date.timestamp()
@@ -219,7 +275,20 @@ class direct_db_hypervisor_info:
 
         result = list()
         for operation in operations:
+
             latest_operation = self.latest_operation(block=operation["blockNumber"])
+            # discard operation if outside timestamp
+            if not latest_operation["blockNumber"] in status:
+                logging.getLogger(__name__).debug(
+                    " Discard block number {} as it falls behind timeframe [{} out of {} <-> {} ]".format(
+                        latest_operation["blockNumber"],
+                        operation["timestamp"],
+                        ini_timestamp,
+                        end_timestamp,
+                    )
+                )
+                # loop without adding to result
+                continue
 
             result.append(
                 self.calculate(
@@ -229,21 +298,21 @@ class direct_db_hypervisor_info:
             )
 
         if len(result) == 0:
-            init_status = status[min(status.keys())]
+            ini_status = status[min(status.keys())]
             end_status = status[max(status.keys())]
             # no operations exist
             logging.getLogger(__name__).debug(
                 " No operations found from {} to {} . Using available status from {} to {}".format(
                     datetime.fromtimestamp(ini_timestamp),
                     datetime.fromtimestamp(end_timestamp),
-                    datetime.fromtimestamp(init_status["timestamp"]),
+                    datetime.fromtimestamp(ini_status["timestamp"]),
                     datetime.fromtimestamp(end_status["timestamp"]),
                 )
             )
             # add to result
             result.append(
                 self.calculate(
-                    init_status=init_status,
+                    ini_status=ini_status,
                     end_status=end_status,
                 )
             )
@@ -257,7 +326,7 @@ class direct_db_hypervisor_info:
             secsPassed = x["end_timestamp"] - x["ini_timestamp"]
             yield_period = (
                 (x["fees_uncollected_usd"] / secsPassed) * (60 * 60 * 24 * 365)
-            ) / totalAmounts_usd
+            ) / x["totalAmounts_usd"]
 
             total_secsPassed += secsPassed
             if total_yield_period != 0:
@@ -294,52 +363,456 @@ class direct_db_hypervisor_info:
             "raw_data": result,
         }
 
-    def calculate(self, init_status: dict, end_status: dict) -> dict:
+    def get_impermanent_data_vOld1(
+        self, ini_date: datetime = None, end_date: datetime = None
+    ) -> list[dict]:
+        """( Relative value % )
+            get the variation of X during the timeframe specified:
+                (so aggregating all variations of a var will give u the final situation: initial vs end situation)
+
+        Args:
+            ini_date (datetime, optional): initial date. Defaults to None.
+            end_date (datetime, optional): end date . Defaults to None.
+
+        Returns:
+            dict: _description_
+        """
+        # convert to timestamps
+        ini_timestamp = ini_date.timestamp()
+        end_timestamp = end_date.timestamp()
+
+        status_list = [
+            self.convert_hypervisor_status_fromDb(x)
+            for x in self.get_status_byDay(
+                ini_timestamp=ini_timestamp, end_timestamp=end_timestamp
+            )
+        ]
+
+        result = list()
+        last_status = None
+        last_row = None
+        for status in status_list:
+
+            # CHECK: do not process zero supply status
+            if status["totalSupply"] == 0:
+                # skip till hype has supply status
+                logging.getLogger(__name__).warning(
+                    " {} has no totalSuply at block {}. Skiping for impermanent calc".format(
+                        status["address"], status["block"]
+                    )
+                )
+                continue
+
+            # create row
+            row = dict()
+            row["block"] = status["block"]
+            row["timestamp"] = status["timestamp"]
+            row["address"] = status["address"]
+            row["symbol"] = status["symbol"]
+
+            row["usd_price_token0"] = Decimal(
+                str(
+                    self.get_price(
+                        block=status["block"],
+                        address=status["pool"]["token0"]["address"],
+                    )
+                )
+            )
+            row["usd_price_token1"] = Decimal(
+                str(
+                    self.get_price(
+                        block=status["block"],
+                        address=status["pool"]["token1"]["address"],
+                    )
+                )
+            )
+
+            # CHECK: do not process price zero status
+            if row["usd_price_token0"] == 0 or row["usd_price_token1"] == 0:
+                # skip
+                logging.getLogger(__name__).error(
+                    " {} has no token price at block {}. Skiping for impermanent calc. [prices token0:{}  token1:{}]".format(
+                        status["address"],
+                        status["block"],
+                        row["usd_price_token0"],
+                        row["usd_price_token1"],
+                    )
+                )
+                continue
+
+            row["underlying_token0"] = (
+                status["totalAmounts"]["total0"]
+                + status["fees_uncollected"]["qtty_token0"]
+            )
+            row["underlying_token1"] = (
+                status["totalAmounts"]["total1"]
+                + status["fees_uncollected"]["qtty_token1"]
+            )
+            row["total_underlying_in_usd"] = (
+                row["underlying_token0"] * row["usd_price_token0"]
+                + row["underlying_token1"] * row["usd_price_token1"]
+            )
+            row["total_underlying_in_usd_perShare"] = (
+                row["total_underlying_in_usd"] / status["totalSupply"]
+            )
+
+            row["total_value_in_token0_perShare"] = (
+                row["total_underlying_in_usd_perShare"] / row["usd_price_token0"]
+            )
+            row["total_value_in_token1_perShare"] = (
+                row["total_underlying_in_usd_perShare"] / row["usd_price_token1"]
+            )
+
+            # current 50% token qtty calculation
+            row["fifty_qtty_token0"] = (
+                row["total_underlying_in_usd"] * Decimal("0.5")
+            ) / row["usd_price_token0"]
+            row["fifty_qtty_token1"] = (
+                row["total_underlying_in_usd"] * Decimal("0.5")
+            ) / row["usd_price_token1"]
+
+            if last_status != None:
+
+                # calculate the current value of the last 50% tokens ( so last 50% token qtty * current prices)
+                row["fifty_value_last_usd"] = (
+                    last_row["fifty_qtty_token0"] * row["usd_price_token0"]
+                    + last_row["fifty_qtty_token1"] * row["usd_price_token1"]
+                )
+                # price per share ( using last status )
+                row["fifty_value_last_usd_perShare"] = (
+                    row["fifty_value_last_usd"] / last_status["totalSupply"]
+                )
+
+                # set 50% result
+                row["hodl_fifty_result_variation"] = (
+                    row["fifty_value_last_usd_perShare"]
+                    - last_row["total_underlying_in_usd_perShare"]
+                ) / last_row["total_underlying_in_usd_perShare"]
+
+                # set HODL result
+                row["hodl_token0_result_variation"] = (
+                    row["total_value_in_token0_perShare"]
+                    - last_row["total_value_in_token0_perShare"]
+                ) / last_row["total_value_in_token0_perShare"]
+                row["hodl_token1_result_variation"] = (
+                    row["total_value_in_token1_perShare"]
+                    - last_row["total_value_in_token1_perShare"]
+                ) / last_row["total_value_in_token1_perShare"]
+
+                # LPing
+                row["lping_result_variation"] = (
+                    row["total_underlying_in_usd_perShare"]
+                    - last_row["total_underlying_in_usd_perShare"]
+                ) / last_row["total_underlying_in_usd_perShare"]
+
+                result.append(row)
+
+            last_status = status
+            last_row = row
+
+        return result
+
+    def get_impermanent_data(
+        self, ini_date: datetime = None, end_date: datetime = None
+    ) -> list[dict]:
+        """( Relative value % )
+            get the variation of X during the timeframe specified:
+                (so aggregating all variations of a var will give u the final situation: initial vs end situation)
+
+        Args:
+            ini_date (datetime, optional): initial date. Defaults to None.
+            end_date (datetime, optional): end date . Defaults to None.
+
+        Returns:
+            dict: _description_
+        """
+        # convert to timestamps
+        ini_timestamp = ini_date.timestamp()
+        end_timestamp = end_date.timestamp()
+
+        status_list = [
+            self.convert_hypervisor_status_fromDb(x)
+            for x in self.get_status_byDay(
+                ini_timestamp=ini_timestamp, end_timestamp=end_timestamp
+            )
+        ]
+
+        result = list()
+        last_status = None
+        last_row = None
+
+        # total supply at time zero
+        timezero_totalSupply = 0
+        # 50% token qtty calculation
+        timezero_fifty_qtty_token0 = 0
+        timezero_fifty_qtty_token1 = 0
+        # total token X at time zero
+        timezero_total_position_in_token0 = 0
+        timezero_total_position_in_token1 = 0
+        # total value locked ( including uncollected fees ) at time zero
+        timezero_underlying_token0 = 0
+        timezero_underlying_token1 = 0
+        timezero_underlying_in_usd = 0
+        timezero_underlying_in_usd_perShare = 0
+
+        for status in status_list:
+
+            # CHECK: do not process zero supply status
+            if status["totalSupply"] == 0:
+                # skip till hype has supply status
+                logging.getLogger(__name__).warning(
+                    " {} has no totalSuply at block {}. Skiping for impermanent calc".format(
+                        status["address"], status["block"]
+                    )
+                )
+                continue
+
+            usd_price_token0 = Decimal(
+                str(
+                    self.get_price(
+                        block=status["block"],
+                        address=status["pool"]["token0"]["address"],
+                    )
+                )
+            )
+            usd_price_token1 = Decimal(
+                str(
+                    self.get_price(
+                        block=status["block"],
+                        address=status["pool"]["token1"]["address"],
+                    )
+                )
+            )
+
+            # CHECK: do not process price zero status
+            if usd_price_token0 == 0 or usd_price_token1 == 0:
+                # skip
+                logging.getLogger(__name__).error(
+                    " {} has no token price at block {}. Skiping for impermanent calc. [prices token0:{}  token1:{}]".format(
+                        status["address"],
+                        status["block"],
+                        usd_price_token0,
+                        usd_price_token1,
+                    )
+                )
+                continue
+
+            if last_status == None:
+                # time zero row creation
+
+                timezero_totalSupply = status["totalSupply"]
+
+                timezero_underlying_token0 = (
+                    status["totalAmounts"]["total0"]
+                    + status["fees_uncollected"]["qtty_token0"]
+                )
+                timezero_underlying_token1 = (
+                    status["totalAmounts"]["total1"]
+                    + status["fees_uncollected"]["qtty_token1"]
+                )
+                timezero_underlying_in_usd = (
+                    timezero_underlying_token0 * usd_price_token0
+                    + timezero_underlying_token1 * usd_price_token1
+                )
+                timezero_underlying_in_usd_perShare = (
+                    timezero_underlying_in_usd / timezero_totalSupply
+                )
+
+                timezero_fifty_qtty_token0 = (
+                    timezero_underlying_in_usd * Decimal("0.5")
+                ) / usd_price_token0
+                timezero_fifty_qtty_token1 = (
+                    timezero_underlying_in_usd * Decimal("0.5")
+                ) / usd_price_token1
+
+                timezero_total_position_in_token0 = (
+                    timezero_underlying_in_usd / usd_price_token0
+                )
+                timezero_total_position_in_token1 = (
+                    timezero_underlying_in_usd / usd_price_token1
+                )
+
+            # create row
+            row = dict()
+
+            row["usd_price_token0"] = usd_price_token0
+            row["usd_price_token1"] = usd_price_token1
+
+            row["underlying_token0"] = (
+                status["totalAmounts"]["total0"]
+                + status["fees_uncollected"]["qtty_token0"]
+            )
+            row["underlying_token1"] = (
+                status["totalAmounts"]["total1"]
+                + status["fees_uncollected"]["qtty_token1"]
+            )
+            row["total_underlying_in_usd"] = (
+                row["underlying_token0"] * row["usd_price_token0"]
+                + row["underlying_token1"] * row["usd_price_token1"]
+            )
+            row["total_underlying_in_usd_perShare"] = (
+                row["total_underlying_in_usd"] / status["totalSupply"]
+            )
+
+            # HODL token X
+            row["total_value_in_token0_perShare"] = (
+                timezero_total_position_in_token0 * usd_price_token0
+            ) / timezero_totalSupply
+            row["total_value_in_token1_perShare"] = (
+                timezero_total_position_in_token1 * usd_price_token1
+            ) / timezero_totalSupply
+
+            # HODL tokens in time zero proportion
+            row["total_value_in_proportion_perShare"] = (
+                timezero_underlying_token0 * usd_price_token0
+                + timezero_underlying_token1 * usd_price_token1
+            ) / timezero_totalSupply
+
+            # calculate the current value of the 50%/50% position now
+            row["fifty_value_last_usd"] = (
+                timezero_fifty_qtty_token0 * usd_price_token0
+                + timezero_fifty_qtty_token1 * usd_price_token1
+            )
+            # price per share of the 50%/50% position now
+            row["fifty_value_last_usd_perShare"] = (
+                row["fifty_value_last_usd"] / timezero_totalSupply
+            )
+
+            # 50%
+            row["hodl_fifty_result_vs_firstRow"] = (
+                row["fifty_value_last_usd_perShare"]
+                - timezero_underlying_in_usd_perShare
+            ) / timezero_underlying_in_usd_perShare
+            # tokens
+            row["hodl_token0_result_vs_firstRow"] = (
+                row["total_value_in_token0_perShare"]
+                - timezero_underlying_in_usd_perShare
+            ) / timezero_underlying_in_usd_perShare
+            row["hodl_token1_result_vs_firstRow"] = (
+                row["total_value_in_token1_perShare"]
+                - timezero_underlying_in_usd_perShare
+            ) / timezero_underlying_in_usd_perShare
+
+            row["hodl_proportion_result_vs_firstRow"] = (
+                row["total_value_in_proportion_perShare"]
+                - timezero_underlying_in_usd_perShare
+            ) / timezero_underlying_in_usd_perShare
+
+            row["lping_result_vs_firstRow"] = (
+                row["total_underlying_in_usd_perShare"]
+                - timezero_underlying_in_usd_perShare
+            ) / timezero_underlying_in_usd_perShare
+
+            if last_status != None:
+
+                # set 50% result
+                row["hodl_fifty_result_variation"] = (
+                    row["hodl_fifty_result_vs_firstRow"]
+                    - last_row["hodl_fifty_result_vs_firstRow"]
+                )
+
+                # set HODL result
+                row["hodl_token0_result_variation"] = (
+                    row["hodl_token0_result_vs_firstRow"]
+                    - last_row["hodl_token0_result_vs_firstRow"]
+                )
+                row["hodl_token1_result_variation"] = (
+                    row["hodl_token1_result_vs_firstRow"]
+                    - last_row["hodl_token1_result_vs_firstRow"]
+                )
+                row["hodl_proportion_result_variation"] = (
+                    row["hodl_proportion_result_vs_firstRow"]
+                    - last_row["hodl_proportion_result_vs_firstRow"]
+                )
+
+                # LPing
+                row["lping_result_variation"] = (
+                    row["lping_result_vs_firstRow"]
+                    - last_row["lping_result_vs_firstRow"]
+                )
+
+                # return result ( return row for debugging purposes)
+                result.append(
+                    {
+                        "block": status["block"],
+                        "timestamp": status["timestamp"],
+                        "address": status["address"],
+                        "symbol": status["symbol"],
+                        "hodl_token0_result_variation": row[
+                            "hodl_token0_result_variation"
+                        ],
+                        "hodl_token1_result_variation": row[
+                            "hodl_token1_result_variation"
+                        ],
+                        "hodl_proportion_result_variation": row[
+                            "hodl_proportion_result_variation"
+                        ],
+                        "lping_result_variation": row["lping_result_variation"],
+                    }
+                )
+
+            last_status = status
+            last_row = row
+
+        return result
+
+    def calculate(self, ini_status: dict, end_status: dict) -> dict:
+
+        ## totalAmounts = tokens depoyed in both positions + tokensOwed0 + unused (balanceOf) in the Hypervisor
 
         #### DEBUG TEST #####
-        if (
-            init_status["totalAmounts"]["total0"]
-            != end_status["totalAmounts"]["total0"]
-        ):
+        if ini_status["totalAmounts"]["total0"] != end_status["totalAmounts"]["total0"]:
             logging.getLogger(__name__).error(" total token 0 ini differs from end ")
-        if (
-            init_status["totalAmounts"]["total1"]
-            != end_status["totalAmounts"]["total1"]
-        ):
+        if ini_status["totalAmounts"]["total1"] != end_status["totalAmounts"]["total1"]:
             logging.getLogger(__name__).error(" total token 1 ini differs from end ")
 
         # usd prices
-        ini_price_usd_token0 = self._prices[init_status["block"]][
-            init_status["pool"]["token0"]["address"]
-        ]
-        ini_price_usd_token1 = self._prices[init_status["block"]][
-            init_status["pool"]["token1"]["address"]
-        ]
-
-        end_price_usd_token0 = self._prices[end_status["block"]][
-            end_status["pool"]["token0"]["address"]
-        ]
-        end_price_usd_token1 = self._prices[end_status["block"]][
-            end_status["pool"]["token1"]["address"]
-        ]
+        ini_price_usd_token0 = Decimal(
+            str(
+                self._prices[ini_status["block"]][
+                    ini_status["pool"]["token0"]["address"]
+                ]
+            )
+        )
+        ini_price_usd_token1 = Decimal(
+            str(
+                self._prices[ini_status["block"]][
+                    ini_status["pool"]["token1"]["address"]
+                ]
+            )
+        )
+        end_price_usd_token0 = Decimal(
+            str(
+                self._prices[end_status["block"]][
+                    end_status["pool"]["token0"]["address"]
+                ]
+            )
+        )
+        end_price_usd_token1 = Decimal(
+            str(
+                self._prices[end_status["block"]][
+                    end_status["pool"]["token1"]["address"]
+                ]
+            )
+        )
 
         # calcs
-        seconds_passed = end_status["timestamp"] - init_status["timestamp"]
+        seconds_passed = end_status["timestamp"] - ini_status["timestamp"]
         fees_uncollected_token0 = (
             end_status["fees_uncollected"]["qtty_token0"]
-            - init_status["fees_uncollected"]["qtty_token0"]
+            - ini_status["fees_uncollected"]["qtty_token0"]
         )
         fees_uncollected_token1 = (
             end_status["fees_uncollected"]["qtty_token1"]
-            - init_status["fees_uncollected"]["qtty_token1"]
+            - ini_status["fees_uncollected"]["qtty_token1"]
         )
         fees_uncollected_usd = (
             fees_uncollected_token0 * end_price_usd_token0
             + fees_uncollected_token1 * end_price_usd_token1
         )
         totalAmounts_usd = (
-            init_status["totalAmounts"]["total0"] * end_price_usd_token0
-            + init_status["totalAmounts"]["total1"] * end_price_usd_token1
+            ini_status["totalAmounts"]["total0"] * end_price_usd_token0
+            + ini_status["totalAmounts"]["total1"] * end_price_usd_token1
         )
 
         # impermanent
@@ -391,13 +864,13 @@ class direct_db_hypervisor_info:
 
         # return result
         return {
-            "ini_timestamp": init_status["timestamp"],
+            "ini_timestamp": ini_status["timestamp"],
             "end_timestamp": end_status["timestamp"],
             "fees_uncollected_token0": fees_uncollected_token0,
             "fees_uncollected_token1": fees_uncollected_token1,
             "fees_uncollected_usd": fees_uncollected_usd,
-            "totalAmounts_token0": init_status["totalAmounts"]["total0"],
-            "totalAmounts_token1": init_status["totalAmounts"]["total1"],
+            "totalAmounts_token0": ini_status["totalAmounts"]["total0"],
+            "totalAmounts_token1": ini_status["totalAmounts"]["total1"],
             "totalAmounts_usd": totalAmounts_usd,
             "vs_hodl_usd": vs_hodl_usd,
             "vs_hodl_token0": vs_hodl_token0,
@@ -592,3 +1065,68 @@ class direct_db_hypervisor_info:
         ) / Decimal(10**decimals_token1)
 
         return hype_status
+
+    def query_status(
+        self, address: str, ini_timestamp: int, end_timesatmp: int
+    ) -> list[dict]:
+        return [
+            {
+                "$match": {
+                    "address": address,
+                    "$and": [
+                        {"timestamp": {"$gte": ini_timestamp}},
+                        {"timestamp": {"$lte": end_timesatmp}},
+                    ],
+                },
+            },
+            {"$sort": {"block": -1}},
+            {
+                "$project": {
+                    "tvl0": {"$toDecimal": "$totalAmounts.total0"},
+                    "tvl1": {"$toDecimal": "$totalAmounts.total1"},
+                    "supply": {"$toDecimal": "$totalSupply"},
+                    "fees_uncollected0": {
+                        "$toDecimal": "$fees_uncollected.qtty_token0"
+                    },
+                    "fees_uncollected1": {
+                        "$toDecimal": "$fees_uncollected.qtty_token1"
+                    },
+                    "fees_owed0": {"$toDecimal": "$tvl.fees_owed_token0"},
+                    "fees_owed1": {"$toDecimal": "$tvl.fees_owed_token1"},
+                    "decimals_token0": "$pool.token0.decimals",
+                    "decimals_token1": "$pool.token1.decimals",
+                    "decimals_contract": "$decimals",
+                    "block": "$block",
+                    "timestamp": "$timestamp",
+                }
+            },
+            {
+                "$project": {
+                    "tvl0": {"$divide": ["$tvl0", {"$pow": [10, "$decimals_token0"]}]},
+                    "tvl1": {"$divide": ["$tvl1", {"$pow": [10, "$decimals_token1"]}]},
+                    "supply": {
+                        "$divide": ["$supply", {"$pow": [10, "$decimals_contract"]}]
+                    },
+                    "fees_uncollected0": {
+                        "$divide": [
+                            "$fees_uncollected0",
+                            {"$pow": [10, "$decimals_token0"]},
+                        ]
+                    },
+                    "fees_uncollected1": {
+                        "$divide": [
+                            "$fees_uncollected1",
+                            {"$pow": [10, "$decimals_token1"]},
+                        ]
+                    },
+                    "fees_owed0": {
+                        "$divide": ["$fees_owed0", {"$pow": [10, "$decimals_token0"]}]
+                    },
+                    "fees_owed1": {
+                        "$divide": ["$fees_owed1", {"$pow": [10, "$decimals_token1"]}]
+                    },
+                    "block": "$block",
+                    "timestamp": "$timestamp",
+                }
+            },
+        ]
