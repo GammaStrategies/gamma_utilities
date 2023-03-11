@@ -646,7 +646,7 @@ class comparator_v1:
                         # udate first
                         if (
                             not "first_deposit" in hypervisor["status"][block]
-                            or hypervisor["status"][block]["first_deposit"] == None
+                            or hypervisor["status"][block]["first_deposit"] is None
                         ):
                             hypervisor["status"][block]["first_deposit"] = x[
                                 "timestamp"
@@ -742,7 +742,7 @@ class comparator_v1:
                         # update last
                         if (
                             not "last_withdraw" in hypervisor["status"][block]
-                            or hypervisor["status"][block]["last_withdraw"] == None
+                            or hypervisor["status"][block]["last_withdraw"] is None
                         ):
                             hypervisor["status"][block]["last_withdraw"] = x[
                                 "timestamp"
@@ -834,7 +834,7 @@ class comparator_v1:
 
                         if (
                             not "last_rebalance" in hypervisor["status"][block]
-                            or hypervisor["status"][block]["last_rebalance"] == None
+                            or hypervisor["status"][block]["last_rebalance"] is None
                         ):
                             hypervisor["status"][block]["last_rebalance"] = x[
                                 "timestamp"
@@ -1000,7 +1000,7 @@ class comparator_v1:
         # define startime
         startime = (
             (dt.datetime.utcnow() - dt.timedelta(days=365 * 150))
-            if forced_startime == None
+            if forced_startime is None
             else forced_startime
         )
 
@@ -1034,7 +1034,7 @@ class comparator_v1:
                 chart_datarow["block"] = status["block"]
 
                 # days passed calc.
-                if control_vars["first_datetime"] == None:
+                if control_vars["first_datetime"] is None:
                     # set first datetime once
                     control_vars["first_datetime"] = chart_datarow["datetime"]
                 chart_datarow["days_passed"] = (

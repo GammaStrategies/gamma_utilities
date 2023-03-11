@@ -431,7 +431,7 @@ def do_loop_work(
                         feeGrowthOutside[
                             result_item["{}_{}_{}Tick".format(pos, typname, y)]
                         ]["feeGrowthOutside{}X128".format(i)]
-                        if len(feeGrowthOutside) > 0
+                        if feeGrowthOutside
                         else 0
                     )
                 except KeyError:
@@ -688,7 +688,7 @@ def do_loop_work_loc_graph(
                         feeGrowthOutside[
                             result_item["{}_{}_{}Tick".format(pos, typname, y)]
                         ]["feeGrowthOutside{}X128".format(i)]
-                        if len(feeGrowthOutside) > 0
+                        if feeGrowthOutside
                         else 0
                     )
                 except KeyError:

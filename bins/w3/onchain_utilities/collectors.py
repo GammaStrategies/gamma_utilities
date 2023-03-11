@@ -50,13 +50,13 @@ class data_collector:
 
     def setup_topics(self, topics: dict, topics_data_decoders: dict):
 
-        if not topics == None and len(topics.keys()) > 0:
+        if not topics is None and len(topics.keys()) > 0:
             # set topics
             self._topics = topics
             # create a reversed topic list to be used to process topics
             self._topics_reversed = {v: k for k, v in self._topics.items()}
 
-        if not topics_data_decoders == None and len(topics_data_decoders.keys()) > 0:
+        if not topics_data_decoders is None and len(topics_data_decoders.keys()) > 0:
             # set data decoders
             self._topics_data_decoders = topics_data_decoders
 

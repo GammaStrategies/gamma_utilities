@@ -114,7 +114,7 @@ class etherscan_helper:
 
                 if _data["status"] == "1":
                     # query when thru ok
-                    if len(_data["result"]) > 0:
+                    if _data["result"]:
                         # Add data to result
                         result += _data["result"]
 

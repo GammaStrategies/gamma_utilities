@@ -2588,7 +2588,7 @@ class ro_hypervisor_db:
             # get currentlast block before creating other
             last_block = (
                 max(list(self._global_data_by_block.keys()))
-                if len(self._global_data_by_block) > 0
+                if self._global_data_by_block
                 else block
             )
 
@@ -2602,7 +2602,7 @@ class ro_hypervisor_db:
                 "fee1_remainder": 0,
             }
             # add last block data
-            if len(self._global_data_by_block) > 0:
+            if self._global_data_by_block:
                 # copy old data to new block
                 for k, v in self._global_data_by_block[last_block].items():
                     self._global_data_by_block[block][k] += v
@@ -3627,7 +3627,7 @@ def get_hypervisor_addresses(network: str, protocol: str) -> list[str]:
         .get(network, [])
     )
     # check n clean
-    if blacklisted == None:
+    if blacklisted is None:
         blacklisted = []
 
     # retrieve all addresses from database

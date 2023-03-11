@@ -315,7 +315,7 @@ def chek_localdb_blocks(local_db_manager: database_local):
         find={"blockNumber": {"$not": {"$type": "int"}}},
     )
     # warn
-    if len(blocks_operatons) > 0:
+    if blocks_operatons:
         logging.getLogger(__name__).warning(
             f" Found {len(blocks_operatons)} operations with the block field not being int"
         )
@@ -325,7 +325,7 @@ def chek_localdb_blocks(local_db_manager: database_local):
         collection_name="status", find={"block": {"$not": {"$type": "int"}}}
     )
     # warn
-    if len(blocks_status) > 0:
+    if blocks_status:
         logging.getLogger(__name__).warning(
             f" Found {len(blocks_status)} hypervisor status with the block field not being int"
         )
@@ -342,7 +342,7 @@ def chek_globaldb_blocks(global_db_manager: database_global):
         collection_name="usd_prices", find={"block": {"$not": {"$type": "int"}}}
     )
     # warn
-    if len(blocks_usd_prices) > 0:
+    if blocks_usd_prices:
         logging.getLogger(__name__).warning(
             f" Found {len(blocks_usd_prices)} usd prices with the block field not being int"
         )
@@ -377,7 +377,7 @@ def check_status_prices(
             if not db_id in prices:
                 prices_todo.add(db_id)
 
-    if len(prices_todo) > 0:
+    if prices_todo:
         logging.getLogger(__name__).warning(
             " Found {} token blocks without price, from a total of {} ({:,.1%})".format(
                 len(prices_todo), len(prices), len(prices_todo) / len(prices)

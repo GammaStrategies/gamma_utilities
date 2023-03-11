@@ -217,7 +217,7 @@ class gamma_hypervisor(erc20):
 
     @property
     def pool(self) -> univ3_pool:
-        if self._pool == None:
+        if self._pool is None:
             self._pool = univ3_pool(
                 address=self._contract.functions.pool().call(
                     block_identifier=self.block
@@ -238,7 +238,7 @@ class gamma_hypervisor(erc20):
 
     @property
     def token0(self) -> erc20:
-        if self._token0 == None:
+        if self._token0 is None:
             self._token0 = erc20(
                 address=self._contract.functions.token0().call(
                     block_identifier=self.block
@@ -250,7 +250,7 @@ class gamma_hypervisor(erc20):
 
     @property
     def token1(self) -> erc20:
-        if self._token1 == None:
+        if self._token1 is None:
             self._token1 = erc20(
                 address=self._contract.functions.token1().call(
                     block_identifier=self.block
@@ -527,7 +527,7 @@ class gamma_hypervisor_quickswap(gamma_hypervisor):
 
     @property
     def pool(self) -> quickswapv3_pool:
-        if self._pool == None:
+        if self._pool is None:
             self._pool = quickswapv3_pool(
                 address=self._contract.functions.pool().call(
                     block_identifier=self.block
@@ -552,7 +552,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -573,7 +573,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -594,7 +594,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -615,7 +615,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -636,7 +636,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -657,7 +657,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -678,7 +678,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -707,7 +707,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -736,7 +736,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -763,7 +763,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -785,7 +785,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -806,7 +806,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -827,7 +827,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -848,7 +848,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -869,7 +869,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -883,7 +883,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
 
     @property
     def pool(self) -> str:
-        if self._pool == None:
+        if self._pool is None:
             self._pool = univ3_pool_cached(
                 address=self._contract.functions.pool().call(
                     block_identifier=self.block
@@ -902,7 +902,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -916,7 +916,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
 
     @property
     def token0(self) -> erc20:
-        if self._token0 == None:
+        if self._token0 is None:
             self._token0 = erc20_cached(
                 address=self._contract.functions.token0().call(
                     block_identifier=self.block
@@ -928,7 +928,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
 
     @property
     def token1(self) -> erc20:
-        if self._token1 == None:
+        if self._token1 is None:
             self._token1 = erc20_cached(
                 address=self._contract.functions.token1().call(
                     block_identifier=self.block
@@ -947,7 +947,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -974,7 +974,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -995,7 +995,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1016,7 +1016,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1037,7 +1037,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1058,7 +1058,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1079,7 +1079,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1100,7 +1100,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1129,7 +1129,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1158,7 +1158,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1185,7 +1185,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1207,7 +1207,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1228,7 +1228,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1249,7 +1249,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1270,7 +1270,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1291,7 +1291,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1305,7 +1305,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
 
     @property
     def pool(self) -> str:
-        if self._pool == None:
+        if self._pool is None:
             self._pool = quickswapv3_pool_cached(
                 address=self._contract.functions.pool().call(
                     block_identifier=self.block
@@ -1324,7 +1324,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1338,7 +1338,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
 
     @property
     def token0(self) -> erc20:
-        if self._token0 == None:
+        if self._token0 is None:
             self._token0 = erc20_cached(
                 address=self._contract.functions.token0().call(
                     block_identifier=self.block
@@ -1350,7 +1350,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
 
     @property
     def token1(self) -> erc20:
-        if self._token1 == None:
+        if self._token1 is None:
             self._token1 = erc20_cached(
                 address=self._contract.functions.token1().call(
                     block_identifier=self.block
@@ -1369,7 +1369,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1679,7 +1679,7 @@ class arrakis_hypervisor(erc20):
 
     @property
     def pool(self) -> str:
-        if self._pool == None:
+        if self._pool is None:
             self._pool = univ3_pool(
                 address=self._contract.functions.pool().call(
                     block_identifier=self.block
@@ -1691,7 +1691,7 @@ class arrakis_hypervisor(erc20):
 
     @property
     def token0(self) -> erc20:
-        if self._token0 == None:
+        if self._token0 is None:
             self._token0 = erc20(
                 address=self._contract.functions.token0().call(
                     block_identifier=self.block
@@ -1703,7 +1703,7 @@ class arrakis_hypervisor(erc20):
 
     @property
     def token1(self) -> erc20:
-        if self._token1 == None:
+        if self._token1 is None:
             self._token1 = erc20(
                 address=self._contract.functions.token1().call(
                     block_identifier=self.block
@@ -1838,7 +1838,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1859,7 +1859,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1880,7 +1880,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1901,7 +1901,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1922,7 +1922,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1943,7 +1943,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1964,7 +1964,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1985,7 +1985,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -2012,7 +2012,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -2034,7 +2034,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -2055,7 +2055,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -2076,7 +2076,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -2097,7 +2097,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -2118,7 +2118,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -2139,7 +2139,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -2160,7 +2160,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -2181,7 +2181,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -2202,7 +2202,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -2216,7 +2216,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
 
     @property
     def token0(self) -> erc20:
-        if self._token0 == None:
+        if self._token0 is None:
             self._token0 = erc20_cached(
                 address=self._contract.functions.token0().call(
                     block_identifier=self.block
@@ -2228,7 +2228,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
 
     @property
     def token1(self) -> erc20:
-        if self._token1 == None:
+        if self._token1 is None:
             self._token1 = erc20_cached(
                 address=self._contract.functions.token1().call(
                     block_identifier=self.block
@@ -2240,7 +2240,7 @@ class arrakis_hypervisor_cached(arrakis_hypervisor):
 
     @property
     def pool(self) -> str:
-        if self._pool == None:
+        if self._pool is None:
             self._pool = univ3_pool_cached(
                 address=self._contract.functions.pool().call(
                     block_identifier=self.block

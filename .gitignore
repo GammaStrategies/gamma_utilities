@@ -150,7 +150,6 @@ logs/
 *.ods
 *.ods#
 tests/*.json
-tests/
 
 TODO
 apps/fastAPI

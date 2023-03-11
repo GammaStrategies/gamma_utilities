@@ -252,7 +252,7 @@ class log_time_passed:
 
     def __exit__(self, type, value, traceback):
         # xception handling here
-        if not self._callback == None:
+        if not self._callback is None:
             self._callback.debug(
                 f" took {self.get_timepassed_string(self.start,self.end)} to complete {self.fName}"
             )

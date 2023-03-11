@@ -117,7 +117,7 @@ def test_comparator_phase1():
                     )
 
                 # scrape all
-                if main_frame == None:
+                if main_frame is None:
                     main_frame = helper.create_collection(
                         addresses=addresses,
                         network=network,

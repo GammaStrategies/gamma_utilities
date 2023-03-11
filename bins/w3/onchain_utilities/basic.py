@@ -491,7 +491,7 @@ class erc20_cached(erc20):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -512,7 +512,7 @@ class erc20_cached(erc20):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -533,7 +533,7 @@ class erc20_cached(erc20):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,

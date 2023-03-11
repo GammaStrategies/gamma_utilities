@@ -79,7 +79,7 @@ def get_hypervisor_addresses(
         .get(network, [])
     )
     # check n clean
-    if blacklisted == None:
+    if blacklisted is None:
         blacklisted = []
 
     # retrieve all addresses from database

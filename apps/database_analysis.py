@@ -353,7 +353,7 @@ def get_hypervisor_addresses(
         .get(network, [])
     )
     # check n clean
-    if blacklisted == None:
+    if blacklisted is None:
         blacklisted = []
 
     # retrieve all addresses from database
@@ -477,9 +477,9 @@ def sumary_network(
 ):
 
     # set timeframe
-    if end_date == None:
+    if end_date is None:
         end_date = datetime.utcnow()
-    if ini_date == None or ini_date >= end_date:
+    if ini_date is None or ini_date >= end_date:
         ini_date = end_date - timedelta(days=7)
 
     # convert dates to timestamps
@@ -564,9 +564,9 @@ def sumary_user(
     )
 
     # set timeframe
-    if end_date == None:
+    if end_date is None:
         end_date = datetime.utcnow()
-    if ini_date == None or ini_date >= end_date:
+    if ini_date is None or ini_date >= end_date:
         ini_date = end_date - timedelta(days=7)
 
     # convert dates to timestamps

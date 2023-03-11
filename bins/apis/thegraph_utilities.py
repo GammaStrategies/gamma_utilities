@@ -54,12 +54,12 @@ class thegraph_scraper_helper:
         _filter = self._filter_constructor(**kwargs)
 
         # check cache, if enabled
-        if not self._CACHE == None:
+        if not self._CACHE is None:
             result = self._CACHE.get_data(
                 network=network, query_name=query_name, **kwargs
             )
 
-        if result == None:
+        if result is None:
             # get  data from thegraph
             result = list()
 
@@ -113,7 +113,7 @@ class thegraph_scraper_helper:
                             )
                         )
 
-                    if len(_data) > 0:
+                    if _data:
                         # modify pagination var
                         _skip += len(_data)
                         # add to result
@@ -145,7 +145,7 @@ class thegraph_scraper_helper:
                 return list()
 
             # save it to cache, if enabled
-            if not self._CACHE == None:
+            if not self._CACHE is None:
                 if not self._CACHE.add_data(
                     data=result, network=network, query_name=query_name, **kwargs
                 ):

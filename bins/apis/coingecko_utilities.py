@@ -119,7 +119,7 @@ class coingecko_price_helper:
 
         # check if result has actually a price in it
         try:
-            if len(_data["prices"][0]) > 0:
+            if _data["prices"][0]:
                 return _data["prices"][0][1]
             else:
                 # price not found

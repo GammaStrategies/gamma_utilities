@@ -200,7 +200,7 @@ class univ3_pool(web3wrap):
 
         Returns:
         """
-        if self._token0 == None:
+        if self._token0 is None:
             self._token0 = erc20(
                 address=self._contract.functions.token0().call(
                     block_identifier=self.block
@@ -217,7 +217,7 @@ class univ3_pool(web3wrap):
         Returns:
            erc20:
         """
-        if self._token1 == None:
+        if self._token1 is None:
             self._token1 = erc20(
                 address=self._contract.functions.token1().call(
                     block_identifier=self.block
@@ -492,7 +492,7 @@ class univ3_pool_cached(univ3_pool):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -514,7 +514,7 @@ class univ3_pool_cached(univ3_pool):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -539,7 +539,7 @@ class univ3_pool_cached(univ3_pool):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -564,7 +564,7 @@ class univ3_pool_cached(univ3_pool):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -585,7 +585,7 @@ class univ3_pool_cached(univ3_pool):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -606,7 +606,7 @@ class univ3_pool_cached(univ3_pool):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -632,7 +632,7 @@ class univ3_pool_cached(univ3_pool):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -664,7 +664,7 @@ class univ3_pool_cached(univ3_pool):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -685,7 +685,7 @@ class univ3_pool_cached(univ3_pool):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -704,7 +704,7 @@ class univ3_pool_cached(univ3_pool):
         Returns:
            erc20:
         """
-        if self._token0 == None:
+        if self._token0 is None:
             self._token0 = erc20_cached(
                 address=self._contract.functions.token0().call(
                     block_identifier=self.block
@@ -721,7 +721,7 @@ class univ3_pool_cached(univ3_pool):
         Returns:
            erc20:
         """
-        if self._token1 == None:
+        if self._token1 is None:
             self._token1 = erc20_cached(
                 address=self._contract.functions.token1().call(
                     block_identifier=self.block
@@ -796,7 +796,7 @@ class quickswapv3_dataStorageOperator_cached(quickswapv3_dataStorageOperator):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -853,7 +853,7 @@ class quickswapv3_pool(web3wrap):
     @property
     def dataStorageOperator(self) -> quickswapv3_dataStorageOperator:
         """ """
-        if self._dataStorage == None:
+        if self._dataStorage is None:
             self._dataStorage = quickswapv3_dataStorageOperator(
                 address=self._contract.functions.dataStorageOperator().call(
                     block_identifier=self.block
@@ -1016,7 +1016,7 @@ class quickswapv3_pool(web3wrap):
         Returns:
            erc20:
         """
-        if self._token0 == None:
+        if self._token0 is None:
             self._token0 = erc20(
                 address=self._contract.functions.token0().call(
                     block_identifier=self.block
@@ -1028,7 +1028,7 @@ class quickswapv3_pool(web3wrap):
 
     @property
     def token1(self) -> erc20:
-        if self._token1 == None:
+        if self._token1 is None:
             self._token1 = erc20(
                 address=self._contract.functions.token1().call(
                     block_identifier=self.block
@@ -1343,7 +1343,7 @@ class quickswapv3_pool_cached(quickswapv3_pool):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1358,7 +1358,7 @@ class quickswapv3_pool_cached(quickswapv3_pool):
     @property
     def dataStorageOperator(self) -> quickswapv3_dataStorageOperator:
         """ """
-        if self._dataStorage == None:
+        if self._dataStorage is None:
             self._dataStorage = quickswapv3_dataStorageOperator_cached(
                 address=self._contract.functions.dataStorageOperator().call(
                     block_identifier=self.block
@@ -1377,7 +1377,7 @@ class quickswapv3_pool_cached(quickswapv3_pool):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1398,7 +1398,7 @@ class quickswapv3_pool_cached(quickswapv3_pool):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1419,7 +1419,7 @@ class quickswapv3_pool_cached(quickswapv3_pool):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1440,7 +1440,7 @@ class quickswapv3_pool_cached(quickswapv3_pool):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1461,7 +1461,7 @@ class quickswapv3_pool_cached(quickswapv3_pool):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1482,7 +1482,7 @@ class quickswapv3_pool_cached(quickswapv3_pool):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1501,7 +1501,7 @@ class quickswapv3_pool_cached(quickswapv3_pool):
         Returns:
            erc20:
         """
-        if self._token0 == None:
+        if self._token0 is None:
             self._token0 = erc20_cached(
                 address=self._contract.functions.token0().call(
                     block_identifier=self.block
@@ -1513,7 +1513,7 @@ class quickswapv3_pool_cached(quickswapv3_pool):
 
     @property
     def token1(self) -> erc20_cached:
-        if self._token1 == None:
+        if self._token1 is None:
             self._token1 = erc20_cached(
                 address=self._contract.functions.token1().call(
                     block_identifier=self.block
@@ -1532,7 +1532,7 @@ class quickswapv3_pool_cached(quickswapv3_pool):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,
@@ -1553,7 +1553,7 @@ class quickswapv3_pool_cached(quickswapv3_pool):
             block=self.block,
             key=prop_name,
         )
-        if result == None:
+        if result is None:
             result = getattr(super(), prop_name)
             self._cache.add_data(
                 chain_id=self._chain_id,

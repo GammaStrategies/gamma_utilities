@@ -61,7 +61,7 @@ class price_scraper:
 
         # uniswap
         if (
-            _price == None
+            _price is None
             or _price == 0
             and network in self.thegraph_univ3_connector.networks
         ):
@@ -83,7 +83,7 @@ class price_scraper:
                 )
         # quickswap
         if (
-            _price == None
+            _price is None
             or _price == 0
             and network in self.thegraph_quickswap_connector.networks
         ):
@@ -105,7 +105,7 @@ class price_scraper:
                 )
         # coingecko
         if (
-            _price == None
+            _price is None
             or _price == 0
             and network in self.coingecko_price_connector.networks
         ):

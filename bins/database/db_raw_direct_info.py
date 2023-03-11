@@ -146,8 +146,11 @@ class direct_db_hypervisor_info:
         logIndex: int = 0,
         block_condition: str = "$lt",
         logIndex_condition: str = "$lte",
-        topics: list = ["deposit", "withdraw", "rebalance", "feeBurn"],
+        topics: list = None,
     ) -> dict:
+
+        if topics is None:
+            topics = ["deposit", "withdraw", "rebalance", "feeBurn"]
 
         query = [
             {
@@ -597,7 +600,7 @@ class direct_db_hypervisor_info:
                 )
                 continue
 
-            if last_status == None:
+            if last_status is None:
                 # time zero row creation
 
                 timezero_totalSupply = status["totalSupply"]

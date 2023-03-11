@@ -13,7 +13,7 @@ CONFIGURATION = dict()
 
 # convert command line arguments to dict variables
 cml_parameters = parse_commandLine_args()
-# cml_parameters = convert_commandline_arguments(sys.argv[1:])
+
 
 # load configuration
 CONFIGURATION = (

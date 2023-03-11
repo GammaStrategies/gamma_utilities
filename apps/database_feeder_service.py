@@ -35,9 +35,7 @@ def network_sequence_loop(protocol: str, network: str):
         network (str):
     """
     # feed static operations
-    for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][
-        network
-    ].keys():
+    for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][network]:
         feed_hypervisor_static(
             protocol=protocol,
             network=network,
@@ -92,10 +90,10 @@ def local_db_service():
     logging.getLogger("telegram").info(" Local database feeding loop started")
     try:
         while True:
-            for protocol in CONFIGURATION["script"]["protocols"].keys():
+            for protocol in CONFIGURATION["script"]["protocols"]:
                 for network in CONFIGURATION["script"]["protocols"][protocol][
                     "networks"
-                ].keys():
+                ]:
                     network_sequence_loop(protocol=protocol, network=network)
 
     except KeyboardInterrupt:
@@ -118,7 +116,7 @@ def global_db_service():
             for protocol in CONFIGURATION["script"]["protocols"].keys():
                 for network in CONFIGURATION["script"]["protocols"][protocol][
                     "networks"
-                ].keys():
+                ]:
                     price_sequence_loop(protocol=protocol, network=network)
 
     except KeyboardInterrupt:

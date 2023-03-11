@@ -278,9 +278,9 @@ def feed_operations(
             )
 
             # check if hypervisors in static collection are diff from operation's
-            if len(hypervisor_addresses_in_operations) > 0 and len(
-                hypervisor_addresses
-            ) > len(hypervisor_addresses_in_operations):
+            if hypervisor_addresses_in_operations and len(hypervisor_addresses) > len(
+                hypervisor_addresses_in_operations
+            ):
                 # get different addresses
                 diffs = differences(
                     hypervisor_addresses, hypervisor_addresses_in_operations
@@ -507,7 +507,7 @@ def feed_hypervisor_status(
                 f" Adding the latest block [{latest_block}] to all addresses for status to be scraped "
             )
 
-            for address in static_info.keys():
+            for address in static_info:
                 toProcess_block_address[f"""{address}_{latest_block}"""] = {
                     "address": address,
                     "block": latest_block,
@@ -531,13 +531,13 @@ def feed_hypervisor_status(
         "   Total address blocks {} ->  Already processed {} [{:,.0%}]".format(
             len(toProcess_block_address),
             len(processed_blocks),
-            (len(processed_blocks.keys()) / len(toProcess_block_address))
-            if len(toProcess_block_address) > 0
+            (len(processed_blocks) / len(toProcess_block_address))
+            if toProcess_block_address
             else 0,
         )
     )
     # remove already processed blocks
-    for k in processed_blocks.keys():
+    for k in processed_blocks:
         try:
             toProcess_block_address.pop(k)
         except KeyError as err:
@@ -616,7 +616,7 @@ def feed_hypervisor_status(
                     _errors,
                     len(toProcess_block_address),
                     (_errors / len(toProcess_block_address))
-                    if len(toProcess_block_address) > 0
+                    if toProcess_block_address
                     else 0,
                 )
             )
@@ -699,7 +699,7 @@ def feed_prices(
     )
     items_to_process = list(price_ids - already_processed_prices)
 
-    if len(items_to_process) > 0:
+    if items_to_process:
         # create price helper
         logging.getLogger(__name__).debug(
             "   Get {}'s prices using {} database".format(network, db_name)
@@ -799,9 +799,7 @@ def feed_prices(
                     "   {} of {} ({:,.1%}) address block prices could not be scraped due to errors".format(
                         _errors,
                         len(items_to_process),
-                        (_errors / len(items_to_process))
-                        if len(items_to_process) > 0
-                        else 0,
+                        (_errors / len(items_to_process)) if items_to_process else 0,
                     )
                 )
         except:
@@ -1061,9 +1059,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
                 "   {} of {} ({:,.1%}) address block prices could not be scraped due to errors".format(
                     _errors,
                     len(items_to_process),
-                    (_errors / len(items_to_process))
-                    if len(items_to_process) > 0
-                    else 0,
+                    (_errors / len(items_to_process)) if items_to_process else 0,
                 )
             )
     except:
@@ -1214,7 +1210,7 @@ def feed_timestamp_blocks(network: str, protocol: str, threaded: bool = True):
             "   {} of {} ({:,.1%}) blocks could not be scraped due to errors".format(
                 _errors,
                 len(items_to_process),
-                (_errors / len(items_to_process)) if len(items_to_process) > 0 else 0,
+                (_errors / len(items_to_process)) if items_to_process else 0,
             )
         )
     except:
@@ -1268,7 +1264,7 @@ def get_hypervisor_addresses(network: str, protocol: str) -> list[str]:
         .get(network, [])
     )
     # check n clean
-    if blacklisted == None:
+    if blacklisted is None:
         blacklisted = []
 
     # retrieve all addresses from database
@@ -1341,7 +1337,7 @@ def feed_fastApi_impermanent(network: str, protocol: str):
         if threaded:
             with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
                 for result, days in ex.map(lambda p: construct_result(*p), args):
-                    if len(result) > 0:
+                    if result:
 
                         progress_bar.set_description(
                             f"""[er:{_errors}]  Saving impermanent loss data for {result[0]["symbol"]} at {days} days"""
@@ -1396,16 +1392,14 @@ def feed_fastApi_impermanent(network: str, protocol: str):
 
 def main(option="operations"):
 
-    for protocol in CONFIGURATION["script"]["protocols"].keys():
+    for protocol in CONFIGURATION["script"]["protocols"]:
 
-        for network in CONFIGURATION["script"]["protocols"][protocol][
-            "networks"
-        ].keys():
+        for network in CONFIGURATION["script"]["protocols"][protocol]["networks"]:
 
             if option == "static":
                 for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][
                     network
-                ].keys():
+                ]:
                     # feed database with static hypervisor info
                     feed_hypervisor_static(
                         protocol=protocol, network=network, dex=dex, rewrite=True
@@ -1414,7 +1408,7 @@ def main(option="operations"):
             elif option == "operations":
                 for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][
                     network
-                ].keys():
+                ]:
                     # first feed static operations
                     feed_hypervisor_static(protocol=protocol, network=network, dex=dex)
 
