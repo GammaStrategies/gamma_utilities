@@ -50,6 +50,16 @@ def setup_logging(customconf, default_level=logging.INFO, env_key="LOG_CFG"):
                         # many handlers do not have filename key
                         pass
 
+                # modify logging type if defined
+                _log_level = customconf["logs"].get("level", "INFO").upper()
+                if not _log_level in ["DEBUG", "INFO"]:
+                    _log_level = "INFO"
+
+                _log_level_donotmod = ["telegram"]
+                for k, v in config["loggers"].items():
+                    if k not in _log_level_donotmod:
+                        v["level"] = _log_level
+
                 logging.config.dictConfig(config)
 
                 # setup color
