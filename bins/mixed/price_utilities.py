@@ -56,7 +56,7 @@ class price_scraper:
             _price = self.cache.get_data(
                 chain_id=network, address=token_id, block=block, key=of
             )
-        except:
+        except Exception:
             _price = None
 
         # uniswap
@@ -75,7 +75,7 @@ class price_scraper:
                 _price = self._get_price_from_univ3_thegraph(
                     network, token_id, block, of
                 )
-            except:
+            except Exception:
                 logging.getLogger(LOG_NAME).debug(
                     " Could not get {}'s token {} price at block {} from uniswapv3 subgraph.".format(
                         network, token_id, block
@@ -97,7 +97,7 @@ class price_scraper:
                 _price = self._get_price_from_quickswap_thegraph(
                     network, token_id, block, of
                 )
-            except:
+            except Exception:
                 logging.getLogger(LOG_NAME).debug(
                     " Could not get {}'s token {} price at block {} from quickswap subgraph.".format(
                         network, token_id, block
@@ -117,7 +117,7 @@ class price_scraper:
             )
             try:
                 _price = self._get_price_from_coingecko(network, token_id, block, of)
-            except:
+            except Exception:
                 logging.getLogger(LOG_NAME).debug(
                     " Could not get {}'s token {} price at block {} from coingecko.".format(
                         network, token_id, block
@@ -241,7 +241,7 @@ class price_scraper:
                     )
                 )
             _price = 0
-        except:
+        except Exception:
             logging.getLogger(LOG_NAME).exception(
                 "Unexpected error while getting price of {}'s token address {} at block {} from uniswap subgraph   data:{}      .error: {}".format(
                     network, token_id, block, _data, sys.exc_info()[0]
@@ -335,7 +335,7 @@ class price_scraper:
                     )
                 )
             _price = 0
-        except:
+        except Exception:
             logging.getLogger(LOG_NAME).exception(
                 "Unexpected error while getting price of {}'s token address {} at block {} from quickswap subgraph   data:{}      .error: {}".format(
                     network, token_id, block, _data, sys.exc_info()[0]
@@ -389,7 +389,7 @@ class price_scraper:
             return global_db.get_items_from_database(
                 collection_name="block", find={"block": block}
             )[0]["timestamp"]
-        except:
+        except Exception:
             pass
 
         # try thegraph
@@ -400,5 +400,5 @@ class price_scraper:
                 where=""" number: "{}" """.format(block),
             )[0]
             return block_data["timestamp"]
-        except:
+        except Exception:
             return 0

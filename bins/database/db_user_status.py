@@ -403,7 +403,7 @@ class user_status_hypervisor_builder:
             return self.local_db_manager.get_items_from_database(
                 collection_name="status", find=find, sort=sort, limit=limit
             )[0]["block"]
-        except:
+        except Exception:
             logging.getLogger(__name__).exception(
                 " Unexpected error quering first status block. Zero returned"
             )
@@ -423,7 +423,7 @@ class user_status_hypervisor_builder:
             return self.local_db_manager.get_items_from_database(
                 collection_name="status", find=find, sort=sort, limit=limit
             )[0]["block"]
-        except:
+        except Exception:
             logging.getLogger(__name__).exception(
                 " Unexpected error quering latest status block. Zero returned"
             )
@@ -446,7 +446,7 @@ class user_status_hypervisor_builder:
         except IndexError:
             # no user status for address found in db
             return 0
-        except:
+        except Exception:
             logging.getLogger(__name__).exception(
                 " Unexpected error quering first user block. Zero returned"
             )
@@ -470,7 +470,7 @@ class user_status_hypervisor_builder:
         except IndexError:
             # no user status for address found in db
             return 0
-        except:
+        except Exception:
             logging.getLogger(__name__).exception(
                 " Unexpected error quering latest user block. Zero returned"
             )
@@ -495,7 +495,7 @@ class user_status_hypervisor_builder:
             return Decimal(tmp_status["totalSupply"]) / Decimal(
                 10 ** tmp_status["decimals"]
             )
-        except:
+        except Exception:
             logging.getLogger(__name__).exception(
                 " Unexpected error quering totalSupply. Zero returned"
             )
@@ -582,7 +582,7 @@ class user_status_hypervisor_builder:
                     )
                 )
             # may just be that there are no shares besides current excluded address
-        except:
+        except Exception:
             logging.getLogger(__name__).exception(
                 " [{}] Unexpected error calc total shares--> query:  {} ".format(
                     self.network, query
@@ -664,7 +664,7 @@ class user_status_hypervisor_builder:
                 "token0": Decimal(data["totalAmounts"]["total0"]),
                 "token1": Decimal(data["totalAmounts"]["total1"]),
             }
-        except:
+        except Exception:
             logging.getLogger(__name__).exception(
                 " Unexpected error quering tvl. Zero returned"
             )
@@ -794,7 +794,7 @@ class user_status_hypervisor_builder:
             return self.last_user_status(
                 account_address=address, block=block, logIndex=logIndex
             )
-        except:
+        except Exception:
             return None
 
     def account_result_list(
@@ -829,7 +829,7 @@ class user_status_hypervisor_builder:
                     collection_name="user_status", find=find, sort=sort, limit=limit
                 )
             ]
-        except:
+        except Exception:
             logging.getLogger(__name__).exception(
                 " Unexpected error quering user accounts result list. Zero returned"
             )
@@ -903,7 +903,7 @@ class user_status_hypervisor_builder:
         if len(user_status_blocks_processed) > 1:
             try:
                 user_status_blocks_processed = set(user_status_blocks_processed[0:-2])
-            except:
+            except Exception:
                 logging.getLogger(__name__).error(
                     f" Unexpected error slicing block array while creating operations to process. array length: {len(user_status_blocks_processed)}"
                 )
@@ -1281,7 +1281,7 @@ class user_status_hypervisor_builder:
             new_user_status.total_closed_investment_return_in_token1 += (
                 total_divestment_qtty_in_token1 - (total_investment_divested_in_token1)
             )
-        except:
+        except Exception:
             pass
 
         # add global stats
@@ -2102,7 +2102,7 @@ class user_status_hypervisor_builder:
                 address=account_address,
                 hypervisor_address=self.address,
             )
-        except:
+        except Exception:
             # not found operation
             logging.getLogger(__name__).exception(
                 f" Unexpected error quering last status of {account_address} at {self.address} block:{block} log:{logIndex}. Zero returned"
@@ -2368,7 +2368,7 @@ class user_status_hypervisor_builder:
             return self.local_db_manager.get_items_from_database(
                 collection_name="operations", find=find, sort=sort, limit=limit
             )[0]["logIndex"]
-        except:
+        except Exception:
             logging.getLogger(__name__).exception(
                 " Unexpected error quering last logIndex. Zero returned"
             )
@@ -2379,7 +2379,7 @@ class user_status_hypervisor_builder:
         ##
         try:
             return Decimal(self._prices[block][address])
-        except:
+        except Exception:
             logging.getLogger(__name__).error(
                 f" Can't find {self.network}'s {self.address} usd price for {address} at block {block}. Return Zero"
             )
@@ -2394,7 +2394,7 @@ class user_status_hypervisor_builder:
         #             network=self.network, block=block, address=address
         #         )[0]["price"]
         #     )
-        # except:
+        # except Exception:
         #     logging.getLogger(__name__).error(
         #         f" Can't find {self.network}'s {self.address} usd price for {address} at block {block}. Return Zero"
         #     )

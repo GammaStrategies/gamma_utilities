@@ -79,8 +79,9 @@ class web3wrap:
 
         # made up a descriptive cahce file name
         cache_filename = "{}_{}".format(self._chain_id, self.address.lower())
+
         # create cache helper
-        self._cache = cache_utilities.standard_property_cache(
+        self._cache = cache_utilities.mutable_property_cache(
             filename=cache_filename, folder_name="data/cache/onchain", reset=False
         )
 

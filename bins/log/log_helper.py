@@ -46,7 +46,7 @@ def setup_logging(customconf, default_level=logging.INFO, env_key="LOG_CFG"):
                         config["handlers"][k]["filename"] = os.path.join(
                             customconf["logs"]["save_path"], v["filename"]
                         )
-                    except:
+                    except Exception:
                         # many handlers do not have filename key
                         pass
 

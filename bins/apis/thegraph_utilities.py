@@ -106,7 +106,7 @@ class thegraph_scraper_helper:
                                 query_name, _data, sys.exc_info()[0]
                             )
                         )
-                    except:
+                    except Exception:
                         logging.getLogger(__name__).error(
                             " Unexpected error retrieving data path  query name:{}   data:{}       .error: {}".format(
                                 query_name, _data, sys.exc_info()[0]
@@ -126,7 +126,7 @@ class thegraph_scraper_helper:
                         # exit loop
                         break
 
-                except:
+                except Exception:
                     logging.getLogger(__name__).exception(
                         "Unexpected error while retrieving query {}      .error: {}".format(
                             query_name, sys.exc_info()[0]
@@ -711,7 +711,7 @@ class gamma_scraper(thegraph_scraper_helper):
             raise NotImplementedError(
                 "No gamma query constructor found for: {} ".format(name)
             )
-        # except:
+        # except Exception:
         #    logging.getLogger(__name__).exception("Unexpected error while constructing query  .error: {}".format(sys.exc_info()[0]))
 
     def _converter(self, itm: dict, query_name: str, network: str):
@@ -887,7 +887,7 @@ class gamma_scraper(thegraph_scraper_helper):
                 itm["gammaEarnedRealized"] = float(
                     int(itm["gammaEarnedRealized"]) / (10**18)
                 )
-            except:
+            except Exception:
                 logging.getLogger(__name__).exception(
                     "Unexpected error while converting  accounts gamma info for item  {}        .error: {}".format(
                         itm["id"], sys.exc_info()[0]
@@ -1007,7 +1007,7 @@ class gamma_scraper(thegraph_scraper_helper):
                         hyp_share["hypervisor"]["limitLiquidity"]
                     )
 
-                except:
+                except Exception:
                     logging.getLogger(__name__).exception(
                         "Unexpected error while converting  hypervisorShares of item  {}        .error: {}".format(
                             itm["id"], sys.exc_info()[0]

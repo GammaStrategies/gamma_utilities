@@ -263,7 +263,7 @@ class data_collector:
                     "decimals_token1": tmp.token1.decimals,
                     "decimals_contract": tmp.decimals,
                 }
-            except:
+            except Exception:
                 logging.getLogger(__name__).error(
                     " Unexpected error caching topic ({}) related info from hyp: {}    .transaction hash: {}    -> error: {}".format(
                         topic, itm["address"], itm["transactionHash"], sys.exc_info()[0]

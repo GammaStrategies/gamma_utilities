@@ -416,7 +416,7 @@ class onchain_data_helper:
                 # return result
                 return block_ini, block_end
 
-            except:
+            except Exception:
                 logging.getLogger(__name__).exception(
                     " Unexpected error calc. {}'s {} force_timeframe block scan option     .error: {}".format(
                         self.protocol, network, sys.exc_info()[0]
@@ -860,7 +860,7 @@ class onchain_data_helper2:
                 # return result
                 return block_ini, block_end
 
-            except:
+            except Exception:
                 logging.getLogger(__name__).exception(
                     " Unexpected error calc. {}'s {} force_timeframe block scan option     .error: {}".format(
                         self.protocol, network, sys.exc_info()[0]
@@ -1059,14 +1059,14 @@ class onchain_data_helper2:
                 inexact_mode="before",
                 eq_timestamp_position="last",
             )
-        except:
+        except Exception:
             # Last chance: get last block
             logging.getLogger(__name__).warning(
                 f" Unexpected error converting datetime to block end in {network}. Trying to get last block instead."
             )
             try:
                 block_end = dummy_helper.w3.eth.get_block("latest").number
-            except:
+            except Exception:
                 logging.getLogger(__name__).exception(
                     f" Unexpected error retrieving {network}'s last block. error->{sys.exc_info()[0]}"
                 )

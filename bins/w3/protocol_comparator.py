@@ -722,7 +722,7 @@ class comparator_v1:
                                 remaining=rem_progress,
                                 total=tot_progress,
                             )
-                        except:
+                        except Exception:
                             pass
 
             # populate withdraws
@@ -818,7 +818,7 @@ class comparator_v1:
                                 remaining=rem_progress,
                                 total=tot_progress,
                             )
-                        except:
+                        except Exception:
                             pass
 
             # populate rebalances
@@ -858,7 +858,7 @@ class comparator_v1:
                                 remaining=rem_progress,
                                 total=tot_progress,
                             )
-                        except:
+                        except Exception:
                             pass
 
             # populate fees
@@ -913,7 +913,7 @@ class comparator_v1:
                                 remaining=rem_progress,
                                 total=tot_progress,
                             )
-                        except:
+                        except Exception:
                             pass
 
             # add uncollected owed fees to totals
@@ -1590,7 +1590,7 @@ class comparator_v1:
                 # return result
                 return block_ini, block_end
 
-            except:
+            except Exception:
                 logging.getLogger(__name__).exception(
                     " Unexpected error calc. {}'s {} force_timeframe block scan option     .error: {}".format(
                         self.protocol, network, sys.exc_info()[0]

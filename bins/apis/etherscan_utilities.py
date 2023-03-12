@@ -135,7 +135,7 @@ class etherscan_helper:
                     )
                     break
 
-            except:
+            except Exception:
                 # do not continue
                 logging.getLogger(__name__).error(
                     " Unexpected error while querying url {}    . error message: {}".format(

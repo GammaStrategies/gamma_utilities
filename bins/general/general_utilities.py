@@ -189,17 +189,17 @@ def convert_string_datetime(string: str) -> dt.datetime:
         # POSIBILITY 01
         try:
             return dt.datetime.strptime(string, "%Y-%m-%dT%H:%M:%S")
-        except:
+        except Exception:
             pass
         # POSIBILITY 02
         try:
             return dt.datetime.strptime(string, "%Y-%m-%dT%H:%M:%S.%fZ")
-        except:
+        except Exception:
             pass
         # POSIBILITY 03
         try:
             return dt.datetime.strptime(string, "%Y-%m-%d")
-        except:
+        except Exception:
             pass
 
 

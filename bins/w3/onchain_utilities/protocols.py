@@ -1473,7 +1473,7 @@ class gamma_hypervisor_registry(web3wrap):
 
                 # return correct hypervisor
                 yield hypervisor
-            except:
+            except Exception:
                 logging.getLogger(__name__).warning(
                     " Hypervisor registry returned the address {} and may not be an hypervisor ( at web3 chain id: {} )".format(
                         hypervisor_id, self._chain_id
@@ -1512,7 +1512,7 @@ class gamma_hypervisor_registry(web3wrap):
 
                 result.append(hypervisor_id)
 
-            except:
+            except Exception:
                 # executiuon reverted:  arbitrum and mainnet have diff ways of indexing (+1 or 0)
                 pass
 

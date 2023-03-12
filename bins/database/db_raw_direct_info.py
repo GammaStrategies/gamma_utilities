@@ -114,7 +114,7 @@ class direct_db_hypervisor_info:
             return self.local_db_manager.get_items_from_database(
                 collection_name="status", find=find, sort=sort, limit=limit
             )[0]["block"]
-        except:
+        except Exception:
             logging.getLogger(__name__).exception(
                 " Unexpected error quering first status block. Zero returned"
             )
@@ -134,7 +134,7 @@ class direct_db_hypervisor_info:
             return self.local_db_manager.get_items_from_database(
                 collection_name="status", find=find, sort=sort, limit=limit
             )[0]["block"]
-        except:
+        except Exception:
             logging.getLogger(__name__).exception(
                 " Unexpected error quering latest status block. Zero returned"
             )
@@ -885,7 +885,7 @@ class direct_db_hypervisor_info:
         ##
         try:
             return Decimal(self._prices[block][address])
-        except:
+        except Exception:
             logging.getLogger(__name__).error(
                 f" Can't find {self.network}'s {self.address} usd price for {address} at block {block}. Return Zero"
             )

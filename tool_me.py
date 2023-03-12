@@ -40,7 +40,7 @@ if __name__ == "__main__":
             ].ini_datetime = convert_string_datetime(
                 string=CONFIGURATION["_custom_"]["cml_parameters"].ini_datetime
             )
-        except:
+        except Exception:
             logging.getLogger(__name__).error(
                 f" Can't convert command line passed ini datetime-> {CONFIGURATION['_custom_']['cml_parameters'].ini_datetime}"
             )
@@ -52,7 +52,7 @@ if __name__ == "__main__":
             ].end_datetime = convert_string_datetime(
                 string=CONFIGURATION["_custom_"]["cml_parameters"].end_datetime
             )
-        except:
+        except Exception:
             logging.getLogger(__name__).error(
                 f" Can't convert command line passed end datetime-> {CONFIGURATION['_custom_']['cml_parameters'].end_datetime}"
             )

@@ -1315,7 +1315,7 @@ class quickswapv3_pool(web3wrap):
                         if "timepointIndex" in result["globalState"]
                         else ""
                     )
-                except:
+                except Exception:
                     logging.getLogger(__name__).warning(
                         " Unexpected error converting globalState of {} at block {}     error-> {}   globalState: {}".format(
                             result["address"],

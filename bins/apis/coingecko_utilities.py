@@ -49,7 +49,7 @@ class coingecko_price_helper:
             #  }
             return _price
 
-        except:
+        except Exception:
             logging.getLogger(__name__).exception(
                 " Exception at coingecko's price gathering of {}        error-> {}".format(
                     contract_address, sys.exc_info()[0]
@@ -109,7 +109,7 @@ class coingecko_price_helper:
                     )
                 )
                 _data = {"prices": [list()], "error": "dontknow"}
-        except:
+        except Exception:
             logging.getLogger(__name__).exception(
                 "Unexpected error while getting price  of {} at {} from coinGecko       .error: {}".format(
                     contract_address, network, sys.exc_info()[0]

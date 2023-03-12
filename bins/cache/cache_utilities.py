@@ -43,7 +43,7 @@ class file_backend:
                         "{}/{}.json".format(self.folder_name, self.file_name)
                     ):
                         os.remove("{}/{}.json".format(self.folder_name, self.file_name))
-                except:
+                except Exception:
                     # error could not delete file
                     logging.getLogger("special").exception(
                         " Could not delete cache file:  {}     .error: {}".format(
@@ -131,7 +131,7 @@ class database_backend:
             try:
                 # TODO: remove collection from database
                 pass
-            except:
+            except Exception:
                 # error could not delete file
                 logging.getLogger(__name__).exception(
                     " Could not remove collection   .error: {}".format(
@@ -238,19 +238,110 @@ class standard_property_cache(file_backend):
         address = address.lower()
         key = key.lower()
 
-        try:
-            # use it for key in cache
-            return (
-                self._cache.get(chain_id, None)
-                .get(address, None)
-                .get(block, None)
-                .get(key, None)
-            )  # [chain_id][address][block][key]
-        except:
-            pass
+        # use it for key in cache
+        return (
+            self._cache.get(chain_id, {}).get(address, {}).get(block, {}).get(key, None)
+        )
 
-        # not in cache
+
+class mutable_property_cache(standard_property_cache):
+    """Only save mutable fields to cache and
+    only one value of each fixed defined property"""
+
+    def __init__(
+        self, filename: str, folder_name: str, reset: bool = False, fixed_fields=None
+    ):
+        # init
+        super().__init__(filename=filename, folder_name=folder_name, reset=reset)
+
+        if fixed_fields:
+            # {<fixed field>:< found in cache?>}
+            self.fixed_fields = fixed_fields
+        else:
+            self.fixed_fields = {"decimals": False, "symbol": False}
+
+    def add_data(
+        self, chain_id, address: str, block: int, key: str, data, save2file=False
+    ) -> bool:
+        """
+            Fixed fields will not be added to cache
+        Args:
+           data (dict): data to cache
+           kwargs:  query arguments. Must contain network and block to be cached
+        Returns:
+           bool: success or fail
+        """
+        # avoid saving defined fixed fields to cache
+        if key in self.fixed_fields and self.is_fixedfield_inCache(
+            chain_id=chain_id, address=address, key=key
+        ):
+            return True
+        else:
+            return super().add_data(
+                chain_id=chain_id, address=address, block=block, key=key, data=data
+            )
+
+    def get_data(self, chain_id, address: str, block: int, key: str):
+        """Retrieves data from cache.
+
+
+        Returns:
+           dict: Can return None if not found
+        """
+
+        # convert to lower
+        address = address.lower()
+        key = key.lower()
+
+        if key in self.fixed_fields:
+            result = self.get_anyblock_value(
+                chain_id=chain_id, address=address, key=key
+            )
+            if result:
+                return result
+
+        # try return the block asked for
+        return (
+            self._cache.get(chain_id, {}).get(address, {}).get(block, {}).get(key, None)
+        )
+
+    def get_anyblock_value(self, chain_id: str, address: str, key: str):
+        """retrieve a value from any block in cache
+            If no data found, None will be returned
+
+        Args:
+            chain_id (str):
+            address (str):
+            key (str):
+
+        Returns:
+            any type cached: or None
+        """
+        try:
+            # try get the variable using any block
+            any_block = next(iter(self._cache[chain_id][address]))
+            return self._cache[chain_id][address][any_block][key]
+        except Exception:
+            self.fixed_fields[key] = False
+
         return None
+
+    def is_fixedfield_inCache(self, chain_id: str, address: str, key: str) -> bool:
+        """is fixed field present in cache ?
+
+        Args:
+            chain_id (str):
+            address (str):
+            key (str):
+
+        Returns:
+            bool:
+        """
+        if not self.fixed_fields[key]:
+            if self.get_anyblock_value(chain_id=chain_id, address=address, key=key):
+                self.fixed_fields[key] = True
+
+        return self.fixed_fields[key]
 
 
 class standard_thegraph_cache(file_backend):
@@ -275,7 +366,7 @@ class standard_thegraph_cache(file_backend):
         try:
             for network in self._cache.keys():
                 _loaded += len(self._cache[network].keys())
-        except:
+        except Exception:
             pass
 
         # log price cache loaded qtty
@@ -333,7 +424,7 @@ class standard_thegraph_cache(file_backend):
             if key != "":
                 # use it for key in cache
                 return self._cache[network][block][key]
-        except:
+        except Exception:
             pass
 
         # not in cache
@@ -351,7 +442,7 @@ class standard_thegraph_cache(file_backend):
                     result += "__"
                 result += "{}={}".format(k.strip(), args[k].strip())
 
-        except:
+        except Exception:
             # not in cache
             logging.getLogger(__name__).exception(
                 " Unexpected error while building cache key  .error: {}".format(

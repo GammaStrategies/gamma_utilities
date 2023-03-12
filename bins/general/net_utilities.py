@@ -31,7 +31,7 @@ def post_request(url: str, query: str, retry=0, max_retry=2, wait_secs=5) -> dic
         logging.getLogger(__name__).warning(
             "Connection to {} has timed out...".format(url)
         )
-    except:
+    except Exception:
         logging.getLogger(__name__).exception(
             "Unexpected error while posting request at {} .error: {}".format(
                 url, sys.exc_info()[0]
@@ -74,7 +74,7 @@ def get_request(url, retry=0, max_retry=2, wait_secs=5) -> dict:
         # thegraph blocking us?
         # wait and try one last time
         logging.getLogger(__name__).warning("Connection error to {}...".format(url))
-    except:
+    except Exception:
         logging.getLogger(__name__).exception(
             "Unexpected error while retrieving json from {}     .error: {}".format(
                 url, sys.exc_info()[0]

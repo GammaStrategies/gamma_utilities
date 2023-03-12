@@ -81,7 +81,7 @@ def save_json(filename: str, data, folder_path: str) -> bool:
         except FileNotFoundError:
             # file does not exist or something...
             pass
-        except:
+        except Exception:
             logging.getLogger(__name__).exception(
                 "Unexpected error while deleting {} file    .error: {}".format(
                     path_to_file, sys.exc_info()[0]
