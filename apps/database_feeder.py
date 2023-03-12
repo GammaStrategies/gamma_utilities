@@ -528,12 +528,9 @@ def feed_hypervisor_status(
         }
 
     logging.getLogger(__name__).debug(
-        "   Total address blocks {} ->  Already processed {} [{:,.0%}]".format(
+        "   Total address blocks {} ->  Already processed {} ".format(
             len(toProcess_block_address),
             len(processed_blocks),
-            (len(processed_blocks) / len(toProcess_block_address))
-            if toProcess_block_address
-            else 0,
         )
     )
     # remove already processed blocks
