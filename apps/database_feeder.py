@@ -192,7 +192,7 @@ def feed_hypervisor_static(
                     _errors / len(hypervisor_addresses),
                 )
             )
-    except:
+    except Exception:
         pass
 
 
@@ -349,7 +349,7 @@ def feed_operations(
             local_db=local_db,
         )
 
-    except:
+    except Exception:
         logging.getLogger(__name__).exception(
             " Unexpected error while looping    .error: {}".format(sys.exc_info()[0])
         )
@@ -434,7 +434,7 @@ def get_db_last_operation_block(protocol: str, network: str) -> int:
             f" Unable to get last operation block bc no operations have been found for {network}'s {protocol} in db"
         )
 
-    except:
+    except Exception:
         logging.getLogger(__name__).exception(
             " Unexpected error while quering db operations for latest block  error:{}".format(
                 sys.exc_info()[0]
@@ -512,7 +512,7 @@ def feed_hypervisor_status(
                     "address": address,
                     "block": latest_block,
                 }
-    except:
+    except Exception:
         logging.getLogger(__name__).exception(
             " unexpected error while adding new blocks to status scrape process "
         )
@@ -544,7 +544,7 @@ def feed_hypervisor_status(
             #     f" Could not find status block address key {k} in operations"
             # )
             pass
-        except:
+        except Exception:
             logging.getLogger(__name__).exception(
                 f" Unexpected error found while construction block addresses to feed db with hype status.  err-> {sys.exc_info()[0]}"
             )
@@ -617,7 +617,7 @@ def feed_hypervisor_status(
                     else 0,
                 )
             )
-    except:
+    except Exception:
         pass
 
 
@@ -650,7 +650,7 @@ def create_db_hypervisor(
     #     logging.getLogger(__name__).exception(
     #         f" Unexpected Web3 error placing call to {network}'s hypervisor {address} at block {block}->   message:{err}"
     #     )
-    except:
+    except Exception:
         logging.getLogger(__name__).exception(
             f" Unexpected error while creating {network}'s hypervisor {address} [dex: {dex}] at block {block}->    error:{sys.exc_info()[0]}"
         )
@@ -736,7 +736,7 @@ def feed_prices(
                         token,
                         block,
                     )
-                except:
+                except Exception:
                     logging.getLogger(__name__).exception(
                         f"Unexpected error while geting {token} usd price at block {block}"
                     )
@@ -799,7 +799,7 @@ def feed_prices(
                         (_errors / len(items_to_process)) if items_to_process else 0,
                     )
                 )
-        except:
+        except Exception:
             pass
 
     else:
@@ -983,7 +983,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
                 # calc token pusd price
                 return (usdPrice_token1[0]["price"] * price_token0), status
 
-            except:
+            except Exception:
                 pass
 
             return None, status
@@ -1059,7 +1059,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
                     (_errors / len(items_to_process)) if items_to_process else 0,
                 )
             )
-    except:
+    except Exception:
         pass
 
 
@@ -1084,7 +1084,7 @@ def feed_blocks_timestamp(network: str):
     from_date = datetime.timestamp(datetime(year=2021, month=3, day=1))
     try:
         from_date = max(timestamps_indb)
-    except:
+    except Exception:
         # from_date shuld be still defined
         pass
 
@@ -1151,7 +1151,7 @@ def feed_timestamp_blocks(network: str, protocol: str, threaded: bool = True):
                 # get timestamp
                 return dummy_helper.timestampFromBlockNumber(block=block), block
 
-            except:
+            except Exception:
                 logging.getLogger(__name__).exception(
                     f"Unexpected error while geting timestamp of block {block}"
                 )
@@ -1195,7 +1195,7 @@ def feed_timestamp_blocks(network: str, protocol: str, threaded: bool = True):
                     else:
                         # error found
                         _errors += 1
-                except:
+                except Exception:
                     logging.getLogger(__name__).exception(
                         f"Unexpected error while geting timestamp of block {item}"
                     )
@@ -1210,7 +1210,7 @@ def feed_timestamp_blocks(network: str, protocol: str, threaded: bool = True):
                 (_errors / len(items_to_process)) if items_to_process else 0,
             )
         )
-    except:
+    except Exception:
         pass
 
 
@@ -1238,7 +1238,7 @@ def feed_user_status(network: str, protocol: str):
         hype_status_list = list()
         try:
             hype_new._process_operations()
-        except:
+        except Exception:
             logging.getLogger(__name__).exception(
                 f" Unexpected error while feeding user status of {network}'s  {address}"
             )
@@ -1380,7 +1380,7 @@ def feed_fastApi_impermanent(network: str, protocol: str):
                     (_errors / args_lenght) if args_lenght > 0 else 0,
                 )
             )
-    except:
+    except Exception:
         pass
 
 

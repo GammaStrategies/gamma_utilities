@@ -98,7 +98,7 @@ def local_db_service():
 
     except KeyboardInterrupt:
         logging.getLogger(__name__).debug(" Local database feeding loop stoped by user")
-    except:
+    except Exception:
         logging.getLogger(__name__).exception(
             f" Unexpected error while loop-feeding local database data. error {sys.exc_info()[0]}"
         )
@@ -123,7 +123,7 @@ def global_db_service():
         logging.getLogger(__name__).debug(
             " Global database feeding loop stoped by user"
         )
-    except:
+    except Exception:
         logging.getLogger(__name__).exception(
             f" Unexpected error while loop-feeding global database data. error {sys.exc_info()[0]}"
         )
@@ -142,7 +142,7 @@ def network_db_service(protocol: str, network: str):
         logging.getLogger(__name__).debug(
             f" {protocol}'s {network} database feeding loop stoped by user"
         )
-    except:
+    except Exception:
         logging.getLogger(__name__).exception(
             f" Unexpected error while loop-feeding {protocol}'s {network} database data. error {sys.exc_info()[0]}"
         )

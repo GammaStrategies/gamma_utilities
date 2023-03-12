@@ -327,7 +327,7 @@ def user_status_to_csv(status_list: list[dict], folder: str, network: str, symbo
     # remove file
     try:
         os.remove(csv_filename)
-    except:
+    except Exception:
         pass
 
     # save result to csv file
@@ -417,7 +417,7 @@ def test_new(network: str):
             print_status(
                 hype_status_list[-1], symbol=hype_new.symbol, network=hype_new.network
             )
-        except:
+        except Exception:
             logging.getLogger(__name__).exception(" yeeep ")
 
         try:
@@ -451,7 +451,7 @@ def test_new(network: str):
                         fees_direct["qtty_token1"],
                     )
                 )
-        except:
+        except Exception:
             pass
 
         # OLD TEMA
@@ -468,7 +468,7 @@ def test_new(network: str):
         #         network=hype_old.network,
         #     )
 
-        # except:
+        # except Exception:
         #     logging.getLogger(__name__).exception(" yeeep OLD")
 
 
@@ -543,7 +543,7 @@ def sumary_network(
                 )
             )
 
-        except:
+        except Exception:
             logging.getLogger(__name__).error(
                 " can't analyze {}  (  may not have value locked ) --> err: {}".format(
                     address, sys.exc_info()[0]
@@ -597,7 +597,7 @@ def sumary_user(
             print_status(
                 hype_status_list[-1], symbol=hype_new.symbol, network=hype_new.network
             )
-        except:
+        except Exception:
             logging.getLogger(__name__).exception(" error ")
 
 
@@ -606,11 +606,11 @@ def main(option: str, **kwargs):
     # get dates range from command line
     try:
         ini_datetime = CONFIGURATION["_custom_"]["cml_parameters"].ini_datetime
-    except:
+    except Exception:
         ini_datetime = None
     try:
         end_datetime = CONFIGURATION["_custom_"]["cml_parameters"].end_datetime
-    except:
+    except Exception:
         end_datetime = None
 
     # check if user address to analyze

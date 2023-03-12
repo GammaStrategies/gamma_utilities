@@ -69,7 +69,7 @@ def check_prices():
                             logging.getLogger(__name__).debug(
                                 f" Could not find price for {network}'s {address} at block {block}"
                             )
-    except:
+    except Exception:
         logging.getLogger(__name__).exception(
             " unexpected error checking prices from log"
         )
@@ -143,7 +143,7 @@ def add_timestamps_to_status(network: str, protocol: str = "gamma"):
                 status["pool"]["token1"]["timestamp"] = status["timestamp"]
 
                 saveit = True
-            except:
+            except Exception:
                 pass
             if not saveit:
                 try:
@@ -161,7 +161,7 @@ def add_timestamps_to_status(network: str, protocol: str = "gamma"):
                     status["pool"]["token1"]["timestamp"] = status["timestamp"]
 
                     saveit = True
-                except:
+                except Exception:
                     pass
 
             if saveit:
