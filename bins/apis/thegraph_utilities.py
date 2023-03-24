@@ -3370,7 +3370,7 @@ class blocks_scraper(thegraph_scraper_helper):
     __URLS = {
         "ethereum": "https://api.thegraph.com/subgraphs/name/blocklytics/ethereum-blocks",
         "polygon": "https://api.thegraph.com/subgraphs/name/sameepsi/maticblocks",
-        "optimism": "https://api.thegraph.com/subgraphs/name/beethovenxfi/optimism-blocks/",
+        # "optimism": "https://api.thegraph.com/subgraphs/name/beethovenxfi/optimism-blocks/",
         "arbitrum": "https://api.thegraph.com/subgraphs/name/edoapp/arbitrum-blocks",
         # "celo":"",
     }

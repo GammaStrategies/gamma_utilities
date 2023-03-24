@@ -93,17 +93,19 @@ def check_prices(min_count: int = 3):
 
 
 # one time utils
-def replace_blocks_to_int(network: str, protocol: str = "gamma"):
+def replace_blocks_to_int():
+
+    logging.getLogger(__name__).debug("    Converting non int blocks to int")
 
     # setup database managers
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-    db_name = f"{network}_{protocol}"
-    local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
+    # db_name = f"{network}_{protocol}"
+    # local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
     global_db_manager = database_global(mongo_url=mongo_url)
 
     # get all prices
     all_prices = global_db_manager.get_items_from_database(
-        collection_name="usd_prices", find={"block": {"$type": "string"}}
+        collection_name="usd_prices", find={"block": {"$not": {"$type": "int"}}}
     )
     _errors = 0
     with tqdm.tqdm(total=len(all_prices)) as progress_bar:
@@ -300,7 +302,7 @@ def check_database():
     with tqdm.tqdm(total=len(CONFIGURATION["script"]["protocols"])) as progress_bar:
         # checks
         for protocol, networks in CONFIGURATION["script"]["protocols"].items():
-            for network, dexes in networks.items():
+            for network, dexes in networks["networks"].items():
 
                 # setup local database manager
                 db_name = f"{network}_{protocol}"
@@ -371,8 +373,10 @@ def chek_globaldb_blocks(global_db_manager: database_global):
         collection_name="usd_prices", find={"block": {"$not": {"$type": "int"}}}
     ):
         logging.getLogger(__name__).warning(
-            f" Found {len(blocks_usd_prices)} usd prices with the block field not being int"
+            f" Found {len(blocks_usd_prices)} usd prices with the block field not being int: database '{global_db_manager._db_name}' collection 'usd_prices'   ids-> {[x['_id'] for x in blocks_usd_prices]}"
         )
+        # try replacing those found non int block prices to int
+        replace_blocks_to_int()
 
 
 def check_status_prices(
@@ -392,7 +396,7 @@ def check_status_prices(
 
     # get tokens and blocks present in database
     prices_todo = set()
-    for x in local_db_manager.get_items_from_database(collection_name=status):
+    for x in local_db_manager.get_items_from_database(collection_name="status"):
         for i in [0, 1]:
             db_id = f'{network}_{x["pool"][f"token{i}"]["block"]}_{x["pool"][f"token{i}"]["address"]}'
 
@@ -419,7 +423,7 @@ def check_stable_prices(
         global_db_manager (database_global):
     """
     logging.getLogger(__name__).debug(
-        f" Seek deviations of {x['network']}'s stable token usd prices from 1 usd"
+        f" Seek deviations of {network}'s stable token usd prices from 1 usd"
     )
 
     stables_symbol_list = ["USDC", "USDT", "LUSD", "DAI"]
@@ -437,14 +441,25 @@ def check_stable_prices(
         )
     }
 
+    # database ids var
+    db_ids = []
+
     for x in global_db_manager.get_items_from_database(
-        collection_name="usd_prices", find={"address": {"$in": list(stables.values())}}
+        collection_name="usd_prices",
+        find={"address": {"$in": list(stables.values())}, "network": network},
     ):
         # check if deviation from 1 is significative ( 10% )
-        if abs(x["price"] - 1) > 0.1:
+        if abs(x["price"] - 1) > 0.3:
             logging.getLogger(__name__).warning(
                 f" Stable {x['network']}'s {x['address']} usd price is {x['price']} at block {x['block']}"
             )
+            # add id
+            db_ids.append(x["_id"])
+
+    if db_ids:
+        logging.getLogger(__name__).warning(
+            f" Error found in database '{global_db_manager._db_name}' collection 'usd_prices'  ids: {db_ids}"
+        )
 
 
 def get_failed_prices_from_log(log_file: str) -> dict:
