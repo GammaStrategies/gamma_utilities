@@ -3,11 +3,12 @@ import sys
 import logging
 import tqdm
 import concurrent.futures
+import contextlib
 from datetime import datetime, date, timedelta
 from pathlib import Path
 from web3.exceptions import ContractLogicError
 
-from bins.configuration import CONFIGURATION, HYPERVISOR_REGISTRIES
+from bins.configuration import CONFIGURATION, STATIC_REGISTRY_ADDRESSES
 from bins.general.general_utilities import (
     convert_string_datetime,
     differences,
@@ -15,10 +16,10 @@ from bins.general.general_utilities import (
 )
 from bins.w3.onchain_data_helper import onchain_data_helper2
 from bins.w3.onchain_utilities.protocols import (
-    gamma_hypervisor,
-    gamma_hypervisor_quickswap,
     gamma_hypervisor_cached,
     gamma_hypervisor_quickswap_cached,
+    gamma_hypervisor_zyberswap_cached,
+    gamma_hypervisor_thena_cached,
     gamma_hypervisor_registry,
 )
 from bins.w3.onchain_utilities.basic import erc20_cached
@@ -32,7 +33,11 @@ from bins.database.db_user_status import user_status_hypervisor_builder
 from bins.database.db_raw_direct_info import direct_db_hypervisor_info
 from bins.mixed.price_utilities import price_scraper
 
-from bins.formulas.univ3_formulas import sqrtPriceX96_to_price_float
+from bins.formulas.univ3_formulas import (
+    sqrtPriceX96_to_price_float,
+    sqrtPriceX96_to_price_float_v2,
+)
+from datetime import timezone
 
 ### Static ######################
 def feed_hypervisor_static(
@@ -49,7 +54,7 @@ def feed_hypervisor_static(
     """
 
     logging.getLogger(__name__).info(
-        f">Feeding {protocol}'s {network} hypervisors static information"
+        f">Feeding {protocol}'s {network} {dex} hypervisors static information"
     )
 
     # debug variables
@@ -59,81 +64,12 @@ def feed_hypervisor_static(
     global_db = database_global(mongo_url=mongo_url)
 
     # set local database name and create manager
-    db_name = f"{network}_{protocol}"
-    local_db = database_local(mongo_url=mongo_url, db_name=db_name)
+    local_db = database_local(mongo_url=mongo_url, db_name=f"{network}_{protocol}")
 
-    # get hyp addresses from database
-    logging.getLogger(__name__).debug(
-        "   Retrieving {} hypervisors addresses from database".format(network)
+    # hypervisor addresses to process
+    hypervisor_addresses = _get_static_hypervisor_addresses_to_process(
+        local_db=local_db, protocol=protocol, network=network, dex=dex, rewrite=rewrite
     )
-    hypervisor_addresses_db = local_db.get_distinct_items_from_database(
-        collection_name="static", field="address"
-    )
-
-    # define a registry to pull data from
-    gamma_registry_address = HYPERVISOR_REGISTRIES[dex][network]
-    gamma_registry = gamma_hypervisor_registry(
-        address=gamma_registry_address,
-        network=network,
-    )
-
-    # get hyp addresses from chain
-    logging.getLogger(__name__).info(
-        "   Retrieving {}'s {} {} hypervisors addresses from registry".format(
-            network, protocol, dex
-        )
-    )
-    try:
-        # get hypes
-        hypervisor_addresses_registry: list = gamma_registry.get_hypervisors_addresses()
-        # apply filters
-        filters: dict = (
-            CONFIGURATION["script"]["protocols"].get(protocol, {}).get("filters", {})
-        )
-        hypes_not_included: list = [
-            x.lower()
-            for x in filters.get("hypervisors_not_included", {}).get(network, list())
-        ]
-
-        logging.getLogger(__name__).debug(
-            f"   excluding hypervisors: {hypes_not_included}"
-        )
-        hypervisor_addresses_registry = [
-            x for x in hypervisor_addresses_registry if x not in hypes_not_included
-        ]
-
-    except ValueError as err:
-        if "message" in err:
-            logging.getLogger(__name__).error(
-                f" Unexpected error while fetching hypes from {network} registry  error: {err['message']}"
-            )
-        else:
-            logging.getLogger(__name__).error(
-                f" Unexpected error while fetching hypes from {network} registry  error: {sys.exc_info()[0]}"
-            )
-        # return an empty hype address list
-        hypervisor_addresses_registry = list()
-
-    # ini hyp addresses to process var
-    hypervisor_addresses = list()
-
-    # rewrite all static info?
-    if not rewrite:
-        # filter already scraped hypervisors
-        for address in hypervisor_addresses_registry:
-            if address.lower() in hypervisor_addresses_db:
-                logging.getLogger(__name__).debug(
-                    f"   {address} hypervisor static info already in db"
-                )
-            else:
-                hypervisor_addresses.append(address)
-    else:
-        hypervisor_addresses = hypervisor_addresses_registry
-        logging.getLogger(__name__).debug(
-            "   Rewriting all hypervisors static information of {}'s {} {} ".format(
-                network, protocol, dex
-            )
-        )
 
     # set log list of hypervisors with errors
     _errors = 0
@@ -148,7 +84,7 @@ def feed_hypervisor_static(
                     if result:
                         # progress
                         progress_bar.set_description(
-                            " 0x..{} processed ".format(result["address"][-4:])
+                            f' 0x..{result["address"][-4:]} processed '
                         )
                         progress_bar.refresh()
                         # add hypervisor status to database
@@ -161,19 +97,15 @@ def feed_hypervisor_static(
         else:
             # get operations from database
             for address in hypervisor_addresses:
-                progress_bar.set_description(
-                    " 0x..{} to be processed".format(address[-4:])
-                )
+                progress_bar.set_description(f" 0x..{address[-4:]} to be processed")
                 progress_bar.refresh()
-                result = create_db_hypervisor(
+                if result := create_db_hypervisor(
                     address=address,
                     network=network,
                     block=0,
                     dex=dex,
                     static_mode=True,
-                )
-
-                if result:
+                ):
                     # add hypervisor static data to database
                     local_db.set_static(data=result)
                 else:
@@ -183,7 +115,7 @@ def feed_hypervisor_static(
                 # update progress
                 progress_bar.update(1)
 
-    try:
+    with contextlib.suppress(Exception):
         if _errors > 0:
             logging.getLogger(__name__).info(
                 "   {} of {} ({:,.1%}) hypervisors could not be scraped due to errors".format(
@@ -192,11 +124,104 @@ def feed_hypervisor_static(
                     _errors / len(hypervisor_addresses),
                 )
             )
-    except Exception:
-        pass
 
 
-### Operations ######################
+# TODO: change gamma_hypervisor_registry to generic
+def _get_hypervisors_from_registry(
+    gamma_registry: gamma_hypervisor_registry, protocol: str = "gamma"
+) -> list:
+    try:
+        return _get_hypervisors_from_registry_worker(gamma_registry, protocol)
+
+    except ValueError as err:
+        if "message" in err:
+            logging.getLogger(__name__).error(
+                f" Unexpected error while fetching hypes from {gamma_registry._network} registry  error: {err['message']}"
+            )
+        else:
+            logging.getLogger(__name__).error(
+                f" Unexpected error while fetching hypes from {gamma_registry._network} registry  error: {sys.exc_info()[0]}"
+            )
+        # return an empty hype address list
+        return []
+
+
+def _get_hypervisors_from_registry_worker(
+    gamma_registry: gamma_hypervisor_registry, protocol
+):
+    # get hypes
+    hypervisor_addresses_registry: list = gamma_registry.get_hypervisors_addresses()
+
+    # apply filters
+    filters: dict = (
+        CONFIGURATION["script"]["protocols"].get(protocol, {}).get("filters", {})
+    )
+    hypes_not_included: list = [
+        x.lower()
+        for x in filters.get("hypervisors_not_included", {}).get(
+            gamma_registry._network, []
+        )
+    ]
+
+    logging.getLogger(__name__).debug(f"   excluding hypervisors: {hypes_not_included}")
+    hypervisor_addresses_registry = [
+        x for x in hypervisor_addresses_registry if x not in hypes_not_included
+    ]
+
+    return hypervisor_addresses_registry
+
+
+def _get_static_hypervisor_addresses_to_process(
+    local_db: database_local,
+    protocol: str,
+    network: str,
+    dex: str,
+    rewrite: bool = False,
+):
+    """Create a list of hypervisor addresses to be scraped to feed static database collection
+
+    Args:
+        local_db (database_local): _description_
+        rewrite (bool, optional): _description_. Defaults to False.
+
+    Returns:
+        _type_: _description_
+    """
+    # get hyp addresses from database
+    logging.getLogger(__name__).debug(
+        f"   Retrieving {network} hypervisors addresses from database"
+    )
+    hypervisor_addresses_database = local_db.get_distinct_items_from_database(
+        collection_name="static", field="address"
+    )
+    hypervisor_addresses_registry = _get_hypervisors_from_registry(
+        gamma_registry=gamma_hypervisor_registry(
+            address=STATIC_REGISTRY_ADDRESSES.get(network, {})
+            .get("hypervisors", {})
+            .get(dex, None),
+            network=network,
+        )
+    )
+    result = []
+    # rewrite all static info?
+    if not rewrite:
+        # filter already scraped hypervisors
+        for address in hypervisor_addresses_registry:
+            if address.lower() in hypervisor_addresses_database:
+                logging.getLogger(__name__).debug(
+                    f"   {address} hypervisor static info already in db"
+                )
+            else:
+                result.append(address)
+    else:
+        result = hypervisor_addresses_registry
+        logging.getLogger(__name__).debug(
+            f"   Rewriting all hypervisors static information of {network}'s {protocol} {dex} "
+        )
+
+    return result
+
+
 def feed_operations(
     protocol: str,
     network: str,
@@ -243,8 +268,9 @@ def feed_operations(
     # get hypervisor addresses from static database collection and compare them to current operations distinct addresses
     # to decide whether a full timeback query shall be made
     logging.getLogger(__name__).debug(
-        "   Retrieving {} hypervisors addresses from database".format(network)
+        f"   Retrieving {network} hypervisors addresses from database"
     )
+
     hypervisor_addresses = local_db.get_distinct_items_from_database(
         collection_name="static", field="address"
     )
@@ -256,9 +282,9 @@ def feed_operations(
         CONFIGURATION["script"]["protocols"].get(protocol, {}).get("filters", {})
     )
     hypes_not_included: list = [
-        x.lower()
-        for x in filters.get("hypervisors_not_included", {}).get(network, list())
+        x.lower() for x in filters.get("hypervisors_not_included", {}).get(network, [])
     ]
+
     logging.getLogger(__name__).debug(f"   excluding hypervisors: {hypes_not_included}")
     hypervisor_addresses = [
         x for x in hypervisor_addresses if x not in hypes_not_included
@@ -272,9 +298,7 @@ def feed_operations(
         if not block_ini:
             block_ini = get_db_last_operation_block(protocol=protocol, network=network)
             logging.getLogger(__name__).debug(
-                "   Setting initial block to {}, being the last block found in operations".format(
-                    block_ini
-                )
+                f"   Setting initial block to {block_ini}, being the last block found in operations"
             )
 
             # check if hypervisors in static collection are diff from operation's
@@ -351,7 +375,7 @@ def feed_operations(
 
     except Exception:
         logging.getLogger(__name__).exception(
-            " Unexpected error while looping    .error: {}".format(sys.exc_info()[0])
+            f" Unexpected error while looping    .error: {sys.exc_info()[0]}"
         )
 
 
@@ -436,10 +460,9 @@ def get_db_last_operation_block(protocol: str, network: str) -> int:
 
     except Exception:
         logging.getLogger(__name__).exception(
-            " Unexpected error while quering db operations for latest block  error:{}".format(
-                sys.exc_info()[0]
-            )
+            f" Unexpected error while quering db operations for latest block  error:{sys.exc_info()[0]}"
         )
+
     return None
 
 
@@ -477,22 +500,26 @@ def feed_hypervisor_status(
 
     # create a unique list of blocks addresses from database to be processed including:
     #       operation blocks and their block-1 relatives
-    #       block every 20 min
-    toProcess_block_address = dict()
-    for x in local_db.get_unique_operations_addressBlock():
+    #       block every X min
+    toProcess_block_address = {}
+    for x in local_db.get_unique_operations_addressBlock(
+        topics=["deposit", "withdraw", "zeroBurn", "rebalance"]
+    ):
         # add operation addressBlock to be processed
         toProcess_block_address[f"""{x["address"]}_{x["block"]}"""] = x
         # add block -1
         toProcess_block_address[f"""{x["address"]}_{x["block"]-1}"""] = {
             "address": x["address"],
             "block": x["block"] - 1,
+            "fees_metadata": "ini",
         }
 
     # add latest block to all hypervisors every 20 min
     try:
-        if datetime.utcnow().timestamp() - local_db.get_max_field(
-            collection="status", field="timestamp"
-        )[0]["max"] > (60 * 20):
+        if (
+            datetime.now(timezone.utc).timestamp()
+            - local_db.get_max_field(collection="status", field="timestamp")[0]["max"]
+        ) > 60 * 20:
 
             latest_block = (
                 erc20_cached(
@@ -511,6 +538,7 @@ def feed_hypervisor_status(
                 toProcess_block_address[f"""{address}_{latest_block}"""] = {
                     "address": address,
                     "block": latest_block,
+                    "fees_metadata": "mid",
                 }
     except Exception:
         logging.getLogger(__name__).exception(
@@ -528,11 +556,9 @@ def feed_hypervisor_status(
         }
 
     logging.getLogger(__name__).debug(
-        "   Total address blocks {} ->  Already processed {} ".format(
-            len(toProcess_block_address),
-            len(processed_blocks),
-        )
+        f"   Total address blocks {len(toProcess_block_address)} ->  Already processed {len(processed_blocks)} "
     )
+
     # remove already processed blocks
     for k in processed_blocks:
         try:
@@ -567,28 +593,27 @@ def feed_hypervisor_status(
             )
             with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
                 for result in ex.map(lambda p: create_db_hypervisor(*p), args):
-                    if result != None:
+                    if result is None:
+                        # error found
+                        _errors += 1
+
+                    else:
                         # progress
                         progress_bar.set_description(
-                            " {} processed ".format(result.get("address", " "))
+                            f' {result.get("address", " ")} processed '
                         )
                         progress_bar.refresh()
                         # add hypervisor status to database
                         local_db.set_status(data=result)
-                    else:
-                        # error found
-                        _errors += 1
-
                     # update progress
                     progress_bar.update(1)
         else:
             # get operations from database
             for item in toProcess_block_address.values():
                 progress_bar.set_description(
-                    " 0x..{} at block {} to be processed".format(
-                        item.get("address", "    ")[-4:], item.get("block", "")
-                    )
+                    f' 0x..{item.get("address", "    ")[-4:]} at block {item.get("block", "")} to be processed'
                 )
+
                 progress_bar.refresh()
                 result = create_db_hypervisor(
                     address=item["address"],
@@ -606,7 +631,7 @@ def feed_hypervisor_status(
                 # update progress
                 progress_bar.update(1)
 
-    try:
+    with contextlib.suppress(Exception):
         if _errors > 0:
             logging.getLogger(__name__).info(
                 "   {} of {} ({:,.1%}) hypervisor status could not be scraped due to errors".format(
@@ -617,8 +642,6 @@ def feed_hypervisor_status(
                     else 0,
                 )
             )
-    except Exception:
-        pass
 
 
 def create_db_hypervisor(
@@ -632,6 +655,14 @@ def create_db_hypervisor(
             )
         elif dex == "quickswap":
             hypervisor = gamma_hypervisor_quickswap_cached(
+                address=address, network=network, block=block
+            )
+        elif dex == "zyberswap":
+            hypervisor = gamma_hypervisor_zyberswap_cached(
+                address=address, network=network, block=block
+            )
+        elif dex == "thena":
+            hypervisor = gamma_hypervisor_thena_cached(
                 address=address, network=network, block=block
             )
         else:
@@ -683,12 +714,10 @@ def feed_prices(
 
     # check already processed prices
     # using only set with database id
-    already_processed_prices = set(
-        [
-            x["id"]
-            for x in global_db_manager.get_unique_prices_addressBlock(network=network)
-        ]
-    )
+    already_processed_prices = {
+        x["id"]
+        for x in global_db_manager.get_unique_prices_addressBlock(network=network)
+    }
 
     # create items to process
     logging.getLogger(__name__).debug(
@@ -790,7 +819,7 @@ def feed_prices(
                     # add one
                     progress_bar.update(1)
 
-        try:
+        with contextlib.suppress(Exception):
             if _errors > 0:
                 logging.getLogger(__name__).info(
                     "   {} of {} ({:,.1%}) address block prices could not be scraped due to errors".format(
@@ -799,13 +828,12 @@ def feed_prices(
                         (_errors / len(items_to_process)) if items_to_process else 0,
                     )
                 )
-        except Exception:
-            pass
-
+        return True
     else:
         logging.getLogger(__name__).info(
             "   No new {}'s prices to process for {} database".format(network, db_name)
         )
+        return False
 
 
 def create_tokenBlocks_allTokensButWeth(protocol: str, network: str) -> set:
@@ -829,9 +857,7 @@ def create_tokenBlocks_allTokensButWeth(protocol: str, network: str) -> set:
         for i in [0, 1]:
             if status["pool"][f"token{i}"]["symbol"] != "WETH":
                 result.add(
-                    "{}_{}_{}".format(
-                        network, status["block"], status["pool"][f"token{i}"]["address"]
-                    )
+                    f'{network}_{status["block"]}_{status["pool"][f"token{i}"]["address"]}'
                 )
 
     # combine token block lists
@@ -857,15 +883,13 @@ def create_tokenBlocks_allTokens(protocol: str, network: str) -> set:
     for status in local_db_manager.get_items_from_database(collection_name="status"):
         for i in [0, 1]:
             result.add(
-                "{}_{}_{}".format(
-                    network, status["block"], status["pool"][f"token{i}"]["address"]
-                )
+                f'{network}_{status["block"]}_{status["pool"][f"token{i}"]["address"]}'
             )
 
     return result
 
 
-def create_tokenBlocks_topTokens(protocol: str, network: str, limit: int = 5) -> set:
+def create_tokenBlocks_topTokens(protocol: str, network: str, limit: int = 10) -> set:
     """Create a list of blocks for each TOP token address
 
     Args:
@@ -888,16 +912,24 @@ def create_tokenBlocks_topTokens(protocol: str, network: str, limit: int = 5) ->
 
     # get a list of all status with those top tokens + blocks
     return set(
-        [
-            "{}_{}_{}".format(
-                network, x["pool"]["token1"]["block"], x["pool"]["token1"]["address"]
-            )
-            for x in local_db_manager.get_items(
-                collection_name="status",
-                find={"pool.token1.symbol": {"$in": top_token_symbols}},
-                sort=[("block", 1)],
-            )
-        ]
+        (
+            [
+                f'{network}_{x["pool"]["token1"]["block"]}_{x["pool"]["token1"]["address"]}'
+                for x in local_db_manager.get_items(
+                    collection_name="status",
+                    find={"pool.token1.symbol": {"$in": top_token_symbols}},
+                    sort=[("block", 1)],
+                )
+            ]
+            + [
+                f'{network}_{x["pool"]["token0"]["block"]}_{x["pool"]["token0"]["address"]}'
+                for x in local_db_manager.get_items(
+                    collection_name="status",
+                    find={"pool.token0.symbol": {"$in": top_token_symbols}},
+                    sort=[("block", 1)],
+                )
+            ]
+        )
     )
 
     # # create unique block list using data from hypervisor status
@@ -939,26 +971,28 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
     global_db_manager = database_global(mongo_url=mongo_url)
 
     # check already processed prices
-    already_processed_prices = set(
-        [
-            x["id"]
-            for x in global_db_manager.get_unique_prices_addressBlock(network=network)
-        ]
-    )
+    already_processed_prices = {
+        x["id"]
+        for x in global_db_manager.get_unique_prices_addressBlock(network=network)
+    }
 
     # get a list of the top used tokens1 symbols
     top_tokens = [x["symbol"] for x in local_db_manager.get_mostUsed_tokens1()]
 
     # get all hype status where token1 == top tokens1 and not already processed
+    # avoid top_tokens at token0
     status_list = [
         x
         for x in local_db_manager.get_items(
             collection_name="status",
-            find={"pool.token1.symbol": {"$in": top_tokens}},
+            find={
+                "pool.token1.symbol": {"$in": top_tokens},
+                "pool.token0.symbol": {"$nin": top_tokens},
+            },
             sort=[("block", 1)],
         )
-        if not "{}_{}_{}".format(network, x["block"], x["pool"]["token0"]["address"])
-        in already_processed_prices
+        if "{}_{}_{}".format(network, x["block"], x["pool"]["token0"]["address"])
+        not in already_processed_prices
     ]
 
     # log errors
@@ -974,13 +1008,21 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
                     token0_decimals=status["pool"]["token0"]["decimals"],
                     token1_decimals=status["pool"]["token1"]["decimals"],
                 )
+
+                price0, price1 = sqrtPriceX96_to_price_float_v2(
+                    sqrtPriceX96=int(status["pool"]["slot0"]["sqrtPriceX96"]),
+                    token0_decimals=status["pool"]["token0"]["decimals"],
+                    token1_decimals=status["pool"]["token1"]["decimals"],
+                )
+
                 # get weth usd price
                 usdPrice_token1 = global_db_manager.get_price_usd(
                     network=network,
                     block=status["block"],
                     address=status["pool"]["token1"]["address"],
                 )
-                # calc token pusd price
+
+                # calc token usd price
                 return (usdPrice_token1[0]["price"] * price_token0), status
 
             except Exception:
@@ -990,7 +1032,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
 
         if threaded:
             # threaded
-            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+            with concurrent.futures.ThreadPoolExecutor() as ex:
                 for price_usd, item in ex.map(loopme, status_list):
                     if price_usd != None:
                         if price_usd > 0:
@@ -1050,7 +1092,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
                 # add one
                 progress_bar.update(1)
 
-    try:
+    with contextlib.suppress(Exception):
         if _errors > 0:
             logging.getLogger(__name__).info(
                 "   {} of {} ({:,.1%}) address block prices could not be scraped due to errors".format(
@@ -1059,8 +1101,6 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
                     (_errors / len(items_to_process)) if items_to_process else 0,
                 )
             )
-    except Exception:
-        pass
 
 
 ### Blocks Timestamp #####################
@@ -1082,15 +1122,13 @@ def feed_blocks_timestamp(network: str):
 
     # set initial  a list of timestamps to process
     from_date = datetime.timestamp(datetime(year=2021, month=3, day=1))
-    try:
+    with contextlib.suppress(Exception):
         from_date = max(timestamps_indb)
-    except Exception:
-        # from_date shuld be still defined
-        pass
-
     # define daily parameters
     day_in_seconds = 60 * 60 * 24
-    total_days = int((datetime.utcnow().timestamp() - from_date) / day_in_seconds)
+    total_days = int(
+        (datetime.now(timezone.utc).timestamp() - from_date) / day_in_seconds
+    )
 
     # create a list of timestamps to process  (daily)
     timestamps = [from_date + day_in_seconds * idx for idx in range(total_days)]
@@ -1136,11 +1174,11 @@ def feed_timestamp_blocks(network: str, protocol: str, threaded: bool = True):
         x["block"] for x in global_db_manager.get_all_block_timestamp(network=network)
     ]
     # create a list of items to process
-    items_to_process = list()
+    items_to_process = []
     for block in local_db_manager.get_distinct_items_from_database(
         collection_name="status", field="block"
     ):
-        if not block in blocks_indb:
+        if block not in blocks_indb:
             items_to_process.append(block)
 
     # beguin processing
@@ -1159,9 +1197,8 @@ def feed_timestamp_blocks(network: str, protocol: str, threaded: bool = True):
 
         if threaded:
             # threaded
-            args = ((item) for item in items_to_process)
             with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-                for timestamp, block in ex.map(lambda p: _get_timestamp(p), args):
+                for timestamp, block in ex.map(_get_timestamp, items_to_process):
                     if timestamp:
                         # progress
                         progress_bar.set_description(
@@ -1202,7 +1239,7 @@ def feed_timestamp_blocks(network: str, protocol: str, threaded: bool = True):
                 # add one
                 progress_bar.update(1)
 
-    try:
+    with contextlib.suppress(Exception):
         logging.getLogger(__name__).info(
             "   {} of {} ({:,.1%}) blocks could not be scraped due to errors".format(
                 _errors,
@@ -1210,8 +1247,6 @@ def feed_timestamp_blocks(network: str, protocol: str, threaded: bool = True):
                 (_errors / len(items_to_process)) if items_to_process else 0,
             )
         )
-    except Exception:
-        pass
 
 
 ### user Status #######################
@@ -1227,15 +1262,13 @@ def feed_user_status(network: str, protocol: str):
     for idx, address in enumerate(addresses):
 
         logging.getLogger(__name__).debug(
-            "   [{} of {}] Building {}'s {} user status".format(
-                idx, len(addresses), network, address
-            )
+            f"   [{idx} of {len(addresses)}] Building {network}'s {address} user status"
         )
 
         hype_new = user_status_hypervisor_builder(
             hypervisor_address=address, network=network, protocol=protocol
         )
-        hype_status_list = list()
+
         try:
             hype_new._process_operations()
         except Exception:
@@ -1246,7 +1279,7 @@ def feed_user_status(network: str, protocol: str):
 
 def get_hypervisor_addresses(network: str, protocol: str) -> list[str]:
 
-    result = list()
+    result = []
     # get database configuration
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     db_name = f"{network}_{protocol}"
@@ -1275,7 +1308,7 @@ def get_hypervisor_addresses(network: str, protocol: str) -> list[str]:
         f" Number of hypervisors to process before applying filters: {len(result)}"
     )
     # filter blacklisted
-    result = [x for x in result if not x in blacklisted]
+    result = [x for x in result if x not in blacklisted]
     logging.getLogger(__name__).debug(
         f" Number of hypervisors to process after applying filters: {len(result)}"
     )
@@ -1289,7 +1322,7 @@ def feed_fastApi_impermanent(network: str, protocol: str):
     # TODO implement threaded
     threaded = True
 
-    end_date = datetime.utcnow()
+    end_date = datetime.now(timezone.utc)
     days = [1, 7, 15, 30]  # all impermament datetimeframes
 
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
@@ -1374,10 +1407,11 @@ def feed_fastApi_impermanent(network: str, protocol: str):
     try:
         if _errors > 0:
             logging.getLogger(__name__).info(
-                "   {} of {} ({:,.1%}) hypervisor/day impermanent data could not be scraped due to errors (totalSupply?)".format(
+                "   {} of {} ({:,.1%}) {}'s hypervisor/day impermanent data could not be scraped due to errors (totalSupply?)".format(
                     _errors,
                     args_lenght,
                     (_errors / args_lenght) if args_lenght > 0 else 0,
+                    network,
                 )
             )
     except Exception:

@@ -13,38 +13,34 @@ from requests import exceptions as req_exceptions
 
 
 #
-def post_request(url: str, query: str, retry=0, max_retry=2, wait_secs=5) -> dict:
+def post_request(
+    url: str,
+    query: str,
+    retry: int = 0,
+    max_retry: int = 2,
+    wait_secs: int = 5,
+    timeout_secs: int = 10,
+) -> dict:
 
     try:
-        request = requests.post(url, json={"query": query})
+        request = requests.post(url=url, json={"query": query}, timeout=timeout_secs)
         return request.json()
-    except (
-        req_exceptions.ConnectionError,
-        ConnectionResetError,
-        ConnectionError,
-    ) as err:
+    except (req_exceptions.ConnectionError, ConnectionError) as err:
         # blocking us?  wait and try as many times as defined
-        logging.getLogger(__name__).warning(
-            "Connection to {} has been closed...".format(url)
-        )
+        logging.getLogger(__name__).warning(f"Connection to {url} has been closed...")
     except req_exceptions.ReadTimeout as err:
-        logging.getLogger(__name__).warning(
-            "Connection to {} has timed out...".format(url)
-        )
+        logging.getLogger(__name__).warning(f"Connection to {url} has timed out...")
     except Exception:
         logging.getLogger(__name__).exception(
-            "Unexpected error while posting request at {} .error: {}".format(
-                url, sys.exc_info()[0]
-            )
+            f"Unexpected error while posting request at {url} .error: {sys.exc_info()[0]}"
         )
 
     # check if retry is needed
     if retry < max_retry:
         logging.getLogger(__name__).warning(
-            "    Waiting {} seconds to retry {} query for the {} time.".format(
-                wait_secs, url, retry
-            )
+            f"    Waiting {wait_secs} seconds to retry {url} query for the {retry} time."
         )
+
         time.sleep(wait_secs)
         # retry
         return post_request(
@@ -53,43 +49,47 @@ def post_request(url: str, query: str, retry=0, max_retry=2, wait_secs=5) -> dic
             retry=retry + 1,
             max_retry=max_retry,
             wait_secs=wait_secs,
+            timeout_secs=timeout_secs,
         )
 
     # return empty dict
-    return dict()
+    return {}
 
 
-def get_request(url, retry=0, max_retry=2, wait_secs=5) -> dict:
-    result = dict()
+def get_request(
+    url,
+    retry: int = 0,
+    max_retry: int = 2,
+    wait_secs: int = 5,
+    timeout_secs: int = 10,
+) -> dict:
+    result = {}
     # query url
     try:
-        result = requests.get(url).json()
+        result = requests.get(url=url, timeout=timeout_secs).json()
         return result
 
-    except (
-        req_exceptions.ConnectionError,
-        ConnectionResetError,
-        ConnectionError,
-    ) as err:
+    except (req_exceptions.ConnectionError, ConnectionError) as err:
         # thegraph blocking us?
         # wait and try one last time
-        logging.getLogger(__name__).warning("Connection error to {}...".format(url))
+        logging.getLogger(__name__).warning(f"Connection error to {url}...")
     except Exception:
         logging.getLogger(__name__).exception(
-            "Unexpected error while retrieving json from {}     .error: {}".format(
-                url, sys.exc_info()[0]
-            )
+            f"Unexpected error while retrieving json from {url}     .error: {sys.exc_info()[0]}"
         )
 
     if retry < max_retry:
         logging.getLogger(__name__).debug(
-            "    Waiting {} seconds to retry {} query for the {} time.".format(
-                wait_secs, url, retry
-            )
+            f"    Waiting {wait_secs} seconds to retry {url} query for the {retry} time."
         )
+
         time.sleep(wait_secs)
         return get_request(
-            url=url, retry=retry + 1, max_retry=max_retry, wait_secs=wait_secs
+            url=url,
+            retry=retry + 1,
+            max_retry=max_retry,
+            wait_secs=wait_secs,
+            timeout_secs=timeout_secs,
         )
 
 

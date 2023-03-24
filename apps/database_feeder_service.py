@@ -113,7 +113,7 @@ def global_db_service():
     logging.getLogger("telegram").info(" Global database feeding loop started")
     try:
         while True:
-            for protocol in CONFIGURATION["script"]["protocols"].keys():
+            for protocol in CONFIGURATION["script"]["protocols"]:
                 for network in CONFIGURATION["script"]["protocols"][protocol][
                     "networks"
                 ]:

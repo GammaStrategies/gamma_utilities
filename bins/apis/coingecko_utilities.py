@@ -6,7 +6,7 @@ import logging
 class coingecko_price_helper:
     """Coingecko price cache"""
 
-    def __init__(self):
+    def __init__(self, retries: int = 1):
         # todo: coded coingecko's network id conversion
         self.COINGECKO_netids = {
             "polygon": "polygon-pos",
@@ -15,6 +15,8 @@ class coingecko_price_helper:
             "arbitrum": "arbitrum-one",  # "arbitrum-nova" is targeted for gaming and donowhat ...
             "celo": "celo",
         }
+
+        self.retries = retries
 
     @property
     def networks(self) -> list[str]:
@@ -32,14 +34,9 @@ class coingecko_price_helper:
         """Get current token price"""
 
         # get price from coingecko
-        cg = CoinGeckoAPI()
+        cg = CoinGeckoAPI(retries=self.retries)
 
         try:
-            _price = cg.get_token_price(
-                id=self.COINGECKO_netids[network],
-                vs_currencies=vs_currency,
-                contract_addresses=contract_address,
-            )
             # { "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599": {
             #     "usd": 20656,
             #     "eur": 20449,
@@ -47,20 +44,22 @@ class coingecko_price_helper:
             #     "btc": 1.000103
             #         }
             #  }
-            return _price
+            return cg.get_token_price(
+                id=self.COINGECKO_netids[network],
+                vs_currencies=vs_currency,
+                contract_addresses=contract_address,
+            )
 
         except Exception:
             logging.getLogger(__name__).exception(
-                " Exception at coingecko's price gathering of {}        error-> {}".format(
-                    contract_address, sys.exc_info()[0]
-                )
+                f" Exception at coingecko's price gathering of {contract_address}        error-> {sys.exc_info()[0]}"
             )
 
         return 0
 
     def get_price_historic(
         self, network: str, contract_address: str, timestamp: int, vs_currency="usd"
-    ) -> float:
+    ) -> float:  # sourcery skip: remove-unnecessary-cast
         """historic prices
 
         Args:
@@ -81,7 +80,7 @@ class coingecko_price_helper:
                 timestamp = int(timestamp.split(".")[0])
 
         # get price from coingecko
-        cg = CoinGeckoAPI()
+        cg = CoinGeckoAPI(retries=self.retries)
         # modify cgecko's default timeout
         cg.request_timeout = 10
         # define a timeframe to query
@@ -101,46 +100,42 @@ class coingecko_price_helper:
             )
         except ValueError as err:
             if err.args[0] == {"error": "Could not find coin with the given id"}:
-                _data = {"prices": [list()], "error": "not found"}
+                _data = {"prices": [[]], "error": "not found"}
             else:
                 logging.getLogger(__name__).exception(
-                    "Unexpected error while getting price  of {} at {} from coinGecko       .error: {}".format(
-                        contract_address, network, sys.exc_info()[0]
-                    )
+                    f"Unexpected error while getting price  of {contract_address} at {network} from coinGecko       .error: {sys.exc_info()[0]}"
                 )
-                _data = {"prices": [list()], "error": "dontknow"}
+
+                _data = {"prices": [[]], "error": "dontknow"}
         except Exception:
             logging.getLogger(__name__).exception(
-                "Unexpected error while getting price  of {} at {} from coinGecko       .error: {}".format(
-                    contract_address, network, sys.exc_info()[0]
-                )
+                f"Unexpected error while getting price  of {contract_address} at {network} from coinGecko       .error: {sys.exc_info()[0]}"
             )
-            _data = {"prices": [list()], "error": "dontknow"}
+
+            _data = {"prices": [[]], "error": "dontknow"}
 
         # check if result has actually a price in it
         try:
             if _data["prices"][0]:
                 return _data["prices"][0][1]
-            else:
-                # price not found
-                logging.getLogger(__name__).debug(
-                    " Price not found for contract {} at {}  for timestamp {}".format(
-                        contract_address, self.COINGECKO_netids[network], timestamp
-                    )
-                )
-                # TODO: should we try to increase timeframe window??
-                return 0
+
+            # price not found
+            logging.getLogger(__name__).debug(
+                f" Price not found for contract {contract_address} at {self.COINGECKO_netids[network]}  for timestamp {timestamp}"
+            )
+
+            # TODO: should we try to increase timeframe window??
+            return 0
         except IndexError:
             # cannot find price return as zero
             logging.getLogger(__name__).debug(
-                " Price not found for contract {}  at {}  for timestamp {}".format(
-                    contract_address, self.COINGECKO_netids[network], timestamp
-                )
+                f" Price not found for contract {contract_address}  at {self.COINGECKO_netids[network]}  for timestamp {timestamp}"
             )
+
             return 0
 
     def get_prices(
-        self, network: str, contract_addresses: list, vs_currencies: list = ["usd"]
+        self, network: str, contract_addresses: list, vs_currencies: list = None
     ) -> dict:
         """get multiple prices at once (current)
 
@@ -160,21 +155,17 @@ class coingecko_price_helper:
                    }
         """
 
-        result = dict()
+        if vs_currencies is None:
+            vs_currencies = ["usd"]
+        result = {}
         # get price from coingecko
-        cg = CoinGeckoAPI()
+        cg = CoinGeckoAPI(retries=self.retries)
 
         # split contract_addresses in batches so URI too long errors do not popup
         n = 50
         # using list comprehension
         for i in range(0, len(contract_addresses), n):
-            lst = contract_addresses[i : i + n]
 
-            prices = cg.get_token_price(
-                id=self.COINGECKO_netids[network],
-                vs_currencies=vs_currencies,
-                contract_addresses=lst,
-            )
             # { "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599": {
             #     "usd": 20656,
             #     "eur": 20449,
@@ -182,6 +173,10 @@ class coingecko_price_helper:
             #     "btc": 1.000103
             #         }
             #  }
-            result.update(prices)
+            result |= cg.get_token_price(
+                id=self.COINGECKO_netids[network],
+                vs_currencies=vs_currencies,
+                contract_addresses=contract_addresses[i : i + n],
+            )
 
         return result

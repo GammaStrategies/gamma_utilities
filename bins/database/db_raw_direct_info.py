@@ -1,9 +1,11 @@
 import datetime
 import logging
+import sys
 
 from decimal import Decimal, getcontext
 from bins.configuration import CONFIGURATION
 from bins.database.common.db_collections_common import database_local, database_global
+from bins.general.general_utilities import signal_last
 
 from datetime import datetime, timedelta
 
@@ -101,24 +103,24 @@ class direct_db_hypervisor_info:
         return self._static.get("symbol", "")
 
     @property
-    def first_status_block(self) -> int:
-        """Get status first block
+    def first_status(self) -> dict:
+        """Get alltime first status
 
         Returns:
-            int: block number
+            dict:
         """
         find = {"address": self.address.lower()}
-        sort = [("block", -1)]
+        sort = [("block", 1)]
         limit = 1
         try:
             return self.local_db_manager.get_items_from_database(
                 collection_name="status", find=find, sort=sort, limit=limit
-            )[0]["block"]
+            )[0]
         except Exception:
             logging.getLogger(__name__).exception(
                 " Unexpected error quering first status block. Zero returned"
             )
-            return 0
+            return {}
 
     @property
     def latest_status_block(self) -> int:
@@ -208,7 +210,7 @@ class direct_db_hypervisor_info:
         )
 
     def get_status_byDay(
-        self, ini_timestamp: int = 0, end_timestamp: int = 0
+        self, ini_timestamp: int = None, end_timestamp: int = None
     ) -> list[dict]:
         """Get a list of status separated by days
             sorted by date from past to present
@@ -242,15 +244,15 @@ class direct_db_hypervisor_info:
             {"$sort": {"_id.y": 1, "_id.m": 1, "_id.d": 1}},
         ]
         # filter date if defined
-        if ini_timestamp != 0 and end_timestamp != 0:
+        if ini_timestamp and end_timestamp:
             query[0]["$match"]["$and"] = [
                 {"timestamp": {"$gte": int(ini_timestamp)}},
                 {"timestamp": {"$lte": int(end_timestamp)}},
             ]
 
-        elif ini_timestamp != 0:
+        elif ini_timestamp:
             query[0]["$match"]["timestamp"] = {"$gte": int(ini_timestamp)}
-        elif end_timestamp != 0:
+        elif end_timestamp:
             query[0]["$match"]["timestamp"] = {"$lte": int(end_timestamp)}
         # return status list
         return [
@@ -523,15 +525,15 @@ class direct_db_hypervisor_info:
                 (so aggregating all variations of a var will give u the final situation: initial vs end situation)
 
         Args:
-            ini_date (datetime, optional): initial date. Defaults to None.
-            end_date (datetime, optional): end date . Defaults to None.
+            ini_date (datetime): initial date. Defaults to None.
+            end_date (datetime): end date . Defaults to None.
 
         Returns:
             dict: _description_
         """
         # convert to timestamps
-        ini_timestamp = ini_date.timestamp()
-        end_timestamp = end_date.timestamp()
+        ini_timestamp = ini_date.timestamp() if ini_date else None
+        end_timestamp = end_date.timestamp() if end_date else None
 
         status_list = [
             self.convert_hypervisor_status_fromDb(x)
@@ -706,6 +708,15 @@ class direct_db_hypervisor_info:
                 - timezero_underlying_in_usd_perShare
             ) / timezero_underlying_in_usd_perShare
 
+            # FeeReturns
+            try:
+                row["fee_apy"], row["fee_apr"] = self.get_feeReturn(
+                    ini_date=datetime.fromtimestamp(last_status["timestamp"]),
+                    end_date=datetime.fromtimestamp(status["timestamp"]),
+                )
+            except:
+                row["fee_apy"] = row["fee_apr"] = 0
+
             if last_status != None:
 
                 # set 50% result
@@ -734,6 +745,10 @@ class direct_db_hypervisor_info:
                     - last_row["lping_result_vs_firstRow"]
                 )
 
+                # FeeReturns
+                row["feeApy_result_variation"] = row["fee_apy"] - last_row["fee_apy"]
+                row["feeApr_result_variation"] = row["fee_apr"] - last_row["fee_apr"]
+
                 # return result ( return row for debugging purposes)
                 result.append(
                     {
@@ -751,6 +766,8 @@ class direct_db_hypervisor_info:
                             "hodl_proportion_result_variation"
                         ],
                         "lping_result_variation": row["lping_result_variation"],
+                        "feeApy_result_variation": row["feeApy_result_variation"],
+                        "feeApr_result_variation": row["feeApr_result_variation"],
                     }
                 )
 
@@ -890,6 +907,664 @@ class direct_db_hypervisor_info:
                 f" Can't find {self.network}'s {self.address} usd price for {address} at block {block}. Return Zero"
             )
             return Decimal("0")
+
+    def get_feeReturn(self, ini_date: datetime, end_date: datetime) -> tuple:
+
+        timestamp_ini = ini_date.timestamp()
+        timestamp_end = end_date.timestamp()
+        status_list = [
+            self.local_db_manager.convert_d128_to_decimal(x)
+            for x in self.local_db_manager.get_status_feeReturn_data(
+                hypervisor_address=self.address,
+                timestamp_ini=timestamp_ini,
+                timestamp_end=timestamp_end,
+            )
+        ]
+
+        day_in_seconds = Decimal("60") * Decimal("60") * Decimal("24")
+        year_in_seconds = day_in_seconds * Decimal("365")
+
+        result = list()
+        initial_status = None
+        elapsed_time = 0
+        fee0_growth = 0
+        fee1_growth = 0
+        fee_growth_usd = 0
+        period_yield = 0
+        yield_per_day = 0
+        #
+        cum_fee_return = 0
+        total_period_seconds = 0
+
+        for status in status_list:
+
+            ini_usd_price_token0 = self.get_price(
+                block=status["ini_block"],
+                address=self._static["pool"]["token0"]["address"],
+            )
+            ini_usd_price_token1 = self.get_price(
+                block=status["ini_block"],
+                address=self._static["pool"]["token1"]["address"],
+            )
+            end_usd_price_token0 = self.get_price(
+                block=status["end_block"],
+                address=self._static["pool"]["token0"]["address"],
+            )
+            end_usd_price_token1 = self.get_price(
+                block=status["end_block"],
+                address=self._static["pool"]["token1"]["address"],
+            )
+
+            elapsed_time = status["end_timestamp"] - status["ini_timestamp"]
+
+            fee0_growth = (
+                status["end_fees_uncollected0"] - status["ini_fees_uncollected0"]
+            )
+            fee1_growth = (
+                status["end_fees_uncollected1"] - status["ini_fees_uncollected1"]
+            )
+
+            fee_growth_usd = (
+                fee0_growth * end_usd_price_token0 + fee1_growth * end_usd_price_token1
+            )
+
+            period_yield = fee_growth_usd / (
+                status["ini_tvl0"] * end_usd_price_token0
+                + status["ini_tvl1"] * end_usd_price_token1
+            )
+
+            yield_per_day = period_yield * year_in_seconds / elapsed_time
+
+            if yield_per_day > 300:
+                po = ""
+
+            total_period_seconds += elapsed_time
+
+            if cum_fee_return:
+                cum_fee_return *= 1 + period_yield
+            else:
+                cum_fee_return = 1 + period_yield
+
+        cum_fee_return -= 1
+        # cum_fee_return = float(cum_fee_return)
+        fee_apr = cum_fee_return * (year_in_seconds / total_period_seconds)
+        fee_apy = (
+            1 + cum_fee_return * (day_in_seconds / total_period_seconds)
+        ) ** 365 - 1
+
+        return fee_apy, fee_apr
+
+    def get_feeReturn_and_IL_v1(self, ini_date: datetime, end_date: datetime) -> tuple:
+
+        timestamp_ini = ini_date.timestamp()
+        timestamp_end = end_date.timestamp()
+        status_list = [
+            self.local_db_manager.convert_d128_to_decimal(x)
+            for x in self.local_db_manager.get_status_feeReturn_data(
+                hypervisor_address=self.address,
+                timestamp_ini=timestamp_ini,
+                timestamp_end=timestamp_end,
+            )
+        ]
+
+        day_in_seconds = Decimal("60") * Decimal("60") * Decimal("24")
+        year_in_seconds = day_in_seconds * Decimal("365")
+
+        ### feeReturn vars
+        cum_fee_return = 0
+        total_period_seconds = 0
+
+        if status_list:
+            ### Impermanent vars
+            timezero_usd_price0 = self.get_price(
+                block=status_list[0]["ini_block"],
+                address=self._static["pool"]["token0"]["address"],
+            )
+            timezero_usd_price1 = self.get_price(
+                block=status_list[0]["ini_block"],
+                address=self._static["pool"]["token1"]["address"],
+            )
+
+            # total supply at time zero
+            timezero_totalSupply = status_list[0]["ini_supply"]
+            if not timezero_totalSupply:
+                raise ValueError(
+                    " No initial supply found at block {} {}'s {}".format(
+                        status_list[0]["ini_block"], self.network, self.address
+                    )
+                )
+            # total value locked ( including uncollected fees ) at time zero
+            timezero_underlying_token0 = (
+                status_list[0]["ini_tvl0"] + status_list[0]["ini_fees_uncollected0"]
+            )
+            timezero_underlying_token1 = (
+                status_list[0]["ini_tvl1"] + status_list[0]["ini_fees_uncollected1"]
+            )
+            timezero_underlying_in_usd = (
+                timezero_underlying_token0 * timezero_usd_price0
+                + timezero_underlying_token1 * timezero_usd_price1
+            )
+            timezero_underlying_in_usd_perShare = (
+                timezero_underlying_in_usd / timezero_totalSupply
+            )
+
+            # 50% token qtty calculation
+            timezero_fifty_qtty_token0 = (
+                timezero_underlying_in_usd * Decimal("0.5")
+            ) / timezero_usd_price0
+            timezero_fifty_qtty_token1 = (
+                timezero_underlying_in_usd * Decimal("0.5")
+            ) / timezero_usd_price1
+            timezero_fifty_total_usd = (
+                timezero_fifty_qtty_token0 * timezero_usd_price0
+                + timezero_fifty_qtty_token1 * timezero_usd_price1
+            )
+            # total token X at time zero
+            timezero_total_position_in_token0 = (
+                timezero_underlying_in_usd / timezero_usd_price0
+            )
+            timezero_total_position_in_token1 = (
+                timezero_underlying_in_usd / timezero_usd_price1
+            )
+
+            for status in status_list:
+
+                if status["end_block"] == status["ini_block"]:
+                    # 0 block period can't be processed
+                    logging.getLogger(__name__).debug(
+                        " Block {} discarded while calculating feeReturns and Impermanent data for {}'s {}".format(
+                            status["ini_block"], self.network, self.address
+                        )
+                    )
+                    continue
+
+                ini_usd_price_token0 = self.get_price(
+                    block=status["ini_block"],
+                    address=self._static["pool"]["token0"]["address"],
+                )
+                ini_usd_price_token1 = self.get_price(
+                    block=status["ini_block"],
+                    address=self._static["pool"]["token1"]["address"],
+                )
+                end_usd_price_token0 = self.get_price(
+                    block=status["end_block"],
+                    address=self._static["pool"]["token0"]["address"],
+                )
+                end_usd_price_token1 = self.get_price(
+                    block=status["end_block"],
+                    address=self._static["pool"]["token1"]["address"],
+                )
+
+                elapsed_time = status["end_timestamp"] - status["ini_timestamp"]
+
+                # positions at initial time
+                ini_underlying_token0 = (
+                    status["ini_tvl0"] + status["ini_fees_uncollected0"]
+                )
+                ini_underlying_token1 = (
+                    status["ini_tvl1"] + status["ini_fees_uncollected1"]
+                )
+                end_underlying_token0 = (
+                    status["end_tvl0"] + status["end_fees_uncollected0"]
+                )
+                end_underlying_token1 = (
+                    status["end_tvl1"] + status["end_fees_uncollected1"]
+                )
+
+                fee0_growth = (
+                    status["end_fees_uncollected0"] - status["ini_fees_uncollected0"]
+                )
+                fee1_growth = (
+                    status["end_fees_uncollected1"] - status["ini_fees_uncollected1"]
+                )
+                fee_growth_usd = (
+                    fee0_growth * end_usd_price_token0
+                    + fee1_growth * end_usd_price_token1
+                )
+
+                period_yield = fee_growth_usd / (
+                    ini_underlying_token0 * end_usd_price_token0
+                    + ini_underlying_token1 * end_usd_price_token1
+                )
+
+                yield_per_day = period_yield * year_in_seconds / elapsed_time
+
+                if yield_per_day > 300:
+                    raise ValueError(" yield > 300")
+
+                total_period_seconds += elapsed_time
+
+                if cum_fee_return:
+                    cum_fee_return *= 1 + period_yield
+                else:
+                    cum_fee_return = 1 + period_yield
+
+                # impermanent calcs
+
+                # Staying inside pool
+                status["result_lping"] = (
+                    (
+                        (
+                            end_underlying_token0 * end_usd_price_token0
+                            + end_underlying_token1 * end_usd_price_token1
+                        )
+                        / status["end_supply"]
+                    )
+                    - (timezero_underlying_in_usd / timezero_totalSupply)
+                ) / (timezero_underlying_in_usd / timezero_totalSupply)
+
+                # Holding 50% tokens outside pool
+                status["result_hodl_fifty"] = (
+                    (
+                        (
+                            timezero_fifty_qtty_token0 * end_usd_price_token0
+                            + timezero_fifty_qtty_token1 * end_usd_price_token1
+                        )
+                        / timezero_totalSupply
+                    )
+                    - (timezero_fifty_total_usd / timezero_totalSupply)
+                ) / (timezero_fifty_total_usd / timezero_totalSupply)
+
+                # Holding proportional tokens (as if they were invested in the pool at inital %) outside pool
+                status["result_hodl_proportional"] = (
+                    (
+                        (
+                            timezero_underlying_token0 * end_usd_price_token0
+                            + timezero_underlying_token1 * end_usd_price_token1
+                        )
+                        / timezero_totalSupply
+                    )
+                    - (timezero_underlying_in_usd / timezero_totalSupply)
+                ) / (timezero_underlying_in_usd / timezero_totalSupply)
+                # Holding tokenX outside the pool
+                status["result_hodl_token0"] = (
+                    (
+                        (timezero_total_position_in_token0 * end_usd_price_token0)
+                        / timezero_totalSupply
+                    )
+                    - (timezero_underlying_in_usd / timezero_totalSupply)
+                ) / (timezero_underlying_in_usd / timezero_totalSupply)
+                status["result_hodl_token1"] = (
+                    (
+                        (timezero_total_position_in_token1 * end_usd_price_token1)
+                        / timezero_totalSupply
+                    )
+                    - (timezero_underlying_in_usd / timezero_totalSupply)
+                ) / (timezero_underlying_in_usd / timezero_totalSupply)
+
+                # add to status list
+                status["result_fee_apr"] = (cum_fee_return - 1) * (
+                    year_in_seconds / total_period_seconds
+                )
+                status["result_fee_apy"] = (
+                    1 + (cum_fee_return - 1) * (day_in_seconds / total_period_seconds)
+                ) ** 365 - 1
+
+                if status["result_fee_apr"] < 0 or status["result_fee_apy"] < 0:
+                    po = ""
+
+            cum_fee_return -= 1
+            fee_apr = cum_fee_return * (year_in_seconds / total_period_seconds)
+            fee_apy = (
+                1 + cum_fee_return * (day_in_seconds / total_period_seconds)
+            ) ** 365 - 1
+
+        return status_list
+
+    def get_feeReturn_and_IL(self, ini_date: datetime, end_date: datetime) -> tuple:
+
+        timestamp_ini = ini_date.timestamp()
+        timestamp_end = end_date.timestamp()
+
+        status_list = [
+            self.convert_hypervisor_status_fromDb(x)
+            for x in self.local_db_manager.get_status_feeReturn_data_alternative(
+                hypervisor_address=self.address,
+                timestamp_ini=timestamp_ini,
+                timestamp_end=timestamp_end,
+            )
+        ]
+
+        # more than 1 result is needed to calc anything
+        if len(status_list) < 2:
+            raise ValueError(
+                f" Insuficient data returned for {self.network}'s {self.address} to calculate returns from timestamp {timestamp_ini} to {timestamp_end}"
+            )
+
+        day_in_seconds = Decimal("60") * Decimal("60") * Decimal("24")
+        year_in_seconds = day_in_seconds * Decimal("365")
+
+        ### feeReturn vars
+        cum_fee_return = 0
+        total_period_seconds = 0
+
+        ### Impermanent vars
+        timezero_usd_price0 = 0
+        timezero_usd_price1 = 0
+        # total supply at time zero
+        timezero_totalSupply = 0
+        # total value locked ( including uncollected fees ) at time zero
+        timezero_underlying_token0 = 0
+        timezero_underlying_token1 = 0
+        timezero_underlying_in_usd = 0
+        timezero_underlying_in_usd_perShare = 0
+        # 50% token qtty calculation
+        timezero_fifty_qtty_token0 = 0
+        timezero_fifty_qtty_token1 = 0
+        timezero_fifty_total_usd = 0
+        # total token X at time zero
+        timezero_total_position_in_token0 = 0
+        timezero_total_position_in_token1 = 0
+
+        last_status = None
+        result = list()
+        for idx, status in enumerate(status_list):
+
+            # set time zero
+            if (
+                timezero_usd_price0 + timezero_usd_price1 == 0
+                and status["fees_uncollected"]["qtty_token0"]
+                + status["fees_uncollected"]["qtty_token1"]
+                == 0
+            ):
+                # init timezero vars
+
+                ### Impermanent vars
+                timezero_usd_price0 = self.get_price(
+                    block=status["block"],
+                    address=self._static["pool"]["token0"]["address"],
+                )
+                timezero_usd_price1 = self.get_price(
+                    block=status["block"],
+                    address=self._static["pool"]["token1"]["address"],
+                )
+
+                if (
+                    timezero_usd_price0 == 0
+                    or timezero_usd_price1 == 0
+                    or status["totalSupply"] == 0
+                ):
+                    logging.getLogger(__name__).debug(
+                        " Skiping timezero vars for {}'s {}  {} at block {} because can't find usd prices [{}-{}] or totalSuply [{}] is zero".format(
+                            self.network,
+                            self.symbol,
+                            self.address,
+                            status["block"],
+                            timezero_usd_price0,
+                            timezero_usd_price1,
+                            status["totalSupply"],
+                        )
+                    )
+                    # this can't be time zero without price
+                    timezero_usd_price0 = timezero_usd_price1 = 0
+                    last_status = None
+                    continue
+
+                # total supply at time zero
+                timezero_totalSupply = status["totalSupply"]
+                # # if not timezero_totalSupply:
+                # #     raise ValueError(
+                # #         " No initial supply found at block {} {}'s {}".format(
+                # #             status["block"], self.network, self.address
+                # #         )
+                # #     )
+                # total value locked ( including uncollected fees ) at time zero
+                timezero_underlying_token0 = (
+                    status["totalAmounts"]["total0"]
+                    + status["fees_uncollected"]["qtty_token0"]
+                )
+                timezero_underlying_token1 = (
+                    status["totalAmounts"]["total1"]
+                    + status["fees_uncollected"]["qtty_token1"]
+                )
+                timezero_underlying_in_usd = (
+                    timezero_underlying_token0 * timezero_usd_price0
+                    + timezero_underlying_token1 * timezero_usd_price1
+                )
+                timezero_underlying_in_usd_perShare = (
+                    timezero_underlying_in_usd / timezero_totalSupply
+                )
+
+                # 50% token qtty calculation
+                timezero_fifty_qtty_token0 = (
+                    timezero_underlying_in_usd * Decimal("0.5")
+                ) / timezero_usd_price0
+                timezero_fifty_qtty_token1 = (
+                    timezero_underlying_in_usd * Decimal("0.5")
+                ) / timezero_usd_price1
+                timezero_fifty_total_usd = (
+                    timezero_fifty_qtty_token0 * timezero_usd_price0
+                    + timezero_fifty_qtty_token1 * timezero_usd_price1
+                )
+                # total token X at time zero
+                timezero_total_position_in_token0 = (
+                    timezero_underlying_in_usd / timezero_usd_price0
+                )
+                timezero_total_position_in_token1 = (
+                    timezero_underlying_in_usd / timezero_usd_price1
+                )
+
+            # timezero vars must be set
+            if timezero_usd_price0 + timezero_usd_price1 != 0:
+                # last status must be set, (among other specifics)
+                if (
+                    last_status
+                    and last_status["fees_uncollected"]["qtty_token0"]
+                    + last_status["fees_uncollected"]["qtty_token1"]
+                    == 0
+                    # and status["fees_uncollected"]["qtty_token0"]
+                    # + status["fees_uncollected"]["qtty_token1"]
+                    # > 0
+                    and status["block"] != last_status["block"]
+                    and status["totalSupply"] == last_status["totalSupply"]
+                ):
+                    # calc
+
+                    ini_usd_price_token0 = self.get_price(
+                        block=last_status["block"],
+                        address=self._static["pool"]["token0"]["address"],
+                    )
+                    ini_usd_price_token1 = self.get_price(
+                        block=last_status["block"],
+                        address=self._static["pool"]["token1"]["address"],
+                    )
+                    end_usd_price_token0 = self.get_price(
+                        block=status["block"],
+                        address=self._static["pool"]["token0"]["address"],
+                    )
+                    end_usd_price_token1 = self.get_price(
+                        block=status["block"],
+                        address=self._static["pool"]["token1"]["address"],
+                    )
+
+                    elapsed_time = status["timestamp"] - last_status["timestamp"]
+
+                    # positions at initial time
+                    ini_underlying_token0 = (
+                        last_status["totalAmounts"]["total0"]
+                        + last_status["fees_uncollected"]["qtty_token0"]
+                    )
+                    ini_underlying_token1 = (
+                        last_status["totalAmounts"]["total1"]
+                        + last_status["fees_uncollected"]["qtty_token1"]
+                    )
+                    end_underlying_token0 = (
+                        status["totalAmounts"]["total0"]
+                        + status["fees_uncollected"]["qtty_token0"]
+                    )
+                    end_underlying_token1 = (
+                        status["totalAmounts"]["total1"]
+                        + status["fees_uncollected"]["qtty_token1"]
+                    )
+
+                    fee0_growth = (
+                        status["fees_uncollected"]["qtty_token0"]
+                        - last_status["fees_uncollected"]["qtty_token0"]
+                    )
+                    fee1_growth = (
+                        status["fees_uncollected"]["qtty_token1"]
+                        - last_status["fees_uncollected"]["qtty_token1"]
+                    )
+                    fee_growth_usd = (
+                        fee0_growth * end_usd_price_token0
+                        + fee1_growth * end_usd_price_token1
+                    )
+
+                    period_yield = fee_growth_usd / (
+                        ini_underlying_token0 * end_usd_price_token0
+                        + ini_underlying_token1 * end_usd_price_token1
+                    )
+
+                    yield_per_day = period_yield * year_in_seconds / elapsed_time
+
+                    if yield_per_day > 300:
+                        logging.getLogger(__name__).warning(
+                            " -> yield per day calc. is HIGH [{}] on {}'s {} {} from block {} to {} [ {} seconds period]".format(
+                                yield_per_day,
+                                self.network,
+                                self.symbol,
+                                self.address,
+                                last_status["block"],
+                                status["block"],
+                                elapsed_time,
+                            )
+                        )
+                    #    raise ValueError(" yield > 300")
+
+                    total_period_seconds += elapsed_time
+
+                    if cum_fee_return:
+                        cum_fee_return *= 1 + period_yield
+                    else:
+                        cum_fee_return = 1 + period_yield
+
+                    # add vars to status obj
+                    status["ini_usd_price_token0"] = ini_usd_price_token0
+                    status["ini_usd_price_token1"] = ini_usd_price_token1
+                    status["end_usd_price_token0"] = end_usd_price_token0
+                    status["end_usd_price_token1"] = end_usd_price_token1
+
+                    status["period_ini_timestamp"] = last_status["timestamp"]
+                    status["period_ini_block"] = last_status["block"]
+                    status["period_total_seconds"] = elapsed_time
+                    status["period_ini_totalSuply"] = last_status["totalSupply"]
+                    status["period_ini_underlying_token0"] = ini_underlying_token0
+                    status["period_ini_underlying_token1"] = ini_underlying_token1
+                    status["period_end_underlying_token0"] = end_underlying_token0
+                    status["period_end_underlying_token1"] = end_underlying_token1
+
+                    status["timezero_totalSuply"] = timezero_totalSupply
+                    status[
+                        "timezero_underlying_in_usd_perShare"
+                    ] = timezero_underlying_in_usd_perShare
+                    status["timezero_underlying_token0"] = timezero_underlying_token0
+                    status["timezero_underlying_token1"] = timezero_underlying_token1
+                    # impermanent calcs
+
+                    # Staying inside pool
+                    status["result_lping"] = (
+                        (
+                            (
+                                end_underlying_token0 * end_usd_price_token0
+                                + end_underlying_token1 * end_usd_price_token1
+                            )
+                            / last_status["totalSupply"]
+                        )
+                        - (timezero_underlying_in_usd / timezero_totalSupply)
+                    ) / (timezero_underlying_in_usd / timezero_totalSupply)
+
+                    # Holding 50% tokens outside pool
+                    status["result_hodl_fifty"] = (
+                        (
+                            (
+                                timezero_fifty_qtty_token0 * end_usd_price_token0
+                                + timezero_fifty_qtty_token1 * end_usd_price_token1
+                            )
+                            / timezero_totalSupply
+                        )
+                        - (timezero_fifty_total_usd / timezero_totalSupply)
+                    ) / (timezero_fifty_total_usd / timezero_totalSupply)
+
+                    # Holding proportional tokens (as if they were invested in the pool at inital %) outside pool
+                    status["result_hodl_proportional"] = (
+                        (
+                            (
+                                timezero_underlying_token0 * end_usd_price_token0
+                                + timezero_underlying_token1 * end_usd_price_token1
+                            )
+                            / timezero_totalSupply
+                        )
+                        - (timezero_underlying_in_usd / timezero_totalSupply)
+                    ) / (timezero_underlying_in_usd / timezero_totalSupply)
+                    # Holding tokenX outside the pool
+                    status["result_hodl_token0"] = (
+                        (
+                            (timezero_total_position_in_token0 * end_usd_price_token0)
+                            / timezero_totalSupply
+                        )
+                        - (timezero_underlying_in_usd / timezero_totalSupply)
+                    ) / (timezero_underlying_in_usd / timezero_totalSupply)
+                    status["result_hodl_token1"] = (
+                        (
+                            (timezero_total_position_in_token1 * end_usd_price_token1)
+                            / timezero_totalSupply
+                        )
+                        - (timezero_underlying_in_usd / timezero_totalSupply)
+                    ) / (timezero_underlying_in_usd / timezero_totalSupply)
+
+                    # add to status list
+                    status["result_fee_apr"] = (cum_fee_return - 1) * (
+                        year_in_seconds / total_period_seconds
+                    )
+                    status["result_fee_apy"] = (
+                        1
+                        + (cum_fee_return - 1) * (day_in_seconds / total_period_seconds)
+                    ) ** 365 - 1
+
+                    #
+                    status["result_LPvsHODL"] = (
+                        (status["result_lping"] + 1)
+                        / (status["result_hodl_proportional"] + 1)
+                    ) - 1
+
+                    status["result_period_Apr"] = (status["result_fee_apr"] / 365) * (
+                        total_period_seconds / day_in_seconds
+                    )
+                    status["result_period_ilg"] = (
+                        status["result_lping"] - status["result_period_Apr"]
+                    )
+                    # TODO: add rewards to netAPR
+                    # status["result_period_netApr"] = (
+                    #     status["result_period_Apr"] + status["result_period_ilg"]
+                    # )
+
+                    # Impermanent result affected by price
+                    status["result_period_ilg_price"] = status[
+                        "result_hodl_proportional"
+                    ]
+
+                    # Impermanent result affected by rebalances and % asset allocation decisions
+                    status["result_period_ilg_others"] = (
+                        status["result_period_ilg"] - status["result_period_ilg_price"]
+                    )
+
+                    # add status to result
+                    result.append(status)
+
+                    if status["result_fee_apr"] < 0 or status["result_fee_apy"] < 0:
+                        po = ""
+
+                # set last status to be used on next iteration
+                last_status = status
+
+        # DEBUG: should match last item
+        # cum_fee_return -= 1
+        # fee_apr = cum_fee_return * (year_in_seconds / total_period_seconds)
+        # fee_apy = (
+        #     1 + cum_fee_return * (day_in_seconds / total_period_seconds)
+        # ) ** 365 - 1
+
+        return result
 
     # Transformers
 

@@ -18,7 +18,13 @@ class thegraph_scraper_helper:
 
     __URLS = {}  # of <network name>:<url>
 
-    def __init__(self, cache: bool = True, cache_savePath: str = "", convert=True):
+    def __init__(
+        self,
+        cache: bool = True,
+        cache_savePath: str = "",
+        convert=True,
+        timeout_secs: int = 3,
+    ):
         """
 
         Args:
@@ -36,6 +42,8 @@ class thegraph_scraper_helper:
                 filename=self.__class__.__name__, folder_name=cache_savePath
             )
 
+        self.timeout_secs = timeout_secs
+
     def get_all_results(self, network: str, query_name: str, **kwargs) -> list:
         """
         network:str = "ethereum"
@@ -49,19 +57,19 @@ class thegraph_scraper_helper:
 
         """
         result = None
-        _skip = kwargs["skip"] if "skip" in kwargs else 0  # define pagination var
+        _skip = kwargs.get("skip", 0)
         _url = self._url_constructor(network, query_name)
         _filter = self._filter_constructor(**kwargs)
 
         # check cache, if enabled
-        if not self._CACHE is None:
+        if self._CACHE is not None:
             result = self._CACHE.get_data(
                 network=network, query_name=query_name, **kwargs
             )
 
         if result is None:
             # get  data from thegraph
-            result = list()
+            result = []
 
             # loop till no more results are retrieved
             while True:
@@ -74,7 +82,12 @@ class thegraph_scraper_helper:
                         skip=_skip, name=query_name, filter=_filter
                     )
                     _data = net_utilities.post_request(
-                        url=_url, query=_query, retry=0, max_retry=2, wait_secs=5
+                        url=_url,
+                        query=_query,
+                        retry=0,
+                        max_retry=2,
+                        wait_secs=5,
+                        timeout_secs=self.timeout_secs,
                     )
 
                     # add it to result
@@ -84,53 +97,47 @@ class thegraph_scraper_helper:
                         for i in range(1, len(path_to_data)):
                             _data = _data[path_to_data[i]]
                     except KeyError as err:
-                        if "errors" in err.args:
-                            if "message" in err.args["errors"]:
-                                if (
-                                    err.args["errors"]["message"]
-                                    .lower()
-                                    .contains("database unavailable")
-                                ):
-                                    # connection error: wait and loop again
-                                    logging.getLogger(__name__).error(
-                                        " Seems like subgraph isnt available temporarily. Retrying in 5sec.  .error: {}".format(
-                                            sys.exc_info()[0]
-                                        )
-                                    )
-                                    time.sleep(5)
-                                    continue
-
-                            # todo: use err arguments passed to log something
-                        logging.getLogger(__name__).error(
-                            " Unexpected error retrieving data path  query name:{}   data:{}       .error: {}".format(
-                                query_name, _data, sys.exc_info()[0]
+                        if (
+                            "errors" in err.args
+                            and "message" in err.args["errors"]
+                            and (
+                                err.args["errors"]["message"]
+                                .lower()
+                                .contains("database unavailable")
                             )
+                        ):
+                            # connection error: wait and loop again
+                            logging.getLogger(__name__).error(
+                                f" Seems like subgraph isnt available temporarily. Retrying in 5sec.  .error: {sys.exc_info()[0]}"
+                            )
+
+                            time.sleep(5)
+                            continue
+
+                        logging.getLogger(__name__).error(
+                            f" Unexpected error retrieving data path  query name:{query_name}   data:{_data}       .error: {sys.exc_info()[0]}"
                         )
+
                     except Exception:
                         logging.getLogger(__name__).error(
-                            " Unexpected error retrieving data path  query name:{}   data:{}       .error: {}".format(
-                                query_name, _data, sys.exc_info()[0]
-                            )
+                            f" Unexpected error retrieving data path  query name:{query_name}   data:{_data}       .error: {sys.exc_info()[0]}"
                         )
 
-                    if _data:
-                        # modify pagination var
-                        _skip += len(_data)
-                        # add to result
-                        result.extend(_data)
-                        # check if we are done
-                        if len(_data) < 1000:
-                            # qtty is less than window ("first" var at query)
-                            break  # exit loop
-                    else:
+                    if not _data:
                         # exit loop
                         break
 
+                    # modify pagination var
+                    _skip += len(_data)
+                    # add to result
+                    result.extend(_data)
+                    # check if we are done
+                    if len(_data) < 1000:
+                        # qtty is less than window ("first" var at query)
+                        break  # exit loop
                 except Exception:
                     logging.getLogger(__name__).exception(
-                        "Unexpected error while retrieving query {}      .error: {}".format(
-                            query_name, sys.exc_info()[0]
-                        )
+                        f"Unexpected error while retrieving query {query_name}      .error: {sys.exc_info()[0]}"
                     )
 
                     break  # exit loop
@@ -138,25 +145,23 @@ class thegraph_scraper_helper:
             # return empty list if result contains error
             if "errors" in result:
                 logging.getLogger(__name__).warning(
-                    "Errors found in thegraph query result--> network:{}  query:{}  result:{}   . Empty list is returned. ".format(
-                        network, query_name, sys.exc_info()[0]
-                    )
+                    f"Errors found in thegraph query result--> network:{network}  query:{query_name}  result:{sys.exc_info()[0]}   . Empty list is returned. "
                 )
-                return list()
+
+                return []
 
             # save it to cache, if enabled
-            if not self._CACHE is None:
-                if not self._CACHE.add_data(
+            if (
+                self._CACHE is not None
+                and not self._CACHE.add_data(
                     data=result, network=network, query_name=query_name, **kwargs
-                ):
-                    # can't save cache without block num. in query
-                    if "block" in kwargs:
-                        # not saved to cache
-                        logging.getLogger(__name__).warning(
-                            "Could not save thegraph data to cache ->  network:{} query:{} ".format(
-                                network, query_name
-                            )
-                        )
+                )
+                and "block" in kwargs
+            ):
+                # not saved to cache
+                logging.getLogger(__name__).warning(
+                    f"Could not save thegraph data to cache ->  network:{network} query:{query_name} "
+                )
 
         # convert result
         if self._CONVERT:
@@ -206,9 +211,9 @@ class thegraph_scraper_helper:
             _filter += ", where: {{ {} }}".format(kwargs["where"])
         if "orderby" in kwargs and kwargs["orderby"] != "":
             # add comma to where it should be
-            _filter += ", orderBy: {} ".format(kwargs["orderby"])
+            _filter += f', orderBy: {kwargs["orderby"]} '
         if "orderDirection" in kwargs and kwargs["orderDirection"] != "":
-            _filter += ", orderDirection: {}".format(kwargs["orderDirection"])
+            _filter += f', orderDirection: {kwargs["orderDirection"]}'
         if "block" in kwargs and kwargs["block"] != "":
             _filter += ", block: {{ {} }}".format(kwargs["block"])
         return _filter
@@ -226,6 +231,7 @@ class gamma_scraper(thegraph_scraper_helper):
         "optimism": "https://api.thegraph.com/subgraphs/name/gammastrategies/optimism",
         "arbitrum": "https://api.thegraph.com/subgraphs/name/gammastrategies/arbitrum",
         "celo": "https://api.thegraph.com/subgraphs/name/gammastrategies/celo",
+        "binance": "https://api.thegraph.com/subgraphs/name/gammastrategies/uniswap-bsc",
     }
     __URLS_messari = {
         "ethereum": "https://api.thegraph.com/subgraphs/name/messari/gamma-ethereum",
@@ -234,6 +240,13 @@ class gamma_scraper(thegraph_scraper_helper):
     }
     __URLS_quickswap = {
         "polygon": "https://api.thegraph.com/subgraphs/name/gammastrategies/algebra-polygon",
+    }
+    # TODO: implement zyberswap and Thena
+    __URLS_zyberswap = {
+        "arbitrum": "https://api.thegraph.com/subgraphs/name/gammastrategies/zyberswap-arbitrum",
+    }
+    __URLS_thena = {
+        "binance": "https://api.thegraph.com/subgraphs/name/gammastrategies/thena",
     }
 
     def _query_constructor(self, skip: int, name: str, filter: str) -> tuple:
@@ -705,12 +718,8 @@ class gamma_scraper(thegraph_scraper_helper):
             ]
 
         else:
-            logging.getLogger(__name__).error(
-                "No query found with name {}".format(name)
-            )
-            raise NotImplementedError(
-                "No gamma query constructor found for: {} ".format(name)
-            )
+            logging.getLogger(__name__).error(f"No query found with name {name}")
+            raise NotImplementedError(f"No gamma query constructor found for: {name} ")
         # except Exception:
         #    logging.getLogger(__name__).exception("Unexpected error while constructing query  .error: {}".format(sys.exc_info()[0]))
 
@@ -2349,6 +2358,7 @@ class uniswapv3_scraper(thegraph_scraper_helper):
         "optimism": "https://api.thegraph.com/subgraphs/name/ianlapham/optimism-post-regenesis",
         "arbitrum": "https://api.thegraph.com/subgraphs/name/ianlapham/arbitrum-minimal",
         "celo": "https://api.thegraph.com/subgraphs/name/jesse-sawa/uniswap-celo",
+        "binance": "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-bsc",
     }
 
     def _query_constructor(self, skip: int, name: str, filter: str):
@@ -2693,14 +2703,9 @@ class uniswapv3_scraper(thegraph_scraper_helper):
         return self.__URLS[network]
 
 
-class quickswap_scraper(thegraph_scraper_helper):
+class algebrav3_scraper(thegraph_scraper_helper):
 
-    __URLS = {
-        "polygon": "https://api.thegraph.com/subgraphs/name/sameepsi/quickswap-v3",
-    }
-    __URLS_loc = {
-        "polygon": "https://api.thegraph.com/subgraphs/name/l0c4t0r/hype-pool-quickswap-polygon",
-    }
+    __URLS = {}
 
     def _query_constructor(self, skip: int, name: str, filter: str):
         """Create query
@@ -2823,63 +2828,11 @@ class quickswap_scraper(thegraph_scraper_helper):
                 "tokens",
             ]
 
-        elif name == "hypervisors_loc":
-            return """{{ hypervisors({}, skip: {}) {{
-                           id
-                            pool {{
-                            currentTick
-                            feeGrowthGlobal0X128
-                            feeGrowthGlobal1X128
-                            }}
-                            basePosition {{
-                            liquidity
-                            tokensOwed0
-                            tokensOwed1
-                            feeGrowthInside0X128
-                            feeGrowthInside1X128
-                            tickLower {{
-                                tickIdx
-                                feeGrowthOutside0X128
-                                feeGrowthOutside1X128
-                            }}
-                            tickUpper {{
-                                tickIdx
-                                feeGrowthOutside0X128
-                                feeGrowthOutside1X128
-                            }}
-                            }}
-                            limitPosition {{
-                            liquidity
-                            tokensOwed0
-                            tokensOwed1
-                            feeGrowthInside0X128
-                            feeGrowthInside1X128
-                            tickLower {{
-                                tickIdx
-                                feeGrowthOutside0X128
-                                feeGrowthOutside1X128
-                            }}
-                            tickUpper {{
-                                tickIdx
-                                feeGrowthOutside0X128
-                                feeGrowthOutside1X128
-                            }}
-                            }}
-                    }}
-                    }}""".format(
-                filter, skip
-            ), [
-                "data",
-                "hypervisors",
-            ]
-
         else:
             logging.getLogger(__name__).error(
-                "No quickswap query found with name {}".format(name)
+                f"No algebra query found with name {name}"
             )
-            raise ValueError(
-                "No quickswap query constructor found for: {} ".format(name)
-            )
+            raise ValueError(f"No algebra query constructor found for: {name} ")
 
     def _converter(self, itm: dict, query_name: str, network: str):
         """Convert string data received from thegraph to int or float or date ...
@@ -3025,81 +2978,385 @@ class quickswap_scraper(thegraph_scraper_helper):
             itm["volume"] = float(itm["volume"])
             itm["volumeUSD"] = float(itm["volumeUSD"])
 
-        elif query_name == "hypervisors_loc":
-            itm["pool"]["currentTick"] = int(itm["pool"]["currentTick"])
-            itm["pool"]["feeGrowthGlobal0X128"] = int(
-                itm["pool"]["feeGrowthGlobal0X128"]
-            )
-            itm["pool"]["feeGrowthGlobal1X128"] = int(
-                itm["pool"]["feeGrowthGlobal1X128"]
-            )
-
-            itm["basePosition"]["liquidity"] = int(itm["basePosition"]["liquidity"])
-            # itm["basePosition"]["tokensOwed0"] = itm["basePosition"]["tokensOwed0"]
-            # itm["basePosition"]["tokensOwed1"] = itm["basePosition"]["tokensOwed0"]
-            itm["basePosition"]["feeGrowthInside0X128"] = int(
-                itm["basePosition"]["feeGrowthInside0X128"]
-            )
-            itm["basePosition"]["feeGrowthInside1X128"] = int(
-                itm["basePosition"]["feeGrowthInside1X128"]
-            )
-            itm["basePosition"]["tickLower"]["tickIdx"] = int(
-                itm["basePosition"]["tickLower"]["tickIdx"]
-            )
-            itm["basePosition"]["tickLower"]["feeGrowthOutside0X128"] = int(
-                itm["basePosition"]["tickLower"]["feeGrowthOutside0X128"]
-            )
-            itm["basePosition"]["tickLower"]["feeGrowthOutside1X128"] = int(
-                itm["basePosition"]["tickLower"]["feeGrowthOutside1X128"]
-            )
-            itm["basePosition"]["tickUpper"]["tickIdx"] = int(
-                itm["basePosition"]["tickUpper"]["tickIdx"]
-            )
-            itm["basePosition"]["tickUpper"]["feeGrowthOutside0X128"] = int(
-                itm["basePosition"]["tickUpper"]["feeGrowthOutside0X128"]
-            )
-            itm["basePosition"]["tickUpper"]["feeGrowthOutside1X128"] = int(
-                itm["basePosition"]["tickUpper"]["feeGrowthOutside1X128"]
-            )
-
-            itm["limitPosition"]["liquidity"] = int(itm["limitPosition"]["liquidity"])
-            # itm["limitPosition"]["tokensOwed0"] = itm["limitPosition"]["tokensOwed0"]
-            # itm["limitPosition"]["tokensOwed1"] = itm["limitPosition"]["tokensOwed0"]
-            itm["limitPosition"]["feeGrowthInside0X128"] = int(
-                itm["limitPosition"]["feeGrowthInside0X128"]
-            )
-            itm["limitPosition"]["feeGrowthInside1X128"] = int(
-                itm["limitPosition"]["feeGrowthInside1X128"]
-            )
-            itm["limitPosition"]["tickLower"]["tickIdx"] = int(
-                itm["limitPosition"]["tickLower"]["tickIdx"]
-            )
-            itm["limitPosition"]["tickLower"]["feeGrowthOutside0X128"] = int(
-                itm["limitPosition"]["tickLower"]["feeGrowthOutside0X128"]
-            )
-            itm["limitPosition"]["tickLower"]["feeGrowthOutside1X128"] = int(
-                itm["limitPosition"]["tickLower"]["feeGrowthOutside1X128"]
-            )
-            itm["limitPosition"]["tickUpper"]["tickIdx"] = int(
-                itm["limitPosition"]["tickUpper"]["tickIdx"]
-            )
-            itm["limitPosition"]["tickUpper"]["feeGrowthOutside0X128"] = int(
-                itm["limitPosition"]["tickUpper"]["feeGrowthOutside0X128"]
-            )
-            itm["limitPosition"]["tickUpper"]["feeGrowthOutside1X128"] = int(
-                itm["limitPosition"]["tickUpper"]["feeGrowthOutside1X128"]
-            )
-
         else:
             logging.getLogger(__name__).error(
-                "No quickswap converter found with name {}".format(query_name)
+                "No algebra converter found with name {}".format(query_name)
             )
             raise ValueError(
-                "No quickswap query converter found for: {} ".format(query_name)
+                "No algebra query converter found for: {} ".format(query_name)
             )
 
         # retrun result
         return itm
+
+    def _url_constructor(self, network, query_name: str = ""):
+        return self.__URLS[network]
+
+
+class quickswap_scraper(algebrav3_scraper):
+
+    __URLS = {
+        "polygon": "https://api.thegraph.com/subgraphs/name/sameepsi/quickswap-v3",
+    }
+    __URLS_loc = {
+        "polygon": "https://api.thegraph.com/subgraphs/name/l0c4t0r/hype-pool-quickswap-polygon",
+    }
+
+    def _query_constructor(self, skip: int, name: str, filter: str):
+        """Create query
+
+        Args:
+           name (str): query function name at thegraph
+           skip (int): pagination var
+           filter (str): filter composed with filter func
+        """
+
+        if name == "hypervisors_loc":
+            return """{{ hypervisors({}, skip: {}) {{
+                           id
+                            pool {{
+                            currentTick
+                            feeGrowthGlobal0X128
+                            feeGrowthGlobal1X128
+                            }}
+                            basePosition {{
+                            liquidity
+                            tokensOwed0
+                            tokensOwed1
+                            feeGrowthInside0X128
+                            feeGrowthInside1X128
+                            tickLower {{
+                                tickIdx
+                                feeGrowthOutside0X128
+                                feeGrowthOutside1X128
+                            }}
+                            tickUpper {{
+                                tickIdx
+                                feeGrowthOutside0X128
+                                feeGrowthOutside1X128
+                            }}
+                            }}
+                            limitPosition {{
+                            liquidity
+                            tokensOwed0
+                            tokensOwed1
+                            feeGrowthInside0X128
+                            feeGrowthInside1X128
+                            tickLower {{
+                                tickIdx
+                                feeGrowthOutside0X128
+                                feeGrowthOutside1X128
+                            }}
+                            tickUpper {{
+                                tickIdx
+                                feeGrowthOutside0X128
+                                feeGrowthOutside1X128
+                            }}
+                            }}
+                    }}
+                    }}""".format(
+                filter, skip
+            ), [
+                "data",
+                "hypervisors",
+            ]
+
+        else:
+            return super()._query_constructor(skip=skip, name=name, filter=filter)
+
+    def _converter(self, itm: dict, query_name: str, network: str):
+        """Convert string data received from thegraph to int or float or date ...
+
+        Args:
+           itm (dict): data to convert
+           query_name (str): what to convert
+           network
+        """
+        if query_name != "hypervisors_loc":
+            return super()._converter(itm=itm, query_name=query_name, network=network)
+
+        itm["pool"]["currentTick"] = int(itm["pool"]["currentTick"])
+        itm["pool"]["feeGrowthGlobal0X128"] = int(itm["pool"]["feeGrowthGlobal0X128"])
+        itm["pool"]["feeGrowthGlobal1X128"] = int(itm["pool"]["feeGrowthGlobal1X128"])
+
+        itm["basePosition"]["liquidity"] = int(itm["basePosition"]["liquidity"])
+        self._extracted_from__converter_21(itm, "basePosition")
+        itm["limitPosition"]["liquidity"] = int(itm["limitPosition"]["liquidity"])
+        self._extracted_from__converter_21(itm, "limitPosition")
+        # retrun result
+        return itm
+
+    # TODO Rename this here and in `_converter`
+    def _extracted_from__converter_21(self, itm, arg1):
+        # itm["basePosition"]["tokensOwed0"] = itm["basePosition"]["tokensOwed0"]
+        # itm["basePosition"]["tokensOwed1"] = itm["basePosition"]["tokensOwed0"]
+        itm[arg1]["feeGrowthInside0X128"] = int(itm[arg1]["feeGrowthInside0X128"])
+        itm[arg1]["feeGrowthInside1X128"] = int(itm[arg1]["feeGrowthInside1X128"])
+        itm[arg1]["tickLower"]["tickIdx"] = int(itm[arg1]["tickLower"]["tickIdx"])
+        itm[arg1]["tickLower"]["feeGrowthOutside0X128"] = int(
+            itm[arg1]["tickLower"]["feeGrowthOutside0X128"]
+        )
+
+        itm[arg1]["tickLower"]["feeGrowthOutside1X128"] = int(
+            itm[arg1]["tickLower"]["feeGrowthOutside1X128"]
+        )
+
+        itm[arg1]["tickUpper"]["tickIdx"] = int(itm[arg1]["tickUpper"]["tickIdx"])
+        itm[arg1]["tickUpper"]["feeGrowthOutside0X128"] = int(
+            itm[arg1]["tickUpper"]["feeGrowthOutside0X128"]
+        )
+
+        itm[arg1]["tickUpper"]["feeGrowthOutside1X128"] = int(
+            itm[arg1]["tickUpper"]["feeGrowthOutside1X128"]
+        )
+
+    def _url_constructor(self, network, query_name: str = ""):
+        if "_loc" in query_name:
+            return self.__URLS_loc[network]
+        else:
+            return self.__URLS[network]
+
+
+class zyberswap_scraper(algebrav3_scraper):
+
+    __URLS = {
+        "arbitrum": "https://api.thegraph.com/subgraphs/name/iliaazhel/zyberswap-info",
+    }
+    __URLS_loc = {
+        "arbitrum": "https://api.thegraph.com/subgraphs/name/l0c4t0r/hype-pool-zyberswap-arbitrum",
+    }
+
+    def _query_constructor(self, skip: int, name: str, filter: str):
+        """Create query
+
+        Args:
+           name (str): query function name at thegraph
+           skip (int): pagination var
+           filter (str): filter composed with filter func
+        """
+
+        if name == "hypervisors_loc":
+            return """{{ hypervisors({}, skip: {}) {{
+                           id
+                            pool {{
+                            currentTick
+                            feeGrowthGlobal0X128
+                            feeGrowthGlobal1X128
+                            }}
+                            basePosition {{
+                            liquidity
+                            tokensOwed0
+                            tokensOwed1
+                            feeGrowthInside0X128
+                            feeGrowthInside1X128
+                            tickLower {{
+                                tickIdx
+                                feeGrowthOutside0X128
+                                feeGrowthOutside1X128
+                            }}
+                            tickUpper {{
+                                tickIdx
+                                feeGrowthOutside0X128
+                                feeGrowthOutside1X128
+                            }}
+                            }}
+                            limitPosition {{
+                            liquidity
+                            tokensOwed0
+                            tokensOwed1
+                            feeGrowthInside0X128
+                            feeGrowthInside1X128
+                            tickLower {{
+                                tickIdx
+                                feeGrowthOutside0X128
+                                feeGrowthOutside1X128
+                            }}
+                            tickUpper {{
+                                tickIdx
+                                feeGrowthOutside0X128
+                                feeGrowthOutside1X128
+                            }}
+                            }}
+                    }}
+                    }}""".format(
+                filter, skip
+            ), [
+                "data",
+                "hypervisors",
+            ]
+
+        else:
+            return super()._query_constructor(skip=skip, name=name, filter=filter)
+
+    def _converter(self, itm: dict, query_name: str, network: str):
+        """Convert string data received from thegraph to int or float or date ...
+
+        Args:
+           itm (dict): data to convert
+           query_name (str): what to convert
+           network
+        """
+        if query_name != "hypervisors_loc":
+            return super()._converter(itm=itm, query_name=query_name, network=network)
+
+        itm["pool"]["currentTick"] = int(itm["pool"]["currentTick"])
+        itm["pool"]["feeGrowthGlobal0X128"] = int(itm["pool"]["feeGrowthGlobal0X128"])
+        itm["pool"]["feeGrowthGlobal1X128"] = int(itm["pool"]["feeGrowthGlobal1X128"])
+
+        itm["basePosition"]["liquidity"] = int(itm["basePosition"]["liquidity"])
+        self._extracted_from__converter_21(itm, "basePosition")
+        itm["limitPosition"]["liquidity"] = int(itm["limitPosition"]["liquidity"])
+        self._extracted_from__converter_21(itm, "limitPosition")
+        # retrun result
+        return itm
+
+    # TODO Rename this here and in `_converter`
+    def _extracted_from__converter_21(self, itm, arg1):
+        # itm["basePosition"]["tokensOwed0"] = itm["basePosition"]["tokensOwed0"]
+        # itm["basePosition"]["tokensOwed1"] = itm["basePosition"]["tokensOwed0"]
+        itm[arg1]["feeGrowthInside0X128"] = int(itm[arg1]["feeGrowthInside0X128"])
+        itm[arg1]["feeGrowthInside1X128"] = int(itm[arg1]["feeGrowthInside1X128"])
+        itm[arg1]["tickLower"]["tickIdx"] = int(itm[arg1]["tickLower"]["tickIdx"])
+        itm[arg1]["tickLower"]["feeGrowthOutside0X128"] = int(
+            itm[arg1]["tickLower"]["feeGrowthOutside0X128"]
+        )
+
+        itm[arg1]["tickLower"]["feeGrowthOutside1X128"] = int(
+            itm[arg1]["tickLower"]["feeGrowthOutside1X128"]
+        )
+
+        itm[arg1]["tickUpper"]["tickIdx"] = int(itm[arg1]["tickUpper"]["tickIdx"])
+        itm[arg1]["tickUpper"]["feeGrowthOutside0X128"] = int(
+            itm[arg1]["tickUpper"]["feeGrowthOutside0X128"]
+        )
+
+        itm[arg1]["tickUpper"]["feeGrowthOutside1X128"] = int(
+            itm[arg1]["tickUpper"]["feeGrowthOutside1X128"]
+        )
+
+    def _url_constructor(self, network, query_name: str = ""):
+        if "_loc" in query_name:
+            return self.__URLS_loc[network]
+        else:
+            return self.__URLS[network]
+
+
+class thena_scraper(algebrav3_scraper):
+
+    __URLS = {
+        "binance": "https://api.thegraph.com/subgraphs/name/iliaazhel/thena-info",
+    }
+    __URLS_loc = {
+        "binance": "https://api.thegraph.com/subgraphs/name/l0c4t0r/hype-pool-thena-bsc",
+    }
+
+    def _query_constructor(self, skip: int, name: str, filter: str):
+        """Create query
+
+        Args:
+           name (str): query function name at thegraph
+           skip (int): pagination var
+           filter (str): filter composed with filter func
+        """
+
+        if name == "hypervisors_loc":
+            return """{{ hypervisors({}, skip: {}) {{
+                           id
+                            pool {{
+                            currentTick
+                            feeGrowthGlobal0X128
+                            feeGrowthGlobal1X128
+                            }}
+                            basePosition {{
+                            liquidity
+                            tokensOwed0
+                            tokensOwed1
+                            feeGrowthInside0X128
+                            feeGrowthInside1X128
+                            tickLower {{
+                                tickIdx
+                                feeGrowthOutside0X128
+                                feeGrowthOutside1X128
+                            }}
+                            tickUpper {{
+                                tickIdx
+                                feeGrowthOutside0X128
+                                feeGrowthOutside1X128
+                            }}
+                            }}
+                            limitPosition {{
+                            liquidity
+                            tokensOwed0
+                            tokensOwed1
+                            feeGrowthInside0X128
+                            feeGrowthInside1X128
+                            tickLower {{
+                                tickIdx
+                                feeGrowthOutside0X128
+                                feeGrowthOutside1X128
+                            }}
+                            tickUpper {{
+                                tickIdx
+                                feeGrowthOutside0X128
+                                feeGrowthOutside1X128
+                            }}
+                            }}
+                    }}
+                    }}""".format(
+                filter, skip
+            ), [
+                "data",
+                "hypervisors",
+            ]
+
+        else:
+            return super()._query_constructor(skip=skip, name=name, filter=filter)
+
+    def _converter(self, itm: dict, query_name: str, network: str):
+        """Convert string data received from thegraph to int or float or date ...
+
+        Args:
+           itm (dict): data to convert
+           query_name (str): what to convert
+           network
+        """
+        if query_name != "hypervisors_loc":
+            return super()._converter(itm=itm, query_name=query_name, network=network)
+
+        itm["pool"]["currentTick"] = int(itm["pool"]["currentTick"])
+        itm["pool"]["feeGrowthGlobal0X128"] = int(itm["pool"]["feeGrowthGlobal0X128"])
+        itm["pool"]["feeGrowthGlobal1X128"] = int(itm["pool"]["feeGrowthGlobal1X128"])
+
+        itm["basePosition"]["liquidity"] = int(itm["basePosition"]["liquidity"])
+        self._extracted_from__converter_21(itm, "basePosition")
+        itm["limitPosition"]["liquidity"] = int(itm["limitPosition"]["liquidity"])
+        self._extracted_from__converter_21(itm, "limitPosition")
+        # retrun result
+        return itm
+
+    # TODO Rename this here and in `_converter`
+    def _extracted_from__converter_21(self, itm, arg1):
+        # itm["basePosition"]["tokensOwed0"] = itm["basePosition"]["tokensOwed0"]
+        # itm["basePosition"]["tokensOwed1"] = itm["basePosition"]["tokensOwed0"]
+        itm[arg1]["feeGrowthInside0X128"] = int(itm[arg1]["feeGrowthInside0X128"])
+        itm[arg1]["feeGrowthInside1X128"] = int(itm[arg1]["feeGrowthInside1X128"])
+        itm[arg1]["tickLower"]["tickIdx"] = int(itm[arg1]["tickLower"]["tickIdx"])
+        itm[arg1]["tickLower"]["feeGrowthOutside0X128"] = int(
+            itm[arg1]["tickLower"]["feeGrowthOutside0X128"]
+        )
+
+        itm[arg1]["tickLower"]["feeGrowthOutside1X128"] = int(
+            itm[arg1]["tickLower"]["feeGrowthOutside1X128"]
+        )
+
+        itm[arg1]["tickUpper"]["tickIdx"] = int(itm[arg1]["tickUpper"]["tickIdx"])
+        itm[arg1]["tickUpper"]["feeGrowthOutside0X128"] = int(
+            itm[arg1]["tickUpper"]["feeGrowthOutside0X128"]
+        )
+
+        itm[arg1]["tickUpper"]["feeGrowthOutside1X128"] = int(
+            itm[arg1]["tickUpper"]["feeGrowthOutside1X128"]
+        )
 
     def _url_constructor(self, network, query_name: str = ""):
         if "_loc" in query_name:
@@ -3151,11 +3408,8 @@ class blocks_scraper(thegraph_scraper_helper):
                 "blocks",
             ]
 
-        else:
-            logging.getLogger(__name__).error(
-                "No block query found with name {}".format(name)
-            )
-            raise ValueError("No block query constructor found for: {} ".format(name))
+        logging.getLogger(__name__).error(f"No block query found with name {name}")
+        raise ValueError(f"No block query constructor found for: {name} ")
 
     def _converter(self, itm: dict, query_name: str, network: str):
         """Convert string data received from thegraph to int or float or date ...
@@ -3167,24 +3421,26 @@ class blocks_scraper(thegraph_scraper_helper):
         """
         if query_name == "blocks":
 
-            itm["difficulty"] = int(itm["difficulty"])
-            itm["gasLimit"] = int(itm["gasLimit"])
-            itm["gasUsed"] = int(itm["gasUsed"])
-            itm["number"] = int(itm["number"])
-            itm["size"] = int(itm["size"])
-            itm["timestamp"] = int(itm["timestamp"])
-            itm["totalDifficulty"] = int(itm["totalDifficulty"])
-
+            self._extracted_from__converter_11(itm)
         else:
             logging.getLogger(__name__).error(
-                "No block converter found with name {}".format(query_name)
+                f"No block converter found with name {query_name}"
             )
-            raise ValueError(
-                "No block query converter found for: {} ".format(query_name)
-            )
+
+            raise ValueError(f"No block query converter found for: {query_name} ")
 
         # retrun result
         return itm
+
+    # TODO Rename this here and in `_converter`
+    def _extracted_from__converter_11(self, itm):
+        itm["difficulty"] = int(itm["difficulty"])
+        itm["gasLimit"] = int(itm["gasLimit"])
+        itm["gasUsed"] = int(itm["gasUsed"])
+        itm["number"] = int(itm["number"])
+        itm["size"] = int(itm["size"])
+        itm["timestamp"] = int(itm["timestamp"])
+        itm["totalDifficulty"] = int(itm["totalDifficulty"])
 
     def _url_constructor(self, network, query_name: str = ""):
         return self.__URLS[network]

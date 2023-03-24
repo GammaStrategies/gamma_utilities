@@ -743,40 +743,6 @@ class user_status_hypervisor_builder:
 
         return total_block_status
 
-    # def result_list_original(self, b_ini: int = 0, b_end: int = 0) -> list[user_status]:
-    #     """Hypervisor results between the specified blocks
-
-    #     Args:
-    #         b_ini (int, optional): initial block. Defaults to 0.
-    #         b_end (int, optional): end block. Defaults to 0.
-
-    #     Returns:
-    #         list[user_status]: of hypervisor status at blocks
-    #     """
-    #     result = list()
-    #     if b_end == 0:
-    #         b_end = sys.maxsize
-    #     # define alowed topics to return ( be aware that blocks not in predefined topics list may not have all addresses in the block, underreporting values)
-    #     topics = ["report", "zeroBurn", "rebalance"]
-    #     # get a unique block list of all hype users status
-    #     condition = {
-    #         "hypervisor_address": self.address,
-    #         "$and": [
-    #             {"block": {"$gte": b_ini}},
-    #             {"block": {"$lte": b_end}},
-    #             {"topic": {"$in": topics}},
-    #         ],
-    #     }
-    #     blocks = sorted(
-    #         self.local_db_manager.get_distinct_items_from_database(
-    #             collection_name="user_status", field="block", condition=condition
-    #         )
-    #     )
-    #     for block in blocks:
-    #         result.append(self.result(block=block))
-
-    #     return result
-
     def account_result(
         self, address: str, block: int = 0, logIndex: int = 0
     ) -> user_status:
@@ -835,59 +801,6 @@ class user_status_hypervisor_builder:
             )
             return []
 
-    # General classifier
-
-    # def _mix_operations_status(self) -> list[dict]:
-    #     """Add custom made operations with the topic "report" at blocks
-    #         where no operations exist but status does...
-
-    #         ( using it just because operation blocks are not sufficient to get the overall current status of
-    #         an address/hypervisor...)
-
-    #     Returns:
-    #         list[dict]:
-    #     """
-
-    #     # get all operations this hypervisor
-    #     result = self.get_hypervisor_operations()
-
-    #     # construct block list already in result
-    #     all_operations_blocks = set([x["blockNumber"] for x in result])
-
-    #     # control var
-    #     initial_length = len(result)
-
-    #     # get last hypervisor status block
-    #     # last_hype_block = self.latest_status_block
-
-    #     # for each status block not in operations, add report op
-    #     for hype_status in sorted(
-    #         self.get_hypervisor_status(), key=lambda x: (x["block"]), reverse=False
-    #     )[-10:]:
-
-    #         if not hype_status["block"] in all_operations_blocks:
-    #             # add report operation to operations tobe processed
-    #             result.append(
-    #                 {
-    #                     "blockHash": "reportHash",
-    #                     "blockNumber": hype_status["block"],
-    #                     "address": self.address,
-    #                     "timestamp": hype_status["timestamp"],
-    #                     "decimals_token0": hype_status["pool"]["token0"]["decimals"],
-    #                     "decimals_token1": hype_status["pool"]["token1"]["decimals"],
-    #                     "decimals_contract": hype_status["decimals"],
-    #                     "topic": "report",
-    #                     "logIndex": 100000,
-    #                     "id": str(uuid.uuid4()),
-    #                 }
-    #             )
-
-    #     logging.getLogger(__name__).debug(
-    #         f" Added {len(result)-initial_length} report operations from status blocks"
-    #     )
-    #     # return sorted by block->logindex
-    #     return sorted(result, key=lambda x: (x["blockNumber"], x["logIndex"]))
-
     def _create_operations_to_process(self) -> list[dict]:
 
         # get all blocks from user status ( what has already been done [ careful because last  =  block + logIndex ] )
@@ -911,7 +824,7 @@ class user_status_hypervisor_builder:
             # reset and do it all from zero
             user_status_blocks_processed = set()
 
-        # get all available operations
+        # get all available operations, not already processed:  the hypervisor status at time x needs all operations till that time to be build
         result = [
             operation
             for operation in self.get_hypervisor_operations()
@@ -939,7 +852,7 @@ class user_status_hypervisor_builder:
                 and not hype_status["block"] in user_status_blocks_processed
             ):
 
-                # discart close to blocks (<30>)
+                # discard close blocks ( block <30> block )
                 _closest = min(
                     combined_blocks,
                     key=lambda x: abs(x - hype_status["block"]),
@@ -1345,274 +1258,6 @@ class user_status_hypervisor_builder:
     def _process_zeroBurn(self, operation: dict):
         # share fees with all acoounts proportionally
         self._share_fees_with_acounts(operation)
-
-    # def _process_topic_report_original(self, operation: dict):
-    #     # all report blocks should be final block ( so no operations should exist at this block besides this report)
-    #     # for each address
-    #     for account_address in self.get_all_account_addresses(
-    #         block=operation["blockNumber"], logIndex=operation["logIndex"]
-    #     ):
-
-    #         # create result
-    #         new_user_status = user_status(
-    #             timestamp=operation["timestamp"],
-    #             block=operation["blockNumber"],
-    #             topic="report",
-    #             address=account_address,
-    #             hypervisor_address=self.address,
-    #             raw_operation=operation["id"],
-    #         )
-    #         # get last operation ( logIndex here is fake ... not useful)
-    #         last_op = self.last_user_status(
-    #             account_address=account_address, block=operation["blockNumber"]
-    #         )
-
-    #         # fill new status item with last data
-    #         new_user_status.fill_from(status=last_op)
-
-    #         # add globals
-    #         new_user_status = self._add_globals_to_user_status(
-    #             current_user_status=new_user_status, last_user_status_item=last_op
-    #         )
-
-    #         # add to result
-    #         self._add_user_status(status=new_user_status)
-
-    # def _share_fees_with_acounts_original(self, operation: dict):
-
-    #     # block
-    #     block = operation["blockNumber"]
-    #     # contract address
-    #     contract_address = operation["address"].lower()
-
-    #     # get current total contract_address shares qtty
-    #     # check if this is the last operation of the block
-    #     if (
-    #         self.get_last_logIndex(block=operation["blockNumber"])
-    #         == operation["logIndex"]
-    #     ):
-    #         # get total shares from current users
-    #         total_shares = self.total_hypervisor_supply(block=block)
-    #     else:
-    #         # sum total shares from current users
-    #         total_shares = self.total_shares(
-    #             block=block, logIndex=operation["logIndex"]
-    #         )
-
-    #     fees_collected_token0 = Decimal(operation["qtty_token0"]) / (
-    #         Decimal(10) ** Decimal(operation["decimals_token0"])
-    #     )
-    #     fees_collected_token1 = Decimal(operation["qtty_token1"]) / (
-    #         Decimal(10) ** Decimal(operation["decimals_token1"])
-    #     )
-
-    #     # check if any fees have actually been collected to proceed ...
-    #     if total_shares == 0:
-    #         # there is no deposits yet... hypervisor is in testing or seting up mode
-    #         if fees_collected_token0 == fees_collected_token1 == 0:
-    #             logging.getLogger(__name__).debug(
-    #                 f" Not processing 0x..{self.address[-4:]} fee collection as it has no deposits yet and collected fees are zero"
-    #             )
-    #         else:
-    #             logging.getLogger(__name__).warning(
-    #                 f" Not processing 0x..{self.address[-4:]} fee collection as it has no deposits yet but fees collected fees are NON zero --> token0: {fees_collected_token0}  token1: {fees_collected_token1}"
-    #             )
-    #         # exit
-    #         return
-    #     if fees_collected_token0 == fees_collected_token1 == 0:
-    #         # there is no collection made ... but hypervisor changed tick boundaries
-    #         logging.getLogger(__name__).debug(
-    #             f" Not processing 0x..{self.address[-4:]} fee collection as it has not collected any fees."
-    #         )
-    #         # exit
-    #         return
-
-    #     # USD prices
-    #     price_usd_t0 = self.get_price(
-    #         block=block, address=self._static["pool"]["token0"]["address"]
-    #     )
-    #     price_usd_t1 = self.get_price(
-    #         block=block, address=self._static["pool"]["token1"]["address"]
-    #     )
-
-    #     # control var to keep track of total percentage applied
-    #     ctrl_total_percentage_applied = Decimal("0")
-    #     ctrl_total_shares_applied = Decimal("0")
-    #     # addresses = self.get_all_account_addresses(
-    #     #     block=block, logIndex=operation["logIndex"]
-    #     # )
-    #     # get all last user status
-    #     for last_op in self.last_user_status_list(
-    #         block=block, logIndex=operation["logIndex"]
-    #     ):
-    #         # create result
-    #         new_user_status = user_status(
-    #             timestamp=operation["timestamp"],
-    #             block=block,
-    #             topic=operation["topic"],
-    #             address=last_op.address,
-    #             hypervisor_address=self.address,
-    #             raw_operation=operation["id"],
-    #             logIndex=operation["logIndex"],
-    #         )
-    #         #  fill new status item with last data
-    #         new_user_status.fill_from(status=last_op)
-
-    #         # calc user share in the pool
-    #         user_share = new_user_status.shares_qtty / total_shares
-    #         #
-    #         ctrl_total_shares_applied += new_user_status.shares_qtty
-
-    #         # check inconsistency
-    #         if (ctrl_total_percentage_applied + user_share) > 1:
-    #             logging.getLogger(__name__).warning(
-    #                 " The total percentage applied while calc. user fees exceeds 100% at {}'s {} hype {} -> {}".format(
-    #                     self.network,
-    #                     self.protocol,
-    #                     self.address,
-    #                     (ctrl_total_percentage_applied + user_share),
-    #                 )
-    #             )
-    #             logging.getLogger(__name__).warning(
-    #                 "          total shares applied {}  total shares {}  diff: {}".format(
-    #                     ctrl_total_shares_applied,
-    #                     total_shares,
-    #                     total_shares - ctrl_total_shares_applied,
-    #                 )
-    #             )
-
-    #         # add user share to total processed control var
-    #         ctrl_total_percentage_applied += user_share
-
-    #         # add fees collected to user
-    #         new_user_status.fees_collected_token0 += fees_collected_token0 * user_share
-    #         new_user_status.fees_collected_token1 += fees_collected_token1 * user_share
-    #         new_user_status.total_fees_collected_in_usd += (
-    #             (fees_collected_token0 * price_usd_t0)
-    #             + (fees_collected_token1 * price_usd_t1)
-    #         ) * user_share
-
-    #         # add global stats
-    #         new_user_status = self._add_globals_to_user_status(
-    #             current_user_status=new_user_status,
-    #             last_user_status_item=last_op,
-    #             price_usd_t0=price_usd_t0,
-    #             price_usd_t1=price_usd_t1,
-    #         )
-
-    #         # add new status to hypervisor
-    #         self._add_user_status(status=new_user_status)
-
-    #     # # loop all addresses
-    #     # for account_address in addresses:
-    #     #     # create result
-    #     #     new_user_status = user_status(
-    #     #         timestamp=operation["timestamp"],
-    #     #         block=block,
-    #     #         topic=operation["topic"],
-    #     #         address=account_address,
-    #     #         hypervisor_address=self.address,
-    #     #         raw_operation=operation["id"],
-    #     #         logIndex=operation["logIndex"],
-    #     #     )
-    #     #     # get last address operation (status)
-    #     #     last_op = self.last_user_status(
-    #     #         account_address=account_address,
-    #     #         block=block,
-    #     #         logIndex=operation["logIndex"],
-    #     #     )
-
-    #     #     #  fill new status item with last data
-    #     #     new_user_status.fill_from(status=last_op)
-
-    #     #     # calc user share in the pool
-    #     #     user_share = new_user_status.shares_qtty / total_shares
-    #     #     #
-    #     #     ctrl_total_shares_applied += new_user_status.shares_qtty
-
-    #     #     # check inconsistency
-    #     #     if (ctrl_total_percentage_applied + user_share) > 1:
-    #     #         logging.getLogger(__name__).warning(
-    #     #             " The total percentage applied while calc. user fees exceeds 100% at {}'s {} hype {} -> {}".format(
-    #     #                 self.network,
-    #     #                 self.protocol,
-    #     #                 self.address,
-    #     #                 (ctrl_total_percentage_applied + user_share),
-    #     #             )
-    #     #         )
-    #     #         logging.getLogger(__name__).warning(
-    #     #             "          total shares applied {}  total shares {}  diff: {}".format(
-    #     #                 ctrl_total_shares_applied,
-    #     #                 total_shares,
-    #     #                 total_shares - ctrl_total_shares_applied,
-    #     #             )
-    #     #         )
-
-    #     #     # add user share to total processed control var
-    #     #     ctrl_total_percentage_applied += user_share
-
-    #     #     # add fees collected to user
-    #     #     new_user_status.fees_collected_token0 += fees_collected_token0 * user_share
-    #     #     new_user_status.fees_collected_token1 += fees_collected_token1 * user_share
-    #     #     new_user_status.total_fees_collected_in_usd += (
-    #     #         (fees_collected_token0 * price_usd_t0)
-    #     #         + (fees_collected_token1 * price_usd_t1)
-    #     #     ) * user_share
-
-    #     #     # add global stats
-    #     #     new_user_status = self._add_globals_to_user_status(
-    #     #         current_user_status=new_user_status,
-    #     #         last_user_status_item=last_op,
-    #     #         price_usd_t0=price_usd_t0,
-    #     #         price_usd_t1=price_usd_t1,
-    #     #     )
-
-    #     #     # add new status to hypervisor
-    #     #     self._add_user_status(status=new_user_status)
-
-    #     # save fee remainders data
-    #     if ctrl_total_percentage_applied != Decimal("1"):
-
-    #         fee0_remainder = (
-    #             Decimal("1") - ctrl_total_percentage_applied
-    #         ) * fees_collected_token0
-    #         fee1_remainder = (
-    #             Decimal("1") - ctrl_total_percentage_applied
-    #         ) * fees_collected_token1
-    #         feeUsd_remainder = (fee0_remainder * price_usd_t0) + (
-    #             fee1_remainder * price_usd_t1
-    #         )
-
-    #         logging.getLogger(__name__).warning(
-    #             " The total percentage applied while calc. user fees fall behind 100% at {}'s {} hype {} block {} -> {}".format(
-    #                 self.network,
-    #                 self.protocol,
-    #                 self.address,
-    #                 block,
-    #                 (ctrl_total_percentage_applied),
-    #             )
-    #         )
-
-    #         # add remainders to global vars
-    #         # self._modify_global_data(
-    #         #     block=block,
-    #         #     add=True,
-    #         #     fee0_remainder=fee0_remainder,
-    #         #     fee1_remainder=fee1_remainder,
-    #         # )
-
-    #         # log if value is significant
-    #         if (Decimal("1") - ctrl_total_percentage_applied) > Decimal("0.0001"):
-    #             logging.getLogger(__name__).error(
-    #                 " Only {:,.2f} of the fees value has been distributed to current accounts. remainder: {}   . num.addss: {}  tot.shares: {}  remainder usd: {}  block:{}".format(
-    #                     ctrl_total_percentage_applied,
-    #                     (Decimal("1") - ctrl_total_percentage_applied),
-    #                     len(addresses),
-    #                     ctrl_total_shares_applied,
-    #                     feeUsd_remainder,
-    #                     block,
-    #                 )
-    #             )
 
     def _transfer_to_user(self, operation: dict) -> tuple[user_status, user_status]:
 
@@ -2882,6 +2527,8 @@ class user_status_hypervisor_builder:
                 # add to result
                 self._add_user_status(status=new_user_status)
 
+    # Results
+
     def result_list(self, b_ini: int = 0, b_end: int = 0) -> list[user_status]:
         """Hypervisor results between the specified blocks
 
@@ -2926,14 +2573,14 @@ class user_status_hypervisor_builder:
     def result_list_timestamp(
         self, t_ini: int = 0, t_end: int = 0
     ) -> list[user_status]:
-        """Hypervisor results between the specified blocks
+        """Hypervisor results between the specified timestamps
 
         Args:
-            b_ini (int, optional): initial timestamp. Defaults to 0.
-            b_end (int, optional): end timestamp. Defaults to 0.
+            t_ini (int, optional): initial timestamp. Defaults to 0.
+            t_end (int, optional): end timestamp. Defaults to 0.
 
         Returns:
-            list[user_status]: of hypervisor status at blocks
+            list[user_status]: of hypervisor status (using user_status class)
         """
         result = list()
         if t_end == 0:
@@ -2973,9 +2620,13 @@ class user_status_hypervisor_builder:
 
         status_list = self.result_list_timestamp(t_ini=t_ini, t_end=t_end)
 
-        # set vars for mental health
-        ini_status = status_list[0]
-        end_status = status_list[-1]
+        return self._compare_status(
+            ini_status=status_list[0], end_status=status_list[-1]
+        )
+
+    def _compare_status(
+        self, ini_status: user_status, end_status: user_status
+    ) -> dict():
 
         days_passed = (end_status.timestamp - ini_status.timestamp) / (60 * 60 * 24)
 
@@ -3053,6 +2704,7 @@ class user_status_hypervisor_builder:
         return {
             "date_from": ini_status.timestamp,
             "date_to": end_status.timestamp,
+            "period": days_passed,
             "block_ini": ini_status.block,
             "block_end": end_status.block,
             "current_return": (end_investment - ini_investment),
@@ -3063,4 +2715,9 @@ class user_status_hypervisor_builder:
             ** (365)
             - 1,
             "feeAPR": ((fees_earned / Decimal(days_passed)) / ini_investment) * 365,
+            "info_fees_earned": fees_earned,
+            "info_price_variation": price_variation,
+            "info_asset_alloc_variation": asset_alloc_variation,
+            "info_ini_investment": ini_investment,
+            "info_end_investment": end_investment,
         }

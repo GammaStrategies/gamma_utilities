@@ -78,7 +78,7 @@ class web3wrap:
             self._chain_id = self.w3.eth.chain_id
 
         # made up a descriptive cahce file name
-        cache_filename = "{}_{}".format(self._chain_id, self.address.lower())
+        cache_filename = f"{self._chain_id}_{self.address.lower()}"
 
         # create cache helper
         self._cache = cache_utilities.mutable_property_cache(
@@ -171,7 +171,7 @@ class web3wrap:
         block_step = (block_curr.timestamp - timestamp) / blocks_x_timestamp
         block_step_sign = -1
 
-        _startime = dt.datetime.utcnow()
+        _startime = dt.datetime.now(dt.timezone.utc)
 
         while block_curr.timestamp != timestamp:
 
@@ -179,14 +179,11 @@ class web3wrap:
 
             # make sure we have positive block result
             while (block_curr.number + (block_step * block_step_sign)) <= 0:
-                if queries_cost == 1:
-                    # first time here, set lower block steps
-                    block_step /= 2
-                else:
+                if queries_cost != 1:
                     # change sign and lower steps
                     block_step_sign *= -1
-                    block_step /= 2
-
+                # first time here, set lower block steps
+                block_step /= 2
             # go to block
             try:
                 block_curr = self._w3.eth.get_block(
@@ -226,7 +223,7 @@ class web3wrap:
             block_past = block_curr
 
             # 15sec while loop safe exit (an eternity to find the block)
-            if (dt.datetime.utcnow() - _startime).total_seconds() > (15):
+            if (dt.datetime.now(dt.timezone.utc) - _startime).total_seconds() > 15:
                 if inexact_mode == "before":
                     # select block smaller than objective
                     while block_curr.timestamp > timestamp:
@@ -237,9 +234,7 @@ class web3wrap:
                         block_curr = self._w3.eth.get_block(block_curr.number + 1)
                 else:
                     raise ValueError(
-                        " Inexact method chosen is not valid:->  {}".format(
-                            inexact_mode
-                        )
+                        f" Inexact method chosen is not valid:->  {inexact_mode}"
                     )
                 # exit loop
                 break
@@ -258,19 +253,12 @@ class web3wrap:
         # log result
         if found_exact:
             logging.getLogger(__name__).debug(
-                " Took {} on-chain queries to find block number {} of timestamp {}".format(
-                    queries_cost, block_curr.number, timestamp
-                )
+                f" Took {queries_cost} on-chain queries to find block number {block_curr.number} of timestamp {timestamp}"
             )
+
         else:
             logging.getLogger(__name__).warning(
-                " Could not find the exact block number from timestamp -> took {} on-chain queries to find block number {} ({}) closest to timestamp {}  -> original-found difference {}".format(
-                    queries_cost,
-                    block_curr.number,
-                    block_curr.timestamp,
-                    timestamp,
-                    timestamp - block_curr.timestamp,
-                )
+                f" Could not find the exact block number from timestamp -> took {queries_cost} on-chain queries to find block number {block_curr.number} ({block_curr.timestamp}) closest to timestamp {timestamp}  -> original-found difference {timestamp - block_curr.timestamp}"
             )
 
         # return closest block found
@@ -289,18 +277,18 @@ class web3wrap:
 
     def get_sameTimestampBlocks(self, block, queries_cost: int):
 
-        result = list()
+        result = []
         # try go backwards till different timestamp is found
         curr_block = block
         while curr_block.timestamp == block.timestamp:
-            if not curr_block.number == block.number:
+            if curr_block.number != block.number:
                 result.append(curr_block.number)
             curr_block = self._w3.eth.get_block(curr_block.number - 1)
             queries_cost += 1
         # try go forward till different timestamp is found
         curr_block = block
         while curr_block.timestamp == block.timestamp:
-            if not curr_block.number == block.number:
+            if curr_block.number != block.number:
                 result.append(curr_block.number)
             curr_block = self._w3.eth.get_block(curr_block.number + 1)
             queries_cost += 1
@@ -321,22 +309,21 @@ class web3wrap:
         Returns:
            list: of the same
         """
-        result = list()
-        tmp_filter = {k: v for k, v in eventfilter.items()}
+        result = []
+        tmp_filter = dict(eventfilter)
         toBlock = eventfilter["toBlock"]
         fromBlock = eventfilter["fromBlock"]
         blocksXfilter = math.ceil((toBlock - fromBlock) / max_blocks)
 
         current_fromBlock = tmp_filter["fromBlock"]
         current_toBlock = current_fromBlock + max_blocks
-        for i in range(blocksXfilter):
-
+        for _ in range(blocksXfilter):
             # mod filter blocks
             tmp_filter["toBlock"] = current_toBlock
             tmp_filter["fromBlock"] = current_fromBlock
 
             # append filter
-            result.append({k: v for k, v in tmp_filter.items()})
+            result.append(dict(tmp_filter))
 
             # exit if done...
             if current_toBlock == toBlock:
@@ -361,16 +348,13 @@ class web3wrap:
             # progress if no data found
             if self._progress_callback and len(entries) == 0:
                 self._progress_callback(
-                    text="no matches from blocks {} to {}".format(
-                        _filter["fromBlock"], _filter["toBlock"]
-                    ),
+                    text=f'no matches from blocks {_filter["fromBlock"]} to {_filter["toBlock"]}',
                     remaining=eventfilter["toBlock"] - _filter["toBlock"],
                     total=eventfilter["toBlock"] - eventfilter["fromBlock"],
                 )
 
             # filter blockchain data
-            for event in entries:
-                yield event
+            yield from entries
 
     def identify_dex_name(self) -> str:
         """Return dex name using the calling object's type
@@ -382,29 +366,60 @@ class web3wrap:
         from bins.w3.onchain_utilities.protocols import (
             gamma_hypervisor,
             gamma_hypervisor_quickswap,
+            gamma_hypervisor_zyberswap,
+            gamma_hypervisor_thena,
+            gamma_hypervisor_cached,
+            gamma_hypervisor_quickswap_cached,
+            gamma_hypervisor_zyberswap_cached,
+            gamma_hypervisor_thena_cached,
         )
-        from bins.w3.onchain_utilities.exchanges import univ3_pool, quickswapv3_pool
+        from bins.w3.onchain_utilities.exchanges import univ3_pool, algebrav3_pool
 
         #######################
 
-        if isinstance(
-            self, (gamma_hypervisor_quickswap, quickswapv3_pool)
-        ) or issubclass(type(self), (gamma_hypervisor_quickswap, quickswapv3_pool)):
+        if isinstance(self, univ3_pool) or issubclass(type(self), univ3_pool):
+            return "uniswapv3"
+
+        elif isinstance(self, algebrav3_pool) or issubclass(type(self), algebrav3_pool):
+            return "algebrav3"
+
+        elif isinstance(
+            self, (gamma_hypervisor_quickswap, gamma_hypervisor_quickswap_cached)
+        ) or issubclass(
+            type(self), (gamma_hypervisor_quickswap, gamma_hypervisor_quickswap_cached)
+        ):
             return "quickswap"
-        elif isinstance(self, (gamma_hypervisor, univ3_pool)) or issubclass(
-            type(self), (gamma_hypervisor, univ3_pool)
+
+        elif isinstance(
+            self, (gamma_hypervisor_zyberswap, gamma_hypervisor_zyberswap_cached)
+        ) or issubclass(
+            type(self), (gamma_hypervisor_zyberswap, gamma_hypervisor_zyberswap_cached)
+        ):
+            return "zyberswap"
+        elif isinstance(
+            self, (gamma_hypervisor_thena, gamma_hypervisor_thena_cached)
+        ) or issubclass(
+            type(self), (gamma_hypervisor_thena, gamma_hypervisor_thena_cached)
+        ):
+            return "thena"
+
+        # KEEP GAMMA AT THE BOTTOM
+        elif isinstance(self, gamma_hypervisor) or issubclass(
+            type(self), gamma_hypervisor
         ):
             return "uniswapv3"
+
         else:
             raise NotImplementedError(
                 f" Dex name cannot be identified using object type {type(self)}"
             )
 
     def as_dict(self, convert_bint=False) -> dict:
-        result = dict()
-        result["block"] = self.block
-        # add timestamp ( block timestamp)
-        result["timestamp"] = self.timestampFromBlockNumber(block=self.block)
+        result = {
+            "block": self.block,
+            "timestamp": self.timestampFromBlockNumber(block=self.block),
+        }
+
         # lower case address to be able to be directly compared
         result["address"] = self.address.lower()
         return result
@@ -421,8 +436,8 @@ class erc20(web3wrap):
         abi_path: str = "",
         block: int = 0,
     ):
-        self._abi_filename = "erc20" if abi_filename == "" else abi_filename
-        self._abi_path = "data/abi" if abi_path == "" else abi_path
+        self._abi_filename = abi_filename or "erc20"
+        self._abi_path = abi_path or "data/abi"
 
         super().__init__(
             address=address,
@@ -471,8 +486,9 @@ class erc20(web3wrap):
 
         result["decimals"] = self.decimals
         result["totalSupply"] = (
-            self.totalSupply if not convert_bint else str(self.totalSupply)
+            str(self.totalSupply) if convert_bint else self.totalSupply
         )
+
         result["symbol"] = self.symbol
 
         return result

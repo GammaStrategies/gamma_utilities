@@ -1,7 +1,7 @@
 import os
 import sys
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 # set working directory the script's
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
@@ -26,10 +26,11 @@ if __name__ == "__main__":
 
     ##### main ######
     logging.getLogger(__name__).info(
-        " Start {}   ----------------------> ".format(__module_name)
+        f" Start {__module_name}   ----------------------> "
     )
+
     # start time log
-    _startime = datetime.utcnow()
+    _startime = datetime.now(timezone.utc)
 
     # convert datetimes if exist
     if CONFIGURATION["_custom_"]["cml_parameters"].ini_datetime:
@@ -88,10 +89,8 @@ if __name__ == "__main__":
         logging.getLogger(__name__).info(" Nothing to do. How u doin? ")
 
     logging.getLogger(__name__).info(
-        " took {} to complete".format(
-            log_time_passed.get_timepassed_string(start_time=_startime)
-        )
+        f" took {log_time_passed.get_timepassed_string(start_time=_startime)} to complete"
     )
     logging.getLogger(__name__).info(
-        " Exit {}    <----------------------".format(__module_name)
+        f" Exit {__module_name}    <----------------------"
     )

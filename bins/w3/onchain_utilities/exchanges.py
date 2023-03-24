@@ -20,8 +20,8 @@ class univ3_pool(web3wrap):
         abi_path: str = "",
         block: int = 0,
     ):
-        self._abi_filename = "univ3_pool" if abi_filename == "" else abi_filename
-        self._abi_path = "data/abi/uniswap/v3" if abi_path == "" else abi_path
+        self._abi_filename = abi_filename or "univ3_pool"
+        self._abi_path = abi_path or "data/abi/uniswap/v3"
 
         self._token0: erc20 = None
         self._token1: erc20 = None
@@ -322,25 +322,27 @@ class univ3_pool(web3wrap):
 
         # convert to decimal as needed
         if inDecimal:
-            # get token decimals
-            decimals_token0 = self.token0.decimals
-            decimals_token1 = self.token1.decimals
-
-            result["qtty_token0"] = Decimal(result["qtty_token0"]) / Decimal(
-                10**decimals_token0
-            )
-            result["qtty_token1"] = Decimal(result["qtty_token1"]) / Decimal(
-                10**decimals_token1
-            )
-            result["fees_owed_token0"] = Decimal(result["fees_owed_token0"]) / Decimal(
-                10**decimals_token0
-            )
-            result["fees_owed_token1"] = Decimal(result["fees_owed_token1"]) / Decimal(
-                10**decimals_token1
-            )
-
+            self._get_qtty_depoloyed_todecimal(result)
         # return result
         return result.copy()
+
+    def _get_qtty_depoloyed_todecimal(self, result):
+        # get token decimals
+        decimals_token0 = self.token0.decimals
+        decimals_token1 = self.token1.decimals
+
+        result["qtty_token0"] = Decimal(result["qtty_token0"]) / Decimal(
+            10**decimals_token0
+        )
+        result["qtty_token1"] = Decimal(result["qtty_token1"]) / Decimal(
+            10**decimals_token1
+        )
+        result["fees_owed_token0"] = Decimal(result["fees_owed_token0"]) / Decimal(
+            10**decimals_token0
+        )
+        result["fees_owed_token1"] = Decimal(result["fees_owed_token1"]) / Decimal(
+            10**decimals_token1
+        )
 
     def get_fees_uncollected(
         self, ownerAddress: str, tickUpper: int, tickLower: int, inDecimal: bool = True
@@ -424,7 +426,7 @@ class univ3_pool(web3wrap):
 
         # t spacing
         result["tickSpacing"] = (
-            self.tickSpacing if not convert_bint else str(self.tickSpacing)
+            str(self.tickSpacing) if convert_bint else self.tickSpacing
         )
 
         # identify pool dex
@@ -440,42 +442,41 @@ class univ3_pool(web3wrap):
             result["protocolFees"] = [str(i) for i in result["protocolFees"]]
 
         if not static_mode:
-
-            result["feeGrowthGlobal0X128"] = (
-                self.feeGrowthGlobal0X128
-                if not convert_bint
-                else str(self.feeGrowthGlobal0X128)
-            )
-            result["feeGrowthGlobal1X128"] = (
-                self.feeGrowthGlobal1X128
-                if not convert_bint
-                else str(self.feeGrowthGlobal1X128)
-            )
-            result["liquidity"] = (
-                self.liquidity if not convert_bint else str(self.liquidity)
-            )
-            result["maxLiquidityPerTick"] = (
-                self.maxLiquidityPerTick
-                if not convert_bint
-                else str(self.maxLiquidityPerTick)
-            )
-
-            # slot0
-            result["slot0"] = self.slot0
-            if convert_bint:
-                result["slot0"]["sqrtPriceX96"] = str(result["slot0"]["sqrtPriceX96"])
-                result["slot0"]["tick"] = str(result["slot0"]["tick"])
-                result["slot0"]["observationIndex"] = str(
-                    result["slot0"]["observationIndex"]
-                )
-                result["slot0"]["observationCardinality"] = str(
-                    result["slot0"]["observationCardinality"]
-                )
-                result["slot0"]["observationCardinalityNext"] = str(
-                    result["slot0"]["observationCardinalityNext"]
-                )
-
+            self._as_dict_not_static_items(convert_bint, result)
         return result
+
+    def _as_dict_not_static_items(self, convert_bint, result):
+        result["feeGrowthGlobal0X128"] = (
+            str(self.feeGrowthGlobal0X128)
+            if convert_bint
+            else self.feeGrowthGlobal0X128
+        )
+
+        result["feeGrowthGlobal1X128"] = (
+            str(self.feeGrowthGlobal1X128)
+            if convert_bint
+            else self.feeGrowthGlobal1X128
+        )
+
+        result["liquidity"] = str(self.liquidity) if convert_bint else self.liquidity
+        result["maxLiquidityPerTick"] = (
+            str(self.maxLiquidityPerTick) if convert_bint else self.maxLiquidityPerTick
+        )
+
+        # slot0
+        result["slot0"] = self.slot0
+        if convert_bint:
+            result["slot0"]["sqrtPriceX96"] = str(result["slot0"]["sqrtPriceX96"])
+            result["slot0"]["tick"] = str(result["slot0"]["tick"])
+            result["slot0"]["observationIndex"] = str(
+                result["slot0"]["observationIndex"]
+            )
+            result["slot0"]["observationCardinality"] = str(
+                result["slot0"]["observationCardinality"]
+            )
+            result["slot0"]["observationCardinalityNext"] = str(
+                result["slot0"]["observationCardinalityNext"]
+            )
 
 
 class univ3_pool_cached(univ3_pool):
@@ -732,7 +733,7 @@ class univ3_pool_cached(univ3_pool):
         return self._token1
 
 
-class quickswapv3_dataStorageOperator(web3wrap):
+class algebrav3_dataStorageOperator(web3wrap):
 
     # SETUP
     def __init__(
@@ -743,10 +744,8 @@ class quickswapv3_dataStorageOperator(web3wrap):
         abi_path: str = "",
         block: int = 0,
     ):
-        self._abi_filename = (
-            "dataStorageOperator" if abi_filename == "" else abi_filename
-        )
-        self._abi_path = "data/abi/quickswap/v3" if abi_path == "" else abi_path
+        self._abi_filename = abi_filename or "dataStorageOperator"
+        self._abi_path = abi_path or "data/abi/algebra/v3"
 
         super().__init__(
             address=address,
@@ -786,7 +785,7 @@ class quickswapv3_dataStorageOperator(web3wrap):
         return self._contract.functions.window().call(block_identifier=self.block)
 
 
-class quickswapv3_dataStorageOperator_cached(quickswapv3_dataStorageOperator):
+class algebrav3_dataStorageOperator_cached(algebrav3_dataStorageOperator):
     @property
     def feeConfig(self) -> dict:
         prop_name = "feeConfig"
@@ -809,7 +808,7 @@ class quickswapv3_dataStorageOperator_cached(quickswapv3_dataStorageOperator):
         return result
 
 
-class quickswapv3_pool(web3wrap):
+class algebrav3_pool(web3wrap):
 
     # SETUP
     def __init__(
@@ -821,13 +820,13 @@ class quickswapv3_pool(web3wrap):
         block: int = 0,
     ):
 
-        self._abi_filename = "quickv3pool" if abi_filename == "" else abi_filename
-        self._abi_path = "data/abi/quickswap/v3" if abi_path == "" else abi_path
+        self._abi_filename = abi_filename or "algebrav3pool"
+        self._abi_path = abi_path or "data/abi/algebra/v3"
 
         self._token0: erc20 = None
         self._token1: erc20 = None
 
-        self._dataStorage: quickswapv3_dataStorageOperator = None
+        self._dataStorage: algebrav3_dataStorageOperator = None
 
         super().__init__(
             address=address,
@@ -851,10 +850,10 @@ class quickswapv3_pool(web3wrap):
         )
 
     @property
-    def dataStorageOperator(self) -> quickswapv3_dataStorageOperator:
+    def dataStorageOperator(self) -> algebrav3_dataStorageOperator:
         """ """
         if self._dataStorage is None:
-            self._dataStorage = quickswapv3_dataStorageOperator(
+            self._dataStorage = algebrav3_dataStorageOperator(
                 address=self._contract.functions.dataStorageOperator().call(
                     block_identifier=self.block
                 ),
@@ -1145,25 +1144,27 @@ class quickswapv3_pool(web3wrap):
 
         # convert to decimal as needed
         if inDecimal:
-            # get token decimals
-            decimals_token0 = self.token0.decimals
-            decimals_token1 = self.token1.decimals
-
-            result["qtty_token0"] = Decimal(result["qtty_token0"]) / Decimal(
-                10**decimals_token0
-            )
-            result["qtty_token1"] = Decimal(result["qtty_token1"]) / Decimal(
-                10**decimals_token1
-            )
-            result["fees_owed_token0"] = Decimal(result["fees_owed_token0"]) / Decimal(
-                10**decimals_token0
-            )
-            result["fees_owed_token1"] = Decimal(result["fees_owed_token1"]) / Decimal(
-                10**decimals_token1
-            )
-
+            self._get_qtty_depoloyed_todecimal(result)
         # return result
         return result.copy()
+
+    def _get_qtty_depoloyed_todecimal(self, result):
+        # get token decimals
+        decimals_token0 = self.token0.decimals
+        decimals_token1 = self.token1.decimals
+
+        result["qtty_token0"] = Decimal(result["qtty_token0"]) / Decimal(
+            10**decimals_token0
+        )
+        result["qtty_token1"] = Decimal(result["qtty_token1"]) / Decimal(
+            10**decimals_token1
+        )
+        result["fees_owed_token0"] = Decimal(result["fees_owed_token0"]) / Decimal(
+            10**decimals_token0
+        )
+        result["fees_owed_token1"] = Decimal(result["fees_owed_token1"]) / Decimal(
+            10**decimals_token1
+        )
 
     def get_fees_uncollected(
         self, ownerAddress: str, tickUpper: int, tickLower: int, inDecimal: bool = True
@@ -1250,12 +1251,11 @@ class quickswapv3_pool(web3wrap):
         result["activeIncentive"] = self.activeIncentive
 
         result["liquidityCooldown"] = (
-            self.liquidityCooldown if not convert_bint else str(self.liquidityCooldown)
+            str(self.liquidityCooldown) if convert_bint else self.liquidityCooldown
         )
+
         result["maxLiquidityPerTick"] = (
-            self.maxLiquidityPerTick
-            if not convert_bint
-            else str(self.maxLiquidityPerTick)
+            str(self.maxLiquidityPerTick) if convert_bint else self.maxLiquidityPerTick
         )
 
         # t spacing
@@ -1274,17 +1274,19 @@ class quickswapv3_pool(web3wrap):
 
         if not static_mode:
             result["feeGrowthGlobal0X128"] = (
-                self.feeGrowthGlobal0X128
-                if not convert_bint
-                else str(self.feeGrowthGlobal0X128)
+                str(self.feeGrowthGlobal0X128)
+                if convert_bint
+                else self.feeGrowthGlobal0X128
             )
+
             result["feeGrowthGlobal1X128"] = (
-                self.feeGrowthGlobal1X128
-                if not convert_bint
-                else str(self.feeGrowthGlobal1X128)
+                str(self.feeGrowthGlobal1X128)
+                if convert_bint
+                else self.feeGrowthGlobal1X128
             )
+
             result["liquidity"] = (
-                self.liquidity if not convert_bint else str(self.liquidity)
+                str(self.liquidity) if convert_bint else self.liquidity
             )
 
             result["globalState"] = self.globalState
@@ -1317,18 +1319,13 @@ class quickswapv3_pool(web3wrap):
                     )
                 except Exception:
                     logging.getLogger(__name__).warning(
-                        " Unexpected error converting globalState of {} at block {}     error-> {}   globalState: {}".format(
-                            result["address"],
-                            result["block"],
-                            sys.exc_info()[0],
-                            result["globalState"],
-                        )
+                        f' Unexpected error converting globalState of {result["address"]} at block {result["block"]}     error-> {sys.exc_info()[0]}   globalState: {result["globalState"]}'
                     )
 
         return result
 
 
-class quickswapv3_pool_cached(quickswapv3_pool):
+class algebrav3_pool_cached(algebrav3_pool):
 
     SAVE2FILE = True
 
@@ -1356,10 +1353,10 @@ class quickswapv3_pool_cached(quickswapv3_pool):
         return result
 
     @property
-    def dataStorageOperator(self) -> quickswapv3_dataStorageOperator:
+    def dataStorageOperator(self) -> algebrav3_dataStorageOperator:
         """ """
         if self._dataStorage is None:
-            self._dataStorage = quickswapv3_dataStorageOperator_cached(
+            self._dataStorage = algebrav3_dataStorageOperator_cached(
                 address=self._contract.functions.dataStorageOperator().call(
                     block_identifier=self.block
                 ),

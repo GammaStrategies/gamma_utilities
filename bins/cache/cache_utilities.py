@@ -1,3 +1,4 @@
+import contextlib
 import sys
 import os
 import logging
@@ -97,12 +98,9 @@ class file_backend:
 
 
 class db_collections_cache(db_collections_common):
-    def __init__(
-        self,
-        mongo_url: str,
-        db_name: str,
-        db_collections: dict = {"static": {"id": True}},
-    ):
+    def __init__(self, mongo_url: str, db_name: str, db_collections: dict = None):
+        if db_collections is None:
+            db_collections = {"static": {"id": True}}
         super().__init__(
             mongo_url=mongo_url, db_name=db_name, db_collections=db_collections
         )
@@ -294,10 +292,9 @@ class mutable_property_cache(standard_property_cache):
         key = key.lower()
 
         if key in self.fixed_fields:
-            result = self.get_anyblock_value(
+            if result := self.get_anyblock_value(
                 chain_id=chain_id, address=address, key=key
-            )
-            if result:
+            ):
                 return result
 
         # try return the block asked for
@@ -359,15 +356,13 @@ class standard_thegraph_cache(file_backend):
         self._cache = self._load_cache_file()
 
         # set new dict if no file has been loaded
-        if self._cache == None:
-            self._cache = dict()
+        if self._cache is None:
+            self._cache = {}
 
         _loaded = 0
-        try:
+        with contextlib.suppress(Exception):
             for network in self._cache.keys():
                 _loaded += len(self._cache[network].keys())
-        except Exception:
-            pass
 
         # log price cache loaded qtty
         # logging.getLogger("special").debug(
@@ -386,27 +381,27 @@ class standard_thegraph_cache(file_backend):
         """
 
         # NETWORK and BLOCK must be present when caching
-        if "network" in kwargs and "block" in kwargs:
-            network = kwargs["network"]
-            block = kwargs["block"].strip()
-            # create key
-            key = self._build_key(kwargs)
+        if "network" not in kwargs or "block" not in kwargs:
+            # not added
+            return False
+        network = kwargs["network"]
+        block = kwargs["block"].strip()
+        # create key
+        key = self._build_key(kwargs)
 
-            with CACHE_LOCK:
-                # create path
-                if not kwargs["network"] in self._cache.keys():
-                    self._cache[network] = dict()
-                if not block in self._cache[network].keys():
-                    self._cache[network][block] = dict()
-                # set value
-                self._cache[network][block][key] = data
+        with CACHE_LOCK:
+            # create path
+            if kwargs["network"] not in self._cache.keys():
+                self._cache[network] = {}
+            if block not in self._cache[network].keys():
+                self._cache[network][block] = {}
+            # set value
+            self._cache[network][block][key] = data
 
-                # save cache to file
-                self._save_tofile(lock=False)
+            # save cache to file
+            self._save_tofile(lock=False)
 
-            return True
-        # not added
-        return False
+        return True
 
     def get_data(self, **kwargs):
         """Retrieves data from cache
@@ -435,19 +430,17 @@ class standard_thegraph_cache(file_backend):
         result = ""
         try:
             # create a sorted list of keys without network nor block
-            tmp_keys = sorted([k for k in args.keys() if not k in ["network", "block"]])
+            tmp_keys = sorted([k for k in args if k not in ["network", "block"]])
             # unify query string
             for k in tmp_keys:
                 if result != "":
                     result += "__"
-                result += "{}={}".format(k.strip(), args[k].strip())
+                result += f"{k.strip()}={args[k].strip()}"
 
         except Exception:
             # not in cache
             logging.getLogger(__name__).exception(
-                " Unexpected error while building cache key  .error: {}".format(
-                    sys.exc_info()[0]
-                )
+                f" Unexpected error while building cache key  .error: {sys.exc_info()[0]}"
             )
 
         return result

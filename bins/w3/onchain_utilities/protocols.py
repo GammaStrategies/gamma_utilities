@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import sys
 import math
@@ -5,14 +6,14 @@ import math
 from decimal import Decimal
 from web3 import Web3
 
-from bins.configuration import CONFIGURATION, HYPERVISOR_REGISTRIES
+from bins.configuration import CONFIGURATION
 from bins.formulas import univ3_formulas
 from bins.w3.onchain_utilities.basic import web3wrap, erc20, erc20_cached
 from bins.w3.onchain_utilities.exchanges import (
     univ3_pool,
     univ3_pool_cached,
-    quickswapv3_pool,
-    quickswapv3_pool_cached,
+    algebrav3_pool,
+    algebrav3_pool_cached,
 )
 
 
@@ -27,8 +28,8 @@ class gamma_hypervisor(erc20):
         abi_path: str = "",
         block: int = 0,
     ):
-        self._abi_filename = "hypervisor" if abi_filename == "" else abi_filename
-        self._abi_path = "data/abi/gamma" if abi_path == "" else abi_path
+        self._abi_filename = abi_filename or "hypervisor"
+        self._abi_path = abi_path or "data/abi/gamma"
 
         self._pool: univ3_pool = None
         self._token0: erc20 = None
@@ -273,12 +274,11 @@ class gamma_hypervisor(erc20):
 
     # CUSTOM FUNCTIONS
     def get_all_events(self):
-        filters = [
+        return [
             event.createFilter(fromBlock=self.block)
             for event in self.contract.events
             if issubclass(event, ContractEvent)
         ]
-        return filters
 
     def get_qtty_depoloyed(self, inDecimal: bool = True) -> dict:
         """Retrieve the quantity of tokens currently deployed
@@ -351,10 +351,8 @@ class gamma_hypervisor(erc20):
         # get deployed fees as int ( force no decimals)
         deployed = self.get_qtty_depoloyed(inDecimal=False)
 
-        result = dict()
+        result = {"parked_token0": self.pool.token0.balanceOf(self.address)}
 
-        # get parked tokens as int
-        result["parked_token0"] = self.pool.token0.balanceOf(self.address)
         result["parked_token1"] = self.pool.token1.balanceOf(self.address)
 
         result["deployed_token0"] = deployed["qtty_token0"]
@@ -376,7 +374,7 @@ class gamma_hypervisor(erc20):
 
         if inDecimal:
             # convert to decimal
-            for key in result.keys():
+            for key in result:
                 if "token0" in key:
                     result[key] = Decimal(result[key]) / Decimal(
                         10**self.token0.decimals
@@ -386,7 +384,7 @@ class gamma_hypervisor(erc20):
                         10**self.token1.decimals
                     )
                 else:
-                    raise ValueError("Cant convert '{}' field to decimal".format(key))
+                    raise ValueError(f"Cant convert '{key}' field to decimal")
 
         return result.copy()
 
@@ -413,97 +411,81 @@ class gamma_hypervisor(erc20):
         result["dex"] = self.identify_dex_name()
 
         result["deposit0Max"] = (
-            self.deposit0Max if not convert_bint else str(self.deposit0Max)
+            str(self.deposit0Max) if convert_bint else self.deposit0Max
         )
+
         result["deposit1Max"] = (
-            self.deposit1Max if not convert_bint else str(self.deposit1Max)
+            str(self.deposit1Max) if convert_bint else self.deposit1Max
         )
+
         # result["directDeposit"] = self.directDeposit  # not working
 
         # only return when static mode is off
         if not static_mode:
-            result["baseLower"] = (
-                self.baseLower if not convert_bint else str(self.baseLower)
-            )
-            result["baseUpper"] = (
-                self.baseUpper if not convert_bint else str(self.baseUpper)
-            )
-            result["currentTick"] = (
-                self.currentTick if not convert_bint else str(self.currentTick)
-            )
-
-            result["limitLower"] = (
-                self.limitLower if not convert_bint else str(self.limitLower)
-            )
-            result["limitUpper"] = (
-                self.limitUpper if not convert_bint else str(self.limitUpper)
-            )
-
-            # getTotalAmounts
-            result["totalAmounts"] = self.getTotalAmounts
-            if convert_bint:
-                result["totalAmounts"]["total0"] = str(result["totalAmounts"]["total0"])
-                result["totalAmounts"]["total1"] = str(result["totalAmounts"]["total1"])
-
-            result["maxTotalSupply"] = (
-                self.maxTotalSupply if not convert_bint else str(self.maxTotalSupply)
-            )
-
-            # TVL
-            result["tvl"] = self.get_tvl(inDecimal=(not convert_bint))
-            if convert_bint:
-                for k in result["tvl"].keys():
-                    result["tvl"][k] = str(result["tvl"][k])
-
-            # Deployed
-            result["qtty_depoloyed"] = self.get_qtty_depoloyed(
-                inDecimal=(not convert_bint)
-            )
-            if convert_bint:
-                for k in result["qtty_depoloyed"].keys():
-                    result["qtty_depoloyed"][k] = str(result["qtty_depoloyed"][k])
-
-            # uncollected fees
-            result["fees_uncollected"] = self.get_fees_uncollected(
-                inDecimal=(not convert_bint)
-            )
-            if convert_bint:
-                for k in result["fees_uncollected"].keys():
-                    result["fees_uncollected"][k] = str(result["fees_uncollected"][k])
-
-            # positions
-            result["basePosition"] = self.getBasePosition
-            if convert_bint:
-                result["basePosition"]["liquidity"] = str(
-                    result["basePosition"]["liquidity"]
-                )
-                result["basePosition"]["amount0"] = str(
-                    result["basePosition"]["amount0"]
-                )
-                result["basePosition"]["amount1"] = str(
-                    result["basePosition"]["amount1"]
-                )
-
-            result["limitPosition"] = self.getLimitPosition
-            if convert_bint:
-                result["limitPosition"]["liquidity"] = str(
-                    result["limitPosition"]["liquidity"]
-                )
-                result["limitPosition"]["amount0"] = str(
-                    result["limitPosition"]["amount0"]
-                )
-                result["limitPosition"]["amount1"] = str(
-                    result["limitPosition"]["amount1"]
-                )
-
-            result["tickSpacing"] = (
-                self.tickSpacing if not convert_bint else str(self.tickSpacing)
-            )
-
+            self._as_dict_not_static_items(convert_bint, result)
         return result
 
+    # TODO Rename this here and in `as_dict`
+    def _as_dict_not_static_items(self, convert_bint, result):
+        result["baseLower"] = str(self.baseLower) if convert_bint else self.baseLower
+        result["baseUpper"] = str(self.baseUpper) if convert_bint else self.baseUpper
+        result["currentTick"] = (
+            str(self.currentTick) if convert_bint else self.currentTick
+        )
 
-class gamma_hypervisor_quickswap(gamma_hypervisor):
+        result["limitLower"] = str(self.limitLower) if convert_bint else self.limitLower
+
+        result["limitUpper"] = str(self.limitUpper) if convert_bint else self.limitUpper
+
+        # getTotalAmounts
+        result["totalAmounts"] = self.getTotalAmounts
+        if convert_bint:
+            result["totalAmounts"]["total0"] = str(result["totalAmounts"]["total0"])
+            result["totalAmounts"]["total1"] = str(result["totalAmounts"]["total1"])
+
+        result["maxTotalSupply"] = (
+            str(self.maxTotalSupply) if convert_bint else self.maxTotalSupply
+        )
+
+        # TVL
+        result["tvl"] = self.get_tvl(inDecimal=(not convert_bint))
+        if convert_bint:
+            for k in result["tvl"].keys():
+                result["tvl"][k] = str(result["tvl"][k])
+
+        # Deployed
+        result["qtty_depoloyed"] = self.get_qtty_depoloyed(inDecimal=(not convert_bint))
+        if convert_bint:
+            for k in result["qtty_depoloyed"].keys():
+                result["qtty_depoloyed"][k] = str(result["qtty_depoloyed"][k])
+
+        # uncollected fees
+        result["fees_uncollected"] = self.get_fees_uncollected(
+            inDecimal=(not convert_bint)
+        )
+        if convert_bint:
+            for k in result["fees_uncollected"].keys():
+                result["fees_uncollected"][k] = str(result["fees_uncollected"][k])
+
+        # positions
+        result["basePosition"] = self.getBasePosition
+        if convert_bint:
+            self._extracted_from_as_dict_83(result, "basePosition")
+        result["limitPosition"] = self.getLimitPosition
+        if convert_bint:
+            self._extracted_from_as_dict_83(result, "limitPosition")
+        result["tickSpacing"] = (
+            str(self.tickSpacing) if convert_bint else self.tickSpacing
+        )
+
+    # TODO Rename this here and in `as_dict`
+    def _extracted_from_as_dict_83(self, result, arg1):
+        result[arg1]["liquidity"] = str(result[arg1]["liquidity"])
+        result[arg1]["amount0"] = str(result[arg1]["amount0"])
+        result[arg1]["amount1"] = str(result[arg1]["amount1"])
+
+
+class gamma_hypervisor_algebra(gamma_hypervisor):
     def __init__(
         self,
         address: str,
@@ -512,10 +494,8 @@ class gamma_hypervisor_quickswap(gamma_hypervisor):
         abi_path: str = "",
         block: int = 0,
     ):
-        self._abi_filename = (
-            "algebra_hypervisor" if abi_filename == "" else abi_filename
-        )
-        self._abi_path = "data/abi/gamma" if abi_path == "" else abi_path
+        self._abi_filename = abi_filename or "algebra_hypervisor"
+        self._abi_path = abi_path or "data/abi/gamma"
 
         super().__init__(
             address=address,
@@ -526,9 +506,9 @@ class gamma_hypervisor_quickswap(gamma_hypervisor):
         )
 
     @property
-    def pool(self) -> quickswapv3_pool:
+    def pool(self) -> algebrav3_pool:
         if self._pool is None:
-            self._pool = quickswapv3_pool(
+            self._pool = algebrav3_pool(
                 address=self._contract.functions.pool().call(
                     block_identifier=self.block
                 ),
@@ -536,6 +516,72 @@ class gamma_hypervisor_quickswap(gamma_hypervisor):
                 block=self.block,
             )
         return self._pool
+
+
+class gamma_hypervisor_quickswap(gamma_hypervisor_algebra):
+    def __init__(
+        self,
+        address: str,
+        network: str,
+        abi_filename: str = "",
+        abi_path: str = "",
+        block: int = 0,
+    ):
+        self._abi_filename = abi_filename or "algebra_hypervisor"
+        self._abi_path = abi_path or "data/abi/gamma"
+
+        super().__init__(
+            address=address,
+            network=network,
+            abi_filename=self._abi_filename,
+            abi_path=self._abi_path,
+            block=block,
+        )
+
+
+class gamma_hypervisor_zyberswap(gamma_hypervisor_algebra):
+    def __init__(
+        self,
+        address: str,
+        network: str,
+        abi_filename: str = "",
+        abi_path: str = "",
+        block: int = 0,
+    ):
+        self._abi_filename = abi_filename or "algebra_hypervisor"
+        self._abi_path = abi_path or "data/abi/gamma"
+
+        super().__init__(
+            address=address,
+            network=network,
+            abi_filename=self._abi_filename,
+            abi_path=self._abi_path,
+            block=block,
+        )
+
+
+class gamma_hypervisor_thena(gamma_hypervisor_algebra):
+    def __init__(
+        self,
+        address: str,
+        network: str,
+        abi_filename: str = "",
+        abi_path: str = "",
+        block: int = 0,
+    ):
+        self._abi_filename = abi_filename or "algebra_hypervisor"
+        self._abi_path = abi_path or "data/abi/gamma"
+
+        super().__init__(
+            address=address,
+            network=network,
+            abi_filename=self._abi_filename,
+            abi_path=self._abi_path,
+            block=block,
+        )
+
+
+# cached classes
 
 
 class gamma_hypervisor_cached(gamma_hypervisor):
@@ -960,7 +1006,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
         return result
 
 
-class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
+class gamma_hypervisor_algebra_cached(gamma_hypervisor_algebra):
 
     SAVE2FILE = True
 
@@ -1306,7 +1352,7 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
     @property
     def pool(self) -> str:
         if self._pool is None:
-            self._pool = quickswapv3_pool_cached(
+            self._pool = algebrav3_pool_cached(
                 address=self._contract.functions.pool().call(
                     block_identifier=self.block
                 ),
@@ -1382,6 +1428,24 @@ class gamma_hypervisor_quickswap_cached(gamma_hypervisor_quickswap):
         return result
 
 
+class gamma_hypervisor_quickswap_cached(gamma_hypervisor_algebra_cached):
+
+    SAVE2FILE = True
+
+
+class gamma_hypervisor_zyberswap_cached(gamma_hypervisor_algebra_cached):
+
+    SAVE2FILE = True
+
+
+class gamma_hypervisor_thena_cached(gamma_hypervisor_algebra_cached):
+
+    SAVE2FILE = True
+
+
+# registries
+
+
 class gamma_hypervisor_registry(web3wrap):
     # SETUP
     def __init__(
@@ -1392,8 +1456,8 @@ class gamma_hypervisor_registry(web3wrap):
         abi_path: str = "",
         block: int = 0,
     ):
-        self._abi_filename = "registry" if abi_filename == "" else abi_filename
-        self._abi_path = "data/abi/gamma/ethereum" if abi_path == "" else abi_path
+        self._abi_filename = abi_filename or "registry"
+        self._abi_path = abi_path or "data/abi/gamma/ethereum"
 
         super().__init__(
             address=address,
@@ -1475,9 +1539,7 @@ class gamma_hypervisor_registry(web3wrap):
                 yield hypervisor
             except Exception:
                 logging.getLogger(__name__).warning(
-                    " Hypervisor registry returned the address {} and may not be an hypervisor ( at web3 chain id: {} )".format(
-                        hypervisor_id, self._chain_id
-                    )
+                    f" Hypervisor registry returned the address {hypervisor_id} and may not be an hypervisor ( at web3 chain id: {self._chain_id} )"
                 )
 
     def get_hypervisors_addresses(self) -> list[str]:
@@ -1486,19 +1548,13 @@ class gamma_hypervisor_registry(web3wrap):
         Returns:
            list of addresses
         """
-        # get list of erroneous addresses
-        # err_adrs = list()
-        # for dex, value in HYPERVISOR_REGISTRIES.items():
-        #     for network, address in value.items():
-        #         if network in self.__blacklist_addresses:
-        #             if address.lower() == self.address.lower():
-        #                 err_adrs.extend(self.__blacklist_addresses[network])
 
         total_qtty = self.counter + 1  # index positions ini=0 end=counter
 
-        result = list()
+        result = []
         for i in range(total_qtty):
-            try:
+            # executiuon reverted:  arbitrum and mainnet have diff ways of indexing (+1 or 0)
+            with contextlib.suppress(Exception):
                 hypervisor_id = self.registry(index=i)
 
                 # filter blacklisted hypes
@@ -1511,10 +1567,6 @@ class gamma_hypervisor_registry(web3wrap):
                     continue
 
                 result.append(hypervisor_id)
-
-            except Exception:
-                # executiuon reverted:  arbitrum and mainnet have diff ways of indexing (+1 or 0)
-                pass
 
         return result
 
@@ -1532,8 +1584,8 @@ class arrakis_hypervisor(erc20):
         block: int = 0,
     ):
 
-        self._abi_filename = "gunipool" if abi_filename == "" else abi_filename
-        self._abi_path = "data/abi/arrakis" if abi_path == "" else abi_path
+        self._abi_filename = abi_filename or "gunipool"
+        self._abi_path = abi_path or "data/abi/arrakis"
 
         self._pool: univ3_pool = None
 
@@ -1789,10 +1841,8 @@ class arrakis_hypervisor(erc20):
         # get deployed fees as int
         deployed = self.get_qtty_depoloyed(inDecimal=False)
 
-        result = dict()
+        result = {"parked_token0": self.pool.token0.balanceOf(self.address)}
 
-        # get parked tokens as int
-        result["parked_token0"] = self.pool.token0.balanceOf(self.address)
         result["parked_token1"] = self.pool.token1.balanceOf(self.address)
 
         result["deployed_token0"] = deployed["qtty_token0"]
@@ -1813,13 +1863,13 @@ class arrakis_hypervisor(erc20):
         )
 
         # transform everythin to deicmal
-        for key in result.keys():
+        for key in result:
             if "token0" in key:
                 result[key] /= 10**self.token0.decimals
             elif "token1" in key:
                 result[key] /= 10**self.token1.decimals
             else:
-                raise ValueError("Cant convert '{}' field to decimal".format(key))
+                raise ValueError(f"Cant convert '{key}' field to decimal")
 
         return result
 

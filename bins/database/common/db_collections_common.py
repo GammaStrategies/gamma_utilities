@@ -15,13 +15,10 @@ from bins.database.common.db_object_models import usd_price
 
 
 class db_collections_common:
-    def __init__(
-        self,
-        mongo_url: str,
-        db_name: str,
-        db_collections: dict = {"static": {"id": True}},
-    ):
+    def __init__(self, mongo_url: str, db_name: str, db_collections: dict = None):
 
+        if db_collections is None:
+            db_collections = {"static": {"id": True}}
         self._db_mongo_url = mongo_url
         self._db_name = db_name
         self._db_collections = db_collections
@@ -60,9 +57,7 @@ class db_collections_common:
                 )
         except Exception as e:
             logging.getLogger(__name__).error(
-                " Unable to save data to mongo's {} collection.  Item: {}    error-> {}".format(
-                    collection_name, data, e
-                )
+                f" Unable to save data to mongo's {collection_name} collection.  Item: {data}    error-> {e}"
             )
 
     def replace_item_to_database(
@@ -82,9 +77,7 @@ class db_collections_common:
                 )
         except Exception as e:
             logging.getLogger(__name__).error(
-                " Unable to replace data in mongo's {} collection.  Item: {}    error-> {}".format(
-                    collection_name, data, e
-                )
+                f" Unable to replace data in mongo's {collection_name} collection.  Item: {data}    error-> {e}"
             )
 
     def query_items_from_database(
@@ -114,8 +107,10 @@ class db_collections_common:
         return result
 
     def get_distinct_items_from_database(
-        self, collection_name: str, field: str, condition: dict = {}
+        self, collection_name: str, field: str, condition: dict = None
     ):
+        if condition is None:
+            condition = {}
         with MongoDbManager(
             url=self._db_mongo_url,
             db_name=self._db_name,
@@ -227,11 +222,10 @@ class database_global(db_collections_common):
     """
 
     def __init__(
-        self,
-        mongo_url: str,
-        db_name: str = "global",
-        db_collections: dict = {"blocks": {"id": True}, "usd_prices": {"id": True}},
+        self, mongo_url: str, db_name: str = "global", db_collections: dict = None
     ):
+        if db_collections is None:
+            db_collections = {"blocks": {"id": True}, "usd_prices": {"id": True}}
         super().__init__(
             mongo_url=mongo_url, db_name=db_name, db_collections=db_collections
         )
@@ -269,14 +263,9 @@ class database_global(db_collections_common):
         Returns:
             list:
         """
-        # result = self.query_items_from_database(
-        #     query=self.query_prices_addressBlocks(network=network),
-        #     collection_name="usd_prices",
-        # )
-        result = self.get_items_from_database(
+        return self.get_items_from_database(
             collection_name="usd_prices", find={"network": network, "price": {"$gt": 0}}
         )
-        return result
 
     def get_price_usd(
         self,
@@ -325,11 +314,10 @@ class database_global(db_collections_common):
         network: str,
         block: int,
     ) -> dict:
-        result = self.get_items_from_database(
+        return self.get_items_from_database(
             collection_name="blocks",
             find={"network": network, "block": block},
         )
-        return result
 
     def get_closest_timestamp(self, network: str, block: int) -> dict:
         return self.query_items_from_database(
@@ -342,11 +330,9 @@ class database_global(db_collections_common):
         network: str,
         timestamp: int,
     ) -> dict:
-        result = self.get_items_from_database(
-            collection_name="blocks",
-            find={"network": network, "timestamp": int(timestamp)},
+        return self.get_items_from_database(
+            collection_name="blocks", find={"network": network, "timestamp": timestamp}
         )
-        return result
 
     def get_closest_block(self, network: str, timestamp: int) -> dict:
         return self.query_items_from_database(
@@ -483,17 +469,15 @@ class database_local(db_collections_common):
                 }
     """
 
-    def __init__(
-        self,
-        mongo_url: str,
-        db_name: str,
-        db_collections: dict = {
-            "static": {"id": True},
-            "operations": {"id": True},
-            "status": {"id": True},
-            "user_status": {"id": True},
-        },
-    ):
+    def __init__(self, mongo_url: str, db_name: str, db_collections: dict = None):
+        if db_collections is None:
+            db_collections = {
+                "static": {"id": True},
+                "operations": {"id": True},
+                "status": {"id": True},
+                "user_status": {"id": True},
+            }
+
         super().__init__(
             mongo_url=mongo_url, db_name=db_name, db_collections=db_collections
         )
@@ -514,7 +498,7 @@ class database_local(db_collections_common):
             collection_name="static", aggregate=self.query_unique_token_addresses()
         )
 
-    def get_mostUsed_tokens1(self, limit: int = 5) -> list:
+    def get_mostUsed_tokens1(self, limit: int = 10) -> list:
         """Return the addresses of the top used tokens1, present in static database
 
         Args:
@@ -564,7 +548,7 @@ class database_local(db_collections_common):
             ),
         )
 
-    def get_unique_operations_addressBlock(self) -> list:
+    def get_unique_operations_addressBlock(self, topics: list = None) -> list:
         """Retrieve a list of unique blocks + hypervisor addresses present in operations collection
 
         Returns:
@@ -573,22 +557,56 @@ class database_local(db_collections_common):
                     "block" : 12736656
                     }
         """
-        query = [
-            {
-                "$group": {
-                    "_id": {"address": "$address", "block": "$blockNumber"},
-                }
-            },
-            {
-                "$project": {
-                    "address": "$_id.address",
-                    "block": "$_id.block",
-                }
-            },
-            {"$unset": ["_id"]},
-        ]
+        query = []
+        if topics:
+            query.append({"$match": {"topics": {"$in": topics}}})
+
+        query.extend(
+            (
+                {
+                    "$group": {
+                        "_id": {"address": "$address", "block": "$blockNumber"},
+                    }
+                },
+                {
+                    "$project": {
+                        "address": "$_id.address",
+                        "block": "$_id.block",
+                    }
+                },
+                {"$unset": ["_id"]},
+            )
+        )
+
+        debug_query = f"{query}"
+
         return self.get_items_from_database(
             collection_name="operations", aggregate=query
+        )
+
+    def get_user_operations(self, user_address: str) -> list:
+        find = {
+            "$or": [
+                {"src": user_address},
+                {"dst": user_address},
+                {"from": user_address},
+                {"to": user_address},
+            ]
+        }
+
+        if timestamp_ini and timestamp_end:
+            find["$and"] = [
+                {"timestamp": {"$lte": timestamp_end}},
+                {"timestamp": {"$gte": timestamp_ini}},
+            ]
+        elif timestamp_ini:
+            find["timestamp"] = {"$gte": timestamp_ini}
+        elif timestamp_end:
+            find["timestamp"] = {"$lte": timestamp_end}
+
+        sort = [("block", 1)]
+        return self.get_items_from_database(
+            collection_name="status", find=find, sort=sort
         )
 
     # status
@@ -629,6 +647,13 @@ class database_local(db_collections_common):
             ),
         )
 
+    def get_hype_status_blocks(self, hypervisor_address: str, blocks: list) -> list:
+        find = {"address": hypervisor_address, "block": {"$in": blocks}}
+        sort = [("block", 1)]
+        return self.get_items_from_database(
+            collection_name="status", find=find, sort=sort
+        )
+
     def get_unique_status_addressBlock(self) -> list:
         """Retrieve a list of unique blocks + hypervisor addresses present in status collection
 
@@ -653,6 +678,36 @@ class database_local(db_collections_common):
             {"$unset": ["_id"]},
         ]
         return self.get_items_from_database(collection_name="status", aggregate=query)
+
+    def get_status_feeReturn_data(
+        self,
+        hypervisor_address: str,
+        timestamp_ini: int,
+        timestamp_end: int,
+    ) -> list:
+        return self.query_items_from_database(
+            collection_name="status",
+            query=self.query_status_feeReturn_data(
+                hypervisor_address=hypervisor_address,
+                timestamp_ini=timestamp_ini,
+                timestamp_end=timestamp_end,
+            ),
+        )
+
+    def get_status_feeReturn_data_alternative(
+        self,
+        hypervisor_address: str,
+        timestamp_ini: int,
+        timestamp_end: int,
+    ) -> list:
+        return self.query_items_from_database(
+            collection_name="status",
+            query=self.query_status_feeReturn_data_alternative(
+                hypervisor_address=hypervisor_address,
+                timestamp_ini=timestamp_ini,
+                timestamp_end=timestamp_end,
+            ),
+        )
 
     # user status
 
@@ -841,3 +896,406 @@ class database_local(db_collections_common):
             },
             {"$unset": ["_id"]},
         ]
+
+    # @staticmethod
+    # def query_status_feeAPY(
+    #     hypervisor_address: str,
+    #     timestamp_ini: int,
+    #     timestamp_end: int,
+    # ) -> list[dict]:
+    #     """get all status and their block operations between timestamps
+
+    #         a new field called "operations" with a list of operations will be available at status object dict
+
+    #     Args:
+    #         hypervisor_address (str): hypervsor address
+    #         timestamp_ini (int): initial timestamp greater or equal to
+    #         timestamp_end (int): ending timestamp less or equal to
+
+    #     Returns:
+    #         list[dict]: query
+    #     """
+    #     return [
+    #         {
+    #             "$match": {
+    #                 "address": hypervisor_address,
+    #                 "$and": [
+    #                     {"timestamp": {"$gte": timestamp_ini}},
+    #                     {"timestamp": {"$lte": timestamp_end}},
+    #                 ],
+    #             }
+    #         },
+    #         {
+    #             "$lookup": {
+    #                 "from": "operations",
+    #                 "let": {
+    #                     "status_address": "$address",
+    #                     "status_block": "$block",
+    #                     "topics": ["deposit", "withdraw", "rebalance", "zeroBurn"],
+    #                 },
+    #                 "pipeline": [
+    #                     {
+    #                         "$match": {
+    #                             "$expr": {
+    #                                 "$and": [
+    #                                     {"$eq": ["$address", "$$status_address"]},
+    #                                     {"$eq": ["$blockNumber", "$$status_block"]},
+    #                                     {"$in": ["$topic", "$$topics"]},
+    #                                 ],
+    #                             }
+    #                         }
+    #                     }
+    #                 ],
+    #                 "as": "operations",
+    #             }
+    #         },
+    #         {"$sort": {"block": 1}},
+    #     ]
+
+    @staticmethod
+    def query_status_feeReturn_data(
+        hypervisor_address: str,
+        timestamp_ini: int,
+        timestamp_end: int,
+    ) -> list[dict]:
+        """Get data to construct feeAPY APR using equal totalSupply values between blocks to identify APY period.
+            This is a prone to error method as totalSupply may sporadically coincide in diff periods ...
+
+        Args:
+            hypervisor_address (str):
+            timestamp_ini (int):
+            timestamp_end (int):
+
+        Returns:
+            list[dict]:
+                            "period_days" : 0.01653935185185185,
+                            "ini_block" : NumberInt(14937408),
+                            "end_block" : NumberInt(14937491),
+                            "ini_timestamp" : NumberInt(1654849152),
+                            "end_timestamp" : NumberInt(1654850581),
+                            "ini_supply" : NumberDecimal("91.89181431665138243"),
+                            "end_supply" : NumberDecimal("91.89181431665138243"),
+                            "ini_tvl0" : NumberDecimal("47083.654951511146650678"),
+                            "ini_tvl1" : NumberDecimal("69.395815272326034611"),
+                            "ini_fees_uncollected0" : NumberDecimal("6.523979236566497"),
+                            "ini_fees_uncollected1" : NumberDecimal("0.01195312935918579"),
+                            "ini_fees_owed0" : NumberDecimal("0.0000"),
+                            "ini_fees_owed1" : NumberDecimal("0.0000"),
+                            "end_tvl0" : NumberDecimal("47083.654951511146650678"),
+                            "end_tvl1" : NumberDecimal("69.395815272326034611"),
+                            "end_fees_uncollected0" : NumberDecimal("6.523979236566497"),
+                            "end_fees_uncollected1" : NumberDecimal("0.01195312935918579"),
+                            "end_fees_owed0" : NumberDecimal("0.0000"),
+                            "end_fees_owed1" : NumberDecimal("0.0000"),
+                            "error_ini" : NumberInt(0),
+                            "error_end" : NumberInt(0)
+        """
+        return [
+            {
+                "$match": {
+                    "address": hypervisor_address,
+                    "$and": [
+                        {"timestamp": {"$lte": timestamp_end}},
+                        {"timestamp": {"$gte": timestamp_ini}},
+                    ],
+                }
+            },
+            {"$sort": {"block": 1}},
+            {
+                "$group": {
+                    "_id": "$totalSupply",
+                    "items": {"$push": "$$ROOT"},
+                    "max_block": {"$max": "$block"},
+                    "min_block": {"$min": "$block"},
+                    "max_timestamp": {"$max": "$timestamp"},
+                    "min_timestamp": {"$min": "$timestamp"},
+                }
+            },
+            {
+                "$addFields": {
+                    "period_days": {
+                        "$divide": [
+                            {"$subtract": ["$max_timestamp", "$min_timestamp"]},
+                            60 * 60 * 24,
+                        ]
+                    }
+                }
+            },
+            {"$sort": {"min_block": 1}},
+            {
+                "$project": {
+                    "max_block": "$max_block",
+                    "min_block": "$min_block",
+                    "max_timestamp": "$max_timestamp",
+                    "min_timestamp": "$min_timestamp",
+                    "period_days": "$period_days",
+                    "ini_snapshot": {"$arrayElemAt": ["$items", 0]},
+                    "end_snapshot": {"$arrayElemAt": ["$items", -1]},
+                }
+            },
+            {
+                "$project": {
+                    "max_block": "$max_block",
+                    "min_block": "$min_block",
+                    "max_timestamp": "$max_timestamp",
+                    "min_timestamp": "$min_timestamp",
+                    "period_days": "$period_days",
+                    "ini_snapshot": "$ini_snapshot",
+                    "end_snapshot": "$end_snapshot",
+                    "error_ini": {"$subtract": ["$ini_snapshot.block", "$min_block"]},
+                    "error_end": {"$subtract": ["$end_snapshot.block", "$max_block"]},
+                }
+            },
+            {
+                "$project": {
+                    "period_days": "$period_days",
+                    "ini_block": "$ini_snapshot.block",
+                    "end_block": "$end_snapshot.block",
+                    "ini_timestamp": "$ini_snapshot.timestamp",
+                    "end_timestamp": "$end_snapshot.timestamp",
+                    "ini_supply": {
+                        "$divide": [
+                            {"$toDecimal": "$ini_snapshot.totalSupply"},
+                            {"$pow": [10, "$ini_snapshot.decimals"]},
+                        ]
+                    },
+                    "end_supply": {
+                        "$divide": [
+                            {"$toDecimal": "$end_snapshot.totalSupply"},
+                            {"$pow": [10, "$end_snapshot.decimals"]},
+                        ]
+                    },
+                    "ini_tvl0": {
+                        "$divide": [
+                            {"$toDecimal": "$ini_snapshot.totalAmounts.total0"},
+                            {"$pow": [10, "$ini_snapshot.pool.token0.decimals"]},
+                        ]
+                    },
+                    "ini_tvl1": {
+                        "$divide": [
+                            {"$toDecimal": "$ini_snapshot.totalAmounts.total1"},
+                            {"$pow": [10, "$ini_snapshot.pool.token1.decimals"]},
+                        ]
+                    },
+                    "ini_fees_uncollected0": {
+                        "$divide": [
+                            {
+                                "$toDecimal": "$ini_snapshot.fees_uncollected.qtty_token0"
+                            },
+                            {"$pow": [10, "$ini_snapshot.pool.token0.decimals"]},
+                        ]
+                    },
+                    "ini_fees_uncollected1": {
+                        "$divide": [
+                            {
+                                "$toDecimal": "$ini_snapshot.fees_uncollected.qtty_token1"
+                            },
+                            {"$pow": [10, "$ini_snapshot.pool.token1.decimals"]},
+                        ]
+                    },
+                    "ini_fees_owed0": {
+                        "$divide": [
+                            {"$toDecimal": "$ini_snapshot.tvl.fees_owed_token0"},
+                            {"$pow": [10, "$ini_snapshot.pool.token0.decimals"]},
+                        ]
+                    },
+                    "ini_fees_owed1": {
+                        "$divide": [
+                            {"$toDecimal": "$ini_snapshot.tvl.fees_owed_token1"},
+                            {"$pow": [10, "$ini_snapshot.pool.token1.decimals"]},
+                        ]
+                    },
+                    "end_tvl0": {
+                        "$divide": [
+                            {"$toDecimal": "$end_snapshot.totalAmounts.total0"},
+                            {"$pow": [10, "$end_snapshot.pool.token0.decimals"]},
+                        ]
+                    },
+                    "end_tvl1": {
+                        "$divide": [
+                            {"$toDecimal": "$end_snapshot.totalAmounts.total1"},
+                            {"$pow": [10, "$end_snapshot.pool.token1.decimals"]},
+                        ]
+                    },
+                    "end_fees_uncollected0": {
+                        "$divide": [
+                            {
+                                "$toDecimal": "$end_snapshot.fees_uncollected.qtty_token0"
+                            },
+                            {"$pow": [10, "$end_snapshot.pool.token0.decimals"]},
+                        ]
+                    },
+                    "end_fees_uncollected1": {
+                        "$divide": [
+                            {
+                                "$toDecimal": "$end_snapshot.fees_uncollected.qtty_token1"
+                            },
+                            {"$pow": [10, "$end_snapshot.pool.token1.decimals"]},
+                        ]
+                    },
+                    "end_fees_owed0": {
+                        "$divide": [
+                            {"$toDecimal": "$end_snapshot.tvl.fees_owed_token0"},
+                            {"$pow": [10, "$end_snapshot.pool.token0.decimals"]},
+                        ]
+                    },
+                    "end_fees_owed1": {
+                        "$divide": [
+                            {"$toDecimal": "$end_snapshot.tvl.fees_owed_token1"},
+                            {"$pow": [10, "$end_snapshot.pool.token1.decimals"]},
+                        ]
+                    },
+                    "error_ini": "$error_ini",
+                    "error_end": "$error_end",
+                }
+            },
+            {"$unset": ["_id"]},
+        ]
+
+    @staticmethod
+    def query_status_feeReturn_data_alternative(
+        hypervisor_address: str, timestamp_ini: int, timestamp_end: int
+    ) -> list[dict]:
+        """
+
+            old descript: return a list of status ordered by block matching deposit,withdraw,rebalance and zeroBurn operation blocks and those same blocks -1
+            Each status has a order field indicating if this is the initial period status with a "first" value
+            or this is the end of the perios status with the "last" value
+
+        Args:
+            hypervisor_address (str):
+            timestamp_ini (int):
+            timestamp_end (int):
+
+        Returns:
+            list[dict]:   Each status has an <order> field indicating if this is the initial period status with a "first" value
+            or this is the end of the perios status with the "last" value
+        """
+
+        # return [
+        #     {
+        #         "$match": {
+        #             "address": hypervisor_address,
+        #             "topic": {"$in": ["deposit", "withdraw", "rebalance", "zeroBurn"]},
+        #             "$and": [
+        #                 {"timestamp": {"$lte": timestamp_end}},
+        #                 {"timestamp": {"$gte": timestamp_ini}},
+        #             ],
+        #         }
+        #     },
+        #     {"$group": {"_id": "$blockNumber", "address": {"$first": "$address"}}},
+        #     {"$sort": {"_id": 1}},
+        #     {
+        #         "$lookup": {
+        #             "from": "status",
+        #             "let": {"op_block": {"$toInt": "$_id"}, "op_address": "$address"},
+        #             "pipeline": [
+        #                 {
+        #                     "$match": {
+        #                         "$expr": {
+        #                             "$and": [
+        #                                 {"$eq": ["$address", "$$op_address"]},
+        #                                 {
+        #                                     "$or": [
+        #                                         {"$eq": ["$block", "$$op_block"]},
+        #                                         {
+        #                                             "$eq": [
+        #                                                 "$block",
+        #                                                 {
+        #                                                     "$subtract": [
+        #                                                         "$$op_block",
+        #                                                         1,
+        #                                                     ]
+        #                                                 },
+        #                                             ]
+        #                                         },
+        #                                     ]
+        #                                 },
+        #                             ],
+        #                         }
+        #                     }
+        #                 },
+        #                 {
+        #                     "$addFields": {
+        #                         "order": {
+        #                             "$cond": [
+        #                                 {"$eq": ["$block", "$$op_block"]},
+        #                                 "first",
+        #                                 "last",
+        #                             ]
+        #                         },
+        #                     }
+        #                 },
+        #                 {"$sort": {"block": 1}},
+        #             ],
+        #             "as": "status",
+        #         }
+        #     },
+        #     {"$project": {"_id": "$$ROOT.status"}},
+        #     {"$unwind": "$_id"},
+        #     {"$replaceRoot": {"newRoot": "$_id"}},
+        #     {"$sort": {"block": 1}},
+        # ]
+
+        return [
+            {
+                "$match": {
+                    "address": hypervisor_address,
+                    "$and": [
+                        {"timestamp": {"$lte": timestamp_end}},
+                        {"timestamp": {"$gte": timestamp_ini}},
+                    ],
+                }
+            },
+            {"$sort": {"block": 1}},
+            {
+                "$group": {
+                    "_id": "$totalSupply",
+                    "items": {"$push": "$$ROOT"},
+                    "max_block": {"$max": "$block"},
+                    "min_block": {"$min": "$block"},
+                    "max_timestamp": {"$max": "$timestamp"},
+                    "min_timestamp": {"$min": "$timestamp"},
+                }
+            },
+            {
+                "$addFields": {
+                    "period_days": {
+                        "$divide": [
+                            {"$subtract": ["$max_timestamp", "$min_timestamp"]},
+                            60 * 60 * 24,
+                        ]
+                    }
+                }
+            },
+            {"$sort": {"min_block": 1}},
+            {"$unwind": "$items"},
+            {"$replaceRoot": {"newRoot": "$items"}},
+            {"$unset": ["_id", "id"]},
+        ]
+
+    @staticmethod
+    def query_all_users(
+        user_address: str, timestamp_ini: int = None, timestamp_end: int = None
+    ) -> list[dict]:
+
+        _match = {
+            "$or": [
+                {"src": user_address},
+                {"dst": user_address},
+                {"from": user_address},
+                {"to": user_address},
+            ]
+        }
+
+        if timestamp_ini and timestamp_end:
+            _match["$and"] = [
+                {"timestamp": {"$lte": timestamp_end}},
+                {"timestamp": {"$gte": timestamp_ini}},
+            ]
+        elif timestamp_ini:
+            _match["timestamp"] = {"$gte": timestamp_ini}
+        elif timestamp_end:
+            _match["timestamp"] = {"$lte": timestamp_end}
+
+        return [{"$match": _match}, {"$sort": {"timestamp": 1}}]

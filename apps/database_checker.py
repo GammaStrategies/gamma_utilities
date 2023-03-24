@@ -3,6 +3,7 @@ import sys
 import logging
 import tqdm
 import concurrent.futures
+import contextlib
 import re
 
 from datetime import datetime
@@ -10,7 +11,7 @@ from pathlib import Path
 from web3.exceptions import ContractLogicError
 
 
-from bins.configuration import CONFIGURATION, HYPERVISOR_REGISTRIES
+from bins.configuration import CONFIGURATION
 from bins.general.general_utilities import (
     convert_string_datetime,
     differences,
@@ -33,7 +34,7 @@ from bins.formulas.univ3_formulas import sqrtPriceX96_to_price_float
 
 
 # mod apps
-def check_prices():
+def check_prices(min_count: int = 3):
     """Check price errors from debug and price logs and try to scrape again"""
     try:
         # load log files
@@ -46,29 +47,45 @@ def check_prices():
         # read both files in seach for price err
         for log_file in [debug_log_file, price_log_file]:
             network_token_blocks = get_failed_prices_from_log(log_file=log_file)
-            for network, addresses in network_token_blocks.items():
-                for address, blocks in addresses.items():
-                    for block, counter in blocks.items():
-                        # block is string
-                        block = int(block)
-                        # counter = number of times found in logs
-                        price = get_price(
-                            network=network, token_address=address, block=block
-                        )
-                        if price != 0:
-                            logging.getLogger(__name__).debug(
-                                f" Added price for {network}'s {address} at block {block}"
+            with tqdm.tqdm(total=len(network_token_blocks)) as progress_bar:
+                for network, addresses in network_token_blocks.items():
+                    for address, blocks_data in addresses.items():
+                        for block, counter in blocks_data.items():
+                            # block is string
+                            block = int(block)
+
+                            progress_bar.set_description(
+                                f" Check & solve {network}'s price error log entries for {address[-4:]} at block {block}"
                             )
-                            add_price_to_token(
-                                network=network,
-                                token_address=address,
-                                block=block,
-                                price=price,
-                            )
-                        else:
-                            logging.getLogger(__name__).debug(
-                                f" Could not find price for {network}'s {address} at block {block}"
-                            )
+                            progress_bar.update(0)
+
+                            # counter = number of times found in logs
+                            if counter >= min_count:
+                                price = get_price(
+                                    network=network, token_address=address, block=block
+                                )
+                                if price != 0:
+                                    logging.getLogger(__name__).debug(
+                                        f" Added {price} as price for {network}'s {address} at block {block}  (found {counter} times in log)"
+                                    )
+                                    add_price_to_token(
+                                        network=network,
+                                        token_address=address,
+                                        block=block,
+                                        price=price,
+                                    )
+                                else:
+                                    logging.getLogger(__name__).debug(
+                                        f" Could not find price for {network}'s {address} at block {block}  (found {counter} times in log)"
+                                    )
+                            else:
+                                logging.getLogger(__name__).debug(
+                                    f" Not procesing price for {network}'s {address} at block {block} bc it has been found only {counter} times in log."
+                                )
+
+                    # update progress
+                    progress_bar.update(1)
+
     except Exception:
         logging.getLogger(__name__).exception(
             " unexpected error checking prices from log"
@@ -135,7 +152,7 @@ def add_timestamps_to_status(network: str, protocol: str = "gamma"):
 
             # control var
             saveit = False
-            try:
+            with contextlib.suppress(Exception):
                 # get timestamp from database
                 status["timestamp"] = all_blocks[status["block"]]
                 status["pool"]["timestamp"] = status["timestamp"]
@@ -143,10 +160,8 @@ def add_timestamps_to_status(network: str, protocol: str = "gamma"):
                 status["pool"]["token1"]["timestamp"] = status["timestamp"]
 
                 saveit = True
-            except Exception:
-                pass
             if not saveit:
-                try:
+                with contextlib.suppress(Exception):
                     # get timestamp from web3 call
                     status["timestamp"] = (
                         erc20_cached(
@@ -161,9 +176,6 @@ def add_timestamps_to_status(network: str, protocol: str = "gamma"):
                     status["pool"]["token1"]["timestamp"] = status["timestamp"]
 
                     saveit = True
-                except Exception:
-                    pass
-
             if saveit:
                 # save modified status to database
                 local_db_manager.set_status(data=status)
@@ -279,27 +291,50 @@ def auto_get_prices():
 
 
 # checks
-# TODO: implement tqdm
 def check_database():
 
     # setup global database manager
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     global_db_manager = database_global(mongo_url=mongo_url)
 
-    # check LOCAL
-    for protocol, networks in CONFIGURATION["script"]["protocols"].items():
-        for network, dexes in networks.items():
+    with tqdm.tqdm(total=len(CONFIGURATION["script"]["protocols"])) as progress_bar:
+        # checks
+        for protocol, networks in CONFIGURATION["script"]["protocols"].items():
+            for network, dexes in networks.items():
 
-            # setup local database manager
-            db_name = f"{network}_{protocol}"
-            local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
+                # setup local database manager
+                db_name = f"{network}_{protocol}"
+                local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
 
-            # check blocks
-            chek_localdb_blocks(local_db_manager=local_db_manager)
+                # progress
+                progress_bar.set_description(
+                    f" Checking {network}'s blocks from operations and status"
+                )
+                progress_bar.update(0)
+                # check blocks
+                chek_localdb_blocks(local_db_manager=local_db_manager)
 
-    # check GLOBAL
-    # check blocks
-    chek_globaldb_blocks(global_db_manager=global_db_manager)
+                # progress
+                progress_bar.set_description(
+                    f" Checking {network}'s token stables usd prices"
+                )
+                progress_bar.update(0)
+                # check stable prices
+                check_stable_prices(
+                    network=network,
+                    local_db_manager=local_db_manager,
+                    global_db_manager=global_db_manager,
+                )
+
+                # update progress
+                progress_bar.update(1)
+
+        # check GLOBAL
+        # progress
+        progress_bar.set_description(" Checking global blocks collection")
+        progress_bar.update(0)
+        # check blocks
+        chek_globaldb_blocks(global_db_manager=global_db_manager)
 
 
 def chek_localdb_blocks(local_db_manager: database_local):
@@ -309,23 +344,17 @@ def chek_localdb_blocks(local_db_manager: database_local):
         local_db_manager (database_local):
     """
 
-    # check operation blocks are int
-    blocks_operatons = local_db_manager.get_items_from_database(
+    if blocks_operatons := local_db_manager.get_items_from_database(
         collection_name="operations",
         find={"blockNumber": {"$not": {"$type": "int"}}},
-    )
-    # warn
-    if blocks_operatons:
+    ):
         logging.getLogger(__name__).warning(
             f" Found {len(blocks_operatons)} operations with the block field not being int"
         )
 
-    # check status blocks are int
-    blocks_status = local_db_manager.get_items_from_database(
+    if blocks_status := local_db_manager.get_items_from_database(
         collection_name="status", find={"block": {"$not": {"$type": "int"}}}
-    )
-    # warn
-    if blocks_status:
+    ):
         logging.getLogger(__name__).warning(
             f" Found {len(blocks_status)} hypervisor status with the block field not being int"
         )
@@ -338,11 +367,9 @@ def chek_globaldb_blocks(global_db_manager: database_global):
         global_db_manager (database_global):
     """
 
-    blocks_usd_prices = global_db_manager.get_items_from_database(
+    if blocks_usd_prices := global_db_manager.get_items_from_database(
         collection_name="usd_prices", find={"block": {"$not": {"$type": "int"}}}
-    )
-    # warn
-    if blocks_usd_prices:
+    ):
         logging.getLogger(__name__).warning(
             f" Found {len(blocks_usd_prices)} usd prices with the block field not being int"
         )
@@ -358,23 +385,18 @@ def check_status_prices(
         global_db_manager (database_global):
     """
     # get all prices + address + block
-    prices = set(
-        [
-            x["id"]
-            for x in global_db_manager.get_unique_prices_addressBlock(network=network)
-        ]
-    )
+    prices = {
+        x["id"]
+        for x in global_db_manager.get_unique_prices_addressBlock(network=network)
+    }
 
     # get tokens and blocks present in database
     prices_todo = set()
     for x in local_db_manager.get_items_from_database(collection_name=status):
         for i in [0, 1]:
-            db_id = "{}_{}_{}".format(
-                network,
-                x["pool"][f"token{i}"]["block"],
-                x["pool"][f"token{i}"]["address"],
-            )
-            if not db_id in prices:
+            db_id = f'{network}_{x["pool"][f"token{i}"]["block"]}_{x["pool"][f"token{i}"]["address"]}'
+
+            if db_id not in prices:
                 prices_todo.add(db_id)
 
     if prices_todo:
@@ -383,6 +405,46 @@ def check_status_prices(
                 len(prices_todo), len(prices), len(prices_todo) / len(prices)
             )
         )
+
+
+def check_stable_prices(
+    network: str, local_db_manager: database_local, global_db_manager: database_global
+):
+    """Search database for predefined stable tokens usd price devisations from 1
+        and log it
+
+    Args:
+        network (str): _description_
+        local_db_manager (database_local):
+        global_db_manager (database_global):
+    """
+    logging.getLogger(__name__).debug(
+        f" Seek deviations of {x['network']}'s stable token usd prices from 1 usd"
+    )
+
+    stables_symbol_list = ["USDC", "USDT", "LUSD", "DAI"]
+    stables = {
+        x["pool"]["token0"]["symbol"]: x["pool"]["token0"]["address"]
+        for x in local_db_manager.get_items_from_database(
+            collection_name="static",
+            find={"pool.token0.symbol": {"$in": stables_symbol_list}},
+        )
+    } | {
+        x["pool"]["token1"]["symbol"]: x["pool"]["token1"]["address"]
+        for x in local_db_manager.get_items_from_database(
+            collection_name="static",
+            find={"pool.token1.symbol": {"$in": stables_symbol_list}},
+        )
+    }
+
+    for x in global_db_manager.get_items_from_database(
+        collection_name="usd_prices", find={"address": {"$in": list(stables.values())}}
+    ):
+        # check if deviation from 1 is significative ( 10% )
+        if abs(x["price"] - 1) > 0.1:
+            logging.getLogger(__name__).warning(
+                f" Stable {x['network']}'s {x['address']} usd price is {x['price']} at block {x['block']}"
+            )
 
 
 def get_failed_prices_from_log(log_file: str) -> dict:
@@ -402,27 +464,24 @@ def get_failed_prices_from_log(log_file: str) -> dict:
         log_file_content = f.read()
 
     # set a var
-    network_token_blocks = dict()
+    network_token_blocks = {}
 
     for regx_txt in [debug_regx, pricelog_regx, debug_regx2]:
 
-        # search pattern
-        matches = re.finditer(regx_txt, log_file_content)
-
-        if matches:
+        if matches := re.finditer(regx_txt, log_file_content):
             for match in matches:
                 network = match.group("network")
                 address = match.group("address")
                 block = match.group("block")
 
                 # network
-                if not network in network_token_blocks:
-                    network_token_blocks[network] = dict()
+                if network not in network_token_blocks:
+                    network_token_blocks[network] = {}
                 # address
-                if not address in network_token_blocks[network]:
-                    network_token_blocks[network][address] = dict()
+                if address not in network_token_blocks[network]:
+                    network_token_blocks[network][address] = {}
                 # block
-                if not block in network_token_blocks[network][address]:
+                if block not in network_token_blocks[network][address]:
                     network_token_blocks[network][address][block] = 0
 
                 # counter ( times encountered)
@@ -435,6 +494,8 @@ def main(option: str, **kwargs):
 
     if option == "prices":
         check_prices()
+    if option == "database":
+        check_database()
     else:
         raise NotImplementedError(
             f" Can't find any action to be taken from {option} checks option"

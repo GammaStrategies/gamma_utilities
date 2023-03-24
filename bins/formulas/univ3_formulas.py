@@ -125,6 +125,18 @@ def sqrtPriceX96_to_price_float(
     )
 
 
+def sqrtPriceX96_to_price_float_v2(
+    sqrtPriceX96: int, token0_decimals: int, token1_decimals: int
+) -> float:
+    # token1 / token0
+    price0 = ((sqrtPriceX96 / (2**96)) ** 2) / 10 ** (
+        token1_decimals - token0_decimals
+    )
+    price1 = 1 / price0
+
+    return price0, price1
+
+
 class LiquidityAmounts:
     @staticmethod
     def getLiquidityForAmount0(sqrtRatioAX96, sqrtRatioBX96, amount0) -> int:

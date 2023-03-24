@@ -9,7 +9,7 @@ from bins.general.general_utilities import (
 from bins.general.command_line import parse_commandLine_args
 from bins.log import log_helper
 
-CONFIGURATION = dict()
+CONFIGURATION = {}
 
 # convert command line arguments to dict variables
 cml_parameters = parse_commandLine_args()
@@ -26,8 +26,8 @@ CONFIGURATION = (
 check_configuration_file(CONFIGURATION)
 
 # add cml_parameters into loaded config ( this is used later on to load again the config file to be able to update on-the-fly vars)
-if not "_custom_" in CONFIGURATION.keys():
-    CONFIGURATION["_custom_"] = dict()
+if "_custom_" not in CONFIGURATION.keys():
+    CONFIGURATION["_custom_"] = {}
 CONFIGURATION["_custom_"]["cml_parameters"] = cml_parameters
 
 # add log subfolder if set
@@ -48,22 +48,23 @@ WEB3_CHAIN_IDS = {
     "polygon": 137,
     "optimism": 10,
     "arbitrum": 42161,
-    # "celo": 0,
+    "celo": 42220,
+    "binance": 56,
 }
 
 
-HYPERVISOR_REGISTRIES = {
-    "uniswapv3": {
-        "ethereum": "0x31ccdb5bd6322483bebd0787e1dabd1bf1f14946",
-        "polygon": "0x0Ac4C7b794f3D7e7bF1093A4f179bA792CF15055",
-        "optimism": "0xF5BFA20F4A77933fEE0C7bB7F39E7642A070d599",
-        "arbitrum": "0x66CD859053c458688044d816117D5Bdf42A56813",
-        "celo": "0x0F548d7AD1A0CB30D1872b8C18894484d76e1569",
-    },
-    "quickswap": {
-        "polygon": "0xAeC731F69Fa39aD84c7749E913e3bC227427Adfd",
-    },
-}
+# HYPERVISOR_REGISTRIES = {
+#     "uniswapv3": {
+#         "ethereum": "0x31ccdb5bd6322483bebd0787e1dabd1bf1f14946",
+#         "polygon": "0x0Ac4C7b794f3D7e7bF1093A4f179bA792CF15055",
+#         "optimism": "0xF5BFA20F4A77933fEE0C7bB7F39E7642A070d599",
+#         "arbitrum": "0x66CD859053c458688044d816117D5Bdf42A56813",
+#         "celo": "0x0F548d7AD1A0CB30D1872b8C18894484d76e1569",
+#     },
+#     "quickswap": {
+#         "polygon": "0xAeC731F69Fa39aD84c7749E913e3bC227427Adfd",
+#     },
+# }
 
 
 STATIC_REGISTRY_ADDRESSES = {
@@ -71,31 +72,45 @@ STATIC_REGISTRY_ADDRESSES = {
         "hypervisors": {
             "uniswapv3": "0x31ccdb5bd6322483bebd0787e1dabd1bf1f14946",
         },
-        "rewards": {},
+        "MasterChefV2Registry": {},
+        "feeDistributors": [
+            "0x07432C021f0A65857a3Ab608600B9FEABF568EA0",
+            "0x8451122f06616baff7feb10afc2c4f4132fc4709",
+        ],
     },
     "polygon": {
         "hypervisors": {
             "uniswapv3": "0x0Ac4C7b794f3D7e7bF1093A4f179bA792CF15055",
             "quickswap": "0xAeC731F69Fa39aD84c7749E913e3bC227427Adfd",
         },
-        "rewards": {},
+        "MasterChefRegistry": "0x135B02F8b110Fe2Dd8B6a5e2892Ee781264c2fbe",
+        "MasterChefV2Registry": "0x02C8D3FCE5f072688e156F503Bd5C7396328613A",
     },
     "optimism": {
         "hypervisors": {
             "uniswapv3": "0xF5BFA20F4A77933fEE0C7bB7F39E7642A070d599",
         },
-        "rewards": {},
+        "MasterChefV2Registry": {
+            "uniswapv3": "0x81d9bF667205662bfa729C790F67D97D54EA391C",
+        },
     },
     "arbitrum": {
         "hypervisors": {
             "uniswapv3": "0x66CD859053c458688044d816117D5Bdf42A56813",
+            "zyberswap": "0x37595FCaF29E4fBAc0f7C1863E3dF2Fe6e2247e9",
         },
-        "rewards": {},
+        "MasterChefV2Registry": {},
     },
     "celo": {
         "hypervisors": {
             "uniswapv3": "0x0F548d7AD1A0CB30D1872b8C18894484d76e1569",
         },
-        "rewards": {},
+        "MasterChefV2Registry": {},
+    },
+    "binance": {
+        "hypervisors": {
+            "thena": "0xd4bcFC023736Db5617E5638748E127581d5929bd",
+        },
+        "MasterChefV2Registry": {},
     },
 }

@@ -26,6 +26,7 @@ from bins.w3.onchain_utilities.protocols import (
     gamma_hypervisor_quickswap,
     gamma_hypervisor_cached,
     gamma_hypervisor_quickswap_cached,
+    gamma_hypervisor_zyberswap_cached,
 )
 
 from bins.log import log_helper
@@ -1514,7 +1515,10 @@ def test_uncollected_fees_onchain(
             gamma_web3Helper = gamma_hypervisor_quickswap(
                 address=hyp_id, network=network, block=block
             )
-
+        elif dex == "zyberswap":
+            gamma_web3Helper = gamma_hypervisor_zyberswap(
+                address=hyp_id, network=network, block=block
+            )
         # get name
         hypervisor_name = gamma_web3Helper.symbol
 

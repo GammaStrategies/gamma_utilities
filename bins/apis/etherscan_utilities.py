@@ -25,7 +25,7 @@ class etherscan_helper:
 
         # api network keys must be present in any case
         for k in self._urls.keys():
-            if not k in self._api_keys.keys():
+            if k not in self._api_keys.keys():
                 self._api_keys[k] = ""
 
     # SETUP
@@ -34,9 +34,9 @@ class etherscan_helper:
         Args:
            tokens (_type_): as stated in config.yaml file
         """
-        if "etherscan" in apiKeys.keys():
+        if "etherscan" in apiKeys:
             # needs to be processed
-            result = dict()
+            result = {}
             for k, v in apiKeys.items():
                 if k.lower() == "etherscan":
                     result["ethereum"] = v
@@ -62,26 +62,10 @@ class etherscan_helper:
             self._api_keys[network.lower()],
         )
 
-        # rate control
-        self.__RATE_LIMIT.continue_when_safe()
-
-        _data = net_utilities.get_request(
-            url
-        )  #  {"status":"1","message":"OK-Missing/Invalid API Key, rate limit of 1/5sec applied","result":"21265524714464"}
-
-        if _data["status"] == "1":
-            return int(_data["result"])
-        else:
-            # todo: log message
-            logging.getLogger(__name__).error(
-                " Unexpected error while querying url {}    . error message: {}".format(
-                    url, _data["message"]
-                )
-            )
-            return 0
+        return self._request_data(url)
 
     def get_contract_transactions(self, network: str, contract_address: str) -> list:
-        result = list()
+        result = []
         page = 1  # define pagination var
         offset = 10000  # items to be presented with on each query
 
@@ -138,10 +122,9 @@ class etherscan_helper:
             except Exception:
                 # do not continue
                 logging.getLogger(__name__).error(
-                    " Unexpected error while querying url {}    . error message: {}".format(
-                        url, _data["message"]
-                    )
+                    f' Unexpected error while querying url {url}    . error message: {_data["message"]}'
                 )
+
                 break
 
         # return result
@@ -159,28 +142,23 @@ class etherscan_helper:
             self._api_keys[network.lower()],
         )
 
-        # rate control
+        return self._request_data(url)
+
+    def _request_data(self, url):
         self.__RATE_LIMIT.continue_when_safe()
-
-        _data = net_utilities.get_request(
-            url
-        )  #  {"status":"1","message":"OK-Missing/Invalid API Key, rate limit of 1/5sec applied","result":"21265524714464"}
-
+        _data = net_utilities.get_request(url)
         if _data["status"] == "1":
             return int(_data["result"])
-        else:
-            # todo: log message
-            logging.getLogger(__name__).error(
-                " Unexpected error while querying url {}    . error message: {}".format(
-                    url, _data["message"]
-                )
-            )
-            return 0
+        logging.getLogger(__name__).error(
+            f' Unexpected error while querying url {url}    . error message: {_data["message"]}'
+        )
+
+        return 0
 
     # HELPERs
     def build_url_arguments(self, **kargs) -> str:
         result = ""
         for k, v in kargs.items():
             separator = "&" if result != "" else ""
-            result += "{}{}={}".format(separator, k, v)
+            result += f"{separator}{k}={v}"
         return result

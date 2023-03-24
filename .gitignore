@@ -139,6 +139,7 @@ dmypy.json
 cython_debug/
 
 .vscode/
+.sourcery.yaml
 
 # custom
 local_data/
@@ -150,6 +151,7 @@ logs/
 *.ods
 *.ods#
 tests/*.json
+tests/results
 
 TODO
 apps/fastAPI

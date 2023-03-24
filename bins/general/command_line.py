@@ -41,7 +41,7 @@ def parse_commandLine_args():
     )
     par_network_service = exGroup.add_argument(
         "--service_network",
-        choices=["ethereum", "polygon", "optimism", "arbitrum", "celo"],
+        choices=["ethereum", "polygon", "optimism", "arbitrum", "binance"],
         help=" infinite loop service for the specified network using the Gamma protocol",
     )
 
@@ -55,7 +55,7 @@ def parse_commandLine_args():
     # analysis
     par_analysis = exGroup.add_argument(
         "--analysis",
-        choices=["ethereum", "optimism", "polygon", "arbitrum"],
+        choices=["ethereum", "optimism", "polygon", "arbitrum", "binance"],
         help=" execute analysis ",
     )
 

@@ -1,3 +1,4 @@
+import contextlib
 import getopt
 import os
 import sys
@@ -5,6 +6,7 @@ import yaml
 import datetime as dt
 from pathlib import Path
 from logging import Logger, getLogger
+from typing import Iterable, Any, Tuple
 
 log = getLogger(__name__)
 
@@ -15,46 +17,46 @@ def check_configuration_file(config_file):
        Exception: [description]
     """
 
-    if not "logs" in config_file:
-        raise Exception(
+    if "logs" not in config_file:
+        raise ValueError(
             "Configuration file is not configured correctly. 'logs' field is missing"
         )
-    elif not "path" in config_file["logs"]:
-        raise Exception(
+    elif "path" not in config_file["logs"]:
+        raise ValueError(
             "Configuration file is not configured correctly. 'path' field is missing in logs"
         )
-    elif not "save_path" in config_file["logs"]:
-        raise Exception(
+    elif "save_path" not in config_file["logs"]:
+        raise ValueError(
             "Configuration file is not configured correctly. 'save_path' field is missing in logs"
         )
 
-    if not "cache" in config_file:
-        raise Exception(
+    if "cache" not in config_file:
+        raise ValueError(
             "Configuration file is not configured correctly. 'sources' field is missing"
         )
-    elif not "enabled" in config_file["cache"]:
-        raise Exception(
+    elif "enabled" not in config_file["cache"]:
+        raise ValueError(
             "Configuration file is not configured correctly. 'enabled' field is missing in cache"
         )
-    elif not "save_path" in config_file["cache"]:
-        raise Exception(
+    elif "save_path" not in config_file["cache"]:
+        raise ValueError(
             "Configuration file is not configured correctly. 'save_path' field is missing in cache"
         )
 
-    if not "sources" in config_file:
-        raise Exception(
+    if "sources" not in config_file:
+        raise ValueError(
             "Configuration file is not configured correctly. 'sources' field is missing"
         )
-    elif not "api_keys" in config_file["sources"]:
-        raise Exception(
+    elif "api_keys" not in config_file["sources"]:
+        raise ValueError(
             "Configuration file is not configured correctly. 'api_keys' field is missing in sources"
         )
-    elif not "etherscan" in config_file["sources"]["api_keys"]:
-        raise Exception(
+    elif "etherscan" not in config_file["sources"]["api_keys"]:
+        raise ValueError(
             "Configuration file is not configured correctly. 'etherscan' field is missing in sources.api_keys"
         )
-    elif not "polygonscan" in config_file["sources"]["api_keys"]:
-        raise Exception(
+    elif "polygonscan" not in config_file["sources"]["api_keys"]:
+        raise ValueError(
             "Configuration file is not configured correctly. 'polygonscan' field is missing in sources.api_keys"
         )
 
@@ -71,9 +73,9 @@ def load_configuration(cfg_name="config.yaml"):
             try:
                 return yaml.safe_load(f.read())
             except Exception as e:
-                print("Error in Logging Configuration: {}".format(e))
+                print(f"Error in Logging Configuration: {e}")
     else:
-        print(" {} configuration file not found".format(cfg_name))
+        print(f" {cfg_name} configuration file not found")
 
 
 def convert_commandline_arguments(argv) -> dict:
@@ -89,7 +91,7 @@ def convert_commandline_arguments(argv) -> dict:
     # TODO: implement argparse
 
     # GET COMMAND LINE ARGUMENTS
-    prmtrs = dict()  # the parameters we will pass
+    prmtrs = {}
 
     try:
         opts, args = getopt.getopt(
@@ -97,30 +99,7 @@ def convert_commandline_arguments(argv) -> dict:
         )
 
     except getopt.GetoptError as err:
-        print("             <filename>.py <options>")
-        print("Options:")
-        # config file
-        print("Load custom config file:")
-        print("    --config=<filename>")
-        # database feeder:  -db_feed operations
-        print("Feed database:")
-        print("    --db_feed=<option>")
-        print("    <option>: operations, status, static, prices ")
-        # service
-        print("Run in loop:")
-        print(" --service=<option>")
-        print("    <option>: global, local and network ")
-        print("    <network> option needs: network= and protocol= ")
-        print(" ")
-        print(" ")
-        print(" ")
-        # examples
-        print("to execute feed db with custom configuration file:")
-        print("             <filename>.py --config <filename.yaml> --db_feed <option>")
-        print("error message: {}".format(err.msg))
-        print("opt message: {}".format(err.opt))
-        sys.exit(2)
-
+        _print_command_line_help(err)
     # loop and retrieve each command
     for opt, arg in opts:
         if opt in ("--config"):
@@ -147,6 +126,32 @@ def convert_commandline_arguments(argv) -> dict:
     return prmtrs
 
 
+def _print_command_line_help(err):
+    print("             <filename>.py <options>")
+    print("Options:")
+    # config file
+    print("Load custom config file:")
+    print("    --config=<filename>")
+    # database feeder:  -db_feed operations
+    print("Feed database:")
+    print("    --db_feed=<option>")
+    print("    <option>: operations, status, static, prices ")
+    # service
+    print("Run in loop:")
+    print(" --service=<option>")
+    print("    <option>: global, local and network ")
+    print("    <network> option needs: network= and protocol= ")
+    print(" ")
+    print(" ")
+    print(" ")
+    # examples
+    print("to execute feed db with custom configuration file:")
+    print("             <filename>.py --config <filename.yaml> --db_feed <option>")
+    print(f"error message: {err.msg}")
+    print(f"opt message: {err.opt}")
+    sys.exit(2)
+
+
 ## LIST STUFF
 def differences(list1: list, list2: list) -> list:
     """Return differences between lists
@@ -171,36 +176,66 @@ def equalities(list1: list, list2: list) -> list:
     Returns:
        list -- the difereences
     """
-    result = list()
+    return [itm for itm in list1 if itm in list2]
 
-    for itm in list1:
-        if itm in list2:
-            result.append(itm)
 
-    return result
+def signal_last(it: Iterable[Any]) -> Iterable[Tuple[bool, Any]]:
+    """Iterate thru elements returning a bool indicating if this is the last item of the iterable and the iterated item
+
+        credit: https://betterprogramming.pub/is-this-the-last-element-of-my-python-for-loop-784f5ff90bb5
+
+    Args:
+        it (Iterable[Any]):
+
+    Returns:
+        Iterable[Tuple[bool, Any]]:
+
+    Yields:
+        Iterator[Iterable[Tuple[bool, Any]]]:
+    """
+
+    iterable = iter(it)
+    ret_var = next(iterable)
+    for val in iterable:
+        yield False, ret_var
+        ret_var = val
+    yield True, ret_var
+
+
+def signal_first(it: Iterable[Any]) -> Iterable[Tuple[bool, Any]]:
+    """Iterate thru elements returning a bool indicating if this is the first item of the iterable and the iterated item
+
+        credit: https://betterprogramming.pub/is-this-the-last-element-of-my-python-for-loop-784f5ff90bb5
+    Args:
+        it (Iterable[Any]):
+
+    Returns:
+        Iterable[Tuple[bool, Any]]:
+
+    Yields:
+        Iterator[Iterable[Tuple[bool, Any]]]:
+    """
+
+    iterable = iter(it)
+    yield True, next(iterable)
+    for val in iterable:
+        yield False, val
 
 
 # DATETIME
 def convert_string_datetime(string: str) -> dt.datetime:
 
     if string.lower().strip() == "now":
-        return dt.datetime.utcnow()
-    else:
+        return dt.datetime.now(dt.timezone.utc)
         # POSIBILITY 01
-        try:
-            return dt.datetime.strptime(string, "%Y-%m-%dT%H:%M:%S")
-        except Exception:
-            pass
+    with contextlib.suppress(Exception):
+        return dt.datetime.strptime(string, "%Y-%m-%dT%H:%M:%S")
         # POSIBILITY 02
-        try:
-            return dt.datetime.strptime(string, "%Y-%m-%dT%H:%M:%S.%fZ")
-        except Exception:
-            pass
+    with contextlib.suppress(Exception):
+        return dt.datetime.strptime(string, "%Y-%m-%dT%H:%M:%S.%fZ")
         # POSIBILITY 03
-        try:
-            return dt.datetime.strptime(string, "%Y-%m-%d")
-        except Exception:
-            pass
+    with contextlib.suppress(Exception):
+        return dt.datetime.strptime(string, "%Y-%m-%d")
 
 
 class time_controller:
@@ -211,7 +246,7 @@ class time_controller:
            seconds_frame (int, optional):   . Defaults to 60.
         """
         # define time control var
-        self.lastupdate = dt.datetime.utcnow() - dt.timedelta(hours=8)
+        self.lastupdate = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=8)
         # set timespan to be controlling
         self.timespan_secs = seconds_frame
 
@@ -221,7 +256,7 @@ class time_controller:
         Returns:
            [int] -- total seconds passed since last hit ( or since creation if no last hit)
         """
-        now = dt.datetime.utcnow()
+        now = dt.datetime.now(dt.timezone.utc)
         result = now - self.lastupdate
         # update last time
         self.lastupdate = now
@@ -236,13 +271,13 @@ class time_controller:
            bool --
         """
         return (
-            dt.datetime.utcnow() - self.lastupdate
+            dt.datetime.now(dt.timezone.utc) - self.lastupdate
         ).total_seconds() > self.timespan_secs
 
 
 class log_time_passed:
     def __init__(self, fName="", callback: Logger = None):
-        self.start = dt.datetime.utcnow()
+        self.start = dt.datetime.now(dt.timezone.utc)
         self.end = None
         self.fName = fName
         self._callback: Logger = callback
@@ -252,7 +287,7 @@ class log_time_passed:
 
     def __exit__(self, type, value, traceback):
         # xception handling here
-        if not self._callback is None:
+        if self._callback is not None:
             self._callback.debug(
                 f" took {self.get_timepassed_string(self.start,self.end)} to complete {self.fName}"
             )
@@ -262,7 +297,7 @@ class log_time_passed:
         start_time: dt.datetime, end_time: dt.datetime = None
     ) -> str:
         if not end_time:
-            end_time = dt.datetime.utcnow()
+            end_time = dt.datetime.now(dt.timezone.utc)
         _timelapse = end_time - start_time
         _passed = _timelapse.total_seconds()
         if _passed < 60:
@@ -276,4 +311,4 @@ class log_time_passed:
         return "{:,.2f} {}".format(_passed, _timelapse_unit)
 
     def stop(self):
-        self.end = dt.datetime.utcnow()
+        self.end = dt.datetime.now(dt.timezone.utc)

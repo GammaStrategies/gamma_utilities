@@ -23,6 +23,7 @@ from bins.general import net_utilities, file_utilities, general_utilities
 from bins.w3.onchain_utilities.protocols import (
     gamma_hypervisor,
     gamma_hypervisor_quickswap,
+    gamma_hypervisor_zyberswap_cached,
 )
 
 from bins.log import log_helper
@@ -358,7 +359,10 @@ def do_loop_work(
         gamma_web3Helper = gamma_hypervisor_quickswap(
             address=hypervisor["id"], network=network, block=block
         )
-
+    elif dex == "zyberswap":
+        hypervisor = gamma_hypervisor_zyberswap_cached(
+            address=hypervisor_address, network=network, block=block
+        )
     ## THEGRAPH INFO ###
     # general vars
     decimals_token0 = int(hypervisor["pool"]["token0"]["decimals"])

@@ -3,6 +3,7 @@
 logs:
   path: bins/log/logging.yaml #  full path to log yaml configuration file <relative to app>
   save_path: logs/ # log folder <relative to app> where to save log files
+  level: debug # choose btween INFO and DEBUG
   telegram:
     enabled: false # enable or disable telegram
     token: 
@@ -23,7 +24,10 @@ sources:
     optimism: ""
     arbitrum: ""
     celo: ""
+    binance: ""
 
+  database:
+    mongo_server_url:  "mongodb://localhost:27072"
 
 script:
   protocols:
@@ -38,9 +42,12 @@ script:
           quickswap:
         arbitrum:
           uniswapv3:
+          zyberswap:
         celo:
           uniswapv3:
-
+        binance:
+          uniswapv3:
+          thena:
       filters:
         hypervisors_included:
         force_timeframe:  
