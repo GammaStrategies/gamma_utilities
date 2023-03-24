@@ -48,7 +48,7 @@ class price_scraper:
     #         cache=cache, cache_savePath=cache_savePath
     #     )
     #     # price coingecko
-    #     self.coingecko_price_connector = coingecko_utilities.coingecko_price_helper()
+    #     self.coingecko_price_connector = coingecko_utilities.coingecko_price_helper(retries=1, request_timeout=5)
 
     def init_apis(self, cache: bool, cache_savePath: str):
 
@@ -72,7 +72,9 @@ class price_scraper:
             cache=cache, cache_savePath=cache_savePath
         )
         # price coingecko
-        self.coingecko_price_connector = coingecko_utilities.coingecko_price_helper()
+        self.coingecko_price_connector = coingecko_utilities.coingecko_price_helper(
+            retries=1, request_timeout=5
+        )
 
     ## PUBLIC ##
     def get_price(

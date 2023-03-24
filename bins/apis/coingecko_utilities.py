@@ -6,7 +6,7 @@ import logging
 class coingecko_price_helper:
     """Coingecko price cache"""
 
-    def __init__(self, retries: int = 1):
+    def __init__(self, retries: int = 1, request_timeout=10):
         # todo: coded coingecko's network id conversion
         self.COINGECKO_netids = {
             "polygon": "polygon-pos",
@@ -17,6 +17,7 @@ class coingecko_price_helper:
         }
 
         self.retries = retries
+        self.request_timeout = request_timeout
 
     @property
     def networks(self) -> list[str]:
@@ -35,6 +36,8 @@ class coingecko_price_helper:
 
         # get price from coingecko
         cg = CoinGeckoAPI(retries=self.retries)
+        # modify cgecko's default timeout
+        cg.request_timeout = self.request_timeout
 
         try:
             # { "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599": {
@@ -82,7 +85,7 @@ class coingecko_price_helper:
         # get price from coingecko
         cg = CoinGeckoAPI(retries=self.retries)
         # modify cgecko's default timeout
-        cg.request_timeout = 10
+        cg.request_timeout = self.request_timeout
         # define a timeframe to query
         to_timestamp = int(
             dt.datetime.timestamp(
@@ -160,6 +163,8 @@ class coingecko_price_helper:
         result = {}
         # get price from coingecko
         cg = CoinGeckoAPI(retries=self.retries)
+        # modify cgecko's default timeout
+        cg.request_timeout = self.request_timeout
 
         # split contract_addresses in batches so URI too long errors do not popup
         n = 50
