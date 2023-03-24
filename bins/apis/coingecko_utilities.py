@@ -1,3 +1,4 @@
+import sys
 from pycoingecko import CoinGeckoAPI
 import datetime as dt
 import logging
@@ -102,14 +103,14 @@ class coingecko_price_helper:
                 to_timestamp=to_timestamp,
             )
         except ValueError as err:
-            if err.args[0] == {"error": "Could not find coin with the given id"}:
-                _data = {"prices": [[]], "error": "not found"}
+            if "error" in err.args[0]:
+                _data = {"prices": [[]], "error": err.args[0]["error"]}
             else:
                 logging.getLogger(__name__).exception(
                     f"Unexpected error while getting price  of {contract_address} at {network} from coinGecko       .error: {sys.exc_info()[0]}"
                 )
 
-                _data = {"prices": [[]], "error": "dontknow"}
+                _data = {"prices": [[]], "error": err.args[0]}
         except Exception:
             logging.getLogger(__name__).exception(
                 f"Unexpected error while getting price  of {contract_address} at {network} from coinGecko       .error: {sys.exc_info()[0]}"

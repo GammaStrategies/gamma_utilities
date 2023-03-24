@@ -15,9 +15,6 @@ RATE_LIMIT_THEGRAPH = net_utilities.rate_limit(
 
 ## GLOBAL ##
 class thegraph_scraper_helper:
-
-    __URLS = {}  # of <network name>:<url>
-
     def __init__(
         self,
         cache: bool = True,
@@ -33,6 +30,8 @@ class thegraph_scraper_helper:
             convert (bool, optional): should data be converted after queried ? . Defaults to True.
         """
 
+        self.init_URLS()
+
         self._CONVERT = convert
 
         self._CACHE = None
@@ -43,6 +42,9 @@ class thegraph_scraper_helper:
             )
 
         self.timeout_secs = timeout_secs
+
+    def init_URLS(self):
+        self._URLS = {}
 
     def get_all_results(self, network: str, query_name: str, **kwargs) -> list:
         """
@@ -178,7 +180,7 @@ class thegraph_scraper_helper:
         Returns:
             list: of networks
         """
-        return list(self.__URLS.keys())
+        return list(self._URLS.keys())
 
     # HELPERS
     def _query_constructor(self, skip: int, name: str, filter: str) -> tuple:
@@ -219,35 +221,35 @@ class thegraph_scraper_helper:
         return _filter
 
     def _url_constructor(self, network, query_name: str = ""):
-        return self.__URLS[network]
+        return self._URLS[network]
 
 
 ## SPECIFIC ##
 class gamma_scraper(thegraph_scraper_helper):
-
-    __URLS = {
-        "ethereum": "https://api.thegraph.com/subgraphs/name/gammastrategies/gamma",
-        "polygon": "https://api.thegraph.com/subgraphs/name/gammastrategies/polygon",
-        "optimism": "https://api.thegraph.com/subgraphs/name/gammastrategies/optimism",
-        "arbitrum": "https://api.thegraph.com/subgraphs/name/gammastrategies/arbitrum",
-        "celo": "https://api.thegraph.com/subgraphs/name/gammastrategies/celo",
-        "binance": "https://api.thegraph.com/subgraphs/name/gammastrategies/uniswap-bsc",
-    }
-    __URLS_messari = {
-        "ethereum": "https://api.thegraph.com/subgraphs/name/messari/gamma-ethereum",
-        "polygon": "https://api.thegraph.com/subgraphs/name/messari/gamma-polygon",
-        "optimism": "",
-    }
-    __URLS_quickswap = {
-        "polygon": "https://api.thegraph.com/subgraphs/name/gammastrategies/algebra-polygon",
-    }
-    # TODO: implement zyberswap and Thena
-    __URLS_zyberswap = {
-        "arbitrum": "https://api.thegraph.com/subgraphs/name/gammastrategies/zyberswap-arbitrum",
-    }
-    __URLS_thena = {
-        "binance": "https://api.thegraph.com/subgraphs/name/gammastrategies/thena",
-    }
+    def init_URLS(self):
+        self._URLS = {
+            "ethereum": "https://api.thegraph.com/subgraphs/name/gammastrategies/gamma",
+            "polygon": "https://api.thegraph.com/subgraphs/name/gammastrategies/polygon",
+            "optimism": "https://api.thegraph.com/subgraphs/name/gammastrategies/optimism",
+            "arbitrum": "https://api.thegraph.com/subgraphs/name/gammastrategies/arbitrum",
+            "celo": "https://api.thegraph.com/subgraphs/name/gammastrategies/celo",
+            "binance": "https://api.thegraph.com/subgraphs/name/gammastrategies/uniswap-bsc",
+        }
+        self._URLS_messari = {
+            "ethereum": "https://api.thegraph.com/subgraphs/name/messari/gamma-ethereum",
+            "polygon": "https://api.thegraph.com/subgraphs/name/messari/gamma-polygon",
+            "optimism": "",
+        }
+        self._URLS_quickswap = {
+            "polygon": "https://api.thegraph.com/subgraphs/name/gammastrategies/algebra-polygon",
+        }
+        # TODO: implement zyberswap and Thena
+        self._URLS_zyberswap = {
+            "arbitrum": "https://api.thegraph.com/subgraphs/name/gammastrategies/zyberswap-arbitrum",
+        }
+        self._URLS_thena = {
+            "binance": "https://api.thegraph.com/subgraphs/name/gammastrategies/thena",
+        }
 
     def _query_constructor(self, skip: int, name: str, filter: str) -> tuple:
         """Create query
@@ -1073,30 +1075,30 @@ class gamma_scraper(thegraph_scraper_helper):
 
     def _url_constructor(self, network, query_name: str = ""):
         if "uniswapv3" in query_name:
-            return self.__URLS[network]
+            return self._URLS[network]
         elif "quickswap" in query_name:
-            return self.__URLS_quickswap[network]
+            return self._URLS_quickswap[network]
         elif "messari" in query_name:
-            return self.__URLS_messari[network]
+            return self._URLS_messari[network]
 
         else:
-            return self.__URLS[network]
+            return self._URLS[network]
 
 
 class arrakis_scraper(thegraph_scraper_helper):
-
-    __URLS = {
-        "ethereum": "https://api.thegraph.com/subgraphs/name/arrakisfinance/vault-v1-mainnet",
-        "optimism": "https://api.thegraph.com/subgraphs/name/arrakisfinance/vault-v1-optimism",
-    }
-    __URLS_gelato = {
-        "ethereum": "https://api.thegraph.com/subgraphs/name/gelatodigital/g-uni",
-    }
-    __URLS_messari = {
-        "ethereum": "https://api.thegraph.com/subgraphs/name/messari/arrakis-finance-ethereum",
-        "polygon": "https://api.thegraph.com/subgraphs/name/messari/arrakis-finance-polygon",
-        "optimism": "https://api.thegraph.com/subgraphs/name/messari/arrakis-finance-optimism",
-    }
+    def init_URLS(self):
+        self._URLS = {
+            "ethereum": "https://api.thegraph.com/subgraphs/name/arrakisfinance/vault-v1-mainnet",
+            "optimism": "https://api.thegraph.com/subgraphs/name/arrakisfinance/vault-v1-optimism",
+        }
+        self._URLS_gelato = {
+            "ethereum": "https://api.thegraph.com/subgraphs/name/gelatodigital/g-uni",
+        }
+        self._URLS_messari = {
+            "ethereum": "https://api.thegraph.com/subgraphs/name/messari/arrakis-finance-ethereum",
+            "polygon": "https://api.thegraph.com/subgraphs/name/messari/arrakis-finance-polygon",
+            "optimism": "https://api.thegraph.com/subgraphs/name/messari/arrakis-finance-optimism",
+        }
 
     def _query_constructor(self, skip: int, name: str, filter: str):
         """Create query
@@ -2019,21 +2021,21 @@ class arrakis_scraper(thegraph_scraper_helper):
 
     def _url_constructor(self, network, query_name: str = ""):
         if "messari" in query_name:
-            return self.__URLS_messari[network]
+            return self._URLS_messari[network]
         elif "gelato" in query_name:
-            return self.__URLS_gelato[network]
+            return self._URLS_gelato[network]
         else:
-            return self.__URLS[network]
+            return self._URLS[network]
 
 
 class xtoken_scraper(thegraph_scraper_helper):
-
-    __URLS = {
-        "ethereum": "https://api.thegraph.com/subgraphs/name/xtokenmarket/terminal-mainnet",
-        "polygon": "https://api.thegraph.com/subgraphs/name/xtokenmarket/terminal-polygon",
-        "optimism": "https://api.thegraph.com/subgraphs/name/xtokenmarket/terminal-optimism",
-        "arbitrum": "https://api.thegraph.com/subgraphs/name/xtokenmarket/terminal-arbitrum",
-    }
+    def init_URLS(self):
+        self._URLS = {
+            "ethereum": "https://api.thegraph.com/subgraphs/name/xtokenmarket/terminal-mainnet",
+            "polygon": "https://api.thegraph.com/subgraphs/name/xtokenmarket/terminal-polygon",
+            "optimism": "https://api.thegraph.com/subgraphs/name/xtokenmarket/terminal-optimism",
+            "arbitrum": "https://api.thegraph.com/subgraphs/name/xtokenmarket/terminal-arbitrum",
+        }
 
     def _query_constructor(self, skip: int, name: str, filter: str):
         """Create query
@@ -2347,19 +2349,19 @@ class xtoken_scraper(thegraph_scraper_helper):
         return itm
 
     def _url_constructor(self, network, query_name: str = ""):
-        return self.__URLS[network]
+        return self._URLS[network]
 
 
 class uniswapv3_scraper(thegraph_scraper_helper):
-
-    __URLS = {
-        "ethereum": "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3",
-        "polygon": "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-polygon",
-        "optimism": "https://api.thegraph.com/subgraphs/name/ianlapham/optimism-post-regenesis",
-        "arbitrum": "https://api.thegraph.com/subgraphs/name/ianlapham/arbitrum-minimal",
-        "celo": "https://api.thegraph.com/subgraphs/name/jesse-sawa/uniswap-celo",
-        "binance": "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-bsc",
-    }
+    def init_URLS(self):
+        self._URLS = {
+            "ethereum": "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3",
+            "polygon": "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-polygon",
+            "optimism": "https://api.thegraph.com/subgraphs/name/ianlapham/optimism-post-regenesis",
+            "arbitrum": "https://api.thegraph.com/subgraphs/name/ianlapham/arbitrum-minimal",
+            "celo": "https://api.thegraph.com/subgraphs/name/jesse-sawa/uniswap-celo",
+            "binance": "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-bsc",
+        }
 
     def _query_constructor(self, skip: int, name: str, filter: str):
         """Create query
@@ -2700,13 +2702,10 @@ class uniswapv3_scraper(thegraph_scraper_helper):
         return itm
 
     def _url_constructor(self, network, query_name: str = ""):
-        return self.__URLS[network]
+        return self._URLS[network]
 
 
 class algebrav3_scraper(thegraph_scraper_helper):
-
-    __URLS = {}
-
     def _query_constructor(self, skip: int, name: str, filter: str):
         """Create query
 
@@ -2990,17 +2989,17 @@ class algebrav3_scraper(thegraph_scraper_helper):
         return itm
 
     def _url_constructor(self, network, query_name: str = ""):
-        return self.__URLS[network]
+        return self._URLS[network]
 
 
 class quickswap_scraper(algebrav3_scraper):
-
-    __URLS = {
-        "polygon": "https://api.thegraph.com/subgraphs/name/sameepsi/quickswap-v3",
-    }
-    __URLS_loc = {
-        "polygon": "https://api.thegraph.com/subgraphs/name/l0c4t0r/hype-pool-quickswap-polygon",
-    }
+    def init_URLS(self):
+        self._URLS = {
+            "polygon": "https://api.thegraph.com/subgraphs/name/sameepsi/quickswap-v3",
+        }
+        self._URLS_loc = {
+            "polygon": "https://api.thegraph.com/subgraphs/name/l0c4t0r/hype-pool-quickswap-polygon",
+        }
 
     def _query_constructor(self, skip: int, name: str, filter: str):
         """Create query
@@ -3112,19 +3111,19 @@ class quickswap_scraper(algebrav3_scraper):
 
     def _url_constructor(self, network, query_name: str = ""):
         if "_loc" in query_name:
-            return self.__URLS_loc[network]
+            return self._URLS_loc[network]
         else:
-            return self.__URLS[network]
+            return self._URLS[network]
 
 
 class zyberswap_scraper(algebrav3_scraper):
-
-    __URLS = {
-        "arbitrum": "https://api.thegraph.com/subgraphs/name/iliaazhel/zyberswap-info",
-    }
-    __URLS_loc = {
-        "arbitrum": "https://api.thegraph.com/subgraphs/name/l0c4t0r/hype-pool-zyberswap-arbitrum",
-    }
+    def init_URLS(self):
+        self._URLS = {
+            "arbitrum": "https://api.thegraph.com/subgraphs/name/iliaazhel/zyberswap-info",
+        }
+        self._URLS_loc = {
+            "arbitrum": "https://api.thegraph.com/subgraphs/name/l0c4t0r/hype-pool-zyberswap-arbitrum",
+        }
 
     def _query_constructor(self, skip: int, name: str, filter: str):
         """Create query
@@ -3236,19 +3235,19 @@ class zyberswap_scraper(algebrav3_scraper):
 
     def _url_constructor(self, network, query_name: str = ""):
         if "_loc" in query_name:
-            return self.__URLS_loc[network]
+            return self._URLS_loc[network]
         else:
-            return self.__URLS[network]
+            return self._URLS[network]
 
 
 class thena_scraper(algebrav3_scraper):
-
-    __URLS = {
-        "binance": "https://api.thegraph.com/subgraphs/name/iliaazhel/thena-info",
-    }
-    __URLS_loc = {
-        "binance": "https://api.thegraph.com/subgraphs/name/l0c4t0r/hype-pool-thena-bsc",
-    }
+    def init_URLS(self):
+        self._URLS = {
+            "binance": "https://api.thegraph.com/subgraphs/name/iliaazhel/thena-info",
+        }
+        self._URLS_loc = {
+            "binance": "https://api.thegraph.com/subgraphs/name/l0c4t0r/hype-pool-thena-bsc",
+        }
 
     def _query_constructor(self, skip: int, name: str, filter: str):
         """Create query
@@ -3360,20 +3359,20 @@ class thena_scraper(algebrav3_scraper):
 
     def _url_constructor(self, network, query_name: str = ""):
         if "_loc" in query_name:
-            return self.__URLS_loc[network]
+            return self._URLS_loc[network]
         else:
-            return self.__URLS[network]
+            return self._URLS[network]
 
 
 class blocks_scraper(thegraph_scraper_helper):
-
-    __URLS = {
-        "ethereum": "https://api.thegraph.com/subgraphs/name/blocklytics/ethereum-blocks",
-        "polygon": "https://api.thegraph.com/subgraphs/name/sameepsi/maticblocks",
-        # "optimism": "https://api.thegraph.com/subgraphs/name/beethovenxfi/optimism-blocks/",
-        "arbitrum": "https://api.thegraph.com/subgraphs/name/edoapp/arbitrum-blocks",
-        # "celo":"",
-    }
+    def init_URLS(self):
+        self._URLS = {
+            "ethereum": "https://api.thegraph.com/subgraphs/name/blocklytics/ethereum-blocks",
+            "polygon": "https://api.thegraph.com/subgraphs/name/sameepsi/maticblocks",
+            # "optimism": "https://api.thegraph.com/subgraphs/name/beethovenxfi/optimism-blocks/",
+            "arbitrum": "https://api.thegraph.com/subgraphs/name/edoapp/arbitrum-blocks",
+            # "celo":"",
+        }
 
     def _query_constructor(self, skip: int, name: str, filter: str):
         """Create query
@@ -3443,4 +3442,4 @@ class blocks_scraper(thegraph_scraper_helper):
         itm["totalDifficulty"] = int(itm["totalDifficulty"])
 
     def _url_constructor(self, network, query_name: str = ""):
-        return self.__URLS[network]
+        return self._URLS[network]
