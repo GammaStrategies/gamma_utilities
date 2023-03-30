@@ -720,6 +720,7 @@ def feed_prices(
         price_helper = price_scraper(
             cache=False,
             cache_filename="uniswapv3_price_cache",
+            coingecko=False,  #TODO: create configuration var   
         )
         # log errors
         _errors = 0

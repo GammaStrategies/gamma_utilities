@@ -10,7 +10,9 @@ LOG_NAME = "price"
 
 
 class price_scraper:
-    def __init__(self, cache: bool = True, cache_filename: str = ""):
+    def __init__(
+        self, cache: bool = True, cache_filename: str = "", coingecko: bool = True
+    ):
 
         cache_folderName = CONFIGURATION["cache"]["save_path"]
 
@@ -20,6 +22,8 @@ class price_scraper:
             if cache
             else None
         )
+
+        self.coingecko = coingecko
 
         # create price helpers
         self.init_apis(cache, cache_folderName)
@@ -73,7 +77,7 @@ class price_scraper:
         except Exception:
             _price = None
 
-        if _price is None or _price == 0:
+        if _price in [None, 0]:
             # get a list of thegraph_connectors
             thegraph_connectors = self._get_connector_candidates(network=network)
 
@@ -98,8 +102,8 @@ class price_scraper:
 
         # coingecko
         if (
-            _price is None
-            or _price == 0
+            self.coingecko
+            and _price in [None, 0]
             and network in self.coingecko_price_connector.networks
         ):
             # GET FROM COINGECKO
