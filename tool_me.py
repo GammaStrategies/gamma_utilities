@@ -60,26 +60,26 @@ if __name__ == "__main__":
 
     # choose the first of the  parsed options
     if CONFIGURATION["_custom_"]["cml_parameters"].db_feed:
-        # database feeder:  -db_feed operations
+        # database feeder:  --db_feed
         database_feeder.main(option=CONFIGURATION["_custom_"]["cml_parameters"].db_feed)
     elif CONFIGURATION["_custom_"]["cml_parameters"].service:
-        # service loop
+        # service loop  --service
         database_feeder_service.main(
             option=CONFIGURATION["_custom_"]["cml_parameters"].service
         )
     elif CONFIGURATION["_custom_"]["cml_parameters"].service_network:
-        # service loop specific
+        # service loop specific  --service_network
         database_feeder_service.main(
             option="network",
             network=CONFIGURATION["_custom_"]["cml_parameters"].service_network,
             protocol="gamma",
         )
     elif CONFIGURATION["_custom_"]["cml_parameters"].check:
-        # checks
+        # checks   --check
         database_checker.main(option=CONFIGURATION["_custom_"]["cml_parameters"].check)
 
     elif CONFIGURATION["_custom_"]["cml_parameters"].analysis:
-        # analysis
+        # analysis   --analysis
         database_analysis.main(
             option=CONFIGURATION["_custom_"]["cml_parameters"].analysis
         )

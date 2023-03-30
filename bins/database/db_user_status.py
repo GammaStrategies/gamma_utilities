@@ -6,7 +6,7 @@ import concurrent.futures
 
 from bson.decimal128 import Decimal128
 from decimal import Decimal, getcontext
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from bins.configuration import CONFIGURATION
 from bins.database.common.db_collections_common import database_local, database_global
@@ -792,7 +792,7 @@ class user_status_hypervisor_builder:
             return [
                 self.convert_user_status_fromDb(status=x)
                 for x in self.local_db_manager.get_items_from_database(
-                    collection_name="user_status", find=find, sort=sort, limit=limit
+                    collection_name="user_status", find=find, sort=sort
                 )
             ]
         except Exception:
@@ -2454,10 +2454,9 @@ class user_status_hypervisor_builder:
             # log error if value is significant
             if (Decimal("1") - ctrl_total_percentage_applied) > Decimal("0.0001"):
                 logging.getLogger(__name__).error(
-                    " Only {:,.2f} of the fees value has been distributed to current accounts. remainder: {}   . num.addss: {}  tot.shares: {}  remainder usd: {}  block:{}".format(
+                    " Only {:,.2f} of the fees value has been distributed to current accounts. remainder: {}   tot.shares: {}  remainder usd: {}  block:{}".format(
                         ctrl_total_percentage_applied,
                         (Decimal("1") - ctrl_total_percentage_applied),
-                        len(addresses),
                         ctrl_total_shares_applied,
                         feeUsd_remainder,
                         block,

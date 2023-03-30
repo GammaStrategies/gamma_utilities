@@ -225,7 +225,7 @@ class onchain_data_helper:
             )
 
     def convert_operation(
-        operation: dict, network: str, address_token0: str, address_token1: str
+        self, operation: dict, network: str, address_token0: str, address_token1: str
     ) -> db_operations_models.root_operation:
 
         # operation_hypervisor = operation["address"]
@@ -245,7 +245,7 @@ class onchain_data_helper:
         price_usd_token1 = self.price_helper.get_price(
             network=network,
             token_id=address_token1,
-            block=result_item["block"],
+            block=block,
             of="USD",
         )
 
@@ -555,7 +555,7 @@ class onchain_data_helper:
 
     def get_custom_blockBounds(
         self, date_ini: dt.datetime, date_end: dt.datetime, network: str, step="week"
-    ) -> (int, int):
+    ) -> tuple[int, int]:
 
         if step == "week":
             # convert date_ini in that same week first day first hour
@@ -1079,20 +1079,19 @@ class onchain_data_helper2:
 
         if step == "week":
             # convert date_ini in that same week first day first hour
-            year, week_num, day_of_week = date_ini.isocalendar()
+            year, week_num, day_of_week = date.isocalendar()
             result_date_ini = dt.datetime.fromisocalendar(year, week_num, 1)
 
             # convert date_end in that same week last day last hour
-            year, week_num, day_of_week = date_end.isocalendar()
             result_date_end = dt.datetime.fromisocalendar(year, week_num, 7)
 
             step_secs = 60 * 60 * 24 * 7
         elif step == "day":
             # convert date_ini in that same day first hour
             result_date_ini = dt.datetime(
-                year=date_ini.year,
-                month=date_ini.month,
-                day=date_ini.day,
+                year=date.year,
+                month=date.month,
+                day=date.day,
                 hour=0,
                 minute=0,
                 second=0,
@@ -1100,9 +1099,9 @@ class onchain_data_helper2:
 
             # convert date_end in that same week last day last hour
             result_date_end = dt.datetime(
-                year=date_end.year,
-                month=date_end.month,
-                day=date_end.day,
+                year=date.year,
+                month=date.month,
+                day=date.day,
                 hour=23,
                 minute=59,
                 second=59,

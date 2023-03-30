@@ -181,7 +181,7 @@ class LiquidityAmounts:
             RA = sqrtRatioAX96
             RB = sqrtRatioBX96
 
-        return int((amount0 * intermediate) / (RB - RA))
+        return int((amount1 * X96) / (RB - RA))
 
     @staticmethod
     def getLiquidityForAmounts(
@@ -319,6 +319,8 @@ class LiquidityAmounts:
 
 
 class TickMath:
+    """TickMath is a library for computing the sqrt ratio at a given tick, and the tick corresponding to a given sqrt ratio
+    https://github.com/Convexus-Protocol/convexus-sdk-py"""
 
     MIN_TICK: int = -887272  # min tick that can be used on any pool
     MAX_TICK: int = -MIN_TICK  # max tick that can be used on any pool
@@ -429,7 +431,7 @@ class TickMath:
 
         sqrtRatioX128 = sqrtRatioX96 << 32
 
-        msb = mostSignificantBit(sqrtRatioX128)
+        msb = TickMath.mostSignificantBit(sqrtRatioX128)
 
         if msb >= 128:
             r = sqrtRatioX128 >> (msb - 127)
@@ -456,6 +458,21 @@ class TickMath:
             if TickMath.getSqrtRatioAtTick(tickHigh) <= sqrtRatioX96
             else tickLow
         )
+
+    @staticmethod
+    def mostSignificantBit(x: int) -> int:
+        assert x > 0, "ZERO"
+        assert x <= (2**256) - 1, "MAX"
+
+        msb: int = 0
+        for power, min in list(
+            map(lambda pow: [pow, 2**pow], [128, 64, 32, 16, 8, 4, 2, 1])
+        ):
+            if x >= min:
+                x = x >> power
+                msb += power
+
+        return msb
 
 
 ######### (for comparison purposes)

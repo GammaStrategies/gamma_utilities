@@ -143,7 +143,8 @@ class database_backend:
     def _load_cache_file(self) -> dict:
         # TODO: get from database
         # self.db_collection.get_all_items()
-        return temp_loaded_cache
+        raise NotImplementedError("Not implemented yet")
+        return None
 
     def _init_cache(self):
         # place some loading logic

@@ -92,7 +92,7 @@ class price_scraper:
                         of=of,
                     )
 
-                    if _price and price != 0:
+                    if _price and _price != 0:
                         # exit for loop
                         break
 

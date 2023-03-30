@@ -5,6 +5,7 @@ import math
 
 from decimal import Decimal
 from web3 import Web3
+from web3.contract import ContractEvent
 
 from bins.configuration import CONFIGURATION
 from bins.formulas import univ3_formulas
@@ -274,11 +275,12 @@ class gamma_hypervisor(erc20):
 
     # CUSTOM FUNCTIONS
     def get_all_events(self):
-        return [
-            event.createFilter(fromBlock=self.block)
-            for event in self.contract.events
-            if issubclass(event, ContractEvent)
-        ]
+        return NotImplementedError("get_all_events not implemented for v1 contracts")
+        # return [
+        #     event.createFilter(fromBlock=self.block)
+        #     for event in self.contract.events
+        #     if issubclass(event, TransactionEvent) # only get transaction events
+        # ]
 
     def get_qtty_depoloyed(self, inDecimal: bool = True) -> dict:
         """Retrieve the quantity of tokens currently deployed
@@ -1569,6 +1571,112 @@ class gamma_hypervisor_registry(web3wrap):
                 result.append(hypervisor_id)
 
         return result
+
+
+# rewarders
+
+
+class gamma_masterChefV2_registry(web3wrap):
+    # SETUP
+    def __init__(
+        self,
+        address: str,
+        network: str,
+        abi_filename: str = "",
+        abi_path: str = "",
+        block: int = 0,
+    ):
+        self._abi_filename = abi_filename or "MasterChefV2Registry"
+        self._abi_path = abi_path or "data/abi/gamma"
+
+        super().__init__(
+            address=address,
+            network=network,
+            abi_filename=self._abi_filename,
+            abi_path=self._abi_path,
+            block=block,
+        )
+
+    @property
+    def counter(self) -> int:
+        """number of hypervisors indexed, initial being 0  and end the counter value-1
+
+        Returns:
+            int: positions of hypervisors in registry
+        """
+        return self._contract.functions.counter().call(block_identifier=self.block)
+
+    def hypeByIndex(self, index: int) -> str:
+        return self._contract.functions.hypeByIndex(index).call(
+            block_identifier=self.block
+        )
+
+    @property
+    def owner(self) -> str:
+        return self._contract.functions.owner().call(block_identifier=self.block)
+
+    def registry(self, index: int) -> str:
+        return self._contract.functions.registry(index).call(
+            block_identifier=self.block
+        )
+
+    def registryMap(self, address: str) -> int:
+        return self._contract.functions.registryMap(
+            Web3.toChecksumAddress(address)
+        ).call(block_identifier=self.block)
+
+
+class gamma_masterChefV2_rewarder(web3wrap):
+    def __init__(
+        self,
+        address: str,
+        network: str,
+        abi_filename: str = "",
+        abi_path: str = "",
+        block: int = 0,
+    ):
+        self._abi_filename = abi_filename or "MasterChefV2Rewarder"
+        self._abi_path = abi_path or "data/abi/gamma"
+
+        super().__init__(
+            address=address,
+            network=network,
+            abi_filename=self._abi_filename,
+            abi_path=self._abi_path,
+            block=block,
+        )
+
+    @property
+    def sushi(self) -> int:
+        """
+
+        Returns:
+            str: address
+        """
+        return self._contract.functions.counter().call(block_identifier=self.block)
+
+    def lpToken(self, index: int) -> str:
+        return self._contract.functions.lpToken(index).call(block_identifier=self.block)
+
+    @property
+    def owner(self) -> str:
+        return self._contract.functions.owner().call(block_identifier=self.block)
+
+    @property
+    def pendingOwner(self) -> str:
+        return self._contract.functions.owner().call(block_identifier=self.block)
+
+    @property
+    def pendingSushi(self) -> str:
+        return self._contract.functions.owner().call(block_identifier=self.block)
+
+    @property
+    def poolLength(self) -> int:
+        """
+        Returns:
+            int:
+        """
+        return self._contract.functions.poolLength().call(block_identifier=self.block)
 
 
 # TODO: decimals n stuff

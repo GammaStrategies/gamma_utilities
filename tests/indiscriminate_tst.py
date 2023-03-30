@@ -90,7 +90,7 @@ def test_databaseChecker():
 
 
 def get_hypervisor_addresses(
-    network: str, protocol: str, user_address: str = None
+    network: str, protocol: str, user_address: str | None = None, dex: str | None = None
 ) -> list[str]:
 
     result = []
@@ -115,10 +115,20 @@ def get_hypervisor_addresses(
     local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
 
     if user_address:
+        _condition = {"address": user_address}
+        if dex:
+            _condition["dex"] = dex
         result = local_db_manager.get_distinct_items_from_database(
             collection_name="user_status",
             field="hypervisor_address",
-            condition={"address": user_address},
+            condition=_condition,
+        )
+    elif dex:
+        _condition["dex"] = dex
+        result = local_db_manager.get_distinct_items_from_database(
+            collection_name="static",
+            field="address",
+            condition=_condition,
         )
     else:
         result = local_db_manager.get_distinct_items_from_database(
@@ -253,8 +263,9 @@ def flatten_dict(my_dict: dict, existing_dict: dict = None, add_key: str = ""):
 def test_db_direct_info(
     network: str,
     protocol: str = "gamma",
-    ini_date: datetime = None,
-    end_date: datetime = None,
+    dex: str | None = None,
+    ini_date: datetime | None = None,
+    end_date: datetime | None = None,
     folder: str = "tests",
     save_csv: bool = True,
     print_it: bool = True,
@@ -283,7 +294,7 @@ def test_db_direct_info(
             # ( at the ini life of hype, direct transfers without minting LP tokens are used to fix token ratios)
             # add one week to first operation time
             _first_time = datetime.fromtimestamp(
-                helper.first_status["timestamp"]
+                helper.first_status["timestamp"], timezone.utc
             ) + timedelta(days=7)
 
             hype_ini_date = _first_time if ini_date < _first_time else ini_date
@@ -404,21 +415,22 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    test_prices()
-    test_price_sequence()
+    # test_prices()
+    # test_price_sequence()
 
     ########
     #  vars
     ########
     protocol = "gamma"
-    networks = ["ethereum", "polygon", "optimism", "arbitrum"]
-    # dex = "quickswap"
+    # networks = ["ethereum", "polygon", "optimism", "arbitrum"]
+    networks = ["polygon"]
+    dex = "quickswap"  # None
     months = 0
     days = 30 * (months or 1)
     end_date = datetime.now(timezone.utc)
     ini_date = end_date - timedelta(days=days)
 
-    save_csv = True
+    save_csv = False
     print_it = True
 
     for network in networks:
@@ -428,6 +440,7 @@ if __name__ == "__main__":
         test_db_direct_info(
             network=network,
             protocol=protocol,
+            dex=dex,
             ini_date=ini_date,
             end_date=end_date,
             folder=folder,

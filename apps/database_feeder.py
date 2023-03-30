@@ -134,14 +134,9 @@ def _get_hypervisors_from_registry(
         return _get_hypervisors_from_registry_worker(gamma_registry, protocol)
 
     except ValueError as err:
-        if "message" in err:
-            logging.getLogger(__name__).error(
-                f" Unexpected error while fetching hypes from {gamma_registry._network} registry  error: {err['message']}"
-            )
-        else:
-            logging.getLogger(__name__).error(
-                f" Unexpected error while fetching hypes from {gamma_registry._network} registry  error: {sys.exc_info()[0]}"
-            )
+        logging.getLogger(__name__).error(
+            f" Error while fetching hypes from {gamma_registry._network} registry   .error: {sys.exc_info()[0]}"
+        )
         # return an empty hype address list
         return []
 
@@ -225,10 +220,10 @@ def _get_static_hypervisor_addresses_to_process(
 def feed_operations(
     protocol: str,
     network: str,
-    block_ini: int = None,
-    block_end: int = None,
-    date_ini: datetime = None,
-    date_end: datetime = None,
+    block_ini: int | None = None,
+    block_end: int | None = None,
+    date_ini: datetime | None = None,
+    date_end: datetime | None = None,
 ):
 
     logging.getLogger(__name__).info(
@@ -671,16 +666,6 @@ def create_db_hypervisor(
         # return converted hypervisor
         return hypervisor.as_dict(convert_bint=True, static_mode=static_mode)
 
-    # except ValueError as err:
-    #     # most ususal error being  {'code': -32000, 'message': 'execution aborted (timeout = 5s)'}
-    #     err_msg = err["message"] if "message" in err else err
-    #     logging.getLogger(__name__).exception(
-    #         f" Unexpected Value error while creating {network}'s hypervisor {address} at block {block}->   message:{err_msg}"
-    #     )
-    # except ContractLogicError as err:
-    #     logging.getLogger(__name__).exception(
-    #         f" Unexpected Web3 error placing call to {network}'s hypervisor {address} at block {block}->   message:{err}"
-    #     )
     except Exception:
         logging.getLogger(__name__).exception(
             f" Unexpected error while creating {network}'s hypervisor {address} [dex: {dex}] at block {block}->    error:{sys.exc_info()[0]}"
@@ -932,23 +917,6 @@ def create_tokenBlocks_topTokens(protocol: str, network: str, limit: int = 10) -
         )
     )
 
-    # # create unique block list using data from hypervisor status
-    # blocks_list = sorted(
-    #     local_db_manager.get_distinct_items_from_database(
-    #         collection_name="status", field="block"
-    #     ),
-    #     reverse=True,
-    # )
-
-    # # combine token block lists
-    # return set(
-    #     [
-    #         "{}_{}_{}".format(network, block, token)
-    #         for token in top_tokens
-    #         for block in blocks_list
-    #     ]
-    # )
-
 
 def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool = True):
     """Using global used known tokens like WETH, apply pools sqrtPriceX96 to
@@ -1001,7 +969,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
     with tqdm.tqdm(total=len(status_list)) as progress_bar:
 
         def loopme(status: dict):
-            try:
+            with contextlib.suppress(Exception):
                 # calc price
                 price_token0 = sqrtPriceX96_to_price_float(
                     sqrtPriceX96=int(status["pool"]["slot0"]["sqrtPriceX96"]),
@@ -1024,9 +992,6 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
 
                 # calc token usd price
                 return (usdPrice_token1[0]["price"] * price_token0), status
-
-            except Exception:
-                pass
 
             return None, status
 
@@ -1097,8 +1062,8 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
             logging.getLogger(__name__).info(
                 "   {} of {} ({:,.1%}) address block prices could not be scraped due to errors".format(
                     _errors,
-                    len(items_to_process),
-                    (_errors / len(items_to_process)) if items_to_process else 0,
+                    len(status_list),
+                    (_errors / len(status_list)) if status_list else 0,
                 )
             )
 
@@ -1404,7 +1369,7 @@ def feed_fastApi_impermanent(network: str, protocol: str):
                 raise NotImplementedError(" not threaded process is not implemented")
 
     # control log
-    try:
+    with contextlib.suppress(Exception):
         if _errors > 0:
             logging.getLogger(__name__).info(
                 "   {} of {} ({:,.1%}) {}'s hypervisor/day impermanent data could not be scraped due to errors (totalSupply?)".format(
@@ -1414,8 +1379,6 @@ def feed_fastApi_impermanent(network: str, protocol: str):
                     network,
                 )
             )
-    except Exception:
-        pass
 
 
 ####### main ###########
@@ -1461,7 +1424,7 @@ def main(option="operations"):
                 feed_prices(
                     protocol=protocol,
                     network=network,
-                    token_blocks=self._create_tokenBlocks_topTokens(
+                    token_blocks=create_tokenBlocks_topTokens(
                         protocol=protocol, network=network
                     ),
                 )

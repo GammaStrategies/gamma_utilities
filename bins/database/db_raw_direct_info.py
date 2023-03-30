@@ -31,10 +31,10 @@ class direct_db_hypervisor_info:
         self._prices = self._get_prices()
 
         # masterchefs
-        self._masterchefs = list()
+        self._masterchefs = []
 
         # control var (itemsprocessed): list of operation ids processed
-        self.ids_processed = list()
+        self.ids_processed = []
         # control var time order :  last block always >= current
         self.last_block_processed: int = 0
 
@@ -60,12 +60,12 @@ class direct_db_hypervisor_info:
         find = {"$or": or_query, "network": self.network}
         sort = [("block", 1)]
 
-        result = dict()
+        result = {}
         for x in global_db_manager.get_items_from_database(
             collection_name="usd_prices", find=find, sort=sort
         ):
-            if not x["block"] in result:
-                result[x["block"]] = dict()
+            if x["block"] not in result:
+                result[x["block"]] = {}
             result[x["block"]][x["address"]] = x["price"]
 
         return result
@@ -185,8 +185,8 @@ class direct_db_hypervisor_info:
             "address": self.address,
             "topic": {"$in": ["deposit", "withdraw", "rebalance", "feeBurn"]},
             "$and": [
-                {"timestamp": {"$gte": int(ini_timestamp)}},
-                {"timestamp": {"$lte": int(end_timestamp)}},
+                {"timestamp": {"$gte": ini_timestamp}},
+                {"timestamp": {"$lte": end_timestamp}},
             ],
         }
 
@@ -246,14 +246,14 @@ class direct_db_hypervisor_info:
         # filter date if defined
         if ini_timestamp and end_timestamp:
             query[0]["$match"]["$and"] = [
-                {"timestamp": {"$gte": int(ini_timestamp)}},
-                {"timestamp": {"$lte": int(end_timestamp)}},
+                {"timestamp": {"$gte": ini_timestamp}},
+                {"timestamp": {"$lte": end_timestamp}},
             ]
 
         elif ini_timestamp:
-            query[0]["$match"]["timestamp"] = {"$gte": int(ini_timestamp)}
+            query[0]["$match"]["timestamp"] = {"$gte": ini_timestamp}
         elif end_timestamp:
-            query[0]["$match"]["timestamp"] = {"$lte": int(end_timestamp)}
+            query[0]["$match"]["timestamp"] = {"$lte": end_timestamp}
         # return status list
         return [
             x["status"]
@@ -269,29 +269,25 @@ class direct_db_hypervisor_info:
         end_timestamp = end_date.timestamp()
 
         operations = self.get_operations(
-            ini_timestamp=ini_timestamp, end_timestamp=end_timestamp
+            ini_timestamp=int(ini_timestamp), end_timestamp=int(end_timestamp)
         )
         status = {
             x["block"]: self.convert_hypervisor_status_fromDb(x)
             for x in self.get_status(
-                ini_timestamp=ini_timestamp, end_timestamp=end_timestamp
+                ini_timestamp=int(ini_timestamp), end_timestamp=int(end_timestamp)
             )
         }
 
-        result = list()
+        result = []
         for operation in operations:
 
             latest_operation = self.latest_operation(block=operation["blockNumber"])
             # discard operation if outside timestamp
-            if not latest_operation["blockNumber"] in status:
+            if latest_operation["blockNumber"] not in status:
                 logging.getLogger(__name__).debug(
-                    " Discard block number {} as it falls behind timeframe [{} out of {} <-> {} ]".format(
-                        latest_operation["blockNumber"],
-                        operation["timestamp"],
-                        ini_timestamp,
-                        end_timestamp,
-                    )
+                    f' Discard block number {latest_operation["blockNumber"]} as it falls behind timeframe [{operation["timestamp"]} out of {ini_timestamp} <-> {end_timestamp} ]'
                 )
+
                 # loop without adding to result
                 continue
 
@@ -302,18 +298,14 @@ class direct_db_hypervisor_info:
                 )
             )
 
-        if len(result) == 0:
+        if not result:
             ini_status = status[min(status.keys())]
             end_status = status[max(status.keys())]
             # no operations exist
             logging.getLogger(__name__).debug(
-                " No operations found from {} to {} . Using available status from {} to {}".format(
-                    datetime.fromtimestamp(ini_timestamp),
-                    datetime.fromtimestamp(end_timestamp),
-                    datetime.fromtimestamp(ini_status["timestamp"]),
-                    datetime.fromtimestamp(end_status["timestamp"]),
-                )
+                f' No operations found from {datetime.fromtimestamp(ini_timestamp)} to {datetime.fromtimestamp(end_timestamp)} . Using available status from {datetime.fromtimestamp(ini_status["timestamp"])} to {datetime.fromtimestamp(end_status["timestamp"])}'
             )
+
             # add to result
             result.append(
                 self.calculate(
@@ -389,11 +381,11 @@ class direct_db_hypervisor_info:
         status_list = [
             self.convert_hypervisor_status_fromDb(x)
             for x in self.get_status_byDay(
-                ini_timestamp=ini_timestamp, end_timestamp=end_timestamp
+                ini_timestamp=int(ini_timestamp), end_timestamp=int(end_timestamp)
             )
         ]
 
-        result = list()
+        result = []
         last_status = None
         last_row = None
         for status in status_list:
@@ -402,27 +394,27 @@ class direct_db_hypervisor_info:
             if status["totalSupply"] == 0:
                 # skip till hype has supply status
                 logging.getLogger(__name__).warning(
-                    " {} has no totalSuply at block {}. Skiping for impermanent calc".format(
-                        status["address"], status["block"]
-                    )
+                    f' {status["address"]} has no totalSuply at block {status["block"]}. Skiping for impermanent calc'
                 )
+
                 continue
 
             # create row
-            row = dict()
-            row["block"] = status["block"]
-            row["timestamp"] = status["timestamp"]
-            row["address"] = status["address"]
-            row["symbol"] = status["symbol"]
-
-            row["usd_price_token0"] = Decimal(
-                str(
-                    self.get_price(
-                        block=status["block"],
-                        address=status["pool"]["token0"]["address"],
+            row = {
+                "block": status["block"],
+                "timestamp": status["timestamp"],
+                "address": status["address"],
+                "symbol": status["symbol"],
+                "usd_price_token0": Decimal(
+                    str(
+                        self.get_price(
+                            block=status["block"],
+                            address=status["pool"]["token0"]["address"],
+                        )
                     )
-                )
-            )
+                ),
+            }
+
             row["usd_price_token1"] = Decimal(
                 str(
                     self.get_price(
@@ -436,13 +428,9 @@ class direct_db_hypervisor_info:
             if row["usd_price_token0"] == 0 or row["usd_price_token1"] == 0:
                 # skip
                 logging.getLogger(__name__).error(
-                    " {} has no token price at block {}. Skiping for impermanent calc. [prices token0:{}  token1:{}]".format(
-                        status["address"],
-                        status["block"],
-                        row["usd_price_token0"],
-                        row["usd_price_token1"],
-                    )
+                    f' {status["address"]} has no token price at block {status["block"]}. Skiping for impermanent calc. [prices token0:{row["usd_price_token0"]}  token1:{row["usd_price_token1"]}]'
                 )
+
                 continue
 
             row["underlying_token0"] = (
@@ -478,44 +466,52 @@ class direct_db_hypervisor_info:
 
             if last_status != None:
 
-                # calculate the current value of the last 50% tokens ( so last 50% token qtty * current prices)
-                row["fifty_value_last_usd"] = (
-                    last_row["fifty_qtty_token0"] * row["usd_price_token0"]
-                    + last_row["fifty_qtty_token1"] * row["usd_price_token1"]
+                self._get_impermanent_data_vOld1_createResult(
+                    last_row, row, last_status, result
                 )
-                # price per share ( using last status )
-                row["fifty_value_last_usd_perShare"] = (
-                    row["fifty_value_last_usd"] / last_status["totalSupply"]
-                )
-
-                # set 50% result
-                row["hodl_fifty_result_variation"] = (
-                    row["fifty_value_last_usd_perShare"]
-                    - last_row["total_underlying_in_usd_perShare"]
-                ) / last_row["total_underlying_in_usd_perShare"]
-
-                # set HODL result
-                row["hodl_token0_result_variation"] = (
-                    row["total_value_in_token0_perShare"]
-                    - last_row["total_value_in_token0_perShare"]
-                ) / last_row["total_value_in_token0_perShare"]
-                row["hodl_token1_result_variation"] = (
-                    row["total_value_in_token1_perShare"]
-                    - last_row["total_value_in_token1_perShare"]
-                ) / last_row["total_value_in_token1_perShare"]
-
-                # LPing
-                row["lping_result_variation"] = (
-                    row["total_underlying_in_usd_perShare"]
-                    - last_row["total_underlying_in_usd_perShare"]
-                ) / last_row["total_underlying_in_usd_perShare"]
-
-                result.append(row)
 
             last_status = status
             last_row = row
 
         return result
+
+    # TODO Rename this here and in `get_impermanent_data_vOld1`
+    def _get_impermanent_data_vOld1_createResult(
+        self, last_row, row, last_status, result
+    ):
+        # calculate the current value of the last 50% tokens ( so last 50% token qtty * current prices)
+        row["fifty_value_last_usd"] = (
+            last_row["fifty_qtty_token0"] * row["usd_price_token0"]
+            + last_row["fifty_qtty_token1"] * row["usd_price_token1"]
+        )
+        # price per share ( using last status )
+        row["fifty_value_last_usd_perShare"] = (
+            row["fifty_value_last_usd"] / last_status["totalSupply"]
+        )
+
+        # set 50% result
+        row["hodl_fifty_result_variation"] = (
+            row["fifty_value_last_usd_perShare"]
+            - last_row["total_underlying_in_usd_perShare"]
+        ) / last_row["total_underlying_in_usd_perShare"]
+
+        # set HODL result
+        row["hodl_token0_result_variation"] = (
+            row["total_value_in_token0_perShare"]
+            - last_row["total_value_in_token0_perShare"]
+        ) / last_row["total_value_in_token0_perShare"]
+        row["hodl_token1_result_variation"] = (
+            row["total_value_in_token1_perShare"]
+            - last_row["total_value_in_token1_perShare"]
+        ) / last_row["total_value_in_token1_perShare"]
+
+        # LPing
+        row["lping_result_variation"] = (
+            row["total_underlying_in_usd_perShare"]
+            - last_row["total_underlying_in_usd_perShare"]
+        ) / last_row["total_underlying_in_usd_perShare"]
+
+        result.append(row)
 
     def get_impermanent_data(
         self, ini_date: datetime = None, end_date: datetime = None
@@ -532,8 +528,8 @@ class direct_db_hypervisor_info:
             dict: _description_
         """
         # convert to timestamps
-        ini_timestamp = ini_date.timestamp() if ini_date else None
-        end_timestamp = end_date.timestamp() if end_date else None
+        ini_timestamp = int(ini_date.timestamp()) if ini_date else None
+        end_timestamp = int(end_date.timestamp()) if end_date else None
 
         status_list = [
             self.convert_hypervisor_status_fromDb(x)
@@ -542,7 +538,7 @@ class direct_db_hypervisor_info:
             )
         ]
 
-        result = list()
+        result = []
         last_status = None
         last_row = None
 
@@ -566,9 +562,7 @@ class direct_db_hypervisor_info:
             if status["totalSupply"] == 0:
                 # skip till hype has supply status
                 logging.getLogger(__name__).warning(
-                    " {} has no totalSuply at block {}. Skiping for impermanent calc".format(
-                        status["address"], status["block"]
-                    )
+                    f' {status["address"]} has no totalSuply at block {status["block"]}. Skiping for impermanent calc'
                 )
                 continue
 
@@ -593,13 +587,9 @@ class direct_db_hypervisor_info:
             if usd_price_token0 == 0 or usd_price_token1 == 0:
                 # skip
                 logging.getLogger(__name__).error(
-                    " {} has no token price at block {}. Skiping for impermanent calc. [prices token0:{}  token1:{}]".format(
-                        status["address"],
-                        status["block"],
-                        usd_price_token0,
-                        usd_price_token1,
-                    )
+                    f' {status["address"]} has no token price at block {status["block"]}. Skiping for impermanent calc. [prices token0:{usd_price_token0}  token1:{usd_price_token1}]'
                 )
+
                 continue
 
             if last_status is None:
@@ -638,19 +628,19 @@ class direct_db_hypervisor_info:
                 )
 
             # create row
-            row = dict()
+            row = {
+                "usd_price_token0": usd_price_token0,
+                "usd_price_token1": usd_price_token1,
+                "underlying_token0": (
+                    status["totalAmounts"]["total0"]
+                    + status["fees_uncollected"]["qtty_token0"]
+                ),
+                "underlying_token1": (
+                    status["totalAmounts"]["total1"]
+                    + status["fees_uncollected"]["qtty_token1"]
+                ),
+            }
 
-            row["usd_price_token0"] = usd_price_token0
-            row["usd_price_token1"] = usd_price_token1
-
-            row["underlying_token0"] = (
-                status["totalAmounts"]["total0"]
-                + status["fees_uncollected"]["qtty_token0"]
-            )
-            row["underlying_token1"] = (
-                status["totalAmounts"]["total1"]
-                + status["fees_uncollected"]["qtty_token1"]
-            )
             row["total_underlying_in_usd"] = (
                 row["underlying_token0"] * row["usd_price_token0"]
                 + row["underlying_token1"] * row["usd_price_token1"]
@@ -714,67 +704,64 @@ class direct_db_hypervisor_info:
                     ini_date=datetime.fromtimestamp(last_status["timestamp"]),
                     end_date=datetime.fromtimestamp(status["timestamp"]),
                 )
-            except:
+            except Exception:
                 row["fee_apy"] = row["fee_apr"] = 0
 
             if last_status != None:
 
-                # set 50% result
-                row["hodl_fifty_result_variation"] = (
-                    row["hodl_fifty_result_vs_firstRow"]
-                    - last_row["hodl_fifty_result_vs_firstRow"]
-                )
-
-                # set HODL result
-                row["hodl_token0_result_variation"] = (
-                    row["hodl_token0_result_vs_firstRow"]
-                    - last_row["hodl_token0_result_vs_firstRow"]
-                )
-                row["hodl_token1_result_variation"] = (
-                    row["hodl_token1_result_vs_firstRow"]
-                    - last_row["hodl_token1_result_vs_firstRow"]
-                )
-                row["hodl_proportion_result_variation"] = (
-                    row["hodl_proportion_result_vs_firstRow"]
-                    - last_row["hodl_proportion_result_vs_firstRow"]
-                )
-
-                # LPing
-                row["lping_result_variation"] = (
-                    row["lping_result_vs_firstRow"]
-                    - last_row["lping_result_vs_firstRow"]
-                )
-
-                # FeeReturns
-                row["feeApy_result_variation"] = row["fee_apy"] - last_row["fee_apy"]
-                row["feeApr_result_variation"] = row["fee_apr"] - last_row["fee_apr"]
-
-                # return result ( return row for debugging purposes)
-                result.append(
-                    {
-                        "block": status["block"],
-                        "timestamp": status["timestamp"],
-                        "address": status["address"],
-                        "symbol": status["symbol"],
-                        "hodl_token0_result_variation": row[
-                            "hodl_token0_result_variation"
-                        ],
-                        "hodl_token1_result_variation": row[
-                            "hodl_token1_result_variation"
-                        ],
-                        "hodl_proportion_result_variation": row[
-                            "hodl_proportion_result_variation"
-                        ],
-                        "lping_result_variation": row["lping_result_variation"],
-                        "feeApy_result_variation": row["feeApy_result_variation"],
-                        "feeApr_result_variation": row["feeApr_result_variation"],
-                    }
-                )
-
+                self._get_impermanent_data_createResults(row, last_row, result, status)
             last_status = status
             last_row = row
 
         return result
+
+    def _get_impermanent_data_createResults(self, row, last_row, result, status):
+        # set 50% result
+        row["hodl_fifty_result_variation"] = (
+            row["hodl_fifty_result_vs_firstRow"]
+            - last_row["hodl_fifty_result_vs_firstRow"]
+        )
+
+        # set HODL result
+        row["hodl_token0_result_variation"] = (
+            row["hodl_token0_result_vs_firstRow"]
+            - last_row["hodl_token0_result_vs_firstRow"]
+        )
+        row["hodl_token1_result_variation"] = (
+            row["hodl_token1_result_vs_firstRow"]
+            - last_row["hodl_token1_result_vs_firstRow"]
+        )
+        row["hodl_proportion_result_variation"] = (
+            row["hodl_proportion_result_vs_firstRow"]
+            - last_row["hodl_proportion_result_vs_firstRow"]
+        )
+
+        # LPing
+        row["lping_result_variation"] = (
+            row["lping_result_vs_firstRow"] - last_row["lping_result_vs_firstRow"]
+        )
+
+        # FeeReturns
+        row["feeApy_result_variation"] = row["fee_apy"] - last_row["fee_apy"]
+        row["feeApr_result_variation"] = row["fee_apr"] - last_row["fee_apr"]
+
+        # return result ( return row for debugging purposes)
+        result.append(
+            {
+                "block": status["block"],
+                "timestamp": status["timestamp"],
+                "address": status["address"],
+                "symbol": status["symbol"],
+                "hodl_token0_result_variation": row["hodl_token0_result_variation"],
+                "hodl_token1_result_variation": row["hodl_token1_result_variation"],
+                "hodl_proportion_result_variation": row[
+                    "hodl_proportion_result_variation"
+                ],
+                "lping_result_variation": row["lping_result_variation"],
+                "feeApy_result_variation": row["feeApy_result_variation"],
+                "feeApr_result_variation": row["feeApr_result_variation"],
+            }
+        )
 
     def calculate(self, ini_status: dict, end_status: dict) -> dict:
 
@@ -924,7 +911,7 @@ class direct_db_hypervisor_info:
         day_in_seconds = Decimal("60") * Decimal("60") * Decimal("24")
         year_in_seconds = day_in_seconds * Decimal("365")
 
-        result = list()
+        result = []
         initial_status = None
         elapsed_time = 0
         fee0_growth = 0
@@ -1029,10 +1016,9 @@ class direct_db_hypervisor_info:
             timezero_totalSupply = status_list[0]["ini_supply"]
             if not timezero_totalSupply:
                 raise ValueError(
-                    " No initial supply found at block {} {}'s {}".format(
-                        status_list[0]["ini_block"], self.network, self.address
-                    )
+                    f""" No initial supply found at block {status_list[0]["ini_block"]} {self.network}'s {self.address}"""
                 )
+
             # total value locked ( including uncollected fees ) at time zero
             timezero_underlying_token0 = (
                 status_list[0]["ini_tvl0"] + status_list[0]["ini_fees_uncollected0"]
@@ -1072,10 +1058,9 @@ class direct_db_hypervisor_info:
                 if status["end_block"] == status["ini_block"]:
                     # 0 block period can't be processed
                     logging.getLogger(__name__).debug(
-                        " Block {} discarded while calculating feeReturns and Impermanent data for {}'s {}".format(
-                            status["ini_block"], self.network, self.address
-                        )
+                        f""" Block {status["ini_block"]} discarded while calculating feeReturns and Impermanent data for {self.network}'s {self.address}"""
                     )
+
                     continue
 
                 ini_usd_price_token0 = self.get_price(
@@ -1279,6 +1264,7 @@ class direct_db_hypervisor_info:
                     address=self._static["pool"]["token1"]["address"],
                 )
 
+                #
                 if (
                     timezero_usd_price0 == 0
                     or timezero_usd_price1 == 0

@@ -5,6 +5,7 @@ import datetime as dt
 
 from decimal import Decimal
 from web3 import Web3, exceptions
+from web3.contract import Contract
 from web3.middleware import geth_poa_middleware
 
 from bins.configuration import CONFIGURATION, WEB3_CHAIN_IDS
@@ -66,9 +67,9 @@ class web3wrap:
         if network != "ethereum":
             self._w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
-    def setup_contract(self, address: str, abi: str):
+    def setup_contract(self, contract_address: str, contract_abi: str):
         # set contract
-        self._contract = self._w3.eth.contract(address=address, abi=abi)
+        self._contract = self._w3.eth.contract(address=contract_address, abi=contract_abi)
 
     def setup_cache(self):
         # define network
@@ -95,7 +96,7 @@ class web3wrap:
         return self._w3
 
     @property
-    def contract(self):
+    def contract(self) -> Contract:
         return self._contract
 
     @property
@@ -117,14 +118,14 @@ class web3wrap:
         Returns:
            dt.datetime.timestamp: average time per block
         """
-        result = 0
+        result: int = 0
         # no decimals allowed
-        blocksaway = math.floor(blocksaway)
+        blocksaway: int = math.floor(blocksaway)
         #
         if blocksaway > 0:
-            block_curr = self._w3.eth.get_block("latest")
-            block_past = self._w3.eth.get_block(block_curr.number - blocksaway)
-            result = (block_curr.timestamp - block_past.timestamp) / blocksaway
+            block_current: int = self._w3.eth.get_block("latest")
+            block_past: int = self._w3.eth.get_block(block_current.number - blocksaway)
+            result: int = (block_current.timestamp - block_past.timestamp) / blocksaway
         return result
 
     def blockNumberFromTimestamp(

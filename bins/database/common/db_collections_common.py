@@ -584,7 +584,7 @@ class database_local(db_collections_common):
             collection_name="operations", aggregate=query
         )
 
-    def get_user_operations(self, user_address: str) -> list:
+    def get_user_operations(self, user_address: str, timestamp_ini: int | None, timestamp_end:int | None) -> list:
         find = {
             "$or": [
                 {"src": user_address},

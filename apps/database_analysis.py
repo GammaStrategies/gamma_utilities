@@ -1,3 +1,4 @@
+import contextlib
 import sys
 import os
 import logging
@@ -9,6 +10,7 @@ from web3 import Web3
 from pathlib import Path
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field, asdict, InitVar
+from datetime import timezone
 from decimal import Decimal, getcontext
 
 if __name__ == "__main__":
@@ -43,10 +45,9 @@ def print_status(status: user_status, symbol: str = "", network: str = ""):
     logging.getLogger(__name__).info("")
     logging.getLogger(__name__).info("\tAbsolute situation:  ( all in USD )")
     logging.getLogger(__name__).info(
-        "\tMarket value (tvl):\t {:,.2f}\t ".format(
-            status.total_underlying_in_usd if status.total_underlying_in_usd else 0,
-        )
+        "\tMarket value (tvl):\t {:,.2f}\t ".format(status.total_underlying_in_usd or 0)
     )
+
     logging.getLogger(__name__).info(
         "\t   HODL token0:    \t {:,.2f}\t [{:+,.2%} vs market value]".format(
             status.total_investment_qtty_in_token0 * status.usd_price_token0,
@@ -315,36 +316,28 @@ def user_status_to_csv(status_list: list[dict], folder: str, network: str, symbo
     # closed_investment_return_token0	closed_investment_return_token1	current_result_token0		divestment_base_qtty_token0	divestment_base_qtty_token1	divestment_fee_qtty_token0	divestment_fee_qtty_token1							total_closed_investment_return_in_token0	total_closed_investment_return_in_token1	total_closed_investment_return_in_usd	total_current_result_in_token0	total_current_result_in_token1		total_divestment_base_qtty_in_token0	total_divestment_base_qtty_in_token1	total_divestment_base_qtty_in_usd	otal_divestment_fee_qtty_in_usd		impermanent_lp_vs_hodl_usd		total_underlying_in_token0	total_underlying_in_token1
 
     # set filename
-    csv_filename = "{}_{}_{}_from_{}_{}.csv".format(
-        network,
-        symbol,
-        status_list[-1]["address"],
-        status_list[0]["block"],
-        status_list[-1]["block"],
-    )
+    csv_filename = f'{network}_{symbol}_{status_list[-1]["address"]}_from_{status_list[0]["block"]}_{status_list[-1]["block"]}.csv'
+
     csv_filename = os.path.join(folder, csv_filename)
 
     # remove file
-    try:
+    with contextlib.suppress(Exception):
         os.remove(csv_filename)
-    except Exception:
-        pass
-
     # save result to csv file
     file_utilities.SaveCSV(filename=csv_filename, columns=csv_columns, rows=status_list)
 
 
 def get_hypervisor_addresses(
-    network: str, protocol: str, user_address: str = None
+    network: str, protocol: str, user_address: str | None = None
 ) -> list[str]:
 
-    result = list()
+    result: list[str] = []
     # get database configuration
-    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-    db_name = f"{network}_{protocol}"
+    mongo_url: str = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_name: str = f"{network}_{protocol}"
 
     # get blacklisted hypervisors
-    blacklisted = (
+    blacklisted: list[str] = (
         CONFIGURATION.get("script", {})
         .get("protocols", {})
         .get(protocol, {})
@@ -352,12 +345,15 @@ def get_hypervisor_addresses(
         .get("hypervisors_not_included", {})
         .get(network, [])
     )
+
     # check n clean
     if blacklisted is None:
         blacklisted = []
 
     # retrieve all addresses from database
-    local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
+    local_db_manager: database_local = database_local(
+        mongo_url=mongo_url, db_name=db_name
+    )
 
     if user_address:
         result = local_db_manager.get_distinct_items_from_database(
@@ -374,111 +370,37 @@ def get_hypervisor_addresses(
     logging.getLogger(__name__).debug(
         f" Number of hypervisors to process before applying filters: {len(result)}"
     )
-    # filter blcacklisted
-    result = [x for x in result if not x in blacklisted]
+    # filter blcaklisted
+    result = [x for x in result if x not in blacklisted]
     logging.getLogger(__name__).debug(
         f" Number of hypervisors to process after applying filters: {len(result)}"
+    )
+
+    # filter nulls
+    result = [x for x in result if x is not None]
+    logging.getLogger(__name__).debug(
+        f" Number of hypervisors to process after removing None: {len(result)}"
+    )
+
+    # filter empty strings
+    result = [x for x in result if x != ""]
+    logging.getLogger(__name__).debug(
+        f" Number of hypervisors to process after removing empty strings: {len(result)}"
     )
 
     return result
 
 
-def test_new(network: str):
-    protocol = "gamma"
-
-    b_ini = 0
-    b_end = 0
-    hypervisor_addresses = get_hypervisor_addresses(network=network, protocol=protocol)
-
-    for address in hypervisor_addresses:
-        logging.getLogger(__name__).info(
-            f" --->  Starting analysis for {network}'s {address}"
-        )
-
-        hype_new = user_status_hypervisor_builder(
-            hypervisor_address=address, network=network, protocol=protocol
-        )
-        hype_status_list = list()
-        try:
-
-            hype_new._process_operations()
-
-            hype_status_list = hype_new.result_list()
-
-            user_status_to_csv(
-                status_list=[
-                    hype_new.convert_user_status_to_dict(r) for r in hype_status_list
-                ],
-                folder="tests",
-                network=network,
-                symbol=hype_new.symbol,
-            )
-
-            print_status(
-                hype_status_list[-1], symbol=hype_new.symbol, network=hype_new.network
-            )
-        except Exception:
-            logging.getLogger(__name__).exception(" yeeep ")
-
-        try:
-            fees_direct = get_fees(
-                network=network,
-                hype_address=address,
-                max_block=hype_status_list[-1].block,
-            )
-            fees_collected_usd = (
-                hype_status_list[-1].usd_price_token0 * fees_direct["qtty_token0"]
-                + hype_status_list[-1].usd_price_token1 * fees_direct["qtty_token1"]
-            )
-
-            comparable_info = hype_status_list[-1]._get_comparable()
-
-            if fees_direct["qtty_token0"] - comparable_info[
-                "fees_collected_token0"
-            ] != Decimal("0"):
-                logging.getLogger(__name__).error(
-                    " Total collected fees 0 do not match with database data -> {} vs {}".format(
-                        comparable_info["fees_collected_token0"],
-                        fees_direct["qtty_token0"],
-                    )
-                )
-            if fees_direct["qtty_token1"] - comparable_info[
-                "fees_collected_token1"
-            ] != Decimal("0"):
-                logging.getLogger(__name__).error(
-                    " Total collected fees 1 do not match with database data -> {} vs {}".format(
-                        comparable_info["fees_collected_token1"],
-                        fees_direct["qtty_token1"],
-                    )
-                )
-        except Exception:
-            pass
-
-        # OLD TEMA
-
-        # hype_old = hypervisor_db_reader(
-        #     hypervisor_address=address, network=network, protocol=protocol
-        # )
-        # try:
-        #     hype_old._process_operations()
-        #     hype_status_old_atBlock = hype_old.result(block=hype_status_list[-1].block)
-        #     print_status(
-        #         hype_status_old_atBlock,
-        #         symbol=hype_old.symbol,
-        #         network=hype_old.network,
-        #     )
-
-        # except Exception:
-        #     logging.getLogger(__name__).exception(" yeeep OLD")
-
-
 def sumary_network(
-    network: str, protocol: str, ini_date: datetime = None, end_date: datetime = None
+    network: str,
+    protocol: str,
+    ini_date: datetime | None = None,
+    end_date: datetime | None = None,
 ):
 
     # set timeframe
     if end_date is None:
-        end_date = datetime.utcnow()
+        end_date = datetime.now(timezone.utc)
     if ini_date is None or ini_date >= end_date:
         ini_date = end_date - timedelta(days=7)
 
@@ -496,7 +418,9 @@ def sumary_network(
                 hypervisor_address=address, network=network, protocol=protocol
             )
 
-            summary = hype_new.sumary_result(t_ini=ini_timestamp, t_end=end_timestamp)
+            summary = hype_new.sumary_result(
+                t_ini=int(ini_timestamp), t_end=int(end_timestamp)
+            )
 
             logging.getLogger(__name__).info(" ")
             logging.getLogger(__name__).info(
@@ -529,11 +453,7 @@ def sumary_network(
                     break_result += 1
 
             total_users = positive_result + negative_result + break_result
-            logging.getLogger(__name__).info(
-                " From a total of {} users:".format(
-                    total_users,
-                )
-            )
+            logging.getLogger(__name__).info(f" From a total of {total_users} users:")
             logging.getLogger(__name__).info(
                 " \t  {} [{:,.2%}] have positive results and {} [{:,.2%}] negative".format(
                     positive_result,
@@ -545,27 +465,18 @@ def sumary_network(
 
         except Exception:
             logging.getLogger(__name__).error(
-                " can't analyze {}  (  may not have value locked ) --> err: {}".format(
-                    address, sys.exc_info()[0]
-                )
+                f" can't analyze {address}  (  may not have value locked ) --> err: {sys.exc_info()[0]}"
             )
 
 
-def sumary_user(
-    network: str,
-    protocol: str,
-    user_address: str,
-    ini_date: datetime = None,
-    end_date: datetime = None,
-):
-
+def sumary_user(network, protocol, user_address, ini_date=None, end_date=None):
     hypervisor_addresses = get_hypervisor_addresses(
-        network=network, protocol=protocol, user_address=user_address.lower()
+        network, protocol, user_address.lower()
     )
 
     # set timeframe
     if end_date is None:
-        end_date = datetime.utcnow()
+        end_date = datetime.now(timezone.utc)
     if ini_date is None or ini_date >= end_date:
         ini_date = end_date - timedelta(days=7)
 
@@ -582,7 +493,6 @@ def sumary_user(
             hypervisor_address=address, network=network, protocol=protocol
         )
         try:
-
             hype_status_list = hype_new.account_result_list(address=user_address)
 
             user_status_to_csv(
@@ -624,10 +534,8 @@ def main(option: str, **kwargs):
             ini_date=ini_datetime,
             end_date=end_datetime,
         )
-
-    elif CONFIGURATION["_custom_"]["cml_parameters"].hypervisor_address:
-        pass
-
+    # elif not CONFIGURATION["_custom_"]["cml_parameters"].hypervisor_address:
+    #     # TODO:
     else:
         # execute summary
         sumary_network(

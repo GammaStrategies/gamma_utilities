@@ -1,4 +1,5 @@
 from pymongo import MongoClient
+from pymongo.errors import ConnectionFailure
 
 
 class MongoDbManager:
@@ -22,8 +23,8 @@ class MongoDbManager:
         # connect to mongo database
         try:
             self.mongo_client = MongoClient(url)
-        except MongoErrors.ConnectionFailure:
-            raise Exception("Failed not connect to {}".format(url))
+        except ConnectionFailure as e:
+            raise ValueError(f"Failed not connect to {url}") from e
         self.database = self.mongo_client[db_name]
 
         # Retrieve database collection names
@@ -54,7 +55,7 @@ class MongoDbManager:
            indexes = [ <collection field name>:str = <unique>:bool  ]
         """
 
-        if not coll_name in self.database_collections:
+        if coll_name not in self.database_collections:
             for field, unique in indexes.items():
                 self.database[coll_name].create_index(field, unique=unique)
 
@@ -75,7 +76,7 @@ class MongoDbManager:
         """
 
         # check collection configuration exists
-        if not coll_name in self.collections_config.keys():
+        if coll_name not in self.collections_config.keys():
             raise ValueError(
                 f" No configuration found for {coll_name} database collection."
             )
@@ -103,7 +104,7 @@ class MongoDbManager:
         """
 
         # check collection configuration exists
-        if not coll_name in self.collections_config.keys():
+        if coll_name not in self.collections_config.keys():
             raise ValueError(
                 f" No configuration found for {coll_name} database collection."
             )
@@ -154,49 +155,46 @@ class MongoDbManager:
         if "find" in kwargs:
             if "batch_size" in kwargs:
                 if "sort" in kwargs:
-                    if "limit" in kwargs:
-                        return (
+                    return (
+                        (
                             self.database[coll_name]
                             .find(kwargs["find"], batch_size=kwargs["batch_size"])
                             .sort(kwargs["sort"])
                             .limit(kwargs["limit"])
                         )
-                    else:
-                        return (
+                        if "limit" in kwargs
+                        else (
                             self.database[coll_name]
                             .find(kwargs["find"], batch_size=kwargs["batch_size"])
                             .sort(kwargs["sort"])
                         )
+                    )
+
                 else:
                     return self.database[coll_name].find(
                         kwargs["find"], batch_size=kwargs["batch_size"]
                     )
-            else:
-                if "sort" in kwargs:
-                    if "limit" in kwargs:
-                        return (
-                            self.database[coll_name]
-                            .find(kwargs["find"])
-                            .sort(kwargs["sort"])
-                            .limit(kwargs["limit"])
-                        )
-                    else:
-                        return (
-                            self.database[coll_name]
-                            .find(kwargs["find"])
-                            .sort(kwargs["sort"])
-                        )
+            elif "sort" in kwargs:
+                if "limit" in kwargs:
+                    return (
+                        self.database[coll_name]
+                        .find(kwargs["find"])
+                        .sort(kwargs["sort"])
+                        .limit(kwargs["limit"])
+                    )
                 else:
-                    if "limit" in kwargs:
-                        return (
-                            self.database[coll_name]
-                            .find(kwargs["find"])
-                            .limit(kwargs["limit"])
-                        )
-                    else:
-                        return self.database[coll_name].find(kwargs["find"])
+                    return (
+                        self.database[coll_name]
+                        .find(kwargs["find"])
+                        .sort(kwargs["sort"])
+                    )
+            elif "limit" in kwargs:
+                return (
+                    self.database[coll_name].find(kwargs["find"]).limit(kwargs["limit"])
+                )
+            else:
+                return self.database[coll_name].find(kwargs["find"])
 
-        # build AGGREGATE result
         elif "aggregate" in kwargs:
             if "allowDiskUse" in kwargs:
                 return self.database[coll_name].aggregate(
@@ -205,7 +203,7 @@ class MongoDbManager:
             else:
                 return self.database[coll_name].aggregate(kwargs["aggregate"])
 
-    def get_distinct(self, coll_name: str, field: str, condition: dict = {}):
+    def get_distinct(self, coll_name: str, field: str, condition: dict = None):
         """get distinct items of a database field
 
         Args:
@@ -213,6 +211,8 @@ class MongoDbManager:
             field (str): field to get distinct values from
             condition (dict): like {"dept" : "B"}
         """
+        if condition is None:
+            condition = {}
         if len(condition.keys()) == 0:
             return self.database[coll_name].distinct(field)
         else:
@@ -220,4 +220,4 @@ class MongoDbManager:
 
     @staticmethod
     def create_database_name(network: str, protocol: str) -> str:
-        return "{}_{}".format(protocol, network)
+        return f"{protocol}_{network}"

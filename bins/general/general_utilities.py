@@ -76,6 +76,8 @@ def load_configuration(cfg_name="config.yaml"):
                 print(f"Error in Logging Configuration: {e}")
     else:
         print(f" {cfg_name} configuration file not found")
+    
+    raise FileNotFoundError(f" {cfg_name} configuration file not found")
 
 
 def convert_commandline_arguments(argv) -> dict:
