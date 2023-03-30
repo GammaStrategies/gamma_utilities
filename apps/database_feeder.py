@@ -488,9 +488,21 @@ def feed_hypervisor_status(
     db_name = f"{network}_{protocol}"
     local_db = database_local(mongo_url=mongo_url, db_name=db_name)
 
+    # apply filters
+    hypes_not_included: list = [
+        x.lower()
+        for x in (
+            CONFIGURATION["script"]["protocols"].get(protocol, {}).get("filters", {})
+        )
+        .get("hypervisors_not_included", {})
+        .get(network, [])
+    ]
+    logging.getLogger(__name__).debug(f"   excluding hypervisors: {hypes_not_included}")
     # get all static hypervisor info and convert it to dict
     static_info = {
-        x["address"]: x for x in local_db.get_items(collection_name="static")
+        x["address"]: x
+        for x in local_db.get_items(collection_name="static")
+        if x["address"] not in hypes_not_included
     }
 
     # create a unique list of blocks addresses from database to be processed including:
@@ -720,7 +732,7 @@ def feed_prices(
         price_helper = price_scraper(
             cache=False,
             cache_filename="uniswapv3_price_cache",
-            coingecko=False,  #TODO: create configuration var   
+            coingecko=False,  # TODO: create configuration var
         )
         # log errors
         _errors = 0
