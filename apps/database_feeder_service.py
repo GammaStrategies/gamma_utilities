@@ -23,6 +23,7 @@ from apps.database_feeder import (
     feed_prices_force_sqrtPriceX96,
     feed_timestamp_blocks,
     feed_blocks_timestamp,
+    feed_user_status,
 )
 
 
@@ -55,6 +56,9 @@ def network_sequence_loop(protocol: str, network: str):
 
     # feed global blocks data with daily
     feed_blocks_timestamp(network=network)
+
+    # feed user_status data?
+    feed_user_status(protocol=protocol, network=network)
 
 
 def price_sequence_loop(protocol: str, network: str):
