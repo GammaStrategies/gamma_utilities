@@ -8,6 +8,8 @@ from datetime import datetime, date, timedelta
 from pathlib import Path
 from web3.exceptions import ContractLogicError
 
+from croniter import croniter
+
 from bins.configuration import CONFIGURATION, STATIC_REGISTRY_ADDRESSES
 from bins.general.general_utilities import (
     convert_string_datetime,
@@ -513,13 +515,21 @@ def feed_hypervisor_status(
         topics=["deposit", "withdraw", "zeroBurn", "rebalance"]
     ):
         # add operation addressBlock to be processed
-        toProcess_block_address[f"""{x["address"]}_{x["block"]}"""] = x
+        toProcess_block_address[f"""{x["address"]}_{x["block"]}"""] = {
+            "address": x["address"],
+            "block": x["block"],
+            "fees_metadata": "ini",
+        }
         # add block -1
         toProcess_block_address[f"""{x["address"]}_{x["block"]-1}"""] = {
             "address": x["address"],
             "block": x["block"] - 1,
-            "fees_metadata": "ini",
+            "fees_metadata": "end",
         }
+
+    # create croniter
+    # c_iter = croniter(expr_format="*/60 */2 * * *", start_time=from_datetime)
+    # current_timestamp = c_iter.get_next(start_time=from_datetime.timestamp())
 
     # add latest block to all hypervisors every 20 min
     try:
@@ -536,6 +546,13 @@ def feed_hypervisor_status(
                 ._w3.eth.get_block("latest")
                 .number
             )
+            # polygon query always fail for latest block. Hardcoding a past block
+            # poly is now handling 2.2 sec per block ( 30 blocks = 66 sec )
+            if network == "polygon":
+                latest_block -= 30
+                logging.getLogger(__name__).debug(
+                    f"     applying a 30 block delay (1min) to polygon latest block [{latest_block+30} -> {latest_block}] "
+                )
 
             logging.getLogger(__name__).debug(
                 f" Adding the latest block [{latest_block}] to all addresses for status to be scraped "
