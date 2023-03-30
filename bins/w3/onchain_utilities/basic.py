@@ -37,7 +37,7 @@ class web3wrap:
         self.setup_w3(network=network)
 
         # setup contract to query
-        self.setup_contract(contract_address=self._address, abi=self._abi)
+        self.setup_contract(contract_address=self._address, contract_abi=self._abi)
         # setup cache helper
         self.setup_cache()
 
