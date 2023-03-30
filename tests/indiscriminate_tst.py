@@ -46,7 +46,7 @@ def test_w3_hypervisor_obj(
     protocol: str, network: str, dex: str, hypervisor_address: str, block: int
 ):
     hypervisor = None
-    if dex == "uniswap_v3":
+    if dex == "uniswapv3":
         hypervisor = gamma_hypervisor_cached(
             address=hypervisor_address, network=network, block=block
         )
@@ -417,6 +417,14 @@ if __name__ == "__main__":
 
     # test_prices()
     # test_price_sequence()
+
+    test_w3_hypervisor_obj(
+        protocol="gamma",
+        network="polygon",
+        dex="uniswapv3",
+        hypervisor_address="0xFEa715aB7E1DE3640CD0662f6af0f9B25934E753".lower(),
+        block=40949649,
+    )
 
     ########
     #  vars

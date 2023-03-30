@@ -546,13 +546,13 @@ def feed_hypervisor_status(
                 ._w3.eth.get_block("latest")
                 .number
             )
-            # polygon query always fail for latest block. Hardcoding a past block
-            # poly is now handling 2.2 sec per block ( 30 blocks = 66 sec )
-            if network == "polygon":
-                latest_block -= 30
-                logging.getLogger(__name__).debug(
-                    f"     applying a 30 block delay (1min) to polygon latest block [{latest_block+30} -> {latest_block}] "
-                )
+            # # polygon query always fail for latest block. Hardcoding a past block
+            # # poly is now handling 2.2 sec per block ( 30 blocks = 66 sec )
+            # if network == "polygon":
+            #     latest_block -= 30
+            #     logging.getLogger(__name__).debug(
+            #         f"     applying a 30 block delay (1min) to polygon latest block [{latest_block+30} -> {latest_block}] "
+            #     )
 
             logging.getLogger(__name__).debug(
                 f" Adding the latest block [{latest_block}] to all addresses for status to be scraped "
