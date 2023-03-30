@@ -591,24 +591,6 @@ class user_status_hypervisor_builder:
 
         return Decimal("0")
 
-        # result = Decimal("0")
-        # status_lst = self.last_user_status_list(
-        #     block=block,
-        #     logIndex=logIndex,
-        #     with_shares=True,
-        #     block_condition=block_condition,
-        #     logIndex_condition=logIndex_condition,
-        # )
-        # for status in status_lst:
-        #     if (
-        #         exclude_address == ""
-        #         or status.address.lower() != exclude_address.lower()
-        #     ):
-        #         result += status.shares_qtty
-
-        # # shares
-        # return result
-
     def total_fees(
         self,
         block: int = 0,
@@ -804,7 +786,6 @@ class user_status_hypervisor_builder:
     def _create_operations_to_process(self) -> list[dict]:
 
         # get all blocks from user status ( what has already been done [ careful because last  =  block + logIndex ] )
-
         user_status_blocks_processed = sorted(
             self.local_db_manager.get_distinct_items_from_database(
                 collection_name="user_status",
@@ -812,7 +793,7 @@ class user_status_hypervisor_builder:
                 condition={"hypervisor_address": self.address},
             )
         )
-        # substract last couple of blocks to make sure database data has not been left between the same block and different logIndexes
+        # substract last couple of blocks to make sure db data has not been left between the same block and different logIndexes
         if len(user_status_blocks_processed) > 1:
             try:
                 user_status_blocks_processed = set(user_status_blocks_processed[0:-2])
@@ -824,7 +805,7 @@ class user_status_hypervisor_builder:
             # reset and do it all from zero
             user_status_blocks_processed = set()
 
-        # get all available operations, not already processed:  the hypervisor status at time x needs all operations till that time to be build
+        # get all available hypervisor operations, not already processed:  the hypervisor status at any time T needs all operations till that time to be build
         result = [
             operation
             for operation in self.get_hypervisor_operations()
@@ -834,10 +815,10 @@ class user_status_hypervisor_builder:
         # construct the todo block list
         blocks_to_process = set([x["blockNumber"] for x in result])
 
-        # mix blocks to process ( extracted from operations)
         # control var
         initial_length = len(result)
 
+        # mix blocks to process ( extracted from operations)
         combined_blocks = list(blocks_to_process) + list(user_status_blocks_processed)
 
         # add report dummy operations once every day
