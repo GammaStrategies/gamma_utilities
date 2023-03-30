@@ -483,9 +483,6 @@ def feed_hypervisor_status(
     # debug variables
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
 
-    # create global database manager
-    global_db = database_global(mongo_url=mongo_url)
-
     # set local database name and create manager
     db_name = f"{network}_{protocol}"
     local_db = database_local(mongo_url=mongo_url, db_name=db_name)
@@ -546,13 +543,6 @@ def feed_hypervisor_status(
                 ._w3.eth.get_block("latest")
                 .number
             )
-            # # polygon query always fail for latest block. Hardcoding a past block
-            # # poly is now handling 2.2 sec per block ( 30 blocks = 66 sec )
-            # if network == "polygon":
-            #     latest_block -= 30
-            #     logging.getLogger(__name__).debug(
-            #         f"     applying a 30 block delay (1min) to polygon latest block [{latest_block+30} -> {latest_block}] "
-            #     )
 
             logging.getLogger(__name__).debug(
                 f" Adding the latest block [{latest_block}] to all addresses for status to be scraped "
@@ -737,7 +727,12 @@ def feed_prices(
     logging.getLogger(__name__).debug(
         "   Building a list of addresses and blocks to be scraped"
     )
-    items_to_process = list(price_ids - already_processed_prices)
+    # list of usd price ids sorted by descending block number
+    items_to_process = sorted(
+        list(price_ids - already_processed_prices),
+        key=lambda x: int(x.split("_")[1]),
+        reverse=True,
+    )
 
     if items_to_process:
         # create price helper
