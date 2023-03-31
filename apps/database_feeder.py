@@ -1045,6 +1045,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
                 logging.getLogger(__name__).exception(
                     f""" Unexpected error while calc. price for {network}'s {status["pool"]["token0"]["symbol"]} ({status["pool"]["token0"]["address"]}) at block {status["block"]} using token's database data {status["pool"]["token1"]["symbol"]} ({status["pool"]["token1"]["address"]})"""
                 )
+                logging.getLogger(__name__).debug(f" ---> Status: {status}")
 
             return None, status
 
