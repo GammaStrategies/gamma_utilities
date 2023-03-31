@@ -10,7 +10,12 @@ from web3.exceptions import ContractLogicError
 
 # from croniter import croniter
 
-from bins.configuration import CONFIGURATION, STATIC_REGISTRY_ADDRESSES
+from bins.configuration import (
+    CONFIGURATION,
+    STATIC_REGISTRY_ADDRESSES,
+    add_to_memory,
+    get_from_memory,
+)
 from bins.general.general_utilities import (
     convert_string_datetime,
     differences,
@@ -969,6 +974,12 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
         for x in global_db_manager.get_unique_prices_addressBlock(network=network)
     }
 
+    # get zero sqrtPriceX96 ( unsalvable errors found in the past)
+    already_processed_prices += {
+        "{}_{}_{}".format(network, x["block"], x["pool"]["token0"]["address"])
+        for x in get_from_memory(key="zero_sqrtPriceX96")
+    }
+
     # get a list of the top used tokens1 symbols
     top_tokens = [x["symbol"] for x in local_db_manager.get_mostUsed_tokens1()]
 
@@ -1048,6 +1059,9 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
                             logging.getLogger(__name__).warning(
                                 f""" Price for {network}'s {item["pool"]["token1"]["symbol"]} ({item["pool"]["token1"]["address"]}) is zero at block {item["block"]}  ( sqrtPriceX96 is {item["pool"]["slot0"]["sqrtPriceX96"]})"""
                             )
+                            if item["pool"]["slot0"]["sqrtPriceX96"] == "0":
+                                # save address to memory so it does not get processed again
+                                add_to_memory(key="zero_sqrtPriceX96", value=item)
                     else:
                         # error found
                         _errors += 1

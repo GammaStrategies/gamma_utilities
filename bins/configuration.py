@@ -40,6 +40,26 @@ if CONFIGURATION["_custom_"]["cml_parameters"].log_subfolder:
 # setup logging
 log_helper.setup_logging(customconf=CONFIGURATION)
 
+# add temporal variables while the app is running so memory is kept
+CONFIGURATION["_custom_"]["temporal_memory"] = {}
+
+
+def add_to_memory(key, value):
+    """Add to temporal memory a key and value"""
+    if not key in CONFIGURATION["_custom_"]["temporal_memory"]:
+        CONFIGURATION["_custom_"]["temporal_memory"][key] = []
+
+    if not value in CONFIGURATION["_custom_"]["temporal_memory"][key]:
+        CONFIGURATION["_custom_"]["temporal_memory"][key].append(value)
+
+
+def get_from_memory(key) -> list:
+    """Get value from temporal memory"""
+    try:
+        return CONFIGURATION["_custom_"]["temporal_memory"][key]
+    except KeyError:
+        return []
+
 
 #### ADD STATIC CONFIG HERE ####
 
@@ -51,20 +71,6 @@ WEB3_CHAIN_IDS = {
     "celo": 42220,
     "binance": 56,
 }
-
-
-# HYPERVISOR_REGISTRIES = {
-#     "uniswapv3": {
-#         "ethereum": "0x31ccdb5bd6322483bebd0787e1dabd1bf1f14946",
-#         "polygon": "0x0Ac4C7b794f3D7e7bF1093A4f179bA792CF15055",
-#         "optimism": "0xF5BFA20F4A77933fEE0C7bB7F39E7642A070d599",
-#         "arbitrum": "0x66CD859053c458688044d816117D5Bdf42A56813",
-#         "celo": "0x0F548d7AD1A0CB30D1872b8C18894484d76e1569",
-#     },
-#     "quickswap": {
-#         "polygon": "0xAeC731F69Fa39aD84c7749E913e3bC227427Adfd",
-#     },
-# }
 
 
 STATIC_REGISTRY_ADDRESSES = {
