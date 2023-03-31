@@ -1075,7 +1075,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
                             logging.getLogger(__name__).warning(
                                 f""" Price for {network}'s {item["pool"]["token1"]["symbol"]} ({item["pool"]["token1"]["address"]}) is zero at block {item["block"]}  ( sqrtPriceX96 is {sqrtPriceX96})"""
                             )
-                            if sqrtPriceX96 == "0":
+                            if sqrtPriceX96 == 0:
                                 # save address to memory so it does not get processed again
                                 add_to_memory(key="zero_sqrtPriceX96", value=item)
                     else:
