@@ -1488,7 +1488,16 @@ class gamma_hypervisor_registry(web3wrap):
         """
         return self._contract.functions.counter().call(block_identifier=self.block)
 
-    def hypeByIndex(self, index: int) -> str:
+    def hypeByIndex(self, index: int) -> tuple[str, int]:
+        """Retrieve hype address and index from registry
+            When index is zero, hype address has been deleted so its no longer valid
+
+        Args:
+            index (int): index position of hype in registry
+
+        Returns:
+            tuple[str, int]: hype address and index
+        """
         return self._contract.functions.hypeByIndex(index).call(
             block_identifier=self.block
         )
@@ -1557,11 +1566,12 @@ class gamma_hypervisor_registry(web3wrap):
         for i in range(total_qtty):
             # executiuon reverted:  arbitrum and mainnet have diff ways of indexing (+1 or 0)
             with contextlib.suppress(Exception):
-                hypervisor_id = self.registry(index=i)
+                hypervisor_id, idx = self.hypeByIndex(index=i)
 
-                # filter blacklisted hypes
+                # filter erroneous and blacklisted hypes
                 if (
-                    self._network in self.__blacklist_addresses
+                    idx == 0
+                    and self._network in self.__blacklist_addresses
                     and hypervisor_id.lower()
                     in self.__blacklist_addresses[self._network]
                 ):
@@ -1606,7 +1616,16 @@ class gamma_masterChefV2_registry(web3wrap):
         """
         return self._contract.functions.counter().call(block_identifier=self.block)
 
-    def hypeByIndex(self, index: int) -> str:
+    def hypeByIndex(self, index: int) -> tuple[str, int]:
+        """Retrieve hype address and index from registry
+            When index is zero, hype address has been deleted so its no longer valid
+
+        Args:
+            index (int): index position of hype in registry
+
+        Returns:
+            tuple[str, int]: hype address and index
+        """
         return self._contract.functions.hypeByIndex(index).call(
             block_identifier=self.block
         )
