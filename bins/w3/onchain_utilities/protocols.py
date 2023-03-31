@@ -582,6 +582,19 @@ class gamma_hypervisor_thena(gamma_hypervisor_algebra):
             block=block,
         )
 
+    @property
+    def pool(self) -> algebrav3_pool:
+        if self._pool is None:
+            self._pool = algebrav3_pool(
+                address=self._contract.functions.pool().call(
+                    block_identifier=self.block
+                ),
+                network=self._network,
+                block=self.block,
+                abi_filename="albebrav3pool_thena",
+            )
+        return self._pool
+
 
 # cached classes
 
@@ -1443,6 +1456,19 @@ class gamma_hypervisor_zyberswap_cached(gamma_hypervisor_algebra_cached):
 class gamma_hypervisor_thena_cached(gamma_hypervisor_algebra_cached):
 
     SAVE2FILE = True
+
+    @property
+    def pool(self) -> str:
+        if self._pool is None:
+            self._pool = algebrav3_pool_cached(
+                address=self._contract.functions.pool().call(
+                    block_identifier=self.block
+                ),
+                network=self._network,
+                block=self.block,
+                abi_filename="albebrav3pool_thena",
+            )
+        return self._pool
 
 
 # registries
