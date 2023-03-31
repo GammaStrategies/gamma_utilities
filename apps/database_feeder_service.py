@@ -79,14 +79,14 @@ def price_sequence_loop(protocol: str, network: str):
         price_ids=create_tokenBlocks_allTokensButWeth(
             protocol=protocol, network=network
         ),
-        coingecko=False,
+        coingecko=True,
     )
     # feed all token prices left
     feed_prices(
         protocol=protocol,
         network=network,
         price_ids=create_tokenBlocks_allTokens(protocol=protocol, network=network),
-        coingecko=False,
+        coingecko=True,
     )
 
 
