@@ -96,7 +96,7 @@ class price_scraper:
                         of=of,
                     )
 
-                    if _price and _price != 0:
+                    if _price not in [None, 0]:
                         # exit for loop
                         break
 

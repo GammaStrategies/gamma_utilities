@@ -213,8 +213,6 @@ def _get_static_hypervisor_addresses_to_process(
             f"   Rewriting all hypervisors static information of {network}'s {protocol} {dex} "
         )
 
-    if "0x02203f2351E7aC6aB5051205172D3f772db7D814".lower() in result:
-        po = "stoip"
     return result
 
 
@@ -235,8 +233,7 @@ def feed_operations(
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     filters = CONFIGURATION["script"]["protocols"].get(protocol, {}).get("filters", {})
 
-    # create global and local database managers
-    global_db = database_global(mongo_url=mongo_url)
+    # create local database manager
     db_name = f"{network}_{protocol}"
     local_db = database_local(mongo_url=mongo_url, db_name=db_name)
 
@@ -699,6 +696,7 @@ def feed_prices(
     price_ids: set,
     rewrite: bool = False,
     threaded: bool = True,
+    coingecko: bool = True,  # TODO: create configuration var
 ):
     """Feed database with prices of tokens and blocks specified in token_blocks
 
@@ -743,7 +741,7 @@ def feed_prices(
         price_helper = price_scraper(
             cache=False,
             cache_filename="uniswapv3_price_cache",
-            coingecko=False,  # TODO: create configuration var
+            coingecko=coingecko,
         )
         # log errors
         _errors = 0
