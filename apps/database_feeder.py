@@ -62,9 +62,6 @@ def feed_hypervisor_static(
     # debug variables
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
 
-    # create global database manager
-    global_db = database_global(mongo_url=mongo_url)
-
     # set local database name and create manager
     local_db = database_local(mongo_url=mongo_url, db_name=f"{network}_{protocol}")
 
@@ -216,6 +213,8 @@ def _get_static_hypervisor_addresses_to_process(
             f"   Rewriting all hypervisors static information of {network}'s {protocol} {dex} "
         )
 
+    if "0x02203f2351E7aC6aB5051205172D3f772db7D814".lower() in result:
+        po = "stoip"
     return result
 
 
