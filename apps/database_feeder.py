@@ -969,16 +969,18 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
     global_db_manager = database_global(mongo_url=mongo_url)
 
     # check already processed prices
-    already_processed_prices = {
+    already_processed_prices = [
         x["id"]
         for x in global_db_manager.get_unique_prices_addressBlock(network=network)
-    }
+    ]
 
     # get zero sqrtPriceX96 ( unsalvable errors found in the past)
-    already_processed_prices += {
+    already_processed_prices += [
         "{}_{}_{}".format(network, x["block"], x["pool"]["token0"]["address"])
         for x in get_from_memory(key="zero_sqrtPriceX96")
-    }
+    ]
+
+    already_processed_prices = set(already_processed_prices)
 
     # get a list of the top used tokens1 symbols
     top_tokens = [x["symbol"] for x in local_db_manager.get_mostUsed_tokens1()]
