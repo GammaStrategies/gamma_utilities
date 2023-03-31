@@ -4,10 +4,10 @@ import argparse
 
 def parse_commandLine_args():
 
+    # main parsers
     par_main = argparse.ArgumentParser(
         prog="tool_me.py", description=" Gamma tools ", epilog=""
     )
-
     par_main.add_argument(
         "-c", "--config", type=str, help="load custom configuration .yaml file"
     )
@@ -86,6 +86,143 @@ def parse_commandLine_args():
         type=str,
         help="specify a hypervisor address to be analyzed",
     )
+    par_main.add_argument(
+        "--do_prices",
+        type=bool,
+        help=" execute prices analysis on service network",
+    )
 
     # print helpwhen no command is passed
     return par_main.parse_args(args=None if sys.argv[1:] else ["--help"])
+
+
+def parse_commandLine_args_2work():
+
+    # main parsers
+    par_main = argparse.ArgumentParser(
+        prog="tool_me.py", description=" Gamma tools ", epilog=""
+    )
+
+    par_main.add_argument(
+        "-c", "--config", type=str, help="load custom configuration .yaml file"
+    )
+
+    par_main.add_argument(
+        "--log_subfolder", type=str, help="specify a subfolder log name to save logs to"
+    )
+
+    # subparsers
+    subparsers = par_main.add_subparsers(help="Sub-commands help")
+
+    # subparser: manual database feed
+    par_db_feed = subparsers.add_parser(
+        "db_feed", help=" one time feed database with specific data"
+    )
+    par_db_feed.add_argument(
+        "--type",
+        "-t",
+        choices=[
+            "operations",
+            "status",
+            "static",
+            "prices",
+            "user_status",
+            "impermanent_v1",
+        ],
+        help="feed database",
+    )
+
+    # subparser: auto database feed service
+    par_service = subparsers.add_parser(
+        "service", help=" execute an infinite loop global service"
+    )
+    par_service_exclusive = par_service.add_mutually_exclusive_group()
+    par_service_exclusive.add_argument(
+        "--type",
+        "-t",
+        choices=["local", "global"],
+        help=" execute an infinite loop service",
+    )
+    par_service_exclusive.add_argument(
+        "--network",
+        "-n",
+        choices=["ethereum", "polygon", "optimism", "arbitrum", "binance"],
+        help=" execute an infinite loop service for the specified network",
+    )
+
+    # subparser: checks
+    par_check = subparsers.add_parser(
+        "check", help=" database problems identifier and solver"
+    )
+    par_check.add_argument(
+        "--type", "-t", choices=["prices", "database"], help=" execute checks "
+    )
+
+    # subparser: analysis
+    par_analysis = subparsers.add_parser("analysis", help=" execute analysis")
+    # par_analysis_exclusive = par_analysis.add_mutually_exclusive_group()
+    par_analysis.add_argument(
+        "--type",
+        "-t",
+        choices=["user", "network"],
+        required=True,
+        help=" analysis scope ",
+    )
+
+    main_args, _ = par_main.parse_known_args()
+    parser_step2 = argparse.ArgumentParser(parents=[par_main])
+    if main_args.user:
+        analysis_user(parser_step2)
+    elif main_args.network:
+        analysis_network(parser_step2)
+    analysis_common(parser_step2)
+
+    # print helpwhen no command is passed
+    return par_main.parse_args(args=None if sys.argv[1:] else ["--help"])
+
+
+def analysis_user(argument_parser: argparse.ArgumentParser):
+    argument_parser.add_argument(
+        "--user_address",
+        "-a",
+        required=True,
+        help=" user address to execute the analysis ",
+    )
+    # argument_parser.add_argument(
+    #     "--hypervisor_address",
+    #     "-h",
+    #     required=False,
+    #     help=" hypervisor address to execute the analysis ",
+    # )
+
+
+def analysis_network(argument_parser: argparse.ArgumentParser):
+    argument_parser.add_argument(
+        "--network",
+        "-n",
+        choices=["ethereum", "polygon", "optimism", "arbitrum", "binance"],
+        required=True,
+        help=" network to execute the analysis ",
+    )
+
+    argument_parser.add_argument(
+        "--hypervisor_address",
+        "-a",
+        required=False,
+        help=" hypervisor address to execute the analysis ",
+    )
+
+
+def analysis_common(argument_parser: argparse.ArgumentParser):
+    argument_parser.add_argument(
+        "--ini_datetime",
+        "-i",
+        required=False,
+        help=" initial datetime to execute the analysis. Format: Y-m-dTH:M:S",
+    )
+    argument_parser.add_argument(
+        "--end_datetime",
+        "-e",
+        required=False,
+        help=" ending datetime to execute the analysis. Format: Y-m-dTH:M:S",
+    )

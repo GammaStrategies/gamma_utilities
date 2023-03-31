@@ -27,7 +27,7 @@ from apps.database_feeder import (
 )
 
 
-def network_sequence_loop(protocol: str, network: str):
+def network_sequence_loop(protocol: str, network: str, do_prices: bool = False):
     """local database feeding loop.
         it will also feed the 'blocks' global collection
 
@@ -57,7 +57,11 @@ def network_sequence_loop(protocol: str, network: str):
     # feed global blocks data with daily
     feed_blocks_timestamp(network=network)
 
-    # feed user_status data?
+    if do_prices:
+        # feed network prices ( before user status to avoid price related errors)
+        price_sequence_loop(protocol=protocol, network=network)
+
+    # feed user_status data
     feed_user_status(protocol=protocol, network=network)
 
 
@@ -101,7 +105,9 @@ def local_db_service():
                 for network in CONFIGURATION["script"]["protocols"][protocol][
                     "networks"
                 ]:
-                    network_sequence_loop(protocol=protocol, network=network)
+                    network_sequence_loop(
+                        protocol=protocol, network=network, do_prices=False
+                    )
 
     except KeyboardInterrupt:
         logging.getLogger(__name__).debug(" Local database feeding loop stoped by user")
@@ -138,12 +144,14 @@ def global_db_service():
     logging.getLogger("telegram").info(" Global database feeding loop stoped")
 
 
-def network_db_service(protocol: str, network: str):
+def network_db_service(protocol: str, network: str, do_prices: bool = False):
     """feed one local database collection in an infinite loop"""
 
     try:
         while True:
-            network_sequence_loop(protocol=protocol, network=network)
+            network_sequence_loop(
+                protocol=protocol, network=network, do_prices=do_prices
+            )
 
     except KeyboardInterrupt:
         logging.getLogger(__name__).debug(
@@ -167,7 +175,11 @@ def main(option: str, **kwargs):
     elif option == "global":
         global_db_service()
     elif option == "network":
-        network_db_service(protocol=kwargs["protocol"], network=kwargs["network"])
+        network_db_service(
+            protocol=kwargs["protocol"],
+            network=kwargs["network"],
+            do_prices=CONFIGURATION["_custom_"]["cml_parameters"].do_prices or False,
+        )
     else:
         raise NotImplementedError(
             f" Can't find any action to be taken from {option} service option"
