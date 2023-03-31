@@ -1013,15 +1013,20 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
 
         def loopme(status: dict):
             try:
+                # get sqrtPriceX96 from algebra or uniswap
+                sqrtPriceX96 = int(
+                    status["pool"].get("slot0", "globalState")["sqrtPriceX96"]
+                )
+
                 # calc price
                 price_token0 = sqrtPriceX96_to_price_float(
-                    sqrtPriceX96=int(status["pool"]["slot0"]["sqrtPriceX96"]),
+                    sqrtPriceX96=sqrtPriceX96,
                     token0_decimals=status["pool"]["token0"]["decimals"],
                     token1_decimals=status["pool"]["token1"]["decimals"],
                 )
 
                 # price0, price1 = sqrtPriceX96_to_price_float_v2(
-                #     sqrtPriceX96=int(status["pool"]["slot0"]["sqrtPriceX96"]),
+                #     sqrtPriceX96=sqrtPriceX96,
                 #     token0_decimals=status["pool"]["token0"]["decimals"],
                 #     token1_decimals=status["pool"]["token1"]["decimals"],
                 # )
@@ -1063,10 +1068,14 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
                                 price_usd=price_usd,
                             )
                         else:
-                            logging.getLogger(__name__).warning(
-                                f""" Price for {network}'s {item["pool"]["token1"]["symbol"]} ({item["pool"]["token1"]["address"]}) is zero at block {item["block"]}  ( sqrtPriceX96 is {item["pool"]["slot0"]["sqrtPriceX96"]})"""
+                            # get sqrtPriceX96 from algebra or uniswap
+                            sqrtPriceX96 = int(
+                                item["pool"].get("slot0", "globalState")["sqrtPriceX96"]
                             )
-                            if item["pool"]["slot0"]["sqrtPriceX96"] == "0":
+                            logging.getLogger(__name__).warning(
+                                f""" Price for {network}'s {item["pool"]["token1"]["symbol"]} ({item["pool"]["token1"]["address"]}) is zero at block {item["block"]}  ( sqrtPriceX96 is {sqrtPriceX96})"""
+                            )
+                            if sqrtPriceX96 == "0":
                                 # save address to memory so it does not get processed again
                                 add_to_memory(key="zero_sqrtPriceX96", value=item)
                     else:
