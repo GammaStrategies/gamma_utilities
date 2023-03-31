@@ -41,6 +41,8 @@ from bins.database.common.db_collections_common import (
     db_collections_common,
 )
 
+from apps.database_checker import auto_get_prices
+
 
 def test_w3_hypervisor_obj(
     protocol: str, network: str, dex: str, hypervisor_address: str, block: int
@@ -415,6 +417,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
+    auto_get_prices()
     # test_prices()
     # test_price_sequence()
 

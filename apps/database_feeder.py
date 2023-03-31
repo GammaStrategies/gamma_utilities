@@ -994,7 +994,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
     with tqdm.tqdm(total=len(status_list)) as progress_bar:
 
         def loopme(status: dict):
-            with contextlib.suppress(Exception):
+            try:
                 # calc price
                 price_token0 = sqrtPriceX96_to_price_float(
                     sqrtPriceX96=int(status["pool"]["slot0"]["sqrtPriceX96"]),
@@ -1002,11 +1002,11 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
                     token1_decimals=status["pool"]["token1"]["decimals"],
                 )
 
-                price0, price1 = sqrtPriceX96_to_price_float_v2(
-                    sqrtPriceX96=int(status["pool"]["slot0"]["sqrtPriceX96"]),
-                    token0_decimals=status["pool"]["token0"]["decimals"],
-                    token1_decimals=status["pool"]["token1"]["decimals"],
-                )
+                # price0, price1 = sqrtPriceX96_to_price_float_v2(
+                #     sqrtPriceX96=int(status["pool"]["slot0"]["sqrtPriceX96"]),
+                #     token0_decimals=status["pool"]["token0"]["decimals"],
+                #     token1_decimals=status["pool"]["token1"]["decimals"],
+                # )
 
                 # get weth usd price
                 usdPrice_token1 = global_db_manager.get_price_usd(
@@ -1017,6 +1017,11 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
 
                 # calc token usd price
                 return (usdPrice_token1[0]["price"] * price_token0), status
+            except Exception:
+                # error found
+                logging.getLogger(__name__).exception(
+                    f""" Unexpected error while calc. price for {network}'s {item["pool"]["token0"]["symbol"]} ({item["pool"]["token0"]["address"]}) at block {item["block"]} using token's database data {item["pool"]["token1"]["symbol"]} ({item["pool"]["token1"]["address"]})"""
+                )
 
             return None, status
 
@@ -1045,9 +1050,6 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
                             )
                     else:
                         # error found
-                        logging.getLogger(__name__).warning(
-                            f""" No price for {network}'s {item["pool"]["token1"]["symbol"]} ({item["pool"]["token1"]["address"]}) was found in database at block {item["block"]}"""
-                        )
                         _errors += 1
 
                     # update progress
