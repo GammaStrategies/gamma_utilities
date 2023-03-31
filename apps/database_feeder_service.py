@@ -86,7 +86,7 @@ def price_sequence_loop(protocol: str, network: str):
         protocol=protocol,
         network=network,
         price_ids=create_tokenBlocks_allTokens(protocol=protocol, network=network),
-        coingecko=True,
+        coingecko=False,
     )
 
 

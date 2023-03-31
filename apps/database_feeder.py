@@ -896,8 +896,8 @@ def create_tokenBlocks_allTokens(protocol: str, network: str) -> set:
     return result
 
 
-def create_tokenBlocks_topTokens(protocol: str, network: str, limit: int = 10) -> set:
-    """Create a list of blocks for each TOP token address
+def create_tokenBlocks_topTokens(protocol: str, network: str, limit: int = 5) -> set:
+    """Create a list of blocks for each TOP token address ( and WETH )
 
     Args:
         protocol (str):
@@ -916,6 +916,9 @@ def create_tokenBlocks_topTokens(protocol: str, network: str, limit: int = 10) -
     top_token_symbols = [
         x["symbol"] for x in local_db_manager.get_mostUsed_tokens1(limit=limit)
     ]
+    # force add WETH to list
+    if not "WETH" in top_token_symbols:
+        top_token_symbols.append("WETH")
 
     # get a list of all status with those top tokens + blocks
     return set(
