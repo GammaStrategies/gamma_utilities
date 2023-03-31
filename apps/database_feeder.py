@@ -1014,9 +1014,12 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
         def loopme(status: dict):
             try:
                 # get sqrtPriceX96 from algebra or uniswap
-                sqrtPriceX96 = int(
-                    status["pool"].get("slot0", "globalState")["sqrtPriceX96"]
-                )
+                if "slot0" in status["pool"]:
+                    sqrtPriceX96 = int(status["pool"]["slot0"]["sqrtPriceX96"])
+                elif "globalState" in status["pool"]:
+                    sqrtPriceX96 = int(status["pool"]["globalState"]["sqrtPriceX96"])
+                else:
+                    raise ValueError("sqrtPriceX96 not found")
 
                 # calc price
                 price_token0 = sqrtPriceX96_to_price_float(
@@ -1070,9 +1073,15 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
                             )
                         else:
                             # get sqrtPriceX96 from algebra or uniswap
-                            sqrtPriceX96 = int(
-                                item["pool"].get("slot0", "globalState")["sqrtPriceX96"]
-                            )
+                            if "slot0" in item["pool"]:
+                                sqrtPriceX96 = int(
+                                    item["pool"]["slot0"]["sqrtPriceX96"]
+                                )
+                            elif "globalState" in item["pool"]:
+                                sqrtPriceX96 = int(
+                                    item["pool"]["globalState"]["sqrtPriceX96"]
+                                )
+
                             logging.getLogger(__name__).warning(
                                 f""" Price for {network}'s {item["pool"]["token1"]["symbol"]} ({item["pool"]["token1"]["address"]}) is zero at block {item["block"]}  ( sqrtPriceX96 is {sqrtPriceX96})"""
                             )
