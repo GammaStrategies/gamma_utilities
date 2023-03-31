@@ -718,12 +718,10 @@ def feed_prices(
     local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
     global_db_manager = database_global(mongo_url=mongo_url)
 
-    # check already processed prices
-    # using only set with database id
-    already_processed_prices = {
-        x["id"]
-        for x in global_db_manager.get_unique_prices_addressBlock(network=network)
-    }
+    # get already processed prices
+    already_processed_prices = get_not_to_process_prices(
+        global_db_manager=global_db_manager, network=network
+    )
 
     # create items to process
     logging.getLogger(__name__).debug(
@@ -848,6 +846,22 @@ def feed_prices(
         return False
 
 
+def get_not_to_process_prices(global_db_manager: database_global, network: str) -> set:
+
+    already_processed_prices = [
+        x["id"]
+        for x in global_db_manager.get_unique_prices_addressBlock(network=network)
+    ]
+
+    # get zero sqrtPriceX96 ( unsalvable errors found in the past)
+    already_processed_prices += [
+        "{}_{}_{}".format(network, x["block"], x["pool"]["token0"]["address"])
+        for x in get_from_memory(key="zero_sqrtPriceX96")
+    ]
+
+    return set(already_processed_prices)
+
+
 def create_tokenBlocks_allTokensButWeth(protocol: str, network: str) -> set:
     """create a list of token addresses where weth is not in the pair
 
@@ -968,19 +982,10 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
     local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
     global_db_manager = database_global(mongo_url=mongo_url)
 
-    # check already processed prices
-    already_processed_prices = [
-        x["id"]
-        for x in global_db_manager.get_unique_prices_addressBlock(network=network)
-    ]
-
-    # get zero sqrtPriceX96 ( unsalvable errors found in the past)
-    already_processed_prices += [
-        "{}_{}_{}".format(network, x["block"], x["pool"]["token0"]["address"])
-        for x in get_from_memory(key="zero_sqrtPriceX96")
-    ]
-
-    already_processed_prices = set(already_processed_prices)
+    # get already processed prices
+    already_processed_prices = get_not_to_process_prices(
+        global_db_manager=global_db_manager, network=network
+    )
 
     # get a list of the top used tokens1 symbols
     top_tokens = [x["symbol"] for x in local_db_manager.get_mostUsed_tokens1()]
