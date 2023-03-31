@@ -147,6 +147,9 @@ def global_db_service():
 def network_db_service(protocol: str, network: str, do_prices: bool = False):
     """feed one local database collection in an infinite loop"""
 
+    logging.getLogger("telegram").info(
+        f" {protocol}'s {network} database feeding loop started"
+    )
     try:
         while True:
             network_sequence_loop(
