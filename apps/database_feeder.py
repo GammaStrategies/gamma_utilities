@@ -1046,7 +1046,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
                             )
                         else:
                             logging.getLogger(__name__).warning(
-                                f""" Price for {network}'s {item["pool"]["token0"]["symbol"]} ({item["pool"]["token0"]["address"]}) is zero at block {item["block"]}"""
+                                f""" Price for {network}'s {item["pool"]["token1"]["symbol"]} ({item["pool"]["token1"]["address"]}) is zero at block {item["block"]}"""
                             )
                     else:
                         # error found
