@@ -272,7 +272,16 @@ def auto_get_prices():
         # }
     }
 
-    # address_block_list["ethereum"] = {"0xb41f289d699c5e79a51cb29595c203cfae85f32a":[13856873,13856900,13864770,13856874,13856901,13864769]}
+    address_block_list["ethereum"] = {
+        "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": [
+            13856873,
+            13856900,
+            13864770,
+            13856874,
+            13856901,
+            13864769,
+        ]
+    }
 
     # loop query n save
     for network, data in address_block_list.items():
