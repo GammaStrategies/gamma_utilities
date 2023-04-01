@@ -1552,10 +1552,10 @@ class gamma_hypervisor_registry(web3wrap):
         total_qtty = self.counter + 1  # index positions ini=0 end=counter
         for i in range(total_qtty):
             try:
-                hypervisor_id = self.registry(index=i)
+                hypervisor_id, idx = self.hypeByIndex(index=i)
 
                 # filter blacklisted hypes
-                if (
+                if idx == 0 or (
                     self._network in self.__blacklist_addresses
                     and hypervisor_id.lower()
                     in self.__blacklist_addresses[self._network]
@@ -1595,9 +1595,8 @@ class gamma_hypervisor_registry(web3wrap):
                 hypervisor_id, idx = self.hypeByIndex(index=i)
 
                 # filter erroneous and blacklisted hypes
-                if (
-                    idx == 0
-                    and self._network in self.__blacklist_addresses
+                if idx == 0 or (
+                    self._network in self.__blacklist_addresses
                     and hypervisor_id.lower()
                     in self.__blacklist_addresses[self._network]
                 ):
