@@ -2100,7 +2100,7 @@ class user_status_hypervisor_builder:
         )
 
         # choose by dex
-        if hype_status["dex"] == "uniswapv3":
+        if hype_status["pool"]["dex"] == "uniswapv3":
             # uniswap
             hype_status["pool"]["protocolFees"][0] = int(
                 hype_status["pool"]["protocolFees"][0]
@@ -2127,7 +2127,7 @@ class user_status_hypervisor_builder:
 
             hype_status["pool"]["tickSpacing"] = int(hype_status["pool"]["tickSpacing"])
 
-        elif hype_status["dex"] == "quickswap":
+        elif hype_status["pool"]["dex"] == "algebrav3":
             # quickswap
             hype_status["pool"]["globalState"]["sqrtPriceX96"] = int(
                 hype_status["pool"]["globalState"]["sqrtPriceX96"]
@@ -2142,7 +2142,7 @@ class user_status_hypervisor_builder:
                 hype_status["pool"]["globalState"]["timepointIndex"]
             )
         else:
-            raise NotImplementedError(" dex {} not implemented ")
+            raise NotImplementedError(f" dex {hype_status['dex']} not implemented ")
 
         hype_status["pool"]["token0"]["totalSupply"] = Decimal(
             hype_status["pool"]["token0"]["totalSupply"]
