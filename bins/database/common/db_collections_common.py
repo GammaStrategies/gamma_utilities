@@ -225,7 +225,10 @@ class database_global(db_collections_common):
         self, mongo_url: str, db_name: str = "global", db_collections: dict = None
     ):
         if db_collections is None:
-            db_collections = {"blocks": {"id": True}, "usd_prices": {"id": True}}
+            db_collections = {
+                "blocks": {"id": True, "network": False, "block": False},
+                "usd_prices": {"id": True, "address": False},
+            }
         super().__init__(
             mongo_url=mongo_url, db_name=db_name, db_collections=db_collections
         )
@@ -472,10 +475,26 @@ class database_local(db_collections_common):
     def __init__(self, mongo_url: str, db_name: str, db_collections: dict = None):
         if db_collections is None:
             db_collections = {
-                "static": {"id": True},
-                "operations": {"id": True},
-                "status": {"id": True},
-                "user_status": {"id": True},
+                "static": {"id": True, "address": False},
+                "operations": {
+                    "id": True,
+                    "blockNumber": False,
+                    "address": False,
+                    "timestamp": False,
+                },
+                "status": {
+                    "id": True,
+                    "block": False,
+                    "address": False,
+                    "timestamp": False,
+                },
+                "user_status": {
+                    "id": True,
+                    "block": False,
+                    "address": False,
+                    "hypervisor_address": False,
+                    "timestamp": False,
+                },
             }
 
         super().__init__(
@@ -584,7 +603,9 @@ class database_local(db_collections_common):
             collection_name="operations", aggregate=query
         )
 
-    def get_user_operations(self, user_address: str, timestamp_ini: int | None, timestamp_end:int | None) -> list:
+    def get_user_operations(
+        self, user_address: str, timestamp_ini: int | None, timestamp_end: int | None
+    ) -> list:
         find = {
             "$or": [
                 {"src": user_address},

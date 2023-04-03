@@ -128,6 +128,35 @@ def replace_blocks_to_int():
                 progress_bar.update(1)
 
 
+def replace_quickswap_pool_dex_to_algebra(network: str, protocol: str = "gamma"):
+    logging.getLogger(__name__).debug("    Convert quickswap pool dex to algebra")
+
+    # setup database managers
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_name = f"{network}_{protocol}"
+    local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
+
+    # get all status to be modded
+    status_to_modify = local_db_manager.get_items_from_database(
+        collection_name="status", find={"pool.dex": "quickswap"}
+    )
+    _errors = 0
+    with tqdm.tqdm(total=len(status_to_modify)) as progress_bar:
+
+        def loopme(status):
+            status["pool"]["dex"] = "algebrav3"
+            local_db_manager.set_status(data=status)
+            return status
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as ex:
+            for status in ex.map(loopme, status_to_modify):
+                progress_bar.set_description(
+                    f" Convert {network}'s status quickswap pool dex to algebra  id: {status['id']}"
+                )
+                # update progress
+                progress_bar.update(1)
+
+
 def add_timestamps_to_status(network: str, protocol: str = "gamma"):
     # setup database managers
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
@@ -520,6 +549,8 @@ def main(option: str, **kwargs):
         check_prices()
     if option == "database":
         check_database()
+    if option == "replace_quickswap_pool_dex_to_algebra":
+        replace_quickswap_pool_dex_to_algebra(network="polygon")
     else:
         raise NotImplementedError(
             f" Can't find any action to be taken from {option} checks option"

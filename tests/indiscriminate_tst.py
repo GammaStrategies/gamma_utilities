@@ -41,7 +41,7 @@ from bins.database.common.db_collections_common import (
     db_collections_common,
 )
 
-from apps.database_checker import auto_get_prices
+from apps.database_checker import auto_get_prices, replace_quickswap_pool_dex_to_algebra
 
 
 def test_w3_hypervisor_obj(
@@ -417,7 +417,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    auto_get_prices()
+    replace_quickswap_pool_dex_to_algebra(network="polygon")
     # test_prices()
     # test_price_sequence()
 
