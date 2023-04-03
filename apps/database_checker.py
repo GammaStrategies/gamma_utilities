@@ -549,7 +549,7 @@ def main(option: str, **kwargs):
         check_prices()
     if option == "database":
         check_database()
-    if option == "replace_quickswap_pool_dex_to_algebra":
+    if option == "special":
         replace_quickswap_pool_dex_to_algebra(network="polygon")
     else:
         raise NotImplementedError(
