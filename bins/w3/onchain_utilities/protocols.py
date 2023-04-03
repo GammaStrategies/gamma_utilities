@@ -32,9 +32,9 @@ class gamma_hypervisor(erc20):
         self._abi_filename = abi_filename or "hypervisor"
         self._abi_path = abi_path or "data/abi/gamma"
 
-        self._pool: univ3_pool = None
-        self._token0: erc20 = None
-        self._token1: erc20 = None
+        self._pool: univ3_pool | None = None
+        self._token0: erc20 | None = None
+        self._token1: erc20 | None = None
 
         super().__init__(
             address=address,
