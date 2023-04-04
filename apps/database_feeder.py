@@ -555,6 +555,10 @@ def feed_hypervisor_status(
                     "block": latest_block,
                     "fees_metadata": "mid",
                 }
+    except IndexError:
+        logging.getLogger(__name__).debug(
+            f" Seems like there is no {network}'s {protocol} status data in db. Continue without adding latest block to all addresses for status to be scraped"
+        )
     except Exception:
         logging.getLogger(__name__).exception(
             " unexpected error while adding new blocks to status scrape process "
@@ -1463,7 +1467,13 @@ def main(option="operations"):
 
     for protocol in CONFIGURATION["script"]["protocols"]:
 
-        for network in CONFIGURATION["script"]["protocols"][protocol]["networks"]:
+        # override networks if specified in cml
+        networks = (
+            CONFIGURATION["_custom_"]["cml_parameters"].networks
+            or CONFIGURATION["script"]["protocols"][protocol]["networks"]
+        )
+
+        for network in networks:
 
             if option == "static":
                 for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][
