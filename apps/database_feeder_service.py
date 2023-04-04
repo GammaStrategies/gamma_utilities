@@ -27,7 +27,9 @@ from apps.database_feeder import (
 )
 
 
-def network_sequence_loop(protocol: str, network: str, do_prices: bool = False):
+def network_sequence_loop(
+    protocol: str, network: str, do_prices: bool = False, do_userStatus: bool = False
+):
     """local database feeding loop.
         it will also feed the 'blocks' global collection
 
@@ -61,8 +63,9 @@ def network_sequence_loop(protocol: str, network: str, do_prices: bool = False):
         # feed network prices ( before user status to avoid price related errors)
         price_sequence_loop(protocol=protocol, network=network)
 
-    # feed user_status data
-    feed_user_status(protocol=protocol, network=network)
+    if do_userStatus:
+        # feed user_status data
+        feed_user_status(protocol=protocol, network=network)
 
 
 def price_sequence_loop(protocol: str, network: str):
@@ -102,11 +105,17 @@ def local_db_service():
     try:
         while True:
             for protocol in CONFIGURATION["script"]["protocols"]:
-                for network in CONFIGURATION["script"]["protocols"][protocol][
-                    "networks"
-                ]:
+                # override networks if specified in cml
+                networks = (
+                    CONFIGURATION["_custom_"]["cml_parameters"].networks
+                    or CONFIGURATION["script"]["protocols"][protocol]["networks"]
+                )
+                for network in networks:
                     network_sequence_loop(
-                        protocol=protocol, network=network, do_prices=False
+                        protocol=protocol,
+                        network=network,
+                        do_prices=CONFIGURATION["_custom_"]["cml_parameters"].do_prices
+                        or False,
                     )
 
     except KeyboardInterrupt:
@@ -127,9 +136,12 @@ def global_db_service():
     try:
         while True:
             for protocol in CONFIGURATION["script"]["protocols"]:
-                for network in CONFIGURATION["script"]["protocols"][protocol][
-                    "networks"
-                ]:
+                # override networks if specified in cml
+                networks = (
+                    CONFIGURATION["_custom_"]["cml_parameters"].networks
+                    or CONFIGURATION["script"]["protocols"][protocol]["networks"]
+                )
+                for network in networks:
                     price_sequence_loop(protocol=protocol, network=network)
 
     except KeyboardInterrupt:

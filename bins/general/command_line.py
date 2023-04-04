@@ -91,7 +91,12 @@ def parse_commandLine_args():
         type=bool,
         help=" execute prices analysis on service network",
     )
-
+    par_main.add_argument(
+        "--networks",
+        choices=["ethereum", "optimism", "polygon", "arbitrum", "binance"],
+        nargs="+",
+        help=" specify networks to be processed",
+    )
     # print helpwhen no command is passed
     return par_main.parse_args(args=None if sys.argv[1:] else ["--help"])
 
