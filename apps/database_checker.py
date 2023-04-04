@@ -550,7 +550,8 @@ def main(option: str, **kwargs):
     if option == "database":
         check_database()
     if option == "special":
-        replace_quickswap_pool_dex_to_algebra(network="polygon")
+        # used to check for special cases
+        pass
     else:
         raise NotImplementedError(
             f" Can't find any action to be taken from {option} checks option"
