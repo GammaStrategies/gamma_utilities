@@ -8,7 +8,7 @@ import logging
 
 # import signal
 import multiprocessing as mp
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from bins.configuration import CONFIGURATION
 
@@ -156,7 +156,9 @@ def global_db_service():
     logging.getLogger("telegram").info(" Global database feeding loop stoped")
 
 
-def network_db_service(protocol: str, network: str, do_prices: bool = False):
+def network_db_service(
+    protocol: str, network: str, do_prices: bool = False, do_userStatus: bool = False
+):
     """feed one local database collection in an infinite loop"""
 
     logging.getLogger("telegram").info(
@@ -165,7 +167,10 @@ def network_db_service(protocol: str, network: str, do_prices: bool = False):
     try:
         while True:
             network_sequence_loop(
-                protocol=protocol, network=network, do_prices=do_prices
+                protocol=protocol,
+                network=network,
+                do_prices=do_prices,
+                do_userStatus=do_userStatus,
             )
 
     except KeyboardInterrupt:
@@ -194,6 +199,8 @@ def main(option: str, **kwargs):
             protocol=kwargs["protocol"],
             network=kwargs["network"],
             do_prices=CONFIGURATION["_custom_"]["cml_parameters"].do_prices or False,
+            do_userStatus=CONFIGURATION["_custom_"]["cml_parameters"].do_userStatus
+            or False,
         )
     else:
         raise NotImplementedError(

@@ -92,6 +92,11 @@ def parse_commandLine_args():
         help=" execute prices analysis on service network",
     )
     par_main.add_argument(
+        "--do_userStatus",
+        type=bool,
+        help=" execute the user status feed inside the network feed loop",
+    )
+    par_main.add_argument(
         "--networks",
         choices=["ethereum", "optimism", "polygon", "arbitrum", "binance"],
         nargs="+",
