@@ -31,7 +31,11 @@ from bins.w3.onchain_utilities.protocols import (
     gamma_hypervisor_quickswap_cached,
     gamma_hypervisor_zyberswap_cached,
     gamma_hypervisor_registry,
+    masterChef_registry,
+    masterchef_v1,
+    masterchef_rewarder,
 )
+
 
 from bins.log import log_helper
 from bins.database.db_raw_direct_info import direct_db_hypervisor_info
@@ -400,6 +404,39 @@ def test_db_direct_info(
                 end_date,
             ),
         )
+
+
+def test_masterchef():
+    network = "polygon"
+    address = CONFIGURATION.STATIC_REGISTRY_ADDRESSES[network]["MasterChefRegistry"]
+    # address = CONFIGURATION.STATIC_REGISTRY_ADDRESSES[network]["MasterChefV2Registry"]
+    registry = masterChef_registry(address, network)
+
+    # get masterchef reward registry
+    reward_registry_addresses = registry.get_masterchef_addresses()
+
+    for registry_address in reward_registry_addresses:
+
+        reward_registry = masterchef_v1(address=registry_address, network=network)
+
+        for i in range(reward_registry.poolLength):
+            # TODO: how to scrape rid ?
+            for rid in range(100):
+                try:
+                    # get reward address
+                    rewarder_address = reward_registry.getRewarder(pid=i, rid=rid)
+
+                    # get rewarder
+                    rewarder = masterchef_rewarder(
+                        address=rewarder_address, network=network
+                    )
+
+                    # get rewarder info
+                    rewarder_token = rewarder.rewardToken()
+
+                except Exception:
+                    # no more rid's
+                    break
 
 
 # START ####################################################################################################################

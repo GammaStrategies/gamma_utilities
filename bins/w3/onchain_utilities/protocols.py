@@ -1611,7 +1611,218 @@ class gamma_hypervisor_registry(web3wrap):
 # rewarders
 
 
-class gamma_masterChefV2_registry(web3wrap):
+class masterchef_rewarder(web3wrap):
+    def __init__(
+        self,
+        address: str,
+        network: str,
+        abi_filename: str = "",
+        abi_path: str = "",
+        block: int = 0,
+    ):
+        self._abi_filename = abi_filename or "masterchef_rewarder"
+        self._abi_path = abi_path or "data/abi/gamma/masterchef"
+
+        super().__init__(
+            address=address,
+            network=network,
+            abi_filename=self._abi_filename,
+            abi_path=self._abi_path,
+            block=block,
+        )
+
+    @property
+    def acc_token_precision(self) -> int:
+        return self._contract.functions.ACC_TOKEN_PRECISION().call(
+            block_identifier=self.block
+        )
+
+    @property
+    def masterchef_v2(self) -> str:
+        return self._contract.functions.MASTERCHEF_V2().call(
+            block_identifier=self.block
+        )
+
+    @property
+    def owner(self) -> str:
+        return self._contract.functions.owner().call(block_identifier=self.block)
+
+    @property
+    def pendingOwner(self) -> str:
+        return self._contract.functions.pendingOwner().call(block_identifier=self.block)
+
+    def pendingToken(self, pid: int, user: str) -> int:
+        return self._contract.functions.pendingToken(pid, user).call(
+            block_identifier=self.block
+        )
+
+    def pendingTokens(self, pid: int, user: str, input: int) -> tuple[list, list]:
+        # rewardTokens address[], rewardAmounts uint256[]
+        return self._contract.functions.pendingTokens(pid, user, input).call(
+            block_identifier=self.block
+        )
+
+    @property
+    def poolIds(self) -> int:
+        return self._contract.functions.poolIds().call(block_identifier=self.block)
+
+    def poolInfo(self, input: int) -> tuple[int, int, int]:
+        """_summary_
+
+        Args:
+            input (int): _description_
+
+        Returns:
+            tuple[int, int, int]:  accSushiPerShare uint128, lastRewardTime uint64, allocPoint uint64
+                accSushiPerShare — accumulated SUSHI per share, times 1e12.
+                lastRewardBlock — number of block, when the reward in the pool was the last time calculated
+                allocPoint — allocation points assigned to the pool. SUSHI to distribute per block per pool = SUSHI per block * pool.allocPoint / totalAllocPoint
+        """
+        return self._contract.functions.poolInfo(input).call(
+            block_identifier=self.block
+        )
+
+    @property
+    def poolLength(self) -> int:
+        return self._contract.functions.poolLength().call(block_identifier=self.block)
+
+    @property
+    def rewardPerSecond(self) -> int:
+        return self._contract.functions.rewardPerSecond().call(
+            block_identifier=self.block
+        )
+
+    @property
+    def rewardToken(self) -> str:
+        return self._contract.functions.rewardToken().call(block_identifier=self.block)
+
+    @property
+    def totalAllocPoint(self) -> int:
+        """Sum of the allocation points of all pools
+
+        Returns:
+            int: totalAllocPoint
+        """
+        return self._contract.functions.totalAllocPoint().call(
+            block_identifier=self.block
+        )
+
+    def userInfo(self, pid: int, user: str) -> tuple[int, int]:
+        """_summary_
+
+        Args:
+            pid (int): pool index
+            user (str): user address
+
+        Returns:
+            tuple[int, int]: amount uint256, rewardDebt uint256
+                    amount — how many Liquid Provider (LP) tokens the user has supplied
+                    rewardDebt — the amount of SUSHI entitled to the user
+
+        """
+        return self._contract.functions.userInfo(pid, user).call(
+            block_identifier=self.block
+        )
+
+
+# rewarder registry
+class masterchef_v1(web3wrap):
+    def __init__(
+        self,
+        address: str,
+        network: str,
+        abi_filename: str = "",
+        abi_path: str = "",
+        block: int = 0,
+    ):
+        self._abi_filename = abi_filename or "masterchef_v1"
+        self._abi_path = abi_path or "data/abi/gamma/masterchef"
+
+        super().__init__(
+            address=address,
+            network=network,
+            abi_filename=self._abi_filename,
+            abi_path=self._abi_path,
+            block=block,
+        )
+
+    @property
+    def sushi(self) -> str:
+        """The SUSHI token contract address
+
+        Returns:
+            str: token address
+        """
+        return self._contract.functions.SUSHI().call(block_identifier=self.block)
+
+    def getRewarder(self, pid: int, rid: int) -> str:
+        """Retrieve rewarder address from masterchef
+
+        Args:
+            pid (int): The index of the pool
+            rid (int): The index of the rewarder
+
+        Returns:
+            str: address
+        """
+        return self._contract.functions.getRewarder(pid, rid).call(
+            block_identifier=self.block
+        )
+
+    def lpToken(self, index: int) -> str:
+        """Retrieve lp token address (hypervisor) from masterchef
+
+        Args:
+            index (int): index of hypervisor
+
+        Returns:
+            str:  hypervisor address ( LP token)
+        """
+        return self._contract.functions.lpToken(index).call(block_identifier=self.block)
+
+    @property
+    def owner(self) -> str:
+        return self._contract.functions.owner().call(block_identifier=self.block)
+
+    @property
+    def pendingOwner(self) -> str:
+        return self._contract.functions.owner().call(block_identifier=self.block)
+
+    @property
+    def pendingSushi(self, pid: int, user: str) -> int:
+        """pending SUSHI reward for a given user
+
+        Args:
+            pid (int): The index of the pool
+            user (str):  address
+
+        Returns:
+            int: _description_
+        """
+        return self._contract.functions.pendingSushi(pid, user).call(
+            block_identifier=self.block
+        )
+
+    def poolInfo(
+        self,
+    ) -> tuple[int, int, int]:
+        """_summary_
+
+        Returns:
+            tuple[int,int,int]:  accSushiPerShare uint128, lastRewardTime uint64, allocPoint uint64
+        """
+        return self._contract.functions.poolInfo().call(block_identifier=self.block)
+
+    @property
+    def poolLength(self) -> int:
+        """Returns the number of MCV2 pools
+        Returns:
+            int:
+        """
+        return self._contract.functions.poolLength().call(block_identifier=self.block)
+
+
+class masterChef_registry(web3wrap):
     # SETUP
     def __init__(
         self,
@@ -1621,8 +1832,8 @@ class gamma_masterChefV2_registry(web3wrap):
         abi_path: str = "",
         block: int = 0,
     ):
-        self._abi_filename = abi_filename or "MasterChefV2Registry"
-        self._abi_path = abi_path or "data/abi/gamma"
+        self._abi_filename = abi_filename or "masterchef_registry_v1"
+        self._abi_path = abi_path or "data/abi/gamma/masterchef"
 
         super().__init__(
             address=address,
@@ -1631,6 +1842,9 @@ class gamma_masterChefV2_registry(web3wrap):
             abi_path=self._abi_path,
             block=block,
         )
+
+    # implement harcoded erroneous addresses to reduce web3 calls
+    __blacklist_addresses = {}
 
     @property
     def counter(self) -> int:
@@ -1669,8 +1883,69 @@ class gamma_masterChefV2_registry(web3wrap):
             Web3.toChecksumAddress(address)
         ).call(block_identifier=self.block)
 
+    # CUSTOM FUNCTIONS
+    def get_masterchef_generator(self) -> masterchef_v1:
+        """Retrieve masterchef contracts from registry
 
-class gamma_masterChefV2_rewarder(web3wrap):
+        Returns:
+           masterchefV2 contract
+        """
+        total_qtty = self.counter + 1  # index positions ini=0 end=counter
+        for i in range(total_qtty):
+            try:
+                address, idx = self.hypeByIndex(index=i)
+
+                # filter blacklisted hypes
+                if idx == 0 or (
+                    self._network in self.__blacklist_addresses
+                    and address.lower() in self.__blacklist_addresses[self._network]
+                ):
+                    # hypervisor is blacklisted: loop
+                    continue
+
+                # build hypervisor
+                masterchef = masterchef_v1(
+                    address=address,
+                    network=self._network,
+                    block=self.block,
+                )
+
+                # return correct hypervisor
+                yield masterchef
+            except Exception:
+                logging.getLogger(__name__).warning(
+                    f" Masterchef registry returned the address {address} and may not be a masterchef contract ( at web3 chain id: {self._chain_id} )"
+                )
+
+    def get_masterchef_addresses(self) -> list[str]:
+        """Retrieve masterchef addresses from registry
+
+        Returns:
+           list of addresses
+        """
+
+        total_qtty = self.counter + 1  # index positions ini=0 end=counter
+
+        result = []
+        for i in range(total_qtty):
+            # executiuon reverted:  arbitrum and mainnet have diff ways of indexing (+1 or 0)
+            with contextlib.suppress(Exception):
+                address, idx = self.hypeByIndex(index=i)
+
+                # filter erroneous and blacklisted hypes
+                if idx == 0 or (
+                    self._network in self.__blacklist_addresses
+                    and address.lower() in self.__blacklist_addresses[self._network]
+                ):
+                    # hypervisor is blacklisted: loop
+                    continue
+
+                result.append(address)
+
+        return result
+
+
+class zyberchef_v1(web3wrap):
     def __init__(
         self,
         address: str,
@@ -1679,8 +1954,8 @@ class gamma_masterChefV2_rewarder(web3wrap):
         abi_path: str = "",
         block: int = 0,
     ):
-        self._abi_filename = abi_filename or "MasterChefV2Rewarder"
-        self._abi_path = abi_path or "data/abi/gamma"
+        self._abi_filename = abi_filename or "zyberchef_v1"
+        self._abi_path = abi_path or "data/abi/gamma/masterchef"
 
         super().__init__(
             address=address,
@@ -1690,37 +1965,7 @@ class gamma_masterChefV2_rewarder(web3wrap):
             block=block,
         )
 
-    @property
-    def sushi(self) -> int:
-        """
-
-        Returns:
-            str: address
-        """
-        return self._contract.functions.counter().call(block_identifier=self.block)
-
-    def lpToken(self, index: int) -> str:
-        return self._contract.functions.lpToken(index).call(block_identifier=self.block)
-
-    @property
-    def owner(self) -> str:
-        return self._contract.functions.owner().call(block_identifier=self.block)
-
-    @property
-    def pendingOwner(self) -> str:
-        return self._contract.functions.owner().call(block_identifier=self.block)
-
-    @property
-    def pendingSushi(self) -> str:
-        return self._contract.functions.owner().call(block_identifier=self.block)
-
-    @property
-    def poolLength(self) -> int:
-        """
-        Returns:
-            int:
-        """
-        return self._contract.functions.poolLength().call(block_identifier=self.block)
+    # TODO: https://arbiscan.io/address/0x9ba666165867e916ee7ed3a3ae6c19415c2fbddd#readContract
 
 
 # TODO: decimals n stuff
