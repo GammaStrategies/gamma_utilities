@@ -199,6 +199,13 @@ if __name__ == "__main__":
         hypervisor_address="0xa3ecb6e941e773c6568052a509a04cf455a752ae",
         toDecimal=True,
     )
+    # print_multiblock_values(
+    #     network="ethereum",
+    #     dex="uniswapv3",
+    #     blocks=[16505177, 16719387],
+    #     hypervisor_address="0xa3ecb6e941e773c6568052a509a04cf455a752ae",
+    #     toDecimal=True,
+    # )
 
     # end time log
     logging.getLogger(__name__).info(
