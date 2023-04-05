@@ -361,7 +361,7 @@ def do_loop_work(
         )
     elif dex == "zyberswap":
         hypervisor = gamma_hypervisor_zyberswap_cached(
-            address=hypervisor_address, network=network, block=block
+            address=hypervisor["id"], network=network, block=block
         )
     ## THEGRAPH INFO ###
     # general vars

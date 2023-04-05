@@ -4,6 +4,7 @@ import os
 import logging
 from datetime import timezone
 from web3 import Web3
+
 from pathlib import Path
 import tqdm
 import concurrent.futures

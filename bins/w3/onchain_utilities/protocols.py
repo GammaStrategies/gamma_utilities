@@ -427,7 +427,6 @@ class gamma_hypervisor(erc20):
             self._as_dict_not_static_items(convert_bint, result)
         return result
 
-    # TODO Rename this here and in `as_dict`
     def _as_dict_not_static_items(self, convert_bint, result):
         result["baseLower"] = str(self.baseLower) if convert_bint else self.baseLower
         result["baseUpper"] = str(self.baseUpper) if convert_bint else self.baseUpper
@@ -472,16 +471,15 @@ class gamma_hypervisor(erc20):
         # positions
         result["basePosition"] = self.getBasePosition
         if convert_bint:
-            self._extracted_from_as_dict_83(result, "basePosition")
+            self._as_dict_convert_helper(result, "basePosition")
         result["limitPosition"] = self.getLimitPosition
         if convert_bint:
-            self._extracted_from_as_dict_83(result, "limitPosition")
+            self._as_dict_convert_helper(result, "limitPosition")
         result["tickSpacing"] = (
             str(self.tickSpacing) if convert_bint else self.tickSpacing
         )
 
-    # TODO Rename this here and in `as_dict`
-    def _extracted_from_as_dict_83(self, result, arg1):
+    def _as_dict_convert_helper(self, result, arg1):
         result[arg1]["liquidity"] = str(result[arg1]["liquidity"])
         result[arg1]["amount0"] = str(result[arg1]["amount0"])
         result[arg1]["amount1"] = str(result[arg1]["amount1"])
