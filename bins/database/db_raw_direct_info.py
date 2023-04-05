@@ -5,7 +5,7 @@ import sys
 from decimal import Decimal, getcontext
 from bins.configuration import CONFIGURATION
 from bins.database.common.db_collections_common import database_local, database_global
-from bins.general.general_utilities import signal_last
+from bins.converters.onchain import convert_hypervisor_fromDict
 
 from datetime import datetime, timedelta
 
@@ -272,7 +272,7 @@ class direct_db_hypervisor_info:
             ini_timestamp=int(ini_timestamp), end_timestamp=int(end_timestamp)
         )
         status = {
-            x["block"]: self.convert_hypervisor_status_fromDb(x)
+            x["block"]: convert_hypervisor_fromDict(hypervisor=x, toDecimal=True)
             for x in self.get_status(
                 ini_timestamp=int(ini_timestamp), end_timestamp=int(end_timestamp)
             )
@@ -379,7 +379,7 @@ class direct_db_hypervisor_info:
         end_timestamp = end_date.timestamp()
 
         status_list = [
-            self.convert_hypervisor_status_fromDb(x)
+            convert_hypervisor_fromDict(hypervisor=x, toDecimal=True)
             for x in self.get_status_byDay(
                 ini_timestamp=int(ini_timestamp), end_timestamp=int(end_timestamp)
             )
@@ -532,7 +532,7 @@ class direct_db_hypervisor_info:
         end_timestamp = int(end_date.timestamp()) if end_date else None
 
         status_list = [
-            self.convert_hypervisor_status_fromDb(x)
+            convert_hypervisor_fromDict(hypervisor=x, toDecimal=True)
             for x in self.get_status_byDay(
                 ini_timestamp=ini_timestamp, end_timestamp=end_timestamp
             )
@@ -1202,7 +1202,7 @@ class direct_db_hypervisor_info:
         timestamp_end = end_date.timestamp()
 
         status_list = [
-            self.convert_hypervisor_status_fromDb(x)
+            convert_hypervisor_fromDict(hypervisor=x, toDecimal=True)
             for x in self.local_db_manager.get_status_feeReturn_data_alternative(
                 hypervisor_address=self.address,
                 timestamp_ini=timestamp_ini,
@@ -1553,182 +1553,6 @@ class direct_db_hypervisor_info:
         return result
 
     # Transformers
-
-    def convert_hypervisor_status_fromDb(self, hype_status: dict) -> dict:
-        """convert database hypervisor status text fields
-            to numbers.
-
-        Args:
-            hype_status (dict): hypervisor status database obj
-
-        Returns:
-            dict: same converted
-        """
-        # decimals
-        decimals_token0 = hype_status["pool"]["token0"]["decimals"]
-        decimals_token1 = hype_status["pool"]["token1"]["decimals"]
-        decimals_contract = hype_status["decimals"]
-
-        hype_status["baseUpper"] = int(hype_status["baseUpper"])
-        hype_status["baseLower"] = int(hype_status["baseLower"])
-
-        hype_status["basePosition"]["liquidity"] = int(
-            hype_status["basePosition"]["liquidity"]
-        )
-        hype_status["basePosition"]["amount0"] = int(
-            hype_status["basePosition"]["amount0"]
-        )
-        hype_status["basePosition"]["amount1"] = int(
-            hype_status["basePosition"]["amount1"]
-        )
-        hype_status["limitPosition"]["liquidity"] = int(
-            hype_status["limitPosition"]["liquidity"]
-        )
-        hype_status["limitPosition"]["amount0"] = int(
-            hype_status["limitPosition"]["amount0"]
-        )
-        hype_status["limitPosition"]["amount1"] = int(
-            hype_status["limitPosition"]["amount1"]
-        )
-
-        hype_status["currentTick"] = int(hype_status["currentTick"])
-
-        hype_status["deposit0Max"] = Decimal(hype_status["baseLower"]) / Decimal(
-            10**decimals_token0
-        )
-        hype_status["deposit1Max"] = Decimal(hype_status["baseLower"]) / Decimal(
-            10**decimals_token1
-        )
-
-        hype_status["fees_uncollected"]["qtty_token0"] = Decimal(
-            hype_status["fees_uncollected"]["qtty_token0"]
-        ) / Decimal(10**decimals_token0)
-        hype_status["fees_uncollected"]["qtty_token1"] = Decimal(
-            hype_status["fees_uncollected"]["qtty_token1"]
-        ) / Decimal(10**decimals_token1)
-
-        hype_status["limitUpper"] = int(hype_status["limitUpper"])
-        hype_status["limitLower"] = int(hype_status["limitLower"])
-
-        hype_status["maxTotalSupply"] = int(hype_status["maxTotalSupply"]) / Decimal(
-            10**decimals_contract
-        )
-
-        hype_status["pool"]["feeGrowthGlobal0X128"] = int(
-            hype_status["pool"]["feeGrowthGlobal0X128"]
-        )
-        hype_status["pool"]["feeGrowthGlobal1X128"] = int(
-            hype_status["pool"]["feeGrowthGlobal1X128"]
-        )
-        hype_status["pool"]["liquidity"] = int(hype_status["pool"]["liquidity"])
-        hype_status["pool"]["maxLiquidityPerTick"] = int(
-            hype_status["pool"]["maxLiquidityPerTick"]
-        )
-
-        # choose by dex
-        if hype_status["dex"] == "uniswapv3":
-            # uniswap
-            hype_status["pool"]["protocolFees"][0] = int(
-                hype_status["pool"]["protocolFees"][0]
-            )
-            hype_status["pool"]["protocolFees"][1] = int(
-                hype_status["pool"]["protocolFees"][1]
-            )
-
-            hype_status["pool"]["slot0"]["sqrtPriceX96"] = int(
-                hype_status["pool"]["slot0"]["sqrtPriceX96"]
-            )
-            hype_status["pool"]["slot0"]["tick"] = int(
-                hype_status["pool"]["slot0"]["tick"]
-            )
-            hype_status["pool"]["slot0"]["observationIndex"] = int(
-                hype_status["pool"]["slot0"]["observationIndex"]
-            )
-            hype_status["pool"]["slot0"]["observationCardinality"] = int(
-                hype_status["pool"]["slot0"]["observationCardinality"]
-            )
-            hype_status["pool"]["slot0"]["observationCardinalityNext"] = int(
-                hype_status["pool"]["slot0"]["observationCardinalityNext"]
-            )
-
-            hype_status["pool"]["tickSpacing"] = int(hype_status["pool"]["tickSpacing"])
-
-        elif hype_status["dex"] == "quickswap":
-            # quickswap
-            hype_status["pool"]["globalState"]["sqrtPriceX96"] = int(
-                hype_status["pool"]["globalState"]["sqrtPriceX96"]
-            )
-            hype_status["pool"]["globalState"]["tick"] = int(
-                hype_status["pool"]["globalState"]["tick"]
-            )
-            hype_status["pool"]["globalState"]["fee"] = int(
-                hype_status["pool"]["globalState"]["fee"]
-            )
-            hype_status["pool"]["globalState"]["timepointIndex"] = int(
-                hype_status["pool"]["globalState"]["timepointIndex"]
-            )
-        else:
-            raise NotImplementedError(" dex {} not implemented ")
-
-        hype_status["pool"]["token0"]["totalSupply"] = Decimal(
-            hype_status["pool"]["token0"]["totalSupply"]
-        ) / Decimal(10**decimals_token0)
-        hype_status["pool"]["token1"]["totalSupply"] = Decimal(
-            hype_status["pool"]["token1"]["totalSupply"]
-        ) / Decimal(10**decimals_token1)
-
-        hype_status["qtty_depoloyed"]["qtty_token0"] = Decimal(
-            hype_status["qtty_depoloyed"]["qtty_token0"]
-        ) / Decimal(10**decimals_token0)
-        hype_status["qtty_depoloyed"]["qtty_token1"] = Decimal(
-            hype_status["qtty_depoloyed"]["qtty_token1"]
-        ) / Decimal(10**decimals_token1)
-        hype_status["qtty_depoloyed"]["fees_owed_token0"] = Decimal(
-            hype_status["qtty_depoloyed"]["fees_owed_token0"]
-        ) / Decimal(10**decimals_token0)
-        hype_status["qtty_depoloyed"]["fees_owed_token1"] = Decimal(
-            hype_status["qtty_depoloyed"]["fees_owed_token1"]
-        ) / Decimal(10**decimals_token1)
-
-        hype_status["tickSpacing"] = int(hype_status["tickSpacing"])
-
-        hype_status["totalAmounts"]["total0"] = Decimal(
-            hype_status["totalAmounts"]["total0"]
-        ) / Decimal(10**decimals_token0)
-        hype_status["totalAmounts"]["total1"] = Decimal(
-            hype_status["totalAmounts"]["total1"]
-        ) / Decimal(10**decimals_token1)
-
-        hype_status["totalSupply"] = Decimal(hype_status["totalSupply"]) / Decimal(
-            10**decimals_contract
-        )
-
-        hype_status["tvl"]["parked_token0"] = Decimal(
-            hype_status["tvl"]["parked_token0"]
-        ) / Decimal(10**decimals_token0)
-        hype_status["tvl"]["parked_token1"] = Decimal(
-            hype_status["tvl"]["parked_token1"]
-        ) / Decimal(10**decimals_token1)
-        hype_status["tvl"]["deployed_token0"] = Decimal(
-            hype_status["tvl"]["deployed_token0"]
-        ) / Decimal(10**decimals_token0)
-        hype_status["tvl"]["deployed_token1"] = Decimal(
-            hype_status["tvl"]["deployed_token1"]
-        ) / Decimal(10**decimals_token1)
-        hype_status["tvl"]["fees_owed_token0"] = Decimal(
-            hype_status["tvl"]["fees_owed_token0"]
-        ) / Decimal(10**decimals_token0)
-        hype_status["tvl"]["fees_owed_token1"] = Decimal(
-            hype_status["tvl"]["fees_owed_token1"]
-        ) / Decimal(10**decimals_token1)
-        hype_status["tvl"]["tvl_token0"] = Decimal(
-            hype_status["tvl"]["tvl_token0"]
-        ) / Decimal(10**decimals_token0)
-        hype_status["tvl"]["tvl_token1"] = Decimal(
-            hype_status["tvl"]["tvl_token1"]
-        ) / Decimal(10**decimals_token1)
-
-        return hype_status
 
     def query_status(
         self, address: str, ini_timestamp: int, end_timesatmp: int
