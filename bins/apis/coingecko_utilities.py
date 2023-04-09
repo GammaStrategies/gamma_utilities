@@ -15,6 +15,7 @@ class coingecko_price_helper:
             "optimism": "optimistic-ethereum",
             "arbitrum": "arbitrum-one",  # "arbitrum-nova" is targeted for gaming and donowhat ...
             "celo": "celo",
+            "binance": "binance-smart-chain",
         }
 
         self.retries = retries
