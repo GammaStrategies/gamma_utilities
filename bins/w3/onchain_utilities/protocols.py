@@ -1492,7 +1492,10 @@ class gamma_hypervisor_registry(web3wrap):
         "ethereum": [
             "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599".lower()
         ],  # address:index
-        "polygon": ["0xa9782a2c9c3fb83937f14cdfac9a6d23946c9255".lower()],
+        "polygon": [
+            "0xa9782a2c9c3fb83937f14cdfac9a6d23946c9255".lower(),
+            "0xfb0bc232CD11dBe804B489860c470B7f9cc80D9F".lower(),
+        ],
         "optimism": ["0xc7722271281Aa6D5D027fC9B21989BE99424834f".lower()],
         "arbitrum": ["0x38f81e638f9e268e8417F2Ff76C270597fa077A0".lower()],
     }
