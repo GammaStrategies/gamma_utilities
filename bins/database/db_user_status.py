@@ -1,3 +1,4 @@
+import contextlib
 import sys
 import logging
 import uuid
@@ -12,6 +13,7 @@ from bins.configuration import CONFIGURATION
 from bins.database.common.db_collections_common import database_local, database_global
 
 from bins.converters.onchain import convert_hypervisor_fromDict
+from datetime import timezone
 
 # getcontext().prec = 40
 
@@ -93,7 +95,6 @@ class user_status:
         hypervisor_address: str = "",
         raw_operation: str = "",
     ):
-
         # Important:
         # when var name <...in_token1> or <...in_usd>  means position converted to x.
         #
@@ -222,7 +223,7 @@ class user_status:
             for a in dir(status)
             if not a.startswith("__")
             and not callable(getattr(status, a))
-            and not a in blist
+            and a not in blist
         ]:
             setattr(result, p, getattr(self, p) + getattr(status, p))
         return result
@@ -238,7 +239,7 @@ class user_status:
             for a in dir(status)
             if not a.startswith("__")
             and not callable(getattr(status, a))
-            and not a in blist
+            and a not in blist
         ]:
             setattr(result, p, getattr(self, p) - getattr(status, p))
 
@@ -272,7 +273,7 @@ class user_status:
             for a in dir(status)
             if not a.startswith("__")
             and not callable(getattr(status, a))
-            and not a in blist
+            and a not in blist
         ]:
             setattr(self, p, getattr(status, p))
 
@@ -319,10 +320,10 @@ class user_status_hypervisor_builder:
         self._prices = self._get_prices()
 
         # masterchefs
-        self._masterchefs = list()
+        self._masterchefs = []
 
         # control var (itemsprocessed): list of operation ids processed
-        self.ids_processed = list()
+        self.ids_processed = []
         # control var time order :  last block always >= current
         self.last_block_processed: int = 0
 
@@ -348,12 +349,12 @@ class user_status_hypervisor_builder:
         find = {"$or": or_query, "network": self.network}
         sort = [("block", 1)]
 
-        result = dict()
+        result = {}
         for x in global_db_manager.get_items_from_database(
             collection_name="usd_prices", find=find, sort=sort
         ):
-            if not x["block"] in result:
-                result[x["block"]] = dict()
+            if x["block"] not in result:
+                result[x["block"]] = {}
             result[x["block"]][x["address"]] = x["price"]
 
         return result
@@ -576,18 +577,15 @@ class user_status_hypervisor_builder:
                 "shares_qtty"
             ]
         except IndexError:
-            if exclude_address == "":
+            if not exclude_address:
                 logging.getLogger(__name__).exception(
-                    " [{}] Unexpected error calc total shares (exclude_address is set) --> query:  {} ".format(
-                        self.network, query
-                    )
+                    f" [{self.network}] Unexpected error calc total shares (exclude_address is set) --> query:  {query} "
                 )
-            # may just be that there are no shares besides current excluded address
+
+                # may just be that there are no shares besides current excluded address
         except Exception:
             logging.getLogger(__name__).exception(
-                " [{}] Unexpected error calc total shares--> query:  {} ".format(
-                    self.network, query
-                )
+                f" [{self.network}] Unexpected error calc total shares--> query:  {query} "
             )
 
         return Decimal("0")
@@ -620,6 +618,7 @@ class user_status_hypervisor_builder:
             with_shares=True,
             block_condition=block_condition,
             logIndex_condition=logIndex_condition,
+            with_shares=False,
         ):
             total["token0"] += status.fees_collected_token0
             total["token1"] += status.fees_collected_token1
@@ -631,7 +630,6 @@ class user_status_hypervisor_builder:
         block: int = 0,
         block_condition: str = "$lte",
     ) -> dict:
-
         find = {"address": self.address.lower()}
         if block != 0:
             find["block"] = block
@@ -711,7 +709,6 @@ class user_status_hypervisor_builder:
             block=block,
             block_condition=block_condition,
         ):
-
             # use last operation for current address
             if status.timestamp > total_block_status.timestamp:
                 total_block_status.usd_price_token0 = status.usd_price_token0
@@ -785,7 +782,6 @@ class user_status_hypervisor_builder:
             return []
 
     def _create_operations_to_process(self) -> list[dict]:
-
         # get all blocks from user status ( what has already been done [ careful because last  =  block + logIndex ] )
         user_status_blocks_processed = sorted(
             self.local_db_manager.get_distinct_items_from_database(
@@ -797,7 +793,7 @@ class user_status_hypervisor_builder:
         # substract last couple of blocks to make sure db data has not been left between the same block and different logIndexes
         if len(user_status_blocks_processed) > 1:
             try:
-                user_status_blocks_processed = set(user_status_blocks_processed[0:-2])
+                user_status_blocks_processed = set(user_status_blocks_processed[:-2])
             except Exception:
                 logging.getLogger(__name__).error(
                     f" Unexpected error slicing block array while creating operations to process. array length: {len(user_status_blocks_processed)}"
@@ -814,7 +810,7 @@ class user_status_hypervisor_builder:
         ]
 
         # construct the todo block list
-        blocks_to_process = set([x["blockNumber"] for x in result])
+        blocks_to_process = {x["blockNumber"] for x in result}
 
         # control var
         initial_length = len(result)
@@ -828,12 +824,10 @@ class user_status_hypervisor_builder:
             key=lambda x: (x["block"]),
             reverse=False,
         ):
-
             if (
-                not hype_status["block"] in blocks_to_process
-                and not hype_status["block"] in user_status_blocks_processed
+                hype_status["block"] not in blocks_to_process
+                and hype_status["block"] not in user_status_blocks_processed
             ):
-
                 # discard close blocks ( block <30> block )
                 _closest = min(
                     combined_blocks,
@@ -842,13 +836,9 @@ class user_status_hypervisor_builder:
                 if abs(_closest - hype_status["block"]) < 30:
                     # discard block close to a block to process
                     logging.getLogger(__name__).debug(
-                        " Block {} has not been included in {} [{}] user status creation because it is {} blocks close to (already/to be) processed block".format(
-                            hype_status["block"],
-                            self.address,
-                            self.symbol,
-                            _closest - hype_status["block"],
-                        )
+                        f' Block {hype_status["block"]} has not been included in {self.address} [{self.symbol}] user status creation because it is {_closest - hype_status["block"]} blocks close to (already/to be) processed block'
                     )
+
                     continue
                 # add report operation to operations tobe processed
                 result.append(
@@ -880,19 +870,15 @@ class user_status_hypervisor_builder:
 
         _errors = 0
         with tqdm.tqdm(total=len(operations_to_process), leave=False) as progress_bar:
-
             for operation in operations_to_process:
                 # progress show
                 progress_bar.set_description(
-                    " processing 0x..{}  {}  {}".format(
-                        operation["address"][-4:],
-                        operation["blockNumber"],
-                        operation["topic"],
-                    )
+                    f' processing 0x..{operation["address"][-4:]}  {operation["blockNumber"]}  {operation["topic"]}'
                 )
+
                 progress_bar.refresh()
 
-                if not operation["id"] in self.ids_processed:
+                if operation["id"] not in self.ids_processed:
                     # linear processing check
                     if operation["blockNumber"] < self.last_block_processed:
                         logging.getLogger(__name__).error(
@@ -917,7 +903,6 @@ class user_status_hypervisor_builder:
                 progress_bar.update(1)
 
     def _process_operation(self, operation: dict):
-
         # set current block
         self.current_block = operation["blockNumber"]
         # set current logIndex
@@ -964,7 +949,6 @@ class user_status_hypervisor_builder:
 
     # Topic transformers
     def _process_deposit(self, operation: dict) -> user_status:
-
         # block
         block = operation["blockNumber"]
         # contract address
@@ -1039,7 +1023,6 @@ class user_status_hypervisor_builder:
         return new_user_status
 
     def _process_withdraw(self, operation: dict) -> user_status:
-
         # define ease access vars
         block = operation["blockNumber"]
         contract_address = operation["address"].lower()
@@ -1148,7 +1131,7 @@ class user_status_hypervisor_builder:
 
         # ####
         # CLOSED return ( testing )
-        try:
+        with contextlib.suppress(Exception):
             new_user_status.closed_investment_return_token0 += (
                 divestment_qtty_token0 - (investment_divested_0)
             )
@@ -1176,9 +1159,6 @@ class user_status_hypervisor_builder:
             new_user_status.total_closed_investment_return_in_token1 += (
                 total_divestment_qtty_in_token1 - (total_investment_divested_in_token1)
             )
-        except Exception:
-            pass
-
         # add global stats
         new_user_status = self._add_globals_to_user_status(
             current_user_status=new_user_status,
@@ -1191,7 +1171,6 @@ class user_status_hypervisor_builder:
         return new_user_status
 
     def _process_transfer(self, operation: dict) -> tuple[user_status, user_status]:
-
         if operation["dst"] == "0x0000000000000000000000000000000000000000":
             # expect a withdraw topic on next operation ( same block))
             # do nothing
@@ -1242,7 +1221,6 @@ class user_status_hypervisor_builder:
         self._share_fees_with_acounts(operation)
 
     def _transfer_to_user(self, operation: dict) -> tuple[user_status, user_status]:
-
         # block
         block = operation["blockNumber"]
         # contract address
@@ -1452,19 +1430,16 @@ class user_status_hypervisor_builder:
         Args:
             status (user_status):
         """
-        if not status.address in self.__blacklist_addresses:
-
+        if status.address not in self.__blacklist_addresses:
             # add status to database
             self.local_db_manager.set_user_status(
                 self.convert_user_status_toDb(status=status)
             )
 
-        else:
-            # blacklisted
-            if not status.address == "0x0000000000000000000000000000000000000000":
-                logging.getLogger(__name__).debug(
-                    f"Not adding blacklisted account {status.address} user status"
-                )
+        elif status.address != "0x0000000000000000000000000000000000000000":
+            logging.getLogger(__name__).debug(
+                f"Not adding blacklisted account {status.address} user status"
+            )
 
     # General helpers
     def _add_globals_to_user_status(
@@ -1473,10 +1448,11 @@ class user_status_hypervisor_builder:
         last_user_status_item: user_status,
         price_usd_t0: Decimal = Decimal("0"),
         price_usd_t1: Decimal = Decimal("0"),
-        current_status_data: dict = {},
+        current_status_data: dict | None = None,
         total_shares: Decimal = Decimal("0"),
     ) -> user_status:
-
+        if current_status_data is None:
+            current_status_data = {}
         if price_usd_t0 == Decimal("0"):
             # USD prices
             price_usd_t0 = self.get_price(
@@ -1511,7 +1487,7 @@ class user_status_hypervisor_builder:
         )
 
         # get hypervisor status at block
-        if len(current_status_data) == 0:
+        if not current_status_data:
             current_status_data = self.get_hypervisor_status(
                 block=current_user_status.block
             )
@@ -1565,9 +1541,7 @@ class user_status_hypervisor_builder:
             + current_user_status.fees_owed_token1 * price_usd_t1
         )
 
-        # avoid calc seconds passed on new created items ( think about transfers)
         if last_user_status_item.block != 0:
-            # Decide wether to add or set seconds passed based on topic ( always set but not on report op)
             if current_user_status.topic == "report":
                 # all secs passed since last block processed
                 current_user_status.fees_uncollected_secPassed += (
@@ -1763,6 +1737,8 @@ class user_status_hypervisor_builder:
             list[user_status]:
         """
 
+        # TODO: implement with shares find["shares_qtty"] = {"$gt": 0}
+
         find = {"hypervisor_address": self.address.lower()}
         if block != 0 and logIndex != 0:
             if "e" in block_condition:
@@ -1798,6 +1774,10 @@ class user_status_hypervisor_builder:
             },
             {"$replaceRoot": {"newRoot": "$last_doc"}},
         ]
+
+        # with shares filter: last user status should have shares
+        if with_shares:
+            query.append({"$match": {"shares_qtty": {"$gt": 0}}})
 
         return [
             self.convert_user_status_fromDb(item)
@@ -1868,7 +1848,6 @@ class user_status_hypervisor_builder:
         block_condition: str = "$lte",
         logIndex_condition: str = "$lte",
     ) -> list[int]:
-
         condition = {"address": self.address}
         if block != 0 and logIndex != 0:
             if "e" in block_condition:
@@ -2002,7 +1981,6 @@ class user_status_hypervisor_builder:
             return 0
 
     def get_price(self, block: int, address: str) -> Decimal:
-
         ##
         try:
             return Decimal(self._prices[block][address])
@@ -2247,7 +2225,7 @@ class user_status_hypervisor_builder:
                 for a in dir(status)
                 if not a.startswith("__")
                 and not callable(getattr(status, a))
-                and not a in fields_excluded
+                and a not in fields_excluded
             ]
         }
 
@@ -2259,7 +2237,7 @@ class user_status_hypervisor_builder:
             for a in dir(result)
             if not a.startswith("__")
             and not callable(getattr(result, a))
-            and not a in fields_excluded
+            and a not in fields_excluded
         ]:
             setattr(result, p, status[p])
 
@@ -2267,7 +2245,6 @@ class user_status_hypervisor_builder:
 
     # threaded shares share
     def _share_fees_with_acounts(self, operation: dict):
-
         # block
         block = operation["blockNumber"]
         # contract address
@@ -2378,11 +2355,13 @@ class user_status_hypervisor_builder:
             # return
             return new_user_status, user_share
 
-        # go thread all
+        # go thread all: Get all user status with shares to share fees with
         with concurrent.futures.ThreadPoolExecutor() as ex:
             for result_status, result_user_share in ex.map(
                 loop_share_fees,
-                self.last_user_status_list(block=block, logIndex=operation["logIndex"]),
+                self.last_user_status_list(
+                    block=block, logIndex=operation["logIndex"], with_shares=True
+                ),
             ):
                 # apply result
                 ctrl_total_shares_applied += result_status.shares_qtty
@@ -2393,7 +2372,6 @@ class user_status_hypervisor_builder:
 
         # control remainders
         if ctrl_total_percentage_applied != Decimal("1"):
-
             fee0_remainder = (
                 Decimal("1") - ctrl_total_percentage_applied
             ) * fees_collected_token0
@@ -2446,7 +2424,6 @@ class user_status_hypervisor_builder:
                 )
 
     def _process_topic_report(self, operation: dict):
-
         # block
         block = operation["blockNumber"]
 
@@ -2498,13 +2475,14 @@ class user_status_hypervisor_builder:
             # return
             return new_user_status
 
-        # go thread all
+        # go thread all: only users with shares
         with concurrent.futures.ThreadPoolExecutor() as ex:
             for new_user_status in ex.map(
                 loop_process_report,
-                self.last_user_status_list(block=block, logIndex=operation["logIndex"]),
+                self.last_user_status_list(
+                    block=block, logIndex=operation["logIndex"], with_shares=True
+                ),
             ):
-
                 # add to result
                 self._add_user_status(status=new_user_status)
 
@@ -2520,7 +2498,7 @@ class user_status_hypervisor_builder:
         Returns:
             list[user_status]: of hypervisor status at blocks
         """
-        result = list()
+        result = []
         if b_end == 0:
             b_end = sys.maxsize
         # define alowed topics to return ( be aware that blocks not in predefined topics list may not have all addresses in the block, underreporting values)
@@ -2537,17 +2515,20 @@ class user_status_hypervisor_builder:
 
         # go thread all
         with concurrent.futures.ThreadPoolExecutor() as ex:
-            for item in ex.map(
-                self.result,
-                sorted(
-                    self.local_db_manager.get_distinct_items_from_database(
-                        collection_name="user_status",
-                        field="block",
-                        condition=condition,
+            result.extend(
+                iter(
+                    ex.map(
+                        self.result,
+                        sorted(
+                            self.local_db_manager.get_distinct_items_from_database(
+                                collection_name="user_status",
+                                field="block",
+                                condition=condition,
+                            )
+                        ),
                     )
-                ),
-            ):
-                result.append(item)
+                )
+            )
 
         return result
 
@@ -2563,9 +2544,9 @@ class user_status_hypervisor_builder:
         Returns:
             list[user_status]: of hypervisor status (using user_status class)
         """
-        result = list()
+        result = []
         if t_end == 0:
-            t_end = datetime.utcnow().timestamp()
+            t_end = datetime.now(timezone.utc).timestamp()
         if t_ini == 0:
             t_ini = t_end - timedelta(days=1)
 
@@ -2583,22 +2564,24 @@ class user_status_hypervisor_builder:
 
         # go thread all
         with concurrent.futures.ThreadPoolExecutor() as ex:
-            for item in ex.map(
-                self.result,
-                sorted(
-                    self.local_db_manager.get_distinct_items_from_database(
-                        collection_name="user_status",
-                        field="block",
-                        condition=condition,
+            result.extend(
+                iter(
+                    ex.map(
+                        self.result,
+                        sorted(
+                            self.local_db_manager.get_distinct_items_from_database(
+                                collection_name="user_status",
+                                field="block",
+                                condition=condition,
+                            )
+                        ),
                     )
-                ),
-            ):
-                result.append(item)
+                )
+            )
 
         return result
 
     def sumary_result(self, t_ini: int = 0, t_end: int = 0) -> dict():
-
         status_list = self.result_list_timestamp(t_ini=t_ini, t_end=t_end)
 
         return self._compare_status(
@@ -2608,7 +2591,6 @@ class user_status_hypervisor_builder:
     def _compare_status(
         self, ini_status: user_status, end_status: user_status
     ) -> dict():
-
         days_passed = (end_status.timestamp - ini_status.timestamp) / (60 * 60 * 24)
 
         # value of investment at the beguining of the period
