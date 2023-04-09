@@ -46,6 +46,7 @@ from bins.formulas.univ3_formulas import (
 )
 from datetime import timezone
 
+
 ### Static ######################
 def feed_hypervisor_static(
     protocol: str, network: str, dex: str, rewrite: bool = False, threaded: bool = True
@@ -229,7 +230,6 @@ def feed_operations(
     date_ini: datetime | None = None,
     date_end: datetime | None = None,
 ):
-
     logging.getLogger(__name__).info(
         f">Feeding {protocol}'s {network} hypervisors operations information"
     )
@@ -385,7 +385,6 @@ def feed_operations_hypervisors(
     block_end: int,
     local_db: database_local,
 ):
-
     # set global protocol helper
     onchain_helper = onchain_data_helper2(protocol=protocol)
 
@@ -535,7 +534,6 @@ def feed_hypervisor_status(
             datetime.now(timezone.utc).timestamp()
             - local_db.get_max_field(collection="status", field="timestamp")[0]["max"]
         ) > 60 * 20:
-
             latest_block = (
                 erc20_cached(
                     address="0x0000000000000000000000000000000000000000",
@@ -666,7 +664,6 @@ def feed_hypervisor_status(
 def create_db_hypervisor(
     address: str, network: str, block: int, dex: str, static_mode=False
 ) -> dict():
-
     try:
         if dex == "uniswapv3":
             hypervisor = gamma_hypervisor_cached(
@@ -812,7 +809,6 @@ def feed_prices(
             else:
                 # loop blocks to gather info
                 for db_id in items_to_process:
-
                     price_usd, token, block = loopme(db_id)
                     progress_bar.set_description(
                         f"[er:{_errors}] Retrieving USD price of 0x..{token[-3:]} at block {block}"
@@ -851,7 +847,6 @@ def feed_prices(
 
 
 def get_not_to_process_prices(global_db_manager: database_global, network: str) -> set:
-
     already_processed_prices = [
         x["id"]
         for x in global_db_manager.get_unique_prices_addressBlock(network=network)
@@ -859,7 +854,7 @@ def get_not_to_process_prices(global_db_manager: database_global, network: str) 
 
     # get zero sqrtPriceX96 ( unsalvable errors found in the past)
     already_processed_prices += [
-        "{}_{}_{}".format(network, x["block"], x["pool"]["token0"]["address"])
+        f'{network}_{x["block"]}_{x["pool"]["token0"]["address"]}'
         for x in get_from_memory(key="zero_sqrtPriceX96")
     ]
 
@@ -940,7 +935,7 @@ def create_tokenBlocks_topTokens(protocol: str, network: str, limit: int = 5) ->
         x["symbol"] for x in local_db_manager.get_mostUsed_tokens1(limit=limit)
     ]
     # force add WETH to list
-    if not "WETH" in top_token_symbols:
+    if "WETH" not in top_token_symbols:
         top_token_symbols.append("WETH")
 
     # get a list of all status with those top tokens + blocks
@@ -1262,7 +1257,6 @@ def feed_timestamp_blocks(network: str, protocol: str, threaded: bool = True):
         else:
             # loop blocks to gather info
             for item in items_to_process:
-
                 progress_bar.set_description(f" Retrieving timestamp of block {item}")
                 progress_bar.refresh()
                 try:
@@ -1297,14 +1291,12 @@ def feed_timestamp_blocks(network: str, protocol: str, threaded: bool = True):
 
 
 def feed_user_status(network: str, protocol: str):
-
     addresses = get_hypervisor_addresses(network=network, protocol=protocol)
     logging.getLogger(__name__).info(
         f">Feeding {protocol}'s {network} user status information for {len(addresses)} hypervisors"
     )
 
     for idx, address in enumerate(addresses):
-
         logging.getLogger(__name__).debug(
             f"   [{idx} of {len(addresses)}] Building {network}'s {address} user status"
         )
@@ -1322,7 +1314,6 @@ def feed_user_status(network: str, protocol: str):
 
 
 def get_hypervisor_addresses(network: str, protocol: str) -> list[str]:
-
     result = []
     # get database configuration
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
@@ -1362,7 +1353,6 @@ def get_hypervisor_addresses(network: str, protocol: str) -> list[str]:
 
 ### gamma_db_v1 -> FastAPI
 def feed_fastApi_impermanent(network: str, protocol: str):
-
     # TODO implement threaded
     threaded = True
 
@@ -1412,7 +1402,6 @@ def feed_fastApi_impermanent(network: str, protocol: str):
             with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
                 for result, days in ex.map(lambda p: construct_result(*p), args):
                     if result:
-
                         progress_bar.set_description(
                             f"""[er:{_errors}]  Saving impermanent loss data for {result[0]["symbol"]} at {days} days"""
                         )
@@ -1464,9 +1453,7 @@ def feed_fastApi_impermanent(network: str, protocol: str):
 
 
 def main(option="operations"):
-
     for protocol in CONFIGURATION["script"]["protocols"]:
-
         # override networks if specified in cml
         networks = (
             CONFIGURATION["_custom_"]["cml_parameters"].networks
@@ -1474,7 +1461,6 @@ def main(option="operations"):
         )
 
         for network in networks:
-
             if option == "static":
                 for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][
                     network
