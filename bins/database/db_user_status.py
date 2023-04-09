@@ -615,10 +615,9 @@ class user_status_hypervisor_builder:
         for status in self.last_user_status_list(
             block=block,
             logIndex=logIndex,
-            with_shares=True,
+            with_shares=False,
             block_condition=block_condition,
             logIndex_condition=logIndex_condition,
-            with_shares=False,
         ):
             total["token0"] += status.fees_collected_token0
             total["token1"] += status.fees_collected_token1
