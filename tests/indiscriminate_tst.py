@@ -16,7 +16,7 @@ CURRENT_FOLDER = os.path.dirname(os.path.realpath(__file__))
 PARENT_FOLDER = os.path.dirname(CURRENT_FOLDER)
 sys.path.append(PARENT_FOLDER)
 
-from bins.configuration import CONFIGURATION
+from bins.configuration import CONFIGURATION, STATIC_REGISTRY_ADDRESSES
 from bins.general import general_utilities, file_utilities
 
 from apps.database_feeder import feed_prices_force_sqrtPriceX96
@@ -409,14 +409,16 @@ def test_db_direct_info(
 
 def test_masterchef():
     network = "polygon"
-    address = CONFIGURATION.STATIC_REGISTRY_ADDRESSES[network]["MasterChefRegistry"]
-    # address = CONFIGURATION.STATIC_REGISTRY_ADDRESSES[network]["MasterChefV2Registry"]
+    # address = STATIC_REGISTRY_ADDRESSES[network]["MasterChefRegistry"]
+    address = STATIC_REGISTRY_ADDRESSES[network]["MasterChefV2Registry"]
     registry = masterChef_registry(address, network)
 
     # get masterchef reward registry
     reward_registry_addresses = registry.get_masterchef_addresses()
 
     for registry_address in reward_registry_addresses:
+
+        print(f"{network} testing reward registry {registry_address}")
 
         reward_registry = masterchef_v1(address=registry_address, network=network)
 
@@ -427,6 +429,7 @@ def test_masterchef():
                     # get reward address
                     rewarder_address = reward_registry.getRewarder(pid=i, rid=rid)
 
+                    print(f"            testing rewarder address {rewarder_address}")
                     # get rewarder
                     rewarder = masterchef_rewarder(
                         address=rewarder_address, network=network
@@ -437,7 +440,7 @@ def test_masterchef():
 
                 except Exception:
                     # no more rid's
-                    break
+                    print(sys.exc_info()[0])
 
 
 # START ####################################################################################################################
@@ -454,6 +457,8 @@ if __name__ == "__main__":
 
     # start time log
     _startime = datetime.now(timezone.utc)
+
+    test_masterchef()
 
     replace_quickswap_pool_dex_to_algebra(network="polygon")
     # test_prices()

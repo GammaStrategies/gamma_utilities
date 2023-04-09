@@ -19,7 +19,6 @@ from bins.w3.onchain_utilities.exchanges import (
 
 
 class gamma_hypervisor(erc20):
-
     # SETUP
     def __init__(
         self,
@@ -598,7 +597,6 @@ class gamma_hypervisor_thena(gamma_hypervisor_algebra):
 
 
 class gamma_hypervisor_cached(gamma_hypervisor):
-
     SAVE2FILE = True
 
     # PROPERTIES
@@ -1020,7 +1018,6 @@ class gamma_hypervisor_cached(gamma_hypervisor):
 
 
 class gamma_hypervisor_algebra_cached(gamma_hypervisor_algebra):
-
     SAVE2FILE = True
 
     # PROPERTIES
@@ -1442,17 +1439,14 @@ class gamma_hypervisor_algebra_cached(gamma_hypervisor_algebra):
 
 
 class gamma_hypervisor_quickswap_cached(gamma_hypervisor_algebra_cached):
-
     SAVE2FILE = True
 
 
 class gamma_hypervisor_zyberswap_cached(gamma_hypervisor_algebra_cached):
-
     SAVE2FILE = True
 
 
 class gamma_hypervisor_thena_cached(gamma_hypervisor_algebra_cached):
-
     SAVE2FILE = True
 
     @property
@@ -1901,15 +1895,12 @@ class masterChef_registry(web3wrap):
                     # hypervisor is blacklisted: loop
                     continue
 
-                # build hypervisor
-                masterchef = masterchef_v1(
+                yield masterchef_v1(
                     address=address,
                     network=self._network,
                     block=self.block,
                 )
 
-                # return correct hypervisor
-                yield masterchef
             except Exception:
                 logging.getLogger(__name__).warning(
                     f" Masterchef registry returned the address {address} and may not be a masterchef contract ( at web3 chain id: {self._chain_id} )"
@@ -1968,7 +1959,6 @@ class zyberchef_v1(web3wrap):
 
 # TODO: decimals n stuff
 class arrakis_hypervisor(erc20):
-
     # SETUP
     def __init__(
         self,
@@ -1978,7 +1968,6 @@ class arrakis_hypervisor(erc20):
         abi_path: str = "",
         block: int = 0,
     ):
-
         self._abi_filename = abi_filename or "gunipool"
         self._abi_path = abi_path or "data/abi/arrakis"
 
@@ -2270,7 +2259,6 @@ class arrakis_hypervisor(erc20):
 
 
 class arrakis_hypervisor_cached(arrakis_hypervisor):
-
     SAVE2FILE = True
 
     # PROPERTIES

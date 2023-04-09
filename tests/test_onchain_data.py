@@ -48,7 +48,6 @@ def flatten_dict(my_dict: dict, existing_dict: dict = None, add_key: str = ""):
 def construct_hype(
     network: str, dex: str, block: int, hypervisor_address: str
 ) -> gamma_hypervisor:
-
     # Setup vars
     web3Provider_url = CONFIGURATION["sources"]["web3Providers"][network]
     # setup onchain dta provider
@@ -84,7 +83,6 @@ def construct_hype(
 
 
 def print_values(hype: gamma_hypervisor, toDecimal: bool = True):
-
     print(" ------------- ")
     print(f"network: {hype._network}")
     print(f"hypervisor_address: {hype.address}")
@@ -209,10 +207,9 @@ if __name__ == "__main__":
 
     # end time log
     logging.getLogger(__name__).info(
-        " took {} to complete".format(
-            general_utilities.log_time_passed.get_timepassed_string(_startime)
-        )
+        f" took {general_utilities.log_time_passed.get_timepassed_string(_startime)} to complete"
     )
+
     logging.getLogger(__name__).info(
         f" Exit {__module_name}    <----------------------"
     )

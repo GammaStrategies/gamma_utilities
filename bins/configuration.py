@@ -46,10 +46,10 @@ CONFIGURATION["_custom_"]["temporal_memory"] = {}
 
 def add_to_memory(key, value):
     """Add to temporal memory a key and value"""
-    if not key in CONFIGURATION["_custom_"]["temporal_memory"]:
+    if key not in CONFIGURATION["_custom_"]["temporal_memory"]:
         CONFIGURATION["_custom_"]["temporal_memory"][key] = []
 
-    if not value in CONFIGURATION["_custom_"]["temporal_memory"][key]:
+    if value not in CONFIGURATION["_custom_"]["temporal_memory"][key]:
         CONFIGURATION["_custom_"]["temporal_memory"][key].append(value)
 
 
