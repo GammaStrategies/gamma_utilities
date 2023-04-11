@@ -6,7 +6,7 @@ import datetime as dt
 from decimal import Decimal
 from web3 import Web3, exceptions
 from web3.contract import Contract
-from web3.middleware import geth_poa_middleware
+from web3.middleware import geth_poa_middleware, simple_cache_middleware
 
 from bins.configuration import CONFIGURATION, WEB3_CHAIN_IDS
 from bins.general import file_utilities
@@ -14,7 +14,6 @@ from bins.cache import cache_utilities
 
 
 class web3wrap:
-
     # SETUP
     def __init__(
         self,
@@ -63,6 +62,9 @@ class web3wrap:
                 request_kwargs={"timeout": 60},
             )
         )
+        # add simple cache module
+        self._w3.middleware_onion.add(simple_cache_middleware)
+
         # add middleware as needed
         if network != "ethereum":
             self._w3.middleware_onion.inject(geth_poa_middleware, layer=0)
@@ -177,7 +179,6 @@ class web3wrap:
         _startime = dt.datetime.now(dt.timezone.utc)
 
         while block_curr.timestamp != timestamp:
-
             queries_cost += 1
 
             # make sure we have positive block result
@@ -268,7 +269,6 @@ class web3wrap:
         return result
 
     def timestampFromBlockNumber(self, block: int) -> int:
-
         block_obj = None
         if block < 1:
             block_obj = self._w3.eth.get_block("latest")
@@ -279,7 +279,6 @@ class web3wrap:
         return block_obj.timestamp
 
     def get_sameTimestampBlocks(self, block, queries_cost: int):
-
         result = []
         # try go backwards till different timestamp is found
         curr_block = block
@@ -429,7 +428,6 @@ class web3wrap:
 
 
 class erc20(web3wrap):
-
     # SETUP
     def __init__(
         self,
@@ -498,7 +496,6 @@ class erc20(web3wrap):
 
 
 class erc20_cached(erc20):
-
     SAVE2FILE = True
 
     # PROPERTIES
