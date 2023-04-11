@@ -296,7 +296,7 @@ def feed_operations(
         if not block_ini:
             block_ini = get_db_last_operation_block(protocol=protocol, network=network)
             logging.getLogger(__name__).debug(
-                f"   Setting initial block to {block_ini}, being the last block found in operations"
+                f"   Setting initial block to {block_ini}, being the last block found in operations database collection"
             )
 
             # check if hypervisors in static collection are diff from operation's
@@ -1478,7 +1478,14 @@ def main(option="operations"):
                     feed_hypervisor_static(protocol=protocol, network=network, dex=dex)
 
                 # feed database with all operations from static hyprervisor addresses
-                feed_operations(protocol=protocol, network=network)
+                feed_operations(
+                    protocol=protocol,
+                    network=network,
+                    date_ini=CONFIGURATION["_custom_"]["cml_parameters"].ini_datetime,
+                    date_end=CONFIGURATION["_custom_"]["cml_parameters"].end_datetime,
+                    block_ini=CONFIGURATION["_custom_"]["cml_parameters"].ini_block,
+                    block_end=CONFIGURATION["_custom_"]["cml_parameters"].end_block,
+                )
 
             elif option == "status":
                 # feed database with statuss from all operations

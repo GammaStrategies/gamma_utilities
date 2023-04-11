@@ -22,16 +22,14 @@ class file_backend:
         self.file_name = filename
         self.folder_name = folder_name
 
-        self._cache = dict()  # {  network_id: "<contract address>": value, ...}
+        self._cache = {}  # {  network_id: "<contract address>": value, ...}
 
         # init object
         self._pre_init_cache(reset)
         self._init_cache()
 
     def _pre_init_cache(self, reset: bool):
-
         if self.folder_name != "":
-
             # check if folder exists
             if not os.path.exists(self.folder_name):
                 # Create a new directory because it does not exist
@@ -40,21 +38,16 @@ class file_backend:
             if reset:
                 # delete file
                 try:
-                    if os.path.isfile(
-                        "{}/{}.json".format(self.folder_name, self.file_name)
-                    ):
-                        os.remove("{}/{}.json".format(self.folder_name, self.file_name))
+                    if os.path.isfile(f"{self.folder_name}/{self.file_name}.json"):
+                        os.remove(f"{self.folder_name}/{self.file_name}.json")
                 except Exception:
                     # error could not delete file
                     logging.getLogger("special").exception(
-                        " Could not delete cache file:  {}     .error: {}".format(
-                            "{}/{}.json".format(self.folder_name, self.file_name),
-                            sys.exc_info()[0],
-                        )
+                        f" Could not delete cache file:  {self.folder_name}/{self.file_name}.json     .error: {sys.exc_info()[0]}"
                     )
 
         # init price cache
-        self._cache = dict()
+        self._cache = {}
 
     def _load_cache_file(self, lock: bool = True) -> dict:
         if lock:
@@ -116,14 +109,13 @@ class database_backend:
         """
         self.db_collection = collection
 
-        self._cache = dict()  # {  network_id: "<contract address>": value, ...}
+        self._cache = {}  # {  network_id: "<contract address>": value, ...}
 
         # init object
         self._pre_init_cache(reset)
         self._init_cache()
 
     def _pre_init_cache(self, reset: bool):
-
         if reset:
             # wipe database
             try:
@@ -132,19 +124,16 @@ class database_backend:
             except Exception:
                 # error could not delete file
                 logging.getLogger(__name__).exception(
-                    " Could not remove collection   .error: {}".format(
-                        sys.exc_info()[0]
-                    )
+                    f" Could not remove collection   .error: {sys.exc_info()[0]}"
                 )
 
         # init price cache
-        self._cache = dict()
+        self._cache = {}
 
     def _load_cache_file(self) -> dict:
         # TODO: get from database
         # self.db_collection.get_all_items()
         raise NotImplementedError("Not implemented yet")
-        return None
 
     def _init_cache(self):
         # place some loading logic
@@ -162,7 +151,6 @@ class database_backend:
 
 class standard_property_cache(file_backend):
     def _init_cache(self):
-
         temp_loaded_cache = self._load_cache_file()
         _loaded = 0
         if temp_loaded_cache != None:
@@ -335,9 +323,10 @@ class mutable_property_cache(standard_property_cache):
         Returns:
             bool:
         """
-        if not self.fixed_fields[key]:
-            if self.get_anyblock_value(chain_id=chain_id, address=address, key=key):
-                self.fixed_fields[key] = True
+        if not self.fixed_fields[key] and self.get_anyblock_value(
+            chain_id=chain_id, address=address, key=key
+        ):
+            self.fixed_fields[key] = True
 
         return self.fixed_fields[key]
 
@@ -352,7 +341,6 @@ class standard_thegraph_cache(file_backend):
     RATE_LIMIT = net_utilities.rate_limit(rate_max_sec=4)  # thegraph rate limiter
 
     def _init_cache(self):
-
         # init price cache
         self._cache = self._load_cache_file()
 
@@ -411,7 +399,7 @@ class standard_thegraph_cache(file_backend):
            dict: Can return None if not found
         """
 
-        try:
+        with contextlib.suppress(Exception):
             # extract network and block from kwargs
             network = kwargs["network"].strip()
             block = kwargs["block"].strip()
@@ -420,14 +408,10 @@ class standard_thegraph_cache(file_backend):
             if key != "":
                 # use it for key in cache
                 return self._cache[network][block][key]
-        except Exception:
-            pass
-
         # not in cache
         return None
 
     def _build_key(self, args: dict) -> str:
-
         result = ""
         try:
             # create a sorted list of keys without network nor block
@@ -449,7 +433,6 @@ class standard_thegraph_cache(file_backend):
 
 class price_cache(standard_property_cache):
     def _init_cache(self):
-
         # init price cache
         temp_loaded_cache = self._load_cache_file()
         _loaded = 0
@@ -465,11 +448,9 @@ class price_cache(standard_property_cache):
 
                         # non zero blocks and zero values are discarded
                         if int(block) > 0:
-
                             for token, value in val3.items():
                                 # only values > 0
                                 if value > 0:
-
                                     # init cache network id
                                     if not chainId in self._cache:
                                         self._cache[chainId] = dict()

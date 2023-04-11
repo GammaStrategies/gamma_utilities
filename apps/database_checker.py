@@ -94,7 +94,6 @@ def check_prices(min_count: int = 3):
 
 # one time utils
 def replace_blocks_to_int():
-
     logging.getLogger(__name__).debug("    Converting non int blocks to int")
 
     # setup database managers
@@ -176,7 +175,6 @@ def add_timestamps_to_status(network: str, protocol: str = "gamma"):
     with tqdm.tqdm(total=len(all_status)) as progress_bar:
 
         def loopme(status):
-
             if "timestamp" in status:
                 # item already with data
                 return status, True
@@ -230,6 +228,10 @@ def add_timestamps_to_status(network: str, protocol: str = "gamma"):
                 progress_bar.update(1)
 
 
+def force_scrape_operations(network: str, protocol: str = "gamma"):
+    pass
+
+
 # helpers
 def add_price_to_token(network: str, token_address: str, block: int, price: float):
     """force special price add to database:
@@ -259,14 +261,12 @@ def add_price_to_token(network: str, token_address: str, block: int, price: floa
 
 
 def get_price(network: str, token_address: str, block: int) -> float:
-
     price_helper = price_scraper(cache=False)
 
     return price_helper.get_price(network=network, token_id=token_address, block=block)
 
 
 def auto_get_prices():
-
     # set prices to get
     address_block_list = {
         # "ethereum": {
@@ -332,7 +332,6 @@ def auto_get_prices():
 
 # checks
 def check_database():
-
     # setup global database manager
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     global_db_manager = database_global(mongo_url=mongo_url)
@@ -341,7 +340,6 @@ def check_database():
         # checks
         for protocol, networks in CONFIGURATION["script"]["protocols"].items():
             for network, dexes in networks["networks"].items():
-
                 # setup local database manager
                 db_name = f"{network}_{protocol}"
                 local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
@@ -520,7 +518,6 @@ def get_failed_prices_from_log(log_file: str) -> dict:
     network_token_blocks = {}
 
     for regx_txt in [debug_regx, pricelog_regx, debug_regx2]:
-
         if matches := re.finditer(regx_txt, log_file_content):
             for match in matches:
                 network = match.group("network")
@@ -544,7 +541,6 @@ def get_failed_prices_from_log(log_file: str) -> dict:
 
 
 def main(option: str, **kwargs):
-
     if option == "prices":
         check_prices()
     if option == "database":
