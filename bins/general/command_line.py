@@ -3,7 +3,6 @@ import argparse
 
 
 def parse_commandLine_args():
-
     # main parsers
     par_main = argparse.ArgumentParser(
         prog="tool_me.py", description=" Gamma tools ", epilog=""
@@ -77,6 +76,16 @@ def parse_commandLine_args():
         help="specify an ending datetime: format Y-m-dTH:M:S ",
     )
     par_main.add_argument(
+        "--ini_block",
+        type=int,
+        help="specify an initial block",
+    )
+    par_main.add_argument(
+        "--end_block",
+        type=int,
+        help="specify an ending block ",
+    )
+    par_main.add_argument(
         "--user_address",
         type=str,
         help="specify a user address to be analyzed",
@@ -107,7 +116,6 @@ def parse_commandLine_args():
 
 
 def parse_commandLine_args_2work():
-
     # main parsers
     par_main = argparse.ArgumentParser(
         prog="tool_me.py", description=" Gamma tools ", epilog=""
