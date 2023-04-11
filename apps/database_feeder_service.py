@@ -166,9 +166,10 @@ def network_db_service(
         f" {protocol}'s {network} database feeding loop started"
     )
     # get minimum time between loops ( defaults to 5 minutes)
-    min_loop_time = CONFIGURATION["_custom_"][
-        "cml_parameters"
-    ].min_loop_time or CONFIGURATION["script"].get("min_loop_time", 60 * 5)
+    min_loop_time = 60 * (
+        CONFIGURATION["_custom_"]["cml_parameters"].min_loop_time
+        or CONFIGURATION["script"].get("min_loop_time", 5)
+    )
     try:
         while True:
             _startime = datetime.now(timezone.utc)
