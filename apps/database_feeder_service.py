@@ -9,6 +9,7 @@ import logging
 # import signal
 import multiprocessing as mp
 from datetime import datetime, timedelta, timezone
+import time
 
 from bins.configuration import CONFIGURATION
 
@@ -164,14 +165,26 @@ def network_db_service(
     logging.getLogger("telegram").info(
         f" {protocol}'s {network} database feeding loop started"
     )
+    # get minimum time between loops ( defaults to 5 minutes)
+    min_loop_time = CONFIGURATION["_custom_"][
+        "cml_parameters"
+    ].min_loop_time or CONFIGURATION["script"].get("min_loop_time", 60 * 5)
     try:
         while True:
+            _startime = datetime.now(timezone.utc)
             network_sequence_loop(
                 protocol=protocol,
                 network=network,
                 do_prices=do_prices,
                 do_userStatus=do_userStatus,
             )
+            _endtime = datetime.now(timezone.utc)
+            if (_endtime - _startime).total_seconds() < min_loop_time:
+                sleep_time = min_loop_time - (_endtime - _startime).total_seconds()
+                logging.getLogger(__name__).debug(
+                    f" {protocol}'s {network} sleeping for {sleep_time} seconds to loop again"
+                )
+                time.sleep(sleep_time)
 
     except KeyboardInterrupt:
         logging.getLogger(__name__).debug(
@@ -189,7 +202,6 @@ def network_db_service(
 
 
 def main(option: str, **kwargs):
-
     if option == "local":
         local_db_service()
     elif option == "global":

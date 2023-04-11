@@ -30,6 +30,7 @@ sources:
     mongo_server_url:  "mongodb://localhost:27072"
 
 script:
+  min_loop_time: 5 # minimum cost for the loop process in number of minutes to wait for ( loop at min. every 5 minutes) usefull to reduce web3 calls
   protocols:
     gamma:
       networks:

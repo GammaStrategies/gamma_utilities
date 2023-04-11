@@ -111,6 +111,11 @@ def parse_commandLine_args():
         nargs="+",
         help=" specify networks to be processed",
     )
+    par_main.add_argument(
+        "--min_loop_time",
+        type=int,
+        help=" specify the minimum number of minutes the loop should cost in order to start again",
+    )
     # print helpwhen no command is passed
     return par_main.parse_args(args=None if sys.argv[1:] else ["--help"])
 
