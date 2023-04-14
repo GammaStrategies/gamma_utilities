@@ -31,6 +31,11 @@ from bins.w3.onchain_utilities.protocols import (
     masterChef_registry,
     masterchef_v1,
     masterchef_rewarder,
+    gamma_hypervisor_cached,
+    gamma_hypervisor_quickswap_cached,
+    gamma_hypervisor_algebra_cached,
+    gamma_hypervisor_zyberswap_cached,
+    gamma_hypervisor_thena_cached,
 )
 
 
@@ -46,35 +51,57 @@ def flatten_dict(my_dict: dict, existing_dict: dict = None, add_key: str = ""):
 
 
 def construct_hype(
-    network: str, dex: str, block: int, hypervisor_address: str
+    network: str, dex: str, block: int, hypervisor_address: str, cached: bool = False
 ) -> gamma_hypervisor:
-    # Setup vars
-    web3Provider_url = CONFIGURATION["sources"]["web3Providers"][network]
-    # setup onchain dta provider
-    web3Provider = Web3(
-        Web3.HTTPProvider(web3Provider_url, request_kwargs={"timeout": 120})
-    )
-    # add middleware as needed
-    if network != "ethereum":
-        web3Provider.middleware_onion.inject(geth_poa_middleware, layer=0)
+    # # Setup vars
+    # web3Provider_url = CONFIGURATION["sources"]["web3Providers"][network]
+    # # setup onchain dta provider
+    # web3Provider = Web3(
+    #     Web3.HTTPProvider(web3Provider_url, request_kwargs={"timeout": 120})
+    # )
+    # # add middleware as needed
+    # if network != "ethereum":
+    #     web3Provider.middleware_onion.inject(geth_poa_middleware, layer=0)
 
     ## WEB3 INFO ##
     # get onchain data and set the block num. on all queries from now on
     if dex == "uniswapv3":
-        gamma_web3Helper = gamma_hypervisor(
-            address=hypervisor_address, network=network, block=block
+        gamma_web3Helper = (
+            gamma_hypervisor(address=hypervisor_address, network=network, block=block)
+            if not cached
+            else gamma_hypervisor_cached(
+                address=hypervisor_address, network=network, block=block
+            )
         )
     elif dex == "quickswap":
-        gamma_web3Helper = gamma_hypervisor_quickswap(
-            address=hypervisor_address, network=network, block=block
+        gamma_web3Helper = (
+            gamma_hypervisor_quickswap(
+                address=hypervisor_address, network=network, block=block
+            )
+            if not cached
+            else gamma_hypervisor_quickswap_cached(
+                address=hypervisor_address, network=network, block=block
+            )
         )
     elif dex == "zyberswap":
-        gamma_web3Helper = gamma_hypervisor_zyberswap(
-            address=hypervisor_address, network=network, block=block
+        gamma_web3Helper = (
+            gamma_hypervisor_zyberswap(
+                address=hypervisor_address, network=network, block=block
+            )
+            if not cached
+            else gamma_hypervisor_zyberswap_cached(
+                address=hypervisor_address, network=network, block=block
+            )
         )
     elif dex == "thena":
-        gamma_web3Helper = gamma_hypervisor_thena(
-            address=hypervisor_address, network=network, block=block
+        gamma_web3Helper = (
+            gamma_hypervisor_thena(
+                address=hypervisor_address, network=network, block=block
+            )
+            if not cached
+            else gamma_hypervisor_thena_cached(
+                address=hypervisor_address, network=network, block=block
+            )
         )
     else:
         raise NotImplementedError(f"unsupported dex {dex}")
@@ -176,6 +203,48 @@ def result_to_csv(
     file_utilities.SaveCSV(filename=csv_filename, columns=csv_columns, rows=result)
 
 
+def test_cached_vs_noncached(
+    network: str, dex: str, block: int, hypervisor_address: str
+):
+    """Compare cached and non cached values
+
+    Args:
+        network (str):
+        dex (str):
+        block (int):
+        hypervisor_address (str):
+    """
+    logging.getLogger(__name__).info(
+        f" Testing non-cached vs cached {network}'s {dex} hypervisor {hypervisor_address} at block {block}"
+    )
+    # setup cached and non cached helpers
+    hype = construct_hype(
+        network=network,
+        dex=dex,
+        block=block,
+        hypervisor_address=hypervisor_address,
+        cached=False,
+    )
+    hype_cached = construct_hype(
+        network=network,
+        dex=dex,
+        block=block,
+        hypervisor_address=hypervisor_address,
+        cached=True,
+    )
+    # convert to flat dictionary
+    hype_dict = flatten_dict(my_dict=hype.as_dict())
+    hype_cached_dict = flatten_dict(my_dict=hype_cached.as_dict())
+
+    # compare values0
+    for k, v in hype_dict.items():
+        if v != hype_cached_dict[k]:
+            print(f"{k}: {v} != cached value {hype_cached_dict[k]}")
+            logging.getLogger(__name__).info(
+                f" non-cached {k} value {v} != cached {hype_cached_dict[k]}"
+            )
+
+
 # START ####################################################################################################################
 
 if __name__ == "__main__":
@@ -190,13 +259,13 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    saveCsv_multiblock_values(
-        network="ethereum",
-        dex="uniswapv3",
-        blocks=[16505177, 16719387],
-        hypervisor_address="0xa3ecb6e941e773c6568052a509a04cf455a752ae",
-        toDecimal=True,
-    )
+    # saveCsv_multiblock_values(
+    #     network="ethereum",
+    #     dex="uniswapv3",
+    #     blocks=[16505177, 16719387],
+    #     hypervisor_address="0xa3ecb6e941e773c6568052a509a04cf455a752ae",
+    #     toDecimal=True,
+    # )
     # print_multiblock_values(
     #     network="ethereum",
     #     dex="uniswapv3",
@@ -204,6 +273,13 @@ if __name__ == "__main__":
     #     hypervisor_address="0xa3ecb6e941e773c6568052a509a04cf455a752ae",
     #     toDecimal=True,
     # )
+
+    test_cached_vs_noncached(
+        network="ethereum",
+        dex="uniswapv3",
+        block=16505177,
+        hypervisor_address="0xa3ecb6e941e773c6568052a509a04cf455a752ae",
+    )
 
     # end time log
     logging.getLogger(__name__).info(

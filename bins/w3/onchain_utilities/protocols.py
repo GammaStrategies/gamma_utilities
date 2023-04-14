@@ -7,8 +7,8 @@ from decimal import Decimal
 from web3 import Web3
 from web3.contract import ContractEvent
 
-from bins.configuration import CONFIGURATION
-from bins.formulas import univ3_formulas
+from bins.configuration import CONFIGURATION, WEB3_CHAIN_IDS
+from bins.cache import cache_utilities
 from bins.w3.onchain_utilities.basic import web3wrap, erc20, erc20_cached
 from bins.w3.onchain_utilities.exchanges import (
     univ3_pool,
@@ -41,6 +41,40 @@ class gamma_hypervisor(erc20):
             abi_filename=self._abi_filename,
             abi_path=self._abi_path,
             block=block,
+        )
+
+    # SETUP
+    def setup_cache(self):
+        # define network
+        if self._network in WEB3_CHAIN_IDS:
+            self._chain_id = WEB3_CHAIN_IDS[self._network]
+        else:
+            self._chain_id = self.w3.eth.chain_id
+
+        # made up a descriptive cahce file name
+        cache_filename = f"{self._chain_id}_{self.address.lower()}"
+
+        fixed_fields = {
+            "decimals": False,
+            "symbol": False,
+            "factory": False,
+            "fee": False,
+            "deposit0Max": False,
+            "deposit1Max": False,
+            "directDeposit": False,
+            "feeRecipient": False,
+            "maxTotalSupply": False,
+            "name": False,
+            "owner": False,
+            "tickSpacing": False,
+        }
+
+        # create cache helper
+        self._cache = cache_utilities.mutable_property_cache(
+            filename=cache_filename,
+            folder_name="data/cache/onchain",
+            reset=False,
+            fixed_fields=fixed_fields,
         )
 
     # PROPERTIES

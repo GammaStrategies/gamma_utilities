@@ -242,9 +242,10 @@ class mutable_property_cache(standard_property_cache):
         super().__init__(filename=filename, folder_name=folder_name, reset=reset)
 
         if fixed_fields:
-            # {<fixed field>:< found in cache?>}
+            # {<fixed field>:< found in cache?>}  found in cache is always false at the beginning
             self.fixed_fields = fixed_fields
         else:
+            # default fixed fields
             self.fixed_fields = {"decimals": False, "symbol": False}
 
     def add_data(
@@ -265,7 +266,12 @@ class mutable_property_cache(standard_property_cache):
             return True
         else:
             return super().add_data(
-                chain_id=chain_id, address=address, block=block, key=key, data=data
+                chain_id=chain_id,
+                address=address,
+                block=block,
+                key=key,
+                data=data,
+                save2file=save2file,
             )
 
     def get_data(self, chain_id, address: str, block: int, key: str):

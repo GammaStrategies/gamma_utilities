@@ -6,7 +6,7 @@ from hexbytes import HexBytes
 from decimal import Decimal
 
 from web3 import Web3
-from web3.middleware import geth_poa_middleware
+from web3.middleware import geth_poa_middleware, simple_cache_middleware
 
 from bins.configuration import CONFIGURATION
 from bins.w3.onchain_utilities.basic import erc20
@@ -28,7 +28,6 @@ class data_collector:
         topics_data_decoders: dict,
         network: str,
     ):
-
         self.network = network
 
         self._progress_callback = None  # log purp
@@ -49,7 +48,6 @@ class data_collector:
         )
 
     def setup_topics(self, topics: dict, topics_data_decoders: dict):
-
         if not topics is None and len(topics.keys()) > 0:
             # set topics
             self._topics = topics
@@ -68,6 +66,9 @@ class data_collector:
                 request_kwargs={"timeout": 120},
             )
         )
+        # add simple cache module
+        self._w3.middleware_onion.add(simple_cache_middleware)
+
         # add middleware as needed
         if network != "ethereum":
             self._w3.middleware_onion.inject(geth_poa_middleware, layer=0)
@@ -199,7 +200,6 @@ class data_collector:
     # HELPERS
     # TODO:  remove or change
     def _save_topic(self, topic: str, event, data):
-
         # init result
         itm = self._convert_topic(topic=topic, event=event, data=data)
         # force fee topic
@@ -240,7 +240,6 @@ class data_collector:
             )
 
     def _convert_topic(self, topic: str, event, data) -> dict:
-
         # init result
         itm = dict()
 
@@ -283,7 +282,6 @@ class data_collector:
 
         # specific vars
         if topic in ["gamma_deposit", "gamma_withdraw"]:
-
             itm["sender"] = event.topics[1][-20:].hex()
             itm["to"] = event.topics[2][-20:].hex()
             itm["shares"] = str(data[0])
@@ -300,19 +298,16 @@ class data_collector:
             itm["qtty_token1"] = str(data[4])
 
         elif topic == "gamma_zeroBurn":
-
             itm["fee"] = data[0]
             itm["qtty_token0"] = str(data[1])
             itm["qtty_token1"] = str(data[2])
 
         elif topic in ["gamma_transfer", "arrakis_transfer"]:
-
             itm["src"] = event.topics[1][-20:].hex()
             itm["dst"] = event.topics[2][-20:].hex()
             itm["qtty"] = str(data[0])
 
         elif topic in ["arrakis_deposit", "arrakis_withdraw"]:
-
             itm["sender"] = data[0] if topic == "arrakis_deposit" else event.address
             itm["to"] = data[0] if topic == "arrakis_withdraw" else event.address
             itm["qtty_token0"] = str(data[2])  # amount0
@@ -320,12 +315,10 @@ class data_collector:
             itm["shares"] = str(data[1])  # mintAmount
 
         elif topic == "arrakis_fee":
-
             itm["qtty_token0"] = str(data[0])
             itm["qtty_token1"] = str(data[1])
 
         elif topic == "arrakis_rebalance":
-
             itm["lowerTick"] = str(data[0])
             itm["upperTick"] = str(data[1])
             # data[2] #liquidityBefore

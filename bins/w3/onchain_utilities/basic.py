@@ -85,9 +85,14 @@ class web3wrap:
         # made up a descriptive cahce file name
         cache_filename = f"{self._chain_id}_{self.address.lower()}"
 
+        fixed_fields = {"decimals": False, "symbol": False}
+
         # create cache helper
         self._cache = cache_utilities.mutable_property_cache(
-            filename=cache_filename, folder_name="data/cache/onchain", reset=False
+            filename=cache_filename,
+            folder_name="data/cache/onchain",
+            reset=False,
+            fixed_fields=fixed_fields,
         )
 
     # CUSTOM PROPERTIES
@@ -497,6 +502,27 @@ class erc20(web3wrap):
 
 class erc20_cached(erc20):
     SAVE2FILE = True
+
+    # SETUP
+    def setup_cache(self):
+        # define network
+        if self._network in WEB3_CHAIN_IDS:
+            self._chain_id = WEB3_CHAIN_IDS[self._network]
+        else:
+            self._chain_id = self.w3.eth.chain_id
+
+        # made up a descriptive cahce file name
+        cache_filename = f"{self._chain_id}_{self.address.lower()}"
+
+        fixed_fields = {"decimals": False, "symbol": False}
+
+        # create cache helper
+        self._cache = cache_utilities.mutable_property_cache(
+            filename=cache_filename,
+            folder_name="data/cache/onchain",
+            reset=False,
+            fixed_fields=fixed_fields,
+        )
 
     # PROPERTIES
     @property
