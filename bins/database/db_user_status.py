@@ -554,7 +554,7 @@ class user_status_hypervisor_builder:
             )
         # address exculded
         if exclude_address != "":
-            find["address"] = {"$not": {"$regex": exclude_address}}
+            find["address"] = {"$not": exclude_address}   #{"$not": {"$regex": exclude_address}}
 
         # build query
         query = [
@@ -2261,6 +2261,7 @@ class user_status_hypervisor_builder:
         return result
 
     # threaded shares share
+    @log_execution_time
     def _share_fees_with_acounts(self, operation: dict):
         # block
         block = operation["blockNumber"]
