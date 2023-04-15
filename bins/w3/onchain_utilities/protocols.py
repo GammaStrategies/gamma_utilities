@@ -1673,6 +1673,10 @@ class masterchef_rewarder(web3wrap):
         )
 
     @property
+    def funder(self) -> str:
+        return self._contract.functions.funder().call(block_identifier=self.block)
+
+    @property
     def owner(self) -> str:
         return self._contract.functions.owner().call(block_identifier=self.block)
 
@@ -1691,9 +1695,8 @@ class masterchef_rewarder(web3wrap):
             block_identifier=self.block
         )
 
-    @property
-    def poolIds(self) -> int:
-        return self._contract.functions.poolIds().call(block_identifier=self.block)
+    def poolIds(self, input: int) -> int:
+        return self._contract.functions.poolIds(input).call(block_identifier=self.block)
 
     def poolInfo(self, input: int) -> tuple[int, int, int]:
         """_summary_

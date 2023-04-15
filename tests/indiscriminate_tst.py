@@ -88,7 +88,6 @@ def test_prices(protocol="gamma"):
 
 
 def test_price_sequence():
-
     price_sequence_loop(protocol="gamma", network="optimism")
 
 
@@ -99,7 +98,6 @@ def test_databaseChecker():
 def get_hypervisor_addresses(
     network: str, protocol: str, user_address: str | None = None, dex: str | None = None
 ) -> list[str]:
-
     result = []
     # get database configuration
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
@@ -277,7 +275,6 @@ def test_db_direct_info(
     save_csv: bool = True,
     print_it: bool = True,
 ):
-
     # 1 day from now
     if not end_date:
         end_date = datetime.now(timezone.utc)
@@ -291,7 +288,6 @@ def test_db_direct_info(
     # addresses = ["0x8b6e73f17b613ce189be413f5dc435139f5fd45c"]
     with tqdm.tqdm(total=len(addresses)) as progress_bar:
         for address in addresses:
-
             # create helper
             helper = direct_db_hypervisor_info(
                 hypervisor_address=address, network=network, protocol=protocol
@@ -356,12 +352,10 @@ def test_db_direct_info(
                     ini_date=hype_ini_date, end_date=hype_end_date
                 )
                 if result:
-
                     # ### DEBUG: create Impermanent data csv ###############
                     # create a partial column list for d csv file
                     csv_columns = []
                     if save_csv:
-
                         result_to_csv(
                             result=[flatten_dict(x, {}) for x in result],
                             folder=os.path.join(PARENT_FOLDER, folder),
@@ -417,7 +411,6 @@ def test_masterchef():
     reward_registry_addresses = registry.get_masterchef_addresses()
 
     for registry_address in reward_registry_addresses:
-
         print(f"{network} testing reward registry {registry_address}")
 
         reward_registry = masterchef_v1(address=registry_address, network=network)
@@ -437,10 +430,14 @@ def test_masterchef():
 
                     # get rewarder info
                     rewarder_token = rewarder.rewardToken()
-
+                except ValueError:
+                    # no more rid's
+                    # print(sys.exc_info()[0])
+                    break
                 except Exception:
                     # no more rid's
                     print(sys.exc_info()[0])
+                    break
 
 
 # START ####################################################################################################################
@@ -488,7 +485,6 @@ if __name__ == "__main__":
     print_it = True
 
     for network in networks:
-
         folder = f"tests/results/{months}month_{network}"
 
         test_db_direct_info(
