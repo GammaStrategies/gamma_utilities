@@ -135,8 +135,6 @@ def repair_hype_status_from_user(min_count: int = 1):
                                 logging.getLogger(__name__).debug(
                                     f" Status for {network}'s {address} at block {block} is already in database..."
                                 )
-                                # update progress
-                                progress_bar.update(1)
                                 continue
 
                             progress_bar.set_description(
