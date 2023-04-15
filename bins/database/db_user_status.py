@@ -571,9 +571,7 @@ class user_status_hypervisor_builder:
             )
         # address exculded
         if exclude_address != "":
-            find["address"] = {
-                "$not": exclude_address
-            }  # {"$not": {"$regex": exclude_address}}
+            find["address"] = {"$not": {"$regex": exclude_address}}
 
         # build query
         query = [
