@@ -46,7 +46,7 @@ def repair_all():
     repair_prices()
 
 
-def repair_prices(min_count: int = 3):
+def repair_prices(min_count: int = 1):
     """Check price errors from debug and price logs and try to scrape again"""
     try:
         # read both files in seach for price err
@@ -641,6 +641,7 @@ def get_failed_prices_from_log(log_file: str) -> dict:
     pricelog_regx = "\-\s\s(?P<network>.*)'s\stoken\s(?P<address>.*)\sprice\sat\sblock\s(?P<block>\d*)\snot\sfound"
     debug_regx = "No\sprice\sfor\s(?P<address>.*)\sat\sblock\s(?P<block>\d*).*\[(?P<network>.*)\s(?P<dex>.*)\]"
     debug_regx2 = "No\sprice\sfor\s(?P<network>.*)'s\s(?P<symbol>.*)\s\((?P<address>.*)\).*at\sblock\s(?P<block>\d*)"
+    user_status_regx = "Can't\sfind\s(?P<network>.*?)'s\s(?P<hype_address>.*?)\susd\sprice\sfor\s(?P<address>.*?)\sat\sblock\s(?P<block>\d*?)\.\sReturn\sZero"
     # groups->  network, symbol, address, block
 
     # load file
@@ -649,7 +650,7 @@ def get_failed_prices_from_log(log_file: str) -> dict:
     # set a var
     network_token_blocks = {}
 
-    for regx_txt in [debug_regx, pricelog_regx, debug_regx2]:
+    for regx_txt in [debug_regx, pricelog_regx, debug_regx2, user_status_regx]:
         if matches := re.finditer(regx_txt, log_file_content):
             for match in matches:
                 network = match.group("network")
