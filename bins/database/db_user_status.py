@@ -405,7 +405,11 @@ class user_status_hypervisor_builder:
         limit = 1
         try:
             return self.local_db_manager.get_items_from_database(
-                collection_name="status", find=find, sort=sort, limit=limit
+                collection_name="status",
+                find=find,
+                projection={"block": 1},
+                sort=sort,
+                limit=limit,
             )[0]["block"]
         except Exception:
             logging.getLogger(__name__).exception(
@@ -426,7 +430,11 @@ class user_status_hypervisor_builder:
         limit = 1
         try:
             return self.local_db_manager.get_items_from_database(
-                collection_name="status", find=find, sort=sort, limit=limit
+                collection_name="status",
+                find=find,
+                projection={"block": 1},
+                sort=sort,
+                limit=limit,
             )[0]["block"]
         except Exception:
             logging.getLogger(__name__).exception(
@@ -447,7 +455,11 @@ class user_status_hypervisor_builder:
         limit = 1
         try:
             return self.local_db_manager.get_items_from_database(
-                collection_name="user_status", find=find, sort=sort, limit=limit
+                collection_name="user_status",
+                find=find,
+                projection={"block": 1},
+                sort=sort,
+                limit=limit,
             )[0]["block"]
         except IndexError:
             # no user status for address found in db
@@ -471,7 +483,11 @@ class user_status_hypervisor_builder:
         limit = 1
         try:
             return self.local_db_manager.get_items_from_database(
-                collection_name="user_status", find=find, sort=sort, limit=limit
+                collection_name="user_status",
+                find=find,
+                projection={"block": 1},
+                sort=sort,
+                limit=limit,
             )[0]["block"]
 
         except IndexError:
@@ -499,6 +515,7 @@ class user_status_hypervisor_builder:
             tmp_status = self.local_db_manager.get_items_from_database(
                 collection_name="status",
                 find=find,
+                projection={"totalSupply": 1, "decimals": 1},
             )[0]
             return Decimal(tmp_status["totalSupply"]) / Decimal(
                 10 ** tmp_status["decimals"]
@@ -554,10 +571,22 @@ class user_status_hypervisor_builder:
             )
         # address exculded
         if exclude_address != "":
-            find["address"] = {"$not": exclude_address}   #{"$not": {"$regex": exclude_address}}
+            find["address"] = {
+                "$not": exclude_address
+            }  # {"$not": {"$regex": exclude_address}}
 
         # build query
         query = [
+            {
+                "$project": {
+                    "block": "$block",
+                    "logIndex": "$logIndex",
+                    "address": "$address",
+                    "hypervisor_address": "$hypervisor_address",
+                    "shares_qtty": "$shares_qtty",
+                    "shares_percent": "$shares_percent",
+                }
+            },
             {"$match": find},
             {"$sort": {"block": 1, "logIndex": 1}},
             {
@@ -575,6 +604,7 @@ class user_status_hypervisor_builder:
                 }
             },
         ]
+        debug_query = f"{query}"
         try:
             db_result = self.local_db_manager.get_items_from_database(
                 collection_name="user_status", aggregate=query
@@ -645,7 +675,11 @@ class user_status_hypervisor_builder:
 
         try:
             data = self.local_db_manager.get_items_from_database(
-                collection_name="status", find=find, sort=sort, limit=limit
+                collection_name="status",
+                find=find,
+                projection={"totalAmounts": 1},
+                sort=sort,
+                limit=limit,
             )[0]
             # return not calculated field 'totalAmounts' as tvl
             return {
@@ -1733,6 +1767,7 @@ class user_status_hypervisor_builder:
                 hypervisor_address=self.address,
             )
 
+    @log_execution_time
     def last_user_status_list(
         self,
         block: int = 0,
@@ -1803,6 +1838,7 @@ class user_status_hypervisor_builder:
             )
         ]
 
+    @log_execution_time
     def get_all_account_addresses(
         self,
         block: int = 0,
@@ -1858,6 +1894,7 @@ class user_status_hypervisor_builder:
             collection_name="user_status", field="address", condition=condition
         )
 
+    @log_execution_time
     def get_all_operation_blocks(
         self,
         block: int = 0,
@@ -1896,6 +1933,7 @@ class user_status_hypervisor_builder:
             collection_name="operations", field="blockNumber", condition=condition
         )
 
+    @log_execution_time
     def get_hypervisor_operations(self, block: int = 0) -> list[dict]:
         """Get all found hypervisor operations ordered by block (desc)
 
@@ -1915,6 +1953,7 @@ class user_status_hypervisor_builder:
             collection_name="operations", find=find, sort=sort
         )
 
+    @log_execution_time
     def get_hypervisor_status(self, block: int = 0) -> list[dict]:
         """Get all found hypervisor status ordered by block (desc)
 
@@ -1937,6 +1976,7 @@ class user_status_hypervisor_builder:
             )
         ]
 
+    @log_execution_time
     def get_hypervisor_status_byDay(self) -> list[dict]:
         """Get a list of status separated by days
             sorted by date from past to present
@@ -1975,6 +2015,7 @@ class user_status_hypervisor_builder:
             )
         ]
 
+    @log_execution_time
     def get_last_logIndex(self, block: int) -> int:
         """get the last_logIndex of the specified block
 
@@ -1989,7 +2030,11 @@ class user_status_hypervisor_builder:
         limit = 1
         try:
             return self.local_db_manager.get_items_from_database(
-                collection_name="operations", find=find, sort=sort, limit=limit
+                collection_name="operations",
+                find=find,
+                projection={"logIndex": 1},
+                sort=sort,
+                limit=limit,
             )[0]["logIndex"]
         except Exception:
             logging.getLogger(__name__).exception(
@@ -2023,183 +2068,6 @@ class user_status_hypervisor_builder:
         #     Decimal("0")
 
     # Transformers
-
-    # def convert_hypervisor_status_fromDb(self, hype_status: dict) -> dict:
-    #     """convert database hypervisor status text fields
-    #         to numbers.
-
-    #     Args:
-    #         hype_status (dict): hypervisor status database obj
-
-    #     Returns:
-    #         dict: same converted
-    #     """
-    #     # decimals
-    #     decimals_token0 = hype_status["pool"]["token0"]["decimals"]
-    #     decimals_token1 = hype_status["pool"]["token1"]["decimals"]
-    #     decimals_contract = hype_status["decimals"]
-
-    #     hype_status["baseUpper"] = int(hype_status["baseUpper"])
-    #     hype_status["baseLower"] = int(hype_status["baseLower"])
-
-    #     hype_status["basePosition"]["liquidity"] = int(
-    #         hype_status["basePosition"]["liquidity"]
-    #     )
-    #     hype_status["basePosition"]["amount0"] = int(
-    #         hype_status["basePosition"]["amount0"]
-    #     )
-    #     hype_status["basePosition"]["amount1"] = int(
-    #         hype_status["basePosition"]["amount1"]
-    #     )
-    #     hype_status["limitPosition"]["liquidity"] = int(
-    #         hype_status["limitPosition"]["liquidity"]
-    #     )
-    #     hype_status["limitPosition"]["amount0"] = int(
-    #         hype_status["limitPosition"]["amount0"]
-    #     )
-    #     hype_status["limitPosition"]["amount1"] = int(
-    #         hype_status["limitPosition"]["amount1"]
-    #     )
-
-    #     hype_status["currentTick"] = int(hype_status["currentTick"])
-
-    #     hype_status["deposit0Max"] = Decimal(hype_status["deposit0Max"]) / Decimal(
-    #         10**decimals_token0
-    #     )
-    #     hype_status["deposit1Max"] = Decimal(hype_status["deposit1Max"]) / Decimal(
-    #         10**decimals_token1
-    #     )
-
-    #     hype_status["fees_uncollected"]["qtty_token0"] = Decimal(
-    #         hype_status["fees_uncollected"]["qtty_token0"]
-    #     ) / Decimal(10**decimals_token0)
-    #     hype_status["fees_uncollected"]["qtty_token1"] = Decimal(
-    #         hype_status["fees_uncollected"]["qtty_token1"]
-    #     ) / Decimal(10**decimals_token1)
-
-    #     hype_status["limitUpper"] = int(hype_status["limitUpper"])
-    #     hype_status["limitLower"] = int(hype_status["limitLower"])
-
-    #     hype_status["maxTotalSupply"] = int(hype_status["maxTotalSupply"]) / Decimal(
-    #         10**decimals_contract
-    #     )
-
-    #     hype_status["pool"]["feeGrowthGlobal0X128"] = int(
-    #         hype_status["pool"]["feeGrowthGlobal0X128"]
-    #     )
-    #     hype_status["pool"]["feeGrowthGlobal1X128"] = int(
-    #         hype_status["pool"]["feeGrowthGlobal1X128"]
-    #     )
-    #     hype_status["pool"]["liquidity"] = int(hype_status["pool"]["liquidity"])
-    #     hype_status["pool"]["maxLiquidityPerTick"] = int(
-    #         hype_status["pool"]["maxLiquidityPerTick"]
-    #     )
-
-    #     # choose by dex
-    #     if hype_status["pool"]["dex"] == "uniswapv3":
-    #         # uniswap
-    #         hype_status["pool"]["protocolFees"][0] = int(
-    #             hype_status["pool"]["protocolFees"][0]
-    #         )
-    #         hype_status["pool"]["protocolFees"][1] = int(
-    #             hype_status["pool"]["protocolFees"][1]
-    #         )
-
-    #         hype_status["pool"]["slot0"]["sqrtPriceX96"] = int(
-    #             hype_status["pool"]["slot0"]["sqrtPriceX96"]
-    #         )
-    #         hype_status["pool"]["slot0"]["tick"] = int(
-    #             hype_status["pool"]["slot0"]["tick"]
-    #         )
-    #         hype_status["pool"]["slot0"]["observationIndex"] = int(
-    #             hype_status["pool"]["slot0"]["observationIndex"]
-    #         )
-    #         hype_status["pool"]["slot0"]["observationCardinality"] = int(
-    #             hype_status["pool"]["slot0"]["observationCardinality"]
-    #         )
-    #         hype_status["pool"]["slot0"]["observationCardinalityNext"] = int(
-    #             hype_status["pool"]["slot0"]["observationCardinalityNext"]
-    #         )
-
-    #         hype_status["pool"]["tickSpacing"] = int(hype_status["pool"]["tickSpacing"])
-
-    #     elif hype_status["pool"]["dex"] == "algebrav3":
-    #         # quickswap
-    #         hype_status["pool"]["globalState"]["sqrtPriceX96"] = int(
-    #             hype_status["pool"]["globalState"]["sqrtPriceX96"]
-    #         )
-    #         hype_status["pool"]["globalState"]["tick"] = int(
-    #             hype_status["pool"]["globalState"]["tick"]
-    #         )
-    #         hype_status["pool"]["globalState"]["fee"] = int(
-    #             hype_status["pool"]["globalState"]["fee"]
-    #         )
-    #         hype_status["pool"]["globalState"]["timepointIndex"] = int(
-    #             hype_status["pool"]["globalState"]["timepointIndex"]
-    #         )
-    #     else:
-    #         raise NotImplementedError(f" dex {hype_status['dex']} not implemented ")
-
-    #     hype_status["pool"]["token0"]["totalSupply"] = Decimal(
-    #         hype_status["pool"]["token0"]["totalSupply"]
-    #     ) / Decimal(10**decimals_token0)
-    #     hype_status["pool"]["token1"]["totalSupply"] = Decimal(
-    #         hype_status["pool"]["token1"]["totalSupply"]
-    #     ) / Decimal(10**decimals_token1)
-
-    #     hype_status["qtty_depoloyed"]["qtty_token0"] = Decimal(
-    #         hype_status["qtty_depoloyed"]["qtty_token0"]
-    #     ) / Decimal(10**decimals_token0)
-    #     hype_status["qtty_depoloyed"]["qtty_token1"] = Decimal(
-    #         hype_status["qtty_depoloyed"]["qtty_token1"]
-    #     ) / Decimal(10**decimals_token1)
-    #     hype_status["qtty_depoloyed"]["fees_owed_token0"] = Decimal(
-    #         hype_status["qtty_depoloyed"]["fees_owed_token0"]
-    #     ) / Decimal(10**decimals_token0)
-    #     hype_status["qtty_depoloyed"]["fees_owed_token1"] = Decimal(
-    #         hype_status["qtty_depoloyed"]["fees_owed_token1"]
-    #     ) / Decimal(10**decimals_token1)
-
-    #     hype_status["tickSpacing"] = int(hype_status["tickSpacing"])
-
-    #     hype_status["totalAmounts"]["total0"] = Decimal(
-    #         hype_status["totalAmounts"]["total0"]
-    #     ) / Decimal(10**decimals_token0)
-    #     hype_status["totalAmounts"]["total1"] = Decimal(
-    #         hype_status["totalAmounts"]["total1"]
-    #     ) / Decimal(10**decimals_token1)
-
-    #     hype_status["totalSupply"] = Decimal(hype_status["totalSupply"]) / Decimal(
-    #         10**decimals_contract
-    #     )
-
-    #     hype_status["tvl"]["parked_token0"] = Decimal(
-    #         hype_status["tvl"]["parked_token0"]
-    #     ) / Decimal(10**decimals_token0)
-    #     hype_status["tvl"]["parked_token1"] = Decimal(
-    #         hype_status["tvl"]["parked_token1"]
-    #     ) / Decimal(10**decimals_token1)
-    #     hype_status["tvl"]["deployed_token0"] = Decimal(
-    #         hype_status["tvl"]["deployed_token0"]
-    #     ) / Decimal(10**decimals_token0)
-    #     hype_status["tvl"]["deployed_token1"] = Decimal(
-    #         hype_status["tvl"]["deployed_token1"]
-    #     ) / Decimal(10**decimals_token1)
-    #     hype_status["tvl"]["fees_owed_token0"] = Decimal(
-    #         hype_status["tvl"]["fees_owed_token0"]
-    #     ) / Decimal(10**decimals_token0)
-    #     hype_status["tvl"]["fees_owed_token1"] = Decimal(
-    #         hype_status["tvl"]["fees_owed_token1"]
-    #     ) / Decimal(10**decimals_token1)
-    #     hype_status["tvl"]["tvl_token0"] = Decimal(
-    #         hype_status["tvl"]["tvl_token0"]
-    #     ) / Decimal(10**decimals_token0)
-    #     hype_status["tvl"]["tvl_token1"] = Decimal(
-    #         hype_status["tvl"]["tvl_token1"]
-    #     ) / Decimal(10**decimals_token1)
-
-    #     return hype_status
-
     def convert_user_status_toDb(self, status: user_status) -> dict:
         """convert user_status type to a suitable format to be uploaded to database
 
@@ -2261,7 +2129,6 @@ class user_status_hypervisor_builder:
         return result
 
     # threaded shares share
-    @log_execution_time
     def _share_fees_with_acounts(self, operation: dict):
         # block
         block = operation["blockNumber"]
@@ -2332,6 +2199,10 @@ class user_status_hypervisor_builder:
         #     block=block, logIndex=operation["logIndex"]
         # )
 
+        last_status_list = self.last_user_status_list(
+            block=block, logIndex=operation["logIndex"], with_shares=True
+        )
+
         # create fee sharing loop for threaded processing
         def loop_share_fees(
             last_op,
@@ -2377,9 +2248,7 @@ class user_status_hypervisor_builder:
         with concurrent.futures.ThreadPoolExecutor() as ex:
             for result_status, result_user_share in ex.map(
                 loop_share_fees,
-                self.last_user_status_list(
-                    block=block, logIndex=operation["logIndex"], with_shares=True
-                ),
+                last_status_list,
             ):
                 # apply result
                 ctrl_total_shares_applied += result_status.shares_qtty
