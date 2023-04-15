@@ -87,21 +87,12 @@ handlers:
         maxBytes: 10485760 # 10MB
         backupCount: 0
         encoding: utf8
-    
-    time_file_handler:
-        class: logging.handlers.RotatingFileHandler
-        level: DEBUG
-        formatter: simple
-        filters: [duplicateFilter]
-        filename: execution_time.log
-        maxBytes: 10485760 # 10MB
-        backupCount: 1
-        encoding: utf8
+
 
 loggers:
     __main__:
         level: DEBUG
-        handlers: [console, debug_file_handler, info_file_handler, warning_file_handler, critical_file_handler, error_file_handler]
+        handlers: [console, debug_file_handler, info_file_handler, warning_file_handler, critical_file_handler, error_file_handler, time_file_handler]
         propagate: False
     telegram:
         level: INFO
@@ -109,23 +100,19 @@ loggers:
         propagate: False
     bins:
         level: DEBUG
-        handlers: [console, debug_file_handler, info_file_handler, warning_file_handler, critical_file_handler, error_file_handler]
+        handlers: [console, debug_file_handler, info_file_handler, warning_file_handler, critical_file_handler, error_file_handler, time_file_handler]
         propagate: False
     apps:
         level: DEBUG
-        handlers: [console, debug_file_handler, info_file_handler, warning_file_handler, critical_file_handler, error_file_handler]
+        handlers: [console, debug_file_handler, info_file_handler, warning_file_handler, critical_file_handler, error_file_handler, time_file_handler]
         propagate: False
     price:
         level: INFO
         handlers: [price_file_handler]
         propagate: False
-    time:
-        level: INFO
-        handlers: [time_file_handler]
-        propagate: False
 
 root:
     level: INFO
-    handlers: [console, debug_file_handler, info_file_handler, warning_file_handler, critical_file_handler, error_file_handler]
+    handlers: [console, debug_file_handler, info_file_handler, warning_file_handler, critical_file_handler, error_file_handler, time_file_handler]
     propogate: False
 ...

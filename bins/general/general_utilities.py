@@ -10,7 +10,6 @@ import datetime as dt
 from pathlib import Path
 from typing import Iterable, Any, Tuple
 
-from bins.configuration import CONFIGURATION
 
 log = getLogger(__name__)
 
@@ -328,8 +327,10 @@ def log_execution_time(f):
         f (function): function to be decorated
 
     """
+    from bins.configuration import CONFIGURATION
+
     # check if enabled in configuration
-    if not CONFIGURATION["logging"]["log_execution_time"]:
+    if not CONFIGURATION["logs"]["log_execution_time"]:
         return f
 
     @wraps(f)
@@ -347,7 +348,7 @@ def log_execution_time(f):
         elif _passed < 60 * 60 * 24:
             _timelapse_unit = "hours"
             _passed /= 60 * 60
-        logging.getlogger("time").debug(
+        logging.getLogger(__name__).debug(
             f"{f.__name__} took {round(_passed,2)} {_timelapse_unit} to complete"
         )
         return result
