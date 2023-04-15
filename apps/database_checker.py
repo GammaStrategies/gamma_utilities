@@ -32,20 +32,25 @@ from bins.mixed.price_utilities import price_scraper
 
 from bins.formulas.univ3_formulas import sqrtPriceX96_to_price_float
 
+from apps.database_feeder import create_db_hypervisor
 
-# mod apps
-def check_prices(min_count: int = 3):
+
+# repair apps
+def repair_all():
+    """Repair all errors found in logs"""
+
+    # repair hypervisors status not found in user_status logs
+    repair_hype_status_from_user()
+
+    # repair prices not found in logs
+    repair_prices()
+
+
+def repair_prices(min_count: int = 3):
     """Check price errors from debug and price logs and try to scrape again"""
     try:
-        # load log files
-        price_log_file = logging.getLogger("price").handlers[0].baseFilename
-        debug_log_file = [
-            x.baseFilename
-            for x in logging.getLoggerClass().root.handlers
-            if "debug" in x.name
-        ][0]
         # read both files in seach for price err
-        for log_file in [debug_log_file, price_log_file]:
+        for log_file in get_all_logfiles():
             network_token_blocks = get_failed_prices_from_log(log_file=log_file)
             with tqdm.tqdm(total=len(network_token_blocks)) as progress_bar:
                 for network, addresses in network_token_blocks.items():
@@ -90,6 +95,90 @@ def check_prices(min_count: int = 3):
         logging.getLogger(__name__).exception(
             " unexpected error checking prices from log"
         )
+
+
+def repair_hypervisor_status():
+    # from user_status debug log
+    repair_hype_status_from_user()
+
+
+def repair_hype_status_from_user(min_count: int = 1):
+    protocol = "gamma"
+
+    for log_file in get_all_logfiles():
+        # hypervisor status not found while scrpaing user data
+        network_token_blocks = get_failed_status_from_log(log_file)
+
+        try:
+            with tqdm.tqdm(total=len(network_token_blocks)) as progress_bar:
+                for network, addresses in network_token_blocks.items():
+                    # set local database name and create manager
+                    db_name = f"{network}_{protocol}"
+                    local_db = database_local(
+                        mongo_url=CONFIGURATION["sources"]["database"][
+                            "mongo_server_url"
+                        ],
+                        db_name=db_name,
+                    )
+
+                    for address, blocks_data in addresses.items():
+                        for block, counter in blocks_data.items():
+                            # block is string
+                            block = int(block)
+
+                            # make sure hypervisor status is not in db
+                            if local_db.get_items(
+                                collection_name="status",
+                                find={"address": address.lower(), "block": block},
+                                projection={"dex": 1},
+                            ):
+                                logging.getLogger(__name__).debug(
+                                    f" Status for {network}'s {address} at block {block} is already in database..."
+                                )
+                                continue
+
+                            progress_bar.set_description(
+                                f" Repair {network}'s hype status not found log entries for {address} at block {block}"
+                            )
+                            progress_bar.update(0)
+
+                            # counter = number of times found in logs
+                            if counter >= min_count:
+                                # need dex to be able to build hype
+                                dex = local_db.get_items(
+                                    collection_name="static",
+                                    find={"address": address.lower()},
+                                    projection={"dex": 1},
+                                )[0]["dex"]
+                                # scrape hypervisor status at block
+                                hype_status = create_db_hypervisor(
+                                    address=address,
+                                    network=network,
+                                    block=block,
+                                    dex=dex,
+                                )
+                                if hype_status:
+                                    # add hypervisor status to database
+                                    local_db.set_status(data=hype_status)
+
+                                    logging.getLogger(__name__).debug(
+                                        f" Added status for {network}'s {address} at block {block}  (found {counter} times in log)"
+                                    )
+                                else:
+                                    logging.getLogger(__name__).debug(
+                                        f" Could not find status for {network}'s {address} at block {block}  (found {counter} times in log)"
+                                    )
+                            else:
+                                logging.getLogger(__name__).debug(
+                                    f" Not procesing status for {network}'s {address} at block {block} bc it has been found only {counter} times in log."
+                                )
+
+                    # update progress
+                    progress_bar.update(1)
+        except Exception as e:
+            logging.getLogger(__name__).error(
+                f" Error repairing hypervisor status not found {e}"
+            )
 
 
 # one time utils
@@ -330,6 +419,51 @@ def auto_get_prices():
                     )
 
 
+def get_all_logfiles() -> list:
+    """get all logfiles from config or default"""
+
+    logfiles = []
+
+    if CONFIGURATION["_custom_"]["cml_parameters"].check_logs:
+        for item in CONFIGURATION["_custom_"]["cml_parameters"].check_logs:
+            # check if item is a file
+            if os.path.isfile(item):
+                logfiles.append(item)
+            elif os.path.isdir(item):
+                for root, dirs, files in os.walk(item):
+                    for file in files:
+                        if file.endswith(".log"):
+                            logfiles.append(os.path.join(root, file))
+
+    else:
+        # get loaded price log
+        logfiles.append(logging.getLogger("price").handlers[0].baseFilename)
+        # get loaded debug log
+        logfiles.append(
+            [
+                x.baseFilename
+                for x in logging.getLoggerClass().root.handlers
+                if "debug" in x.name
+            ][0]
+        )
+
+    return logfiles
+
+
+def load_logFile(logfile: str) -> str:
+    """load logfile and return list of lines"""
+
+    # load file
+    result = ""
+    if os.path.isfile(logfile):
+        with open(logfile, mode="r", encoding="utf8") as f:
+            result = f.read()
+    else:
+        logging.getLogger(__name__).error(f"Error: File not found {logfile}")
+
+    return result
+
+
 # checks
 def check_database():
     # setup global database manager
@@ -484,7 +618,7 @@ def check_stable_prices(
         collection_name="usd_prices",
         find={"address": {"$in": list(stables.values())}, "network": network},
     ):
-        # check if deviation from 1 is significative ( 10% )
+        # check if deviation from 1 is significative
         if abs(x["price"] - 1) > 0.3:
             logging.getLogger(__name__).warning(
                 f" Stable {x['network']}'s {x['address']} usd price is {x['price']} at block {x['block']}"
@@ -510,9 +644,7 @@ def get_failed_prices_from_log(log_file: str) -> dict:
     # groups->  network, symbol, address, block
 
     # load file
-    log_file_content = ""
-    with open(log_file, encoding="utf8") as f:
-        log_file_content = f.read()
+    log_file_content = load_logFile(logfile=log_file)
 
     # set a var
     network_token_blocks = {}
@@ -540,15 +672,50 @@ def get_failed_prices_from_log(log_file: str) -> dict:
     return network_token_blocks
 
 
+def get_failed_status_from_log(log_file: str) -> dict:
+    # load file
+    log_file_content = load_logFile(logfile=log_file)
+
+    regx_txt = "No\shypervisor\sstatus\sfound\sfor\s(?P<network>.*)'s\s(?P<address>.*)\sat\sblock\s(?P<block>\d*)"
+    # set a var
+    network_token_blocks = {}
+
+    # find hypervisor status not found
+    if matches := re.finditer(regx_txt, log_file_content):
+        for match in matches:
+            network = match.group("network")
+            address = match.group("address")
+            block = match.group("block")
+
+            # network
+            if network not in network_token_blocks:
+                network_token_blocks[network] = {}
+            # address
+            if address not in network_token_blocks[network]:
+                network_token_blocks[network][address] = {}
+            # block
+            if block not in network_token_blocks[network][address]:
+                network_token_blocks[network][address][block] = 0
+
+            # counter ( times encountered)
+            network_token_blocks[network][address][block] += 1
+
+    return network_token_blocks
+
+
 def main(option: str, **kwargs):
     if option == "prices":
-        check_prices()
+        repair_prices()
     if option == "database":
         check_database()
+    if option == "hypervisor_status":
+        repair_hypervisor_status()
+    if option == "repair":
+        repair_all()
     if option == "special":
         # used to check for special cases
         pass
-    else:
-        raise NotImplementedError(
-            f" Can't find any action to be taken from {option} checks option"
-        )
+    # else:
+    #     raise NotImplementedError(
+    #         f" Can't find any action to be taken from {option} checks option"
+    #     )

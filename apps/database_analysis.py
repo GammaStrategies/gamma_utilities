@@ -330,7 +330,6 @@ def user_status_to_csv(status_list: list[dict], folder: str, network: str, symbo
 def get_hypervisor_addresses(
     network: str, protocol: str, user_address: str | None = None
 ) -> list[str]:
-
     result: list[str] = []
     # get database configuration
     mongo_url: str = CONFIGURATION["sources"]["database"]["mongo_server_url"]
@@ -397,7 +396,6 @@ def sumary_network(
     ini_date: datetime | None = None,
     end_date: datetime | None = None,
 ):
-
     # set timeframe
     if end_date is None:
         end_date = datetime.now(timezone.utc)
@@ -512,7 +510,6 @@ def sumary_user(network, protocol, user_address, ini_date=None, end_date=None):
 
 
 def main(option: str, **kwargs):
-
     # get dates range from command line
     try:
         ini_datetime = CONFIGURATION["_custom_"]["cml_parameters"].ini_datetime

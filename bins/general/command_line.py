@@ -47,7 +47,7 @@ def parse_commandLine_args():
     # checks
     par_check = exGroup.add_argument(
         "--check",
-        choices=["prices", "database", "special"],
+        choices=["prices", "database", "repair", "hypervisor_status", "special"],
         help=" execute checks ",
     )
 
@@ -116,6 +116,14 @@ def parse_commandLine_args():
         type=int,
         help=" specify the minimum number of minutes the loop should cost in order to start again",
     )
+
+    par_main.add_argument(
+        "--check_logs",
+        type=str,
+        nargs="+",
+        help=" specify the files or folders where log files to be included in check and repair process are stored",
+    )
+
     # print helpwhen no command is passed
     return par_main.parse_args(args=None if sys.argv[1:] else ["--help"])
 
