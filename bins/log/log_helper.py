@@ -69,6 +69,9 @@ def setup_logging(customconf, default_level=logging.INFO, env_key="LOG_CFG"):
                 print("Error in Logging Configuration. Using default configs")
                 logging.basicConfig(level=default_level)
                 # coloredlogs.install(level=default_level)
+                logging.getLogger(__name__).error(
+                    f"Failed to load Logging configuration file {customconf['logs']['path']} error: {e}. Using default configs"
+                )
 
     else:
         logging.basicConfig(level=default_level)
