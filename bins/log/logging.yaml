@@ -92,7 +92,7 @@ handlers:
 loggers:
     __main__:
         level: DEBUG
-        handlers: [console, debug_file_handler, info_file_handler, warning_file_handler, critical_file_handler, error_file_handler, time_file_handler]
+        handlers: [console, debug_file_handler, info_file_handler, warning_file_handler, critical_file_handler, error_file_handler]
         propagate: False
     telegram:
         level: INFO
@@ -100,11 +100,11 @@ loggers:
         propagate: False
     bins:
         level: DEBUG
-        handlers: [console, debug_file_handler, info_file_handler, warning_file_handler, critical_file_handler, error_file_handler, time_file_handler]
+        handlers: [console, debug_file_handler, info_file_handler, warning_file_handler, critical_file_handler, error_file_handler]
         propagate: False
     apps:
         level: DEBUG
-        handlers: [console, debug_file_handler, info_file_handler, warning_file_handler, critical_file_handler, error_file_handler, time_file_handler]
+        handlers: [console, debug_file_handler, info_file_handler, warning_file_handler, critical_file_handler, error_file_handler]
         propagate: False
     price:
         level: INFO
@@ -113,6 +113,6 @@ loggers:
 
 root:
     level: INFO
-    handlers: [console, debug_file_handler, info_file_handler, warning_file_handler, critical_file_handler, error_file_handler, time_file_handler]
+    handlers: [console, debug_file_handler, info_file_handler, warning_file_handler, critical_file_handler, error_file_handler]
     propogate: False
 ...
