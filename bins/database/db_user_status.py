@@ -10,6 +10,7 @@ from decimal import Decimal, getcontext
 from datetime import datetime, timedelta
 
 from bins.configuration import CONFIGURATION
+from bins.general.general_utilities import log_execution_time
 from bins.database.common.db_collections_common import database_local, database_global
 
 from bins.converters.onchain import convert_hypervisor_fromDict
@@ -392,6 +393,7 @@ class user_status_hypervisor_builder:
         return self._static.get("symbol", "")
 
     @property
+    @log_execution_time
     def first_status_block(self) -> int:
         """Get status first block
 
@@ -412,6 +414,7 @@ class user_status_hypervisor_builder:
             return 0
 
     @property
+    @log_execution_time
     def latest_status_block(self) -> int:
         """Get status lates block
 
@@ -432,6 +435,7 @@ class user_status_hypervisor_builder:
             return 0
 
     @property
+    @log_execution_time
     def first_user_block(self) -> int:
         """Get users first block
 
@@ -455,6 +459,7 @@ class user_status_hypervisor_builder:
             return 0
 
     @property
+    @log_execution_time
     def latest_user_block(self) -> int:
         """Get users latest block
 
@@ -478,6 +483,7 @@ class user_status_hypervisor_builder:
             )
             return 0
 
+    @log_execution_time
     def total_hypervisor_supply(self, block: int) -> Decimal:
         """total hypervisor supply as per contract data
             sourced from status collection
@@ -503,6 +509,7 @@ class user_status_hypervisor_builder:
             )
             return Decimal("0")
 
+    @log_execution_time
     def total_shares(
         self,
         block: int = 0,
@@ -590,6 +597,7 @@ class user_status_hypervisor_builder:
 
         return Decimal("0")
 
+    @log_execution_time
     def total_fees(
         self,
         block: int = 0,
@@ -780,6 +788,7 @@ class user_status_hypervisor_builder:
             )
             return []
 
+    @log_execution_time
     def _create_operations_to_process(self) -> list[dict]:
         # get all blocks from user status ( what has already been done [ careful because last  =  block + logIndex ] )
         user_status_blocks_processed = sorted(
@@ -874,7 +883,6 @@ class user_status_hypervisor_builder:
                 progress_bar.set_description(
                     f' processing 0x..{operation["address"][-4:]}  {operation["blockNumber"]}  {operation["topic"]}'
                 )
-
                 progress_bar.refresh()
 
                 if operation["id"] not in self.ids_processed:
@@ -901,6 +909,7 @@ class user_status_hypervisor_builder:
                 # update progress
                 progress_bar.update(1)
 
+    @log_execution_time
     def _process_operation(self, operation: dict):
         # set current block
         self.current_block = operation["blockNumber"]
@@ -947,6 +956,7 @@ class user_status_hypervisor_builder:
             )
 
     # Topic transformers
+    @log_execution_time
     def _process_deposit(self, operation: dict) -> user_status:
         # block
         block = operation["blockNumber"]
@@ -1021,6 +1031,7 @@ class user_status_hypervisor_builder:
         # result
         return new_user_status
 
+    @log_execution_time
     def _process_withdraw(self, operation: dict) -> user_status:
         # define ease access vars
         block = operation["blockNumber"]
@@ -1169,6 +1180,7 @@ class user_status_hypervisor_builder:
         # result
         return new_user_status
 
+    @log_execution_time
     def _process_transfer(self, operation: dict) -> tuple[user_status, user_status]:
         if operation["dst"] == "0x0000000000000000000000000000000000000000":
             # expect a withdraw topic on next operation ( same block))
@@ -1188,6 +1200,7 @@ class user_status_hypervisor_builder:
         # result
         return None, None
 
+    @log_execution_time
     def _process_rebalance(self, operation: dict):
         """Rebalance affects all users positions
 
@@ -1211,14 +1224,17 @@ class user_status_hypervisor_builder:
         # share fees with all accounts with shares
         self._share_fees_with_acounts(operation)
 
+    @log_execution_time
     def _process_approval(self, operation: dict):
         # TODO: approval
         pass
 
+    @log_execution_time
     def _process_zeroBurn(self, operation: dict):
         # share fees with all acoounts proportionally
         self._share_fees_with_acounts(operation)
 
+    @log_execution_time
     def _transfer_to_user(self, operation: dict) -> tuple[user_status, user_status]:
         # block
         block = operation["blockNumber"]
@@ -1422,7 +1438,7 @@ class user_status_hypervisor_builder:
         return new_user_status_source, new_user_status_destination
 
     # Collection
-
+    @log_execution_time
     def _add_user_status(self, status: user_status):
         """add user status to database
 
@@ -1441,6 +1457,7 @@ class user_status_hypervisor_builder:
             )
 
     # General helpers
+    @log_execution_time
     def _add_globals_to_user_status(
         self,
         current_user_status: user_status,
@@ -1638,6 +1655,7 @@ class user_status_hypervisor_builder:
 
         return current_user_status
 
+    @log_execution_time
     def last_user_status(
         self,
         account_address: str,

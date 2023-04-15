@@ -4,6 +4,7 @@ logs:
   path: bins/log/logging.yaml #  full path to log yaml configuration file <relative to app>
   save_path: logs/ # log folder <relative to app> where to save log files
   level: debug # choose btween INFO and DEBUG
+  execution_time: false #  execution_time.log file is populated with functions execution time
   telegram:
     enabled: false # enable or disable telegram
     token: 

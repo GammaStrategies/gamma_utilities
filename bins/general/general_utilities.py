@@ -1,14 +1,19 @@
 import contextlib
+from functools import wraps
 import getopt
+import logging
+from logging import Logger, getLogger
 import os
 import sys
 import yaml
 import datetime as dt
 from pathlib import Path
-from logging import Logger, getLogger
 from typing import Iterable, Any, Tuple
 
+from bins.configuration import CONFIGURATION
+
 log = getLogger(__name__)
+
 
 # SCRIPT UTIL
 def check_configuration_file(config_file):
@@ -76,7 +81,7 @@ def load_configuration(cfg_name="config.yaml"):
                 print(f"Error in Logging Configuration: {e}")
     else:
         print(f" {cfg_name} configuration file not found")
-    
+
     raise FileNotFoundError(f" {cfg_name} configuration file not found")
 
 
@@ -226,7 +231,6 @@ def signal_first(it: Iterable[Any]) -> Iterable[Tuple[bool, Any]]:
 
 # DATETIME
 def convert_string_datetime(string: str) -> dt.datetime:
-
     if string.lower().strip() == "now":
         return dt.datetime.now(dt.timezone.utc)
         # POSIBILITY 01
@@ -314,3 +318,38 @@ class log_time_passed:
 
     def stop(self):
         self.end = dt.datetime.now(dt.timezone.utc)
+
+
+# TIME LOG DECORATOR
+def log_execution_time(f):
+    """Decorator to log execution time of a function
+
+    Args:
+        f (function): function to be decorated
+
+    """
+    # check if enabled in configuration
+    if not CONFIGURATION["logging"]["log_execution_time"]:
+        return f
+
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        start_time = dt.datetime.now(dt.timezone.utc)
+        result = f(*args, **kwargs)
+        end_time = dt.datetime.now(dt.timezone.utc)
+        _timelapse = end_time - start_time
+        _passed = _timelapse.total_seconds()
+        if _passed < 60:
+            _timelapse_unit = "seconds"
+        elif _passed < 60 * 60:
+            _timelapse_unit = "minutes"
+            _passed /= 60
+        elif _passed < 60 * 60 * 24:
+            _timelapse_unit = "hours"
+            _passed /= 60 * 60
+        logging.getlogger("time").debug(
+            f"{f.__name__} took {round(_passed,2)} {_timelapse_unit} to complete"
+        )
+        return result
+
+    return wrapper
