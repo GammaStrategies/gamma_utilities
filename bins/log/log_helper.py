@@ -72,8 +72,13 @@ def setup_logging(customconf, default_level=logging.INFO, env_key="LOG_CFG"):
 
     else:
         logging.basicConfig(level=default_level)
+        logging.getLogger(__name__).error(
+            f"Failed to load Logging configuration file. {customconf['logs']['path']} does not exist. Using default configs"
+        )
         # coloredlogs.install(level=default_level)
-        print("Failed to load Logging configuration file. Using default configs")
+        print(
+            f"Failed to load Logging configuration file. {customconf['logs']['path']} does not exist. Using default configs"
+        )
 
     # setup custom duplicate filter
     logging.getLogger().addFilter(DuplicateFilter())  # add the filter to it
