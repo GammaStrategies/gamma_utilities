@@ -106,6 +106,11 @@ def parse_commandLine_args():
         help=" execute the user status feed inside the network feed loop",
     )
     par_main.add_argument(
+        "--do_repairs",
+        type=bool,
+        help=" execute auto error repair inside the network feed loop",
+    )
+    par_main.add_argument(
         "--networks",
         choices=["ethereum", "optimism", "polygon", "arbitrum", "binance"],
         nargs="+",

@@ -26,10 +26,15 @@ from apps.database_feeder import (
     feed_blocks_timestamp,
     feed_user_status,
 )
+from apps.database_checker import repair_all
 
 
 def network_sequence_loop(
-    protocol: str, network: str, do_prices: bool = False, do_userStatus: bool = False
+    protocol: str,
+    network: str,
+    do_prices: bool = False,
+    do_userStatus: bool = False,
+    do_repairs: bool = False,
 ):
     """local database feeding loop.
         it will also feed the 'blocks' global collection
@@ -67,6 +72,10 @@ def network_sequence_loop(
     if do_userStatus:
         # feed user_status data
         feed_user_status(protocol=protocol, network=network)
+
+    if do_repairs:
+        # try to repair all errors found in logs
+        repair_all()
 
 
 def price_sequence_loop(protocol: str, network: str):
@@ -116,6 +125,10 @@ def local_db_service():
                         protocol=protocol,
                         network=network,
                         do_prices=CONFIGURATION["_custom_"]["cml_parameters"].do_prices
+                        or False,
+                        do_repairs=CONFIGURATION["_custom_"][
+                            "cml_parameters"
+                        ].do_repairs
                         or False,
                     )
 

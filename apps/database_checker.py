@@ -30,8 +30,6 @@ from bins.w3.onchain_utilities.basic import erc20_cached
 from bins.database.common.db_collections_common import database_local, database_global
 from bins.mixed.price_utilities import price_scraper
 
-from bins.formulas.univ3_formulas import sqrtPriceX96_to_price_float
-
 from apps.database_feeder import create_db_hypervisor
 
 
@@ -432,7 +430,10 @@ def get_all_logfiles() -> list:
             elif os.path.isdir(item):
                 for root, dirs, files in os.walk(item):
                     # avoid to load "check" related logs
-                    if "check" not in root.lower():
+                    if (
+                        CONFIGURATION["_custom_"]["cml_parameters"].log_subfolder
+                        or "check" not in root.lower()
+                    ):
                         for file in files:
                             if file.endswith(".log"):
                                 logfiles.append(os.path.join(root, file))
