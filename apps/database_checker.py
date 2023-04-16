@@ -57,6 +57,18 @@ def repair_prices(min_count: int = 1):
                             # block is string
                             block = int(block)
 
+                            # check if price isnot alreadty in database
+                            if (
+                                get_price_of_token(
+                                    network=network, token_address=address, block=block
+                                )
+                                != 0
+                            ):
+                                logging.getLogger(__name__).debug(
+                                    f" Price for {network}'s {address} at block {block} is already in database..."
+                                )
+                                continue
+
                             progress_bar.set_description(
                                 f" Check & solve {network}'s price error log entries for {address[-4:]} at block {block}"
                             )
@@ -345,6 +357,33 @@ def add_price_to_token(network: str, token_address: str, block: int, price: floa
     }
 
     global_db_manager.save_item_to_database(data=data, collection_name="usd_prices")
+
+
+def get_price_of_token(network: str, token_address: str, block: int) -> float:
+    """get price of token at block
+
+    Args:
+        network (str):
+        token_address (str):
+        block (int):
+
+    Returns:
+        float:
+    """
+
+    # setup database managers
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    global_db_manager = database_global(mongo_url=mongo_url)
+
+    # get price from database
+    price = global_db_manager.get_price_usd(
+        network=network, block=block, address=token_address
+    )
+
+    if price:
+        return price[0]["price"]
+    else:
+        return 0.0
 
 
 def get_price(network: str, token_address: str, block: int) -> float:

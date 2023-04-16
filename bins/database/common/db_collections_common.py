@@ -16,7 +16,6 @@ from bins.database.common.db_object_models import usd_price
 
 class db_collections_common:
     def __init__(self, mongo_url: str, db_name: str, db_collections: dict = None):
-
         if db_collections is None:
             db_collections = {"static": {"id": True}}
         self._db_mongo_url = mongo_url
@@ -247,7 +246,6 @@ class database_global(db_collections_common):
         self.save_item_to_database(data=data, collection_name="usd_prices")
 
     def set_block(self, network: str, block: int, timestamp: datetime.timestamp):
-
         data = {
             "id": f"{network}_{block}",
             "network": network,
@@ -288,7 +286,7 @@ class database_global(db_collections_common):
         """
         return self.get_items_from_database(
             collection_name="usd_prices",
-            find={"network": network, "block": block, "address": address},
+            find={"id": f"{network}_{block}_{address}"},
         )
 
     def get_price_usd_closestBlock(
@@ -749,7 +747,6 @@ class database_local(db_collections_common):
     def get_user_status(
         self, address: str, block_ini: int = 0, block_end: int = 0
     ) -> list:
-
         # convert bson to Decimal
         find = {"address": address}
         sort = [("block", 1)]
@@ -1299,7 +1296,6 @@ class database_local(db_collections_common):
     def query_all_users(
         user_address: str, timestamp_ini: int = None, timestamp_end: int = None
     ) -> list[dict]:
-
         _match = {
             "$or": [
                 {"src": user_address},
