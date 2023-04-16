@@ -47,59 +47,62 @@ def repair_all():
 def repair_prices(min_count: int = 1):
     """Check price errors from debug and price logs and try to scrape again"""
     try:
-        # read both files in seach for price err
+        network_token_blocks = {}
         for log_file in get_all_logfiles():
-            network_token_blocks = get_failed_prices_from_log(log_file=log_file)
-            with tqdm.tqdm(total=len(network_token_blocks)) as progress_bar:
-                for network, addresses in network_token_blocks.items():
-                    for address, blocks_data in addresses.items():
-                        for block, counter in blocks_data.items():
-                            # block is string
-                            block = int(block)
+            network_token_blocks.update(get_failed_prices_from_log(log_file=log_file))
+        # read both files in seach for price err
+        # for log_file in get_all_logfiles():
+        # network_token_blocks = get_failed_prices_from_log(log_file=log_file)
+        with tqdm.tqdm(total=len(network_token_blocks)) as progress_bar:
+            for network, addresses in network_token_blocks.items():
+                for address, blocks_data in addresses.items():
+                    for block, counter in blocks_data.items():
+                        # block is string
+                        block = int(block)
 
-                            # check if price isnot alreadty in database
-                            if (
-                                get_price_of_token(
-                                    network=network, token_address=address, block=block
-                                )
-                                != 0
-                            ):
-                                logging.getLogger(__name__).debug(
-                                    f" Price for {network}'s {address} at block {block} is already in database..."
-                                )
-                                continue
-
-                            progress_bar.set_description(
-                                f" Check & solve {network}'s price error log entries for {address[-4:]} at block {block}"
+                        # check if price isnot alreadty in database
+                        if (
+                            get_price_of_token(
+                                network=network, token_address=address, block=block
                             )
-                            progress_bar.update(0)
+                            != 0
+                        ):
+                            logging.getLogger(__name__).debug(
+                                f" Price for {network}'s {address} at block {block} is already in database..."
+                            )
+                            continue
 
-                            # counter = number of times found in logs
-                            if counter >= min_count:
-                                price = get_price(
-                                    network=network, token_address=address, block=block
+                        progress_bar.set_description(
+                            f" Check & solve {network}'s price error log entries for {address[-4:]} at block {block}"
+                        )
+                        progress_bar.update(0)
+
+                        # counter = number of times found in logs
+                        if counter >= min_count:
+                            price = get_price(
+                                network=network, token_address=address, block=block
+                            )
+                            if price != 0:
+                                logging.getLogger(__name__).debug(
+                                    f" Added {price} as price for {network}'s {address} at block {block}  (found {counter} times in log)"
                                 )
-                                if price != 0:
-                                    logging.getLogger(__name__).debug(
-                                        f" Added {price} as price for {network}'s {address} at block {block}  (found {counter} times in log)"
-                                    )
-                                    add_price_to_token(
-                                        network=network,
-                                        token_address=address,
-                                        block=block,
-                                        price=price,
-                                    )
-                                else:
-                                    logging.getLogger(__name__).debug(
-                                        f" Could not find price for {network}'s {address} at block {block}  (found {counter} times in log)"
-                                    )
+                                add_price_to_token(
+                                    network=network,
+                                    token_address=address,
+                                    block=block,
+                                    price=price,
+                                )
                             else:
                                 logging.getLogger(__name__).debug(
-                                    f" Not procesing price for {network}'s {address} at block {block} bc it has been found only {counter} times in log."
+                                    f" Could not find price for {network}'s {address} at block {block}  (found {counter} times in log)"
                                 )
+                        else:
+                            logging.getLogger(__name__).debug(
+                                f" Not procesing price for {network}'s {address} at block {block} bc it has been found only {counter} times in log."
+                            )
 
-                    # update progress
-                    progress_bar.update(1)
+                # update progress
+                progress_bar.update(1)
 
     except Exception:
         logging.getLogger(__name__).exception(
@@ -115,80 +118,82 @@ def repair_hypervisor_status():
 def repair_hype_status_from_user(min_count: int = 1):
     protocol = "gamma"
 
+    network_token_blocks = {}
     for log_file in get_all_logfiles():
-        # hypervisor status not found while scrpaing user data
-        network_token_blocks = get_failed_status_from_log(log_file)
+        network_token_blocks.update(get_failed_prices_from_log(log_file=log_file))
 
-        try:
-            with tqdm.tqdm(total=len(network_token_blocks)) as progress_bar:
-                for network, addresses in network_token_blocks.items():
-                    # set local database name and create manager
-                    db_name = f"{network}_{protocol}"
-                    local_db = database_local(
-                        mongo_url=CONFIGURATION["sources"]["database"][
-                            "mongo_server_url"
-                        ],
-                        db_name=db_name,
-                    )
+    # for log_file in get_all_logfiles():
+    # hypervisor status not found while scrpaing user data
+    # network_token_blocks = get_failed_status_from_log(log_file)
 
-                    for address, blocks_data in addresses.items():
-                        for block, counter in blocks_data.items():
-                            # block is string
-                            block = int(block)
+    try:
+        with tqdm.tqdm(total=len(network_token_blocks)) as progress_bar:
+            for network, addresses in network_token_blocks.items():
+                # set local database name and create manager
+                db_name = f"{network}_{protocol}"
+                local_db = database_local(
+                    mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
+                    db_name=db_name,
+                )
 
-                            # make sure hypervisor status is not in db
-                            if local_db.get_items(
-                                collection_name="status",
-                                find={"address": address.lower(), "block": block},
-                                projection={"dex": 1},
-                            ):
-                                logging.getLogger(__name__).debug(
-                                    f" Status for {network}'s {address} at block {block} is already in database..."
-                                )
-                                continue
+                for address, blocks_data in addresses.items():
+                    for block, counter in blocks_data.items():
+                        # block is string
+                        block = int(block)
 
-                            progress_bar.set_description(
-                                f" Repair {network}'s hype status not found log entries for {address} at block {block}"
+                        # make sure hypervisor status is not in db
+                        if local_db.get_items(
+                            collection_name="status",
+                            find={"address": address.lower(), "block": block},
+                            projection={"dex": 1},
+                        ):
+                            logging.getLogger(__name__).debug(
+                                f" Status for {network}'s {address} at block {block} is already in database..."
                             )
-                            progress_bar.update(0)
+                            continue
 
-                            # counter = number of times found in logs
-                            if counter >= min_count:
-                                # need dex to be able to build hype
-                                dex = local_db.get_items(
-                                    collection_name="static",
-                                    find={"address": address.lower()},
-                                    projection={"dex": 1},
-                                )[0]["dex"]
-                                # scrape hypervisor status at block
-                                hype_status = create_db_hypervisor(
-                                    address=address,
-                                    network=network,
-                                    block=block,
-                                    dex=dex,
+                        progress_bar.set_description(
+                            f" Repair {network}'s hype status not found log entries for {address} at block {block}"
+                        )
+                        progress_bar.update(0)
+
+                        # counter = number of times found in logs
+                        if counter >= min_count:
+                            # need dex to be able to build hype
+                            dex = local_db.get_items(
+                                collection_name="static",
+                                find={"address": address.lower()},
+                                projection={"dex": 1},
+                            )[0]["dex"]
+                            # scrape hypervisor status at block
+                            hype_status = create_db_hypervisor(
+                                address=address,
+                                network=network,
+                                block=block,
+                                dex=dex,
+                            )
+                            if hype_status:
+                                # add hypervisor status to database
+                                local_db.set_status(data=hype_status)
+
+                                logging.getLogger(__name__).debug(
+                                    f" Added status for {network}'s {address} at block {block}  (found {counter} times in log)"
                                 )
-                                if hype_status:
-                                    # add hypervisor status to database
-                                    local_db.set_status(data=hype_status)
-
-                                    logging.getLogger(__name__).debug(
-                                        f" Added status for {network}'s {address} at block {block}  (found {counter} times in log)"
-                                    )
-                                else:
-                                    logging.getLogger(__name__).debug(
-                                        f" Could not find status for {network}'s {address} at block {block}  (found {counter} times in log)"
-                                    )
                             else:
                                 logging.getLogger(__name__).debug(
-                                    f" Not procesing status for {network}'s {address} at block {block} bc it has been found only {counter} times in log."
+                                    f" Could not find status for {network}'s {address} at block {block}  (found {counter} times in log)"
                                 )
+                        else:
+                            logging.getLogger(__name__).debug(
+                                f" Not procesing status for {network}'s {address} at block {block} bc it has been found only {counter} times in log."
+                            )
 
-                    # update progress
-                    progress_bar.update(1)
-        except Exception as e:
-            logging.getLogger(__name__).error(
-                f" Error repairing hypervisor status not found {e}"
-            )
+                # update progress
+                progress_bar.update(1)
+    except Exception as e:
+        logging.getLogger(__name__).error(
+            f" Error repairing hypervisor status not found {e}"
+        )
 
 
 # one time utils
