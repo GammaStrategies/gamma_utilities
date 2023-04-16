@@ -171,7 +171,11 @@ def global_db_service():
 
 
 def network_db_service(
-    protocol: str, network: str, do_prices: bool = False, do_userStatus: bool = False
+    protocol: str,
+    network: str,
+    do_prices: bool = False,
+    do_userStatus: bool = False,
+    do_repairs: bool = False,
 ):
     """feed one local database collection in an infinite loop"""
 
@@ -191,6 +195,7 @@ def network_db_service(
                 network=network,
                 do_prices=do_prices,
                 do_userStatus=do_userStatus,
+                do_repairs=do_repairs,
             )
             _endtime = datetime.now(timezone.utc)
             if (_endtime - _startime).total_seconds() < min_loop_time:
@@ -227,6 +232,7 @@ def main(option: str, **kwargs):
             do_prices=CONFIGURATION["_custom_"]["cml_parameters"].do_prices or False,
             do_userStatus=CONFIGURATION["_custom_"]["cml_parameters"].do_userStatus
             or False,
+            do_repairs=CONFIGURATION["_custom_"]["cml_parameters"].do_repairs or False,
         )
     else:
         raise NotImplementedError(
