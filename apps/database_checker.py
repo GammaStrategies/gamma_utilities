@@ -431,9 +431,11 @@ def get_all_logfiles() -> list:
                 logfiles.append(item)
             elif os.path.isdir(item):
                 for root, dirs, files in os.walk(item):
-                    for file in files:
-                        if file.endswith(".log"):
-                            logfiles.append(os.path.join(root, file))
+                    # avoid to load "check" related logs
+                    if "check" not in root.lower():
+                        for file in files:
+                            if file.endswith(".log"):
+                                logfiles.append(os.path.join(root, file))
 
     else:
         # get loaded price log
