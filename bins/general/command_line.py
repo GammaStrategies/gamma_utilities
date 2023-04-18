@@ -163,6 +163,7 @@ def parse_commandLine_args_2work():
             "static",
             "prices",
             "user_status",
+            "rewards",
             "impermanent_v1",
         ],
         help="feed database",
