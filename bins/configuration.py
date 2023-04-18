@@ -90,7 +90,10 @@ STATIC_REGISTRY_ADDRESSES = {
             "quickswap": "0xAeC731F69Fa39aD84c7749E913e3bC227427Adfd",
         },
         "MasterChefRegistry": "0x135B02F8b110Fe2Dd8B6a5e2892Ee781264c2fbe",
-        "MasterChefV2Registry": "0x02C8D3FCE5f072688e156F503Bd5C7396328613A",
+        "MasterChefV2Registry": {
+            "uniswapv3": "0x02C8D3FCE5f072688e156F503Bd5C7396328613A",
+            "quickswap": "0x62cD3612233B2F918BBf0d17B9Eda3005b84e16f",
+        },
     },
     "optimism": {
         "hypervisors": {
