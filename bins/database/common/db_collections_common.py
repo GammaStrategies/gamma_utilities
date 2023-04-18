@@ -1,17 +1,10 @@
 import logging
-import sys
-from dataclasses import dataclass, field, asdict, InitVar
 
 from bson.decimal128 import Decimal128, create_decimal128_context
 from decimal import Decimal, localcontext
 from datetime import datetime
 
 from bins.database.common.db_managers import MongoDbManager
-from bins.database.common.db_general_models import (
-    tool_mongodb_general,
-    tool_database_id,
-)
-from bins.database.common.db_object_models import usd_price
 
 
 class db_collections_common:
@@ -493,6 +486,7 @@ class database_local(db_collections_common):
                     "hypervisor_address": False,
                     "timestamp": False,
                 },
+                "rewards_static": {"id": True, "address": False},
             }
 
         super().__init__(
@@ -756,6 +750,33 @@ class database_local(db_collections_common):
                 collection_name="user_status", find=find, sort=sort
             )
         ]
+
+    # rewards_static
+
+    def set_rewards_static(self, data: dict):
+        # define database id
+        data["id"] = f"{data['address']}_{data['hypervisor_address']}"
+        self.save_item_to_database(data=data, collection_name="rewards_static")
+
+    def get_rewards_static(
+        self, address: str | None, hypervisor_address: str | None = None
+    ) -> list:
+        """Get rewarders static data from db.
+            Specify either address or hypervisor_address
+
+        Args:
+            address (str | None): rewarder address
+            hypervisor_address (str | None, optional): hype address. Defaults to None.
+
+        Returns:
+            list: of rewarders found
+        """
+        find = (
+            {"address": address}
+            if address
+            else {"hypervisor_address": hypervisor_address}
+        )
+        return self.get_items_from_database(collection_name="rewards_static", find=find)
 
     # all
 
