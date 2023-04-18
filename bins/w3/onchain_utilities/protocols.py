@@ -1770,16 +1770,16 @@ class masterchef_rewarder(web3wrap):
         result["token_precision"] = (
             str(self.acc_token_precision) if convert_bint else self.acc_token_precision
         )
-        result["masterchef_address"] = self.masterchef_v2
-        result["owner"] = self.owner
-        result["pendingOwner"] = self.pendingOwner
+        result["masterchef_address"] = (self.masterchef_v2).lower()
+        result["owner"] = (self.owner).lower()
+        result["pendingOwner"] = (self.pendingOwner).lower()
 
         result["poolLength"] = self.poolLength
 
         result["rewardPerSecond"] = (
             str(self.rewardPerSecond) if convert_bint else self.rewardPerSecond
         )
-        result["rewardToken"] = self.rewardToken
+        result["rewardToken"] = (self.rewardToken).lower()
 
         result["totalAllocPoint"] = (
             str(self.totalAllocPoint) if convert_bint else self.totalAllocPoint

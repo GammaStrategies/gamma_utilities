@@ -364,7 +364,7 @@ class user_status_hypervisor_builder:
         return result
 
     @property
-    def local_db_manager(self) -> str:
+    def local_db_manager(self) -> database_local:
         mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
         db_name = f"{self.network}_{self.protocol}"
         return database_local(mongo_url=mongo_url, db_name=db_name)
@@ -1230,12 +1230,24 @@ class user_status_hypervisor_builder:
             # expect a deposit topic on next operation ( same block)
             # do nothing
             pass
-        elif operation["dst"] in self._masterchefs:
-            # TODO: masterchef implementation
-            pass
         else:
-            # transfer all values to other user address
-            return self._transfer_to_user(operation=operation)
+            # check if transfer is to/from a rewarder
+            # get rewarders addresses
+            rewarders_address_list = (
+                self.local_db_manager.get_distinct_items_from_database(
+                    collection_name="rewards_static", field="address"
+                )
+            )
+
+            if operation["dst"].lower() in rewarders_address_list:
+                # TODO: staking into masterchef implementation
+                pass
+            elif operation["src"].lower() in rewarders_address_list:
+                # TODO: unstaking out of masterchef implementation
+                pass
+            else:
+                # transfer all values to other user address
+                return self._transfer_to_user(operation=operation)
 
         # result
         return None, None

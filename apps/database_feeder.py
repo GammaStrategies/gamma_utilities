@@ -1412,7 +1412,7 @@ def feed_masterchef_static(
                             result = rewarder.as_dict(convert_bint=True)
 
                             # manually add hypervisor address to rewarder
-                            result["hypervisor_address"] = hypervisor_address
+                            result["hypervisor_address"] = hypervisor_address.lower()
 
                             # manually add dex
                             result["dex"] = dex
