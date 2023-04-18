@@ -28,6 +28,9 @@ from bins.w3.onchain_utilities.protocols import (
     gamma_hypervisor_zyberswap_cached,
     gamma_hypervisor_thena_cached,
     gamma_hypervisor_registry,
+    masterChef_registry,
+    masterchef_v1,
+    masterchef_rewarder,
 )
 from bins.w3.onchain_utilities.basic import erc20_cached
 
@@ -1288,8 +1291,6 @@ def feed_timestamp_blocks(network: str, protocol: str, threaded: bool = True):
 
 
 ### user Status #######################
-
-
 def feed_user_status(network: str, protocol: str):
     addresses = get_hypervisor_addresses(network=network, protocol=protocol)
     logging.getLogger(__name__).info(
@@ -1349,6 +1350,89 @@ def get_hypervisor_addresses(network: str, protocol: str) -> list[str]:
     )
 
     return result
+
+
+### Masterchef Static #######################
+def feed_masterchef_static(
+    network: str | None = None, dex: str | None = None, protocol: str = "gamma"
+):
+    logging.getLogger(__name__).info(f">Feeding rewards static information")
+
+    for network in [network] if network else STATIC_REGISTRY_ADDRESSES.keys():
+        for dex in (
+            [dex]
+            if dex
+            else STATIC_REGISTRY_ADDRESSES.get(network, {})
+            .get("MasterChefV2Registry", {})
+            .keys()
+        ):
+            logging.getLogger(__name__).info(
+                f"   feeding {protocol}'s {network} rewards for {dex}"
+            )
+            # set local database name and create manager
+            local_db = database_local(
+                mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
+                db_name=f"{network}_{protocol}",
+            )
+
+            # TODO: masterchef v1 registry
+
+            # masterchef v2 registry
+            address = STATIC_REGISTRY_ADDRESSES[network]["MasterChefV2Registry"][dex]
+
+            # create masterchef registry
+            registry = masterChef_registry(address, network)
+
+            # get reward addresses from masterchef registry
+            reward_registry_addresses = registry.get_masterchef_addresses()
+
+            for registry_address in reward_registry_addresses:
+                # create reward registry
+                reward_registry = masterchef_v1(
+                    address=registry_address, network=network
+                )
+
+                for i in range(reward_registry.poolLength):
+                    # get hypervisor address
+                    hypervisor_address = reward_registry.lpToken(pid=i)
+
+                    # TODO: how to scrape rid ?
+                    for rid in range(100):
+                        try:
+                            # get reward address
+                            rewarder_address = reward_registry.getRewarder(
+                                pid=i, rid=rid
+                            )
+
+                            # get rewarder
+                            rewarder = masterchef_rewarder(
+                                address=rewarder_address, network=network
+                            )
+
+                            result = rewarder.as_dict(convert_bint=True)
+
+                            # manually add hypervisor address to rewarder
+                            result["hypervisor_address"] = hypervisor_address
+
+                            # manually add dex
+                            result["dex"] = dex
+
+                            # save to database
+                            local_db.set_rewards_static(data=result)
+
+                        except ValueError:
+                            # no more rid's
+                            break
+                        except Exception as e:
+                            if rewarder_address:
+                                logging.getLogger(__name__).exception(
+                                    f"   Unexpected error while feeding db with rewarder {rewarder_address}. hype: {hypervisor_address}  . error:{e}"
+                                )
+                            else:
+                                logging.getLogger(__name__).exception(
+                                    f"   Unexpected error while feeding db with rewarders from {reward_registry_addresses} registry. hype: {hypervisor_address}  . error:{e}"
+                                )
+                            break
 
 
 ### gamma_db_v1 -> FastAPI
@@ -1506,6 +1590,10 @@ def main(option="operations"):
                         protocol=protocol, network=network
                     ),
                 )
+
+            elif option == "rewards":
+                feed_masterchef_static(protocol=protocol, network=network)
+
             elif option == "impermanent_v1":
                 # feed fastAPI database with impermanent data
                 feed_fastApi_impermanent(protocol=protocol, network=network)

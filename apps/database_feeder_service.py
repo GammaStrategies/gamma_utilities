@@ -25,6 +25,7 @@ from apps.database_feeder import (
     feed_timestamp_blocks,
     feed_blocks_timestamp,
     feed_user_status,
+    feed_masterchef_static,
 )
 from apps.database_checker import repair_all
 
@@ -64,6 +65,9 @@ def network_sequence_loop(
 
     # feed global blocks data with daily
     feed_blocks_timestamp(network=network)
+
+    # feed rewards
+    feed_masterchef_static(protocol=protocol, network=network)
 
     if do_prices:
         # feed network prices ( before user status to avoid price related errors)
