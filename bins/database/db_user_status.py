@@ -320,8 +320,9 @@ class user_status_hypervisor_builder:
         # load prices for all status blocks ( speedup process)
         self._prices = self._get_prices()
 
-        # masterchefs
-        self._masterchefs = []
+        # init rewarders masterchefs
+        self._rewarders_list = []
+        self._rewarders_lastTime_update = None
 
         # control var (itemsprocessed): list of operation ids processed
         self.ids_processed = []
@@ -362,6 +363,32 @@ class user_status_hypervisor_builder:
             result[x["block"]][x["address"]] = x["price"]
 
         return result
+
+    @property
+    def rewarders_list(self) -> list:
+        """Masterchef addresses that reward this hypervisor
+
+        Returns:
+            list: rewarders addresses
+        """
+        # get rewarders addresses from database every 20 minutes
+        if (
+            self._rewarders_lastTime_update is None
+            or (datetime.utcnow() - self._rewarders_lastTime_update).total_seconds()
+            >= 1200
+        ):
+            # update rewarders
+            self._rewarders_list = (
+                self.local_db_manager.get_distinct_items_from_database(
+                    collection_name="rewards_static",
+                    field="address",
+                    condition={"hypervisor_address": self._hypervisor_address},
+                )
+            )
+            # update time
+            self._rewarders_lastTime_update = datetime.utcnow()
+        # return rewarders
+        return self._rewarders_list
 
     @property
     def local_db_manager(self) -> database_local:
@@ -1232,17 +1259,10 @@ class user_status_hypervisor_builder:
             pass
         else:
             # check if transfer is to/from a rewarder
-            # get rewarders addresses
-            rewarders_address_list = (
-                self.local_db_manager.get_distinct_items_from_database(
-                    collection_name="rewards_static", field="address"
-                )
-            )
-
-            if operation["dst"].lower() in rewarders_address_list:
+            if operation["dst"].lower() in self.rewarders_list:
                 # TODO: staking into masterchef implementation
                 pass
-            elif operation["src"].lower() in rewarders_address_list:
+            elif operation["src"].lower() in self.rewarders_list:
                 # TODO: unstaking out of masterchef implementation
                 pass
             else:
