@@ -47,6 +47,7 @@ from bins.database.common.db_collections_common import (
 )
 
 from apps.database_checker import auto_get_prices, replace_quickswap_pool_dex_to_algebra
+from apps.database_feeder import feed_masterchef_static
 
 
 def test_w3_hypervisor_obj(
@@ -401,43 +402,84 @@ def test_db_direct_info(
         )
 
 
-def test_masterchef():
-    network = "polygon"
-    # address = STATIC_REGISTRY_ADDRESSES[network]["MasterChefRegistry"]
-    address = STATIC_REGISTRY_ADDRESSES[network]["MasterChefV2Registry"]
-    registry = masterChef_registry(address, network)
+def test_masterchef(network: str | None = None, dex: str | None = None):
+    for network in [network] if network else STATIC_REGISTRY_ADDRESSES.keys():
+        for dex in (
+            [dex]
+            if dex
+            else STATIC_REGISTRY_ADDRESSES.get(network, {})
+            .get("MasterChefV2Registry", {})
+            .keys()
+        ):
+            # TODO: masterchef v1 registry
 
-    # get masterchef reward registry
-    reward_registry_addresses = registry.get_masterchef_addresses()
+            # masterchef v2 registry
+            address = STATIC_REGISTRY_ADDRESSES[network]["MasterChefV2Registry"][dex]
 
-    for registry_address in reward_registry_addresses:
-        print(f"{network} testing reward registry {registry_address}")
+            # create masterchef registry
+            registry = masterChef_registry(address, network)
 
-        reward_registry = masterchef_v1(address=registry_address, network=network)
+            # get reward addresses from masterchef registry
+            reward_registry_addresses = registry.get_masterchef_addresses()
 
-        for i in range(reward_registry.poolLength):
-            # TODO: how to scrape rid ?
-            for rid in range(100):
-                try:
-                    # get reward address
-                    rewarder_address = reward_registry.getRewarder(pid=i, rid=rid)
+            for registry_address in reward_registry_addresses:
+                logging.getLogger(__name__).info(
+                    f" ********  {network} testing Reward Registry {registry_address}  ******** "
+                )
 
-                    print(f"            testing rewarder address {rewarder_address}")
-                    # get rewarder
-                    rewarder = masterchef_rewarder(
-                        address=rewarder_address, network=network
-                    )
+                reward_registry = masterchef_v1(
+                    address=registry_address, network=network
+                )
 
-                    # get rewarder info
-                    rewarder_token = rewarder.rewardToken()
-                except ValueError:
-                    # no more rid's
-                    # print(sys.exc_info()[0])
-                    break
-                except Exception:
-                    # no more rid's
-                    print(sys.exc_info()[0])
-                    break
+                for i in range(reward_registry.poolLength):
+                    # TODO: how to scrape rid ?
+                    for rid in range(100):
+                        try:
+                            # get hypervisor address
+                            hypervisor_address = reward_registry.lpToken(pid=i)
+                            # get reward address
+                            rewarder_address = reward_registry.getRewarder(
+                                pid=i, rid=rid
+                            )
+
+                            # get rewarder
+                            rewarder = masterchef_rewarder(
+                                address=rewarder_address, network=network
+                            )
+
+                            result = rewarder.as_dict(convert_bint=True)
+                            # add hypervisor address to rewarder
+                            result["hypervisor_address"] = hypervisor_address
+
+                            # get rewarder info
+                            # rewarder_address = rewarder_address
+                            # rewarder_token = rewarder.rewardToken
+                            # rewarder_registry = rewarder.masterchef_v2
+                            # rewarder_RxSec = rewarder.rewardPerSecond
+                            # rewarder_totalAllocPoint = rewarder.totalAllocPoint
+                            # rewarder_poolLength = rewarder.poolLength
+
+                            logging.getLogger(__name__).info(
+                                f"           {rewarder_address}  ok "
+                            )
+                        except ValueError:
+                            # no more rid's
+                            # print(sys.exc_info()[0])
+                            # logging.getLogger(__name__).info(
+                            #     f"           {rewarder_address}  not ok (no more rid's) "
+                            # )
+                            break
+                        except Exception:
+                            if rewarder_address:
+                                logging.getLogger(__name__).info(
+                                    f"           {rewarder_address}  not ok (error)"
+                                )
+                            else:
+                                logging.getLogger(__name__).info(
+                                    f"            ------------ not ok (error)"
+                                )
+                            logging.getLogger(__name__).error(sys.exc_info()[0])
+                            break
 
 
 # START ####################################################################################################################
@@ -455,7 +497,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    test_masterchef()
+    feed_masterchef_static()
 
     replace_quickswap_pool_dex_to_algebra(network="polygon")
     # test_prices()
