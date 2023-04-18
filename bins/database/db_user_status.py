@@ -332,9 +332,12 @@ class user_status_hypervisor_builder:
     def _get_static_data(self):
         """_load hypervisor's static data from database"""
         # static
-        return self.local_db_manager.get_items_from_database(
-            collection_name="static", find={"id": self.address}
-        )[0]
+        try:
+            return self.local_db_manager.get_items_from_database(
+                collection_name="static", find={"id": self.address}
+            )[0]
+        except IndexError:
+            raise ValueError(f"Static data not found for {self.address}")
 
     def _get_prices(self) -> dict:
         """_load prices from database"""
@@ -660,6 +663,7 @@ class user_status_hypervisor_builder:
 
         return total
 
+    @log_execution_time
     def total_hypervisor_value_locked(
         self,
         block: int = 0,
@@ -693,6 +697,7 @@ class user_status_hypervisor_builder:
                 "token1": Decimal("0"),
             }
 
+    @log_execution_time
     def total_value_locked(
         self,
         block: int = 0,
@@ -727,6 +732,7 @@ class user_status_hypervisor_builder:
 
         return total
 
+    @log_execution_time
     def result(self, block: int, block_condition: str = "$lte") -> user_status:
         """Hypervisor last result at block
 
@@ -762,6 +768,7 @@ class user_status_hypervisor_builder:
 
         return total_block_status
 
+    @log_execution_time
     def account_result(
         self, address: str, block: int = 0, logIndex: int = 0
     ) -> user_status:
@@ -782,6 +789,7 @@ class user_status_hypervisor_builder:
         except Exception:
             return None
 
+    @log_execution_time
     def account_result_list(
         self, address: str, b_ini: int = 0, b_end: int = 0
     ) -> list[user_status]:
@@ -2040,30 +2048,30 @@ class user_status_hypervisor_builder:
             )
             return 0
 
+    @log_execution_time
     def get_price(self, block: int, address: str) -> Decimal:
-        ##
+        # TODO: remove this when global db is ready
         try:
             return Decimal(self._prices[block][address])
+        except Exception:
+            # price is not found in cached data.
+            pass
+
+        # Try to get it from global db
+        global_db_manager = database_global(
+            mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"]
+        )
+        try:
+            return Decimal(
+                global_db_manager.get_price_usd(
+                    network=self.network, block=block, address=address
+                )[0]["price"]
+            )
         except Exception:
             logging.getLogger(__name__).error(
                 f" Can't find {self.network}'s {self.address} usd price for {address} at block {block}. Return Zero"
             )
-            return Decimal("0")
-
-        # global_db_manager = database_global(
-        #     mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"]
-        # )
-        # try:
-        #     return Decimal(
-        #         global_db_manager.get_price_usd(
-        #             network=self.network, block=block, address=address
-        #         )[0]["price"]
-        #     )
-        # except Exception:
-        #     logging.getLogger(__name__).error(
-        #         f" Can't find {self.network}'s {self.address} usd price for {address} at block {block}. Return Zero"
-        #     )
-        #     Decimal("0")
+            Decimal("0")
 
     # Transformers
     def convert_user_status_toDb(self, status: user_status) -> dict:
