@@ -1638,8 +1638,6 @@ class gamma_hypervisor_registry(web3wrap):
 
 
 # rewarders
-
-
 class masterchef_rewarder(web3wrap):
     def __init__(
         self,
@@ -1756,6 +1754,43 @@ class masterchef_rewarder(web3wrap):
             block_identifier=self.block
         )
 
+    # CUSTOM
+    def as_dict(self, convert_bint=False, static_mode: bool = False) -> dict:
+        """as_dict _summary_
+
+        Args:
+            convert_bint (bool, optional): Convert big integers to string. Defaults to False.
+            static_mode (bool, optional): only general static fields are returned. Defaults to False.
+
+        Returns:
+            dict:
+        """
+        result = super().as_dict(convert_bint=convert_bint)
+
+        result["token_precision"] = (
+            str(self.acc_token_precision) if convert_bint else self.acc_token_precision
+        )
+        result["masterchef_address"] = self.masterchef_v2
+        result["owner"] = self.owner
+        result["pendingOwner"] = self.pendingOwner
+
+        result["poolLength"] = self.poolLength
+
+        result["rewardPerSecond"] = (
+            str(self.rewardPerSecond) if convert_bint else self.rewardPerSecond
+        )
+        result["rewardToken"] = self.rewardToken
+
+        result["totalAllocPoint"] = (
+            str(self.totalAllocPoint) if convert_bint else self.totalAllocPoint
+        )
+
+        # only return when static mode is off
+        if not static_mode:
+            pass
+
+        return result
+
 
 # rewarder registry
 class masterchef_v1(web3wrap):
@@ -1801,16 +1836,16 @@ class masterchef_v1(web3wrap):
             block_identifier=self.block
         )
 
-    def lpToken(self, index: int) -> str:
+    def lpToken(self, pid: int) -> str:
         """Retrieve lp token address (hypervisor) from masterchef
 
         Args:
-            index (int): index of hypervisor
+            index (int): index of the pool ( same of rewarder )
 
         Returns:
             str:  hypervisor address ( LP token)
         """
-        return self._contract.functions.lpToken(index).call(block_identifier=self.block)
+        return self._contract.functions.lpToken(pid).call(block_identifier=self.block)
 
     @property
     def owner(self) -> str:
@@ -1854,6 +1889,30 @@ class masterchef_v1(web3wrap):
         return self._contract.functions.poolLength().call(block_identifier=self.block)
 
 
+class zyberchef_v1(web3wrap):
+    def __init__(
+        self,
+        address: str,
+        network: str,
+        abi_filename: str = "",
+        abi_path: str = "",
+        block: int = 0,
+    ):
+        self._abi_filename = abi_filename or "zyberchef_v1"
+        self._abi_path = abi_path or "data/abi/gamma/masterchef"
+
+        super().__init__(
+            address=address,
+            network=network,
+            abi_filename=self._abi_filename,
+            abi_path=self._abi_path,
+            block=block,
+        )
+
+    # TODO: https://arbiscan.io/address/0x9ba666165867e916ee7ed3a3ae6c19415c2fbddd#readContract
+
+
+# masterchef registry ( registry of the "rewarders registry")
 class masterChef_registry(web3wrap):
     # SETUP
     def __init__(
@@ -1974,29 +2033,9 @@ class masterChef_registry(web3wrap):
         return result
 
 
-class zyberchef_v1(web3wrap):
-    def __init__(
-        self,
-        address: str,
-        network: str,
-        abi_filename: str = "",
-        abi_path: str = "",
-        block: int = 0,
-    ):
-        self._abi_filename = abi_filename or "zyberchef_v1"
-        self._abi_path = abi_path or "data/abi/gamma/masterchef"
-
-        super().__init__(
-            address=address,
-            network=network,
-            abi_filename=self._abi_filename,
-            abi_path=self._abi_path,
-            block=block,
-        )
-
-    # TODO: https://arbiscan.io/address/0x9ba666165867e916ee7ed3a3ae6c19415c2fbddd#readContract
-
-
+#
+#
+#
 # TODO: decimals n stuff
 class arrakis_hypervisor(erc20):
     # SETUP
