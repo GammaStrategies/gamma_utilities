@@ -1393,6 +1393,7 @@ def feed_masterchef_static(
                 )
 
                 for i in range(reward_registry.poolLength):
+                    # TODO: try catch exceptions and rise them for hypervisor_address
                     # get hypervisor address
                     hypervisor_address = reward_registry.lpToken(pid=i)
 

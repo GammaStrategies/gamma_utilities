@@ -674,10 +674,12 @@ class user_status_hypervisor_builder:
         Returns:
             dict: { "token0": Decimal(0),  "token1": Decimal(0) }
         """
+
         total = {
             "token0": Decimal("0"),
             "token1": Decimal("0"),
         }
+
         for status in self.last_user_status_list(
             block=block,
             logIndex=logIndex,
