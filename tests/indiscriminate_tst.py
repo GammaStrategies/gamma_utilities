@@ -32,9 +32,9 @@ from bins.w3.onchain_utilities.protocols import (
     gamma_hypervisor_quickswap_cached,
     gamma_hypervisor_zyberswap_cached,
     gamma_hypervisor_registry,
-    masterChef_registry,
-    masterchef_v1,
-    masterchef_rewarder,
+    gamma_masterchef_registry,
+    gamma_masterchef_v1,
+    gamma_masterchef_rewarder,
 )
 
 
@@ -417,7 +417,7 @@ def test_masterchef(network: str | None = None, dex: str | None = None):
             address = STATIC_REGISTRY_ADDRESSES[network]["MasterChefV2Registry"][dex]
 
             # create masterchef registry
-            registry = masterChef_registry(address, network)
+            registry = gamma_masterchef_registry(address, network)
 
             # get reward addresses from masterchef registry
             reward_registry_addresses = registry.get_masterchef_addresses()
@@ -427,7 +427,7 @@ def test_masterchef(network: str | None = None, dex: str | None = None):
                     f" ********  {network} testing Reward Registry {registry_address}  ******** "
                 )
 
-                reward_registry = masterchef_v1(
+                reward_registry = gamma_masterchef_v1(
                     address=registry_address, network=network
                 )
 
@@ -443,7 +443,7 @@ def test_masterchef(network: str | None = None, dex: str | None = None):
                             )
 
                             # get rewarder
-                            rewarder = masterchef_rewarder(
+                            rewarder = gamma_masterchef_rewarder(
                                 address=rewarder_address, network=network
                             )
 

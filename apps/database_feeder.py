@@ -28,9 +28,9 @@ from bins.w3.onchain_utilities.protocols import (
     gamma_hypervisor_zyberswap_cached,
     gamma_hypervisor_thena_cached,
     gamma_hypervisor_registry,
-    masterChef_registry,
-    masterchef_v1,
-    masterchef_rewarder,
+    gamma_masterchef_registry,
+    gamma_masterchef_v1,
+    gamma_masterchef_rewarder,
 )
 from bins.w3.onchain_utilities.basic import erc20_cached
 
@@ -1381,14 +1381,14 @@ def feed_masterchef_static(
             address = STATIC_REGISTRY_ADDRESSES[network]["MasterChefV2Registry"][dex]
 
             # create masterchef registry
-            registry = masterChef_registry(address, network)
+            registry = gamma_masterchef_registry(address, network)
 
             # get reward addresses from masterchef registry
             reward_registry_addresses = registry.get_masterchef_addresses()
 
             for registry_address in reward_registry_addresses:
                 # create reward registry
-                reward_registry = masterchef_v1(
+                reward_registry = gamma_masterchef_v1(
                     address=registry_address, network=network
                 )
 
@@ -1406,7 +1406,7 @@ def feed_masterchef_static(
                             )
 
                             # get rewarder
-                            rewarder = masterchef_rewarder(
+                            rewarder = gamma_masterchef_rewarder(
                                 address=rewarder_address, network=network
                             )
 
