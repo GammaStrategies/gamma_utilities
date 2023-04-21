@@ -44,15 +44,15 @@ def network_sequence_loop(
         protocol (str):
         network (str):
     """
-    # feed static operations
-    for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][network]:
-        feed_hypervisor_static(
-            protocol=protocol,
-            network=network,
-            dex=dex,
-            rewrite=False,
-            threaded=True,
-        )
+    # # feed static operations
+    # for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][network]:
+    #     feed_hypervisor_static(
+    #         protocol=protocol,
+    #         network=network,
+    #         dex=dex,
+    #         rewrite=False,
+    #         threaded=True,
+    #     )
 
     # feed database with all operations from static hyprervisor addresses
     feed_operations(protocol=protocol, network=network)
