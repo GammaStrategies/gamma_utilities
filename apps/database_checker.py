@@ -160,11 +160,20 @@ def repair_hype_status_from_user(min_count: int = 1):
                         # counter = number of times found in logs
                         if counter >= min_count:
                             # need dex to be able to build hype
-                            dex = local_db.get_items(
+
+                            if dex := local_db.get_items(
                                 collection_name="static",
                                 find={"address": address.lower()},
                                 projection={"dex": 1},
-                            )[0]["dex"]
+                            ):
+                                dex = dex[0]["dex"]
+                            else:
+                                logging.getLogger(__name__).error(
+                                    f"{protocol}'s {network} hyperivisor {address} not fount in static db collection. May not be present in registry. (cant solve err.)"
+                                )
+                                # loop to next address
+                                continue
+
                             # scrape hypervisor status at block
                             hype_status = create_db_hypervisor(
                                 address=address,
