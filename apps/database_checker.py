@@ -50,11 +50,12 @@ def repair_prices(min_count: int = 1):
         network_token_blocks = {}
         for log_file in get_all_logfiles():
             network_token_blocks.update(get_failed_prices_from_log(log_file=log_file))
-        # read both files in seach for price err
-        # for log_file in get_all_logfiles():
-        # network_token_blocks = get_failed_prices_from_log(log_file=log_file)
+
         with tqdm.tqdm(total=len(network_token_blocks)) as progress_bar:
             for network, addresses in network_token_blocks.items():
+                logging.getLogger(__name__).info(
+                    f" > Trying to repair {len(addresses)} tokens price from {network}"
+                )
                 for address, blocks_data in addresses.items():
                     for block, counter in blocks_data.items():
                         # block is string
@@ -134,6 +135,9 @@ def repair_hype_status_from_user(min_count: int = 1):
                 local_db = database_local(
                     mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
                     db_name=db_name,
+                )
+                logging.getLogger(__name__).info(
+                    f" > Trying to repair {len(addresses)} hypervisors status from {network}"
                 )
 
                 for address, blocks_data in addresses.items():
