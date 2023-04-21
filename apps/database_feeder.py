@@ -180,7 +180,7 @@ def _get_static_hypervisor_addresses_to_process(
     network: str,
     dex: str,
     rewrite: bool = False,
-):
+) -> list:
     """Create a list of hypervisor addresses to be scraped to feed static database collection
 
     Args:
@@ -188,7 +188,7 @@ def _get_static_hypervisor_addresses_to_process(
         rewrite (bool, optional): _description_. Defaults to False.
 
     Returns:
-        _type_: _description_
+        list:
     """
     # get hyp addresses from database
     logging.getLogger(__name__).debug(
@@ -1551,8 +1551,14 @@ def main(option="operations"):
                     network
                 ]:
                     # feed database with static hypervisor info
+                    # todo: add rewrite data option to cmd
                     feed_hypervisor_static(
-                        protocol=protocol, network=network, dex=dex, rewrite=True
+                        protocol=protocol,
+                        network=network,
+                        dex=dex,
+                        rewrite=(
+                            CONFIGURATION["_custom_"]["cml_parameters"].rewrite or True
+                        ),
                     )
 
             elif option == "operations":

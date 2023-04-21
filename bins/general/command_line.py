@@ -128,6 +128,11 @@ def parse_commandLine_args():
         nargs="+",
         help=" specify the files or folders where log files to be included in check and repair process are stored",
     )
+    par_main.add_argument(
+        "--rewrite",
+        type=bool,
+        help=" rewrite information in database",
+    )
 
     # print helpwhen no command is passed
     return par_main.parse_args(args=None if sys.argv[1:] else ["--help"])
