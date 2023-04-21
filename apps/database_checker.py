@@ -466,33 +466,35 @@ def get_all_logfiles() -> list:
 
     logfiles = []
 
-    if CONFIGURATION["_custom_"]["cml_parameters"].check_logs:
-        for item in CONFIGURATION["_custom_"]["cml_parameters"].check_logs:
-            # check if item is a file
-            if os.path.isfile(item):
-                logfiles.append(item)
-            elif os.path.isdir(item):
-                for root, dirs, files in os.walk(item):
-                    # avoid to load "check" related logs
-                    if (
-                        CONFIGURATION["_custom_"]["cml_parameters"].log_subfolder
-                        or "check" not in root.lower()
-                    ):
-                        for file in files:
-                            if file.endswith(".log"):
-                                logfiles.append(os.path.join(root, file))
+    for logPath in (
+        CONFIGURATION["_custom_"]["cml_parameters"].check_logs
+        or CONFIGURATION["logs"]["save_path"]
+    ):
+        if os.path.isfile(logPath):
+            logfiles.append(logPath)
+        elif os.path.isdir(logPath):
+            for root, dirs, files in os.walk(logPath):
+                # avoid to load "check" related logs ( current app log)
+                if (
+                    CONFIGURATION["_custom_"]["cml_parameters"].log_subfolder
+                    or "check" not in root.lower()
+                ):
+                    for file in files:
+                        if file.endswith(".log") and (
+                            "debug" in file.lower() or "price" in file.lower()
+                        ):
+                            logfiles.append(os.path.join(root, file))
 
-    else:
-        # get loaded price log
-        logfiles.append(logging.getLogger("price").handlers[0].baseFilename)
-        # get loaded debug log
-        logfiles.append(
-            [
-                x.baseFilename
-                for x in logging.getLoggerClass().root.handlers
-                if "debug" in x.name
-            ][0]
-        )
+        # # get loaded price log
+        # logfiles.append(logging.getLogger("price").handlers[0].baseFilename)
+        # # get loaded debug log
+        # logfiles.append(
+        #     [
+        #         x.baseFilename
+        #         for x in logging.getLoggerClass().root.handlers
+        #         if "debug" in x.name
+        #     ][0]
+        # )
 
     return logfiles
 
