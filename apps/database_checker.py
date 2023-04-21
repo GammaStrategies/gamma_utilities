@@ -120,7 +120,7 @@ def repair_hype_status_from_user(min_count: int = 1):
 
     network_token_blocks = {}
     for log_file in get_all_logfiles():
-        network_token_blocks.update(get_failed_prices_from_log(log_file=log_file))
+        network_token_blocks.update(get_failed_status_from_log(log_file=log_file))
 
     # for log_file in get_all_logfiles():
     # hypervisor status not found while scrpaing user data
