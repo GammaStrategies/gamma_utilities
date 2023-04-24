@@ -20,6 +20,8 @@ class univ3_pool(web3wrap):
         abi_filename: str = "",
         abi_path: str = "",
         block: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "univ3_pool"
         self._abi_path = abi_path or "data/abi/uniswap/v3"
@@ -33,6 +35,8 @@ class univ3_pool(web3wrap):
             abi_filename=self._abi_filename,
             abi_path=self._abi_path,
             block=block,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
         )
 
     # PROPERTIES
@@ -768,6 +772,8 @@ class algebrav3_dataStorageOperator(web3wrap):
         abi_filename: str = "",
         abi_path: str = "",
         block: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "dataStorageOperator"
         self._abi_path = abi_path or "data/abi/algebra/v3"
@@ -778,6 +784,8 @@ class algebrav3_dataStorageOperator(web3wrap):
             abi_filename=self._abi_filename,
             abi_path=self._abi_path,
             block=block,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
         )
 
     # TODO: Implement contract functs calculateVolumePerLiquidity, getAverages, getFee, getSingleTimepoint, getTimepoints and timepoints
@@ -842,6 +850,8 @@ class algebrav3_pool(web3wrap):
         abi_filename: str = "",
         abi_path: str = "",
         block: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "algebrav3pool"
         self._abi_path = abi_path or "data/abi/algebra/v3"
@@ -857,6 +867,8 @@ class algebrav3_pool(web3wrap):
             abi_filename=self._abi_filename,
             abi_path=self._abi_path,
             block=block,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
         )
 
     # SETUP

@@ -27,6 +27,8 @@ class gamma_hypervisor(erc20):
         abi_filename: str = "",
         abi_path: str = "",
         block: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "hypervisor"
         self._abi_path = abi_path or "data/abi/gamma"
@@ -41,6 +43,8 @@ class gamma_hypervisor(erc20):
             abi_filename=self._abi_filename,
             abi_path=self._abi_path,
             block=block,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
         )
 
     # SETUP
@@ -526,6 +530,8 @@ class gamma_hypervisor_algebra(gamma_hypervisor):
         abi_filename: str = "",
         abi_path: str = "",
         block: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "algebra_hypervisor"
         self._abi_path = abi_path or "data/abi/gamma"
@@ -536,6 +542,8 @@ class gamma_hypervisor_algebra(gamma_hypervisor):
             abi_filename=self._abi_filename,
             abi_path=self._abi_path,
             block=block,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
         )
 
     @property
@@ -559,6 +567,8 @@ class gamma_hypervisor_quickswap(gamma_hypervisor_algebra):
         abi_filename: str = "",
         abi_path: str = "",
         block: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "algebra_hypervisor"
         self._abi_path = abi_path or "data/abi/gamma"
@@ -569,6 +579,8 @@ class gamma_hypervisor_quickswap(gamma_hypervisor_algebra):
             abi_filename=self._abi_filename,
             abi_path=self._abi_path,
             block=block,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
         )
 
 
@@ -580,6 +592,8 @@ class gamma_hypervisor_zyberswap(gamma_hypervisor_algebra):
         abi_filename: str = "",
         abi_path: str = "",
         block: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "algebra_hypervisor"
         self._abi_path = abi_path or "data/abi/gamma"
@@ -590,6 +604,8 @@ class gamma_hypervisor_zyberswap(gamma_hypervisor_algebra):
             abi_filename=self._abi_filename,
             abi_path=self._abi_path,
             block=block,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
         )
 
 
@@ -601,6 +617,8 @@ class gamma_hypervisor_thena(gamma_hypervisor_algebra):
         abi_filename: str = "",
         abi_path: str = "",
         block: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "algebra_hypervisor"
         self._abi_path = abi_path or "data/abi/gamma"
@@ -611,6 +629,8 @@ class gamma_hypervisor_thena(gamma_hypervisor_algebra):
             abi_filename=self._abi_filename,
             abi_path=self._abi_path,
             block=block,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
         )
 
     @property
@@ -1509,6 +1529,8 @@ class gamma_hypervisor_registry(web3wrap):
         abi_filename: str = "",
         abi_path: str = "",
         block: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "registry"
         self._abi_path = abi_path or "data/abi/gamma/ethereum"
@@ -1519,6 +1541,8 @@ class gamma_hypervisor_registry(web3wrap):
             abi_filename=self._abi_filename,
             abi_path=self._abi_path,
             block=block,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
         )
 
     # implement harcoded erroneous addresses to reduce web3 calls
@@ -1646,6 +1670,8 @@ class gamma_masterchef_rewarder(web3wrap):
         abi_filename: str = "",
         abi_path: str = "",
         block: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "masterchef_rewarder"
         self._abi_path = abi_path or "data/abi/gamma/masterchef"
@@ -1656,6 +1682,8 @@ class gamma_masterchef_rewarder(web3wrap):
             abi_filename=self._abi_filename,
             abi_path=self._abi_path,
             block=block,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
         )
 
     @property
@@ -1802,6 +1830,8 @@ class zyberswap_masterchef_rewarder(web3wrap):
         abi_filename: str = "",
         abi_path: str = "",
         block: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "zyberchef_rewarder"
         self._abi_path = abi_path or "data/abi/zyberchef/masterchef"
@@ -1812,6 +1842,8 @@ class zyberswap_masterchef_rewarder(web3wrap):
             abi_filename=self._abi_filename,
             abi_path=self._abi_path,
             block=block,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
         )
 
     def _getTimeElapsed(self, _from: int, _to: int, _endTimestamp: int) -> int:
@@ -1969,6 +2001,8 @@ class gamma_masterchef_v1(web3wrap):
         abi_filename: str = "",
         abi_path: str = "",
         block: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "masterchef_v1"
         self._abi_path = abi_path or "data/abi/gamma/masterchef"
@@ -1979,6 +2013,8 @@ class gamma_masterchef_v1(web3wrap):
             abi_filename=self._abi_filename,
             abi_path=self._abi_path,
             block=block,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
         )
 
     @property
@@ -2067,6 +2103,8 @@ class gamma_masterchef_v2(web3wrap):
         abi_filename: str = "",
         abi_path: str = "",
         block: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "masterchef_v2"
         self._abi_path = abi_path or "data/abi/gamma/masterchef"
@@ -2077,6 +2115,8 @@ class gamma_masterchef_v2(web3wrap):
             abi_filename=self._abi_filename,
             abi_path=self._abi_path,
             block=block,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
         )
 
     def deposited(self, pid: int, user: str) -> int:
@@ -2236,6 +2276,8 @@ class zyberswap_masterchef_v1(web3wrap):
         abi_filename: str = "",
         abi_path: str = "",
         block: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "zyberchef_v1"
         self._abi_path = abi_path or "data/abi/zyberswap/masterchef"
@@ -2246,6 +2288,8 @@ class zyberswap_masterchef_v1(web3wrap):
             abi_filename=self._abi_filename,
             abi_path=self._abi_path,
             block=block,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
         )
 
     @property
@@ -2531,6 +2575,8 @@ class gamma_masterchef_registry(web3wrap):
         abi_filename: str = "",
         abi_path: str = "",
         block: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "masterchef_registry_v1"
         self._abi_path = abi_path or "data/abi/gamma/masterchef"
@@ -2541,6 +2587,8 @@ class gamma_masterchef_registry(web3wrap):
             abi_filename=self._abi_filename,
             abi_path=self._abi_path,
             block=block,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
         )
 
     # implement harcoded erroneous addresses to reduce web3 calls
@@ -2656,6 +2704,8 @@ class thena_voter_v3(web3wrap):
         abi_filename: str = "",
         abi_path: str = "",
         block: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "voterV3"
         self._abi_path = abi_path or "data/abi/thena/binance"
@@ -2666,6 +2716,8 @@ class thena_voter_v3(web3wrap):
             abi_filename=self._abi_filename,
             abi_path=self._abi_path,
             block=block,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
         )
 
     @property
@@ -3106,6 +3158,8 @@ class thena_gauge_V2(web3wrap):
         abi_filename: str = "",
         abi_path: str = "",
         block: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "gaugeV2_CL"
         self._abi_path = abi_path or "data/abi/thena/binance"
@@ -3116,6 +3170,8 @@ class thena_gauge_V2(web3wrap):
             abi_filename=self._abi_filename,
             abi_path=self._abi_path,
             block=block,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
         )
 
     @property
@@ -3431,6 +3487,8 @@ class arrakis_hypervisor(erc20):
         abi_filename: str = "",
         abi_path: str = "",
         block: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "gunipool"
         self._abi_path = abi_path or "data/abi/arrakis"
@@ -3446,6 +3504,8 @@ class arrakis_hypervisor(erc20):
             abi_filename=self._abi_filename,
             abi_path=self._abi_path,
             block=block,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
         )
 
     # PROPERTIES

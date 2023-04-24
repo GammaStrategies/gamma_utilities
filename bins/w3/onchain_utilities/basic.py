@@ -22,6 +22,8 @@ class web3wrap:
         abi_filename: str = "",
         abi_path: str = "",
         block: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
     ):
         # set init vars
         self._address = Web3.toChecksumAddress(address)
@@ -33,7 +35,9 @@ class web3wrap:
         self.setup_abi(abi_filename=abi_filename, abi_path=abi_path)
 
         # setup Web3
-        self.setup_w3(network=network)
+        self._w3 = custom_web3 or self.setup_w3(
+            network=self._network, web3Url=custom_web3Url
+        )
 
         # setup contract to query
         self.setup_contract(contract_address=self._address, contract_abi=self._abi)
@@ -54,20 +58,22 @@ class web3wrap:
             filename=self._abi_filename, folder_path=self._abi_path
         )
 
-    def setup_w3(self, network: str):
+    def setup_w3(self, network: str, web3Url: str | None = None) -> Web3:
         # create Web3 helper
-        self._w3 = Web3(
+        result = Web3(
             Web3.HTTPProvider(
-                CONFIGURATION["sources"]["web3Providers"][network],
+                web3Url or CONFIGURATION["sources"]["web3Providers"][network],
                 request_kwargs={"timeout": 60},
             )
         )
         # add simple cache module
-        self._w3.middleware_onion.add(simple_cache_middleware)
+        result.middleware_onion.add(simple_cache_middleware)
 
         # add middleware as needed
         if network != "ethereum":
-            self._w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+            result.middleware_onion.inject(geth_poa_middleware, layer=0)
+
+        return result
 
     def setup_contract(self, contract_address: str, contract_abi: str):
         # set contract
@@ -441,6 +447,8 @@ class erc20(web3wrap):
         abi_filename: str = "",
         abi_path: str = "",
         block: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "erc20"
         self._abi_path = abi_path or "data/abi"
@@ -451,6 +459,8 @@ class erc20(web3wrap):
             abi_filename=self._abi_filename,
             abi_path=self._abi_path,
             block=block,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
         )
 
     # PROPERTIES
