@@ -339,3 +339,48 @@ class data_collector:
             )
 
         return itm
+
+
+
+def create_data_collector(network: str) -> data_collector:
+        """Create a data collector class
+
+        Args:
+           network (str):
+
+        Returns:
+           data_collector:
+        """
+        result = data_collector(
+                topics={
+                    "gamma_transfer": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",  # event_signature_hash = web3.keccak(text="transfer(uint32...)").hex()
+                    "gamma_rebalance": "0xbc4c20ad04f161d631d9ce94d27659391196415aa3c42f6a71c62e905ece782d",
+                    "gamma_deposit": "0x4e2ca0515ed1aef1395f66b5303bb5d6f1bf9d61a353fa53f73f8ac9973fa9f6",
+                    "gamma_withdraw": "0xebff2602b3f468259e1e99f613fed6691f3a6526effe6ef3e768ba7ae7a36c4f",
+                    "gamma_approval": "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925",
+                    "gamma_setFee": "0x91f2ade82ab0e77bb6823899e6daddc07e3da0e3ad998577e7c09c2f38943c43",
+                    "gamma_zeroBurn": "0x4606b8a47eb284e8e80929101ece6ab5fe8d4f8735acc56bd0c92ca872f2cfe7",
+                },
+                topics_data_decoders={
+                    "gamma_transfer": ["uint256"],
+                    "gamma_rebalance": [
+                        "int24",
+                        "uint256",
+                        "uint256",
+                        "uint256",
+                        "uint256",
+                        "uint256",
+                    ],
+                    "gamma_deposit": ["uint256", "uint256", "uint256"],
+                    "gamma_withdraw": ["uint256", "uint256", "uint256"],
+                    "gamma_approval": ["uint256"],
+                    "gamma_setFee": ["uint8"],
+                    "gamma_zeroBurn": [
+                        "uint8",  # fee
+                        "uint256",  # fees0
+                        "uint256",  # fees1
+                    ],
+                },
+                network=network,
+            )
+        return result
