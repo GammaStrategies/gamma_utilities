@@ -724,11 +724,10 @@ def create_db_hypervisor(
 ) -> dict():
     try:
         hypervisor = build_hypervisor(
-            address=address,
             network=network,
-            block=block,
             dex=dex,
-            static_mode=static_mode,
+            block=block,
+            hypervisor_address=address,
             custom_web3=custom_web3,
             custom_web3Url=custom_web3Url,
             cached=True,

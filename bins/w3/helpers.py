@@ -43,7 +43,7 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
         )
-    if dex == "zyberswap":
+    elif dex == "zyberswap":
         hypervisor = (
             gamma_hypervisor_zyberswap(
                 address=hypervisor_address,
