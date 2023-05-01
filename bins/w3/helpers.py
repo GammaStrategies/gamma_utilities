@@ -29,7 +29,7 @@ def build_hypervisor(
         hypervisor = (
             gamma_hypervisor(
                 address=hypervisor_address,
-                network=network.value,
+                network=network,
                 block=block,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
@@ -37,7 +37,7 @@ def build_hypervisor(
             if not cached
             else gamma_hypervisor_cached(
                 address=hypervisor_address,
-                network=network.value,
+                network=network,
                 block=block,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
@@ -47,7 +47,7 @@ def build_hypervisor(
         hypervisor = (
             gamma_hypervisor_zyberswap(
                 address=hypervisor_address,
-                network=network.value,
+                network=network,
                 block=block,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
@@ -55,7 +55,7 @@ def build_hypervisor(
             if not cached
             else gamma_hypervisor_zyberswap_cached(
                 address=hypervisor_address,
-                network=network.value,
+                network=network,
                 block=block,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
@@ -65,7 +65,7 @@ def build_hypervisor(
         hypervisor = (
             gamma_hypervisor_quickswap(
                 address=hypervisor_address,
-                network=network.value,
+                network=network,
                 block=block,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
@@ -73,7 +73,7 @@ def build_hypervisor(
             if not cached
             else gamma_hypervisor_quickswap_cached(
                 address=hypervisor_address,
-                network=network.value,
+                network=network,
                 block=block,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
@@ -83,7 +83,7 @@ def build_hypervisor(
         hypervisor = (
             gamma_hypervisor_thena(
                 address=hypervisor_address,
-                network=network.value,
+                network=network,
                 block=block,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
@@ -91,7 +91,7 @@ def build_hypervisor(
             if not cached
             else gamma_hypervisor_thena_cached(
                 address=hypervisor_address,
-                network=network.value,
+                network=network,
                 block=block,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
@@ -112,14 +112,12 @@ def build_hypervisor_registry(
     # get the list of registry addresses
 
     if registry_address := (
-        STATIC_REGISTRY_ADDRESSES.get(network.value, {})
-        .get("hypervisors", {})
-        .get(dex.value)
+        STATIC_REGISTRY_ADDRESSES.get(network, {}).get("hypervisors", {}).get(dex)
     ):
         # build hype
         registry = gamma_hypervisor_registry(
             address=registry_address,
-            network=network.value,
+            network=network,
             block=block,
             custom_web3Url=custom_web3Url,
         )
