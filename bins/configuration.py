@@ -145,9 +145,10 @@ KNOWN_VALID_MASTERCHEFS = {
 RPC_URLS = {
     "ethereum": [
         # "https://mainnet.infura.io/v3/",
-        "https://api.mycryptoapi.com/eth",
+        # "https://api.mycryptoapi.com/eth",
         "https://cloudflare-eth.com",
         "https://ethereum.publicnode.com",
+        "https://ethereum-mainnet-archive.allthatnode.com",
     ],
     "polygon": [
         "https://polygon-rpc.com/",

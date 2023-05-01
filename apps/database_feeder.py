@@ -203,32 +203,11 @@ def _get_static_hypervisor_addresses_to_process(
         collection_name="static", field="address"
     )
     # use public RPCs
-    hypervisor_addresses_registry = []
-    try:
-        for rpcURL in RPC_URLS[network]:
-            hypervisor_addresses_registry = _get_hypervisors_from_registry(
-                gamma_registry=gamma_hypervisor_registry(
-                    address=STATIC_REGISTRY_ADDRESSES.get(network, {})
-                    .get("hypervisors", {})
-                    .get(dex, None),
-                    network=network,
-                    custom_web3Url=rpcURL,
-                )
-            )
-            # exit loop if hypervisors addresses are found
-            break
-    except Exception as err:
-        logging.getLogger(__name__).error(
-            f"public RPC source could not be used for {network} hypervisors addresses retrieval. Using private's. error: {err}"
+    hypervisor_addresses_registry = _get_hypervisors_from_registry(
+        gamma_registry=_build_hypervisor_registry(
+            network=network, dex=dex, publicRPC=True
         )
-        hypervisor_addresses_registry = _get_hypervisors_from_registry(
-            gamma_registry=gamma_hypervisor_registry(
-                address=STATIC_REGISTRY_ADDRESSES.get(network, {})
-                .get("hypervisors", {})
-                .get(dex, None),
-                network=network,
-            )
-        )
+    )
 
     result = []
     # rewrite all static info?
@@ -248,6 +227,45 @@ def _get_static_hypervisor_addresses_to_process(
         )
 
     return result
+
+
+def _build_hypervisor_registry(
+    network: str, dex: str, publicRPC: bool = False
+) -> gamma_hypervisor_registry:
+    address = (
+        STATIC_REGISTRY_ADDRESSES.get(network, {}).get("hypervisors", {}).get(dex, None)
+    )
+    """ Will try to build a gamma_hypervisor_registry object using public RPCs. If it fails, it will use private RPCs
+
+    Returns:
+        gamma hype registry:
+    """
+    if publicRPC:
+        for rpcURL in RPC_URLS[network]:
+            try:
+                registry = gamma_hypervisor_registry(
+                    address=address,
+                    network=network,
+                    custom_web3Url=rpcURL,
+                )
+
+                # test if works
+                registry._contract.functions.counter().call()
+
+                # return working
+                return registry
+            except Exception as err:
+                logging.getLogger(__name__).warning(
+                    f"     RPC {rpcURL} could not be used. error: {err}"
+                )
+
+    logging.getLogger(__name__).warning(
+        f"public RPC source could not be used for {network} hypervisors addresses retrieval. Using private's."
+    )
+    return gamma_hypervisor_registry(
+        address=address,
+        network=network,
+    )
 
 
 def feed_operations(
