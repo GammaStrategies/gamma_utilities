@@ -36,6 +36,12 @@ from bins.w3.onchain_utilities.protocols import (
     gamma_masterchef_rewarder,
 )
 from bins.w3.onchain_utilities.basic import erc20_cached
+from bins.w3.helpers import (
+    build_hypervisor,
+    build_hypervisor_registry,
+    build_hypervisor_anyRpc,
+    build_hypervisor_registry_anyRpc,
+)
 
 from bins.database.common.db_collections_common import (
     database_local,
@@ -707,54 +713,6 @@ def feed_hypervisor_status(
             )
 
 
-def build_hypervisor(
-    address: str,
-    network: str,
-    block: int,
-    dex: str,
-    static_mode=False,
-    custom_web3: Web3 | None = None,
-    custom_web3Url: str | None = None,
-) -> gamma_hypervisor:
-    hypervisor = None
-    if dex == "uniswapv3":
-        hypervisor = gamma_hypervisor_cached(
-            address=address,
-            network=network,
-            block=block,
-            custom_web3=custom_web3,
-            custom_web3Url=custom_web3Url,
-        )
-    elif dex == "quickswap":
-        hypervisor = gamma_hypervisor_quickswap_cached(
-            address=address,
-            network=network,
-            block=block,
-            custom_web3=custom_web3,
-            custom_web3Url=custom_web3Url,
-        )
-    elif dex == "zyberswap":
-        hypervisor = gamma_hypervisor_zyberswap_cached(
-            address=address,
-            network=network,
-            block=block,
-            custom_web3=custom_web3,
-            custom_web3Url=custom_web3Url,
-        )
-    elif dex == "thena":
-        hypervisor = gamma_hypervisor_thena_cached(
-            address=address,
-            network=network,
-            block=block,
-            custom_web3=custom_web3,
-            custom_web3Url=custom_web3Url,
-        )
-    else:
-        raise NotImplementedError(f" {dex} exchange has not been implemented yet")
-
-    return hypervisor
-
-
 def create_db_hypervisor(
     address: str,
     network: str,
@@ -773,6 +731,7 @@ def create_db_hypervisor(
             static_mode=static_mode,
             custom_web3=custom_web3,
             custom_web3Url=custom_web3Url,
+            cached=True,
         )
 
         # return converted hypervisor
@@ -793,32 +752,28 @@ def create_db_hypervisor_publicRPCs(
     dex: str,
     static_mode=False,
 ) -> dict():
-    for urlRPC in RPC_URLS[network]:
-        try:
-            hypervisor = build_hypervisor(
-                address=address,
-                network=network,
-                block=block,
-                dex=dex,
-                static_mode=static_mode,
-                custom_web3Url=urlRPC,
-            )
-
-            # return converted hypervisor
-            return hypervisor.as_dict(convert_bint=True, static_mode=static_mode)
-
-        except Exception:
-            pass
+    try:
+        hypervisor = build_hypervisor_anyRpc(
+            network=network,
+            dex=dex,
+            block=block,
+            hypervisor_address=address,
+            rpcUrls=RPC_URLS[network],
+            test=True,
+            cached=False,
+        )
+        # return converted hypervisor
+        return hypervisor.as_dict(convert_bint=True, static_mode=static_mode)
+    except Exception:
+        logging.getLogger(__name__).exception(
+            f" Unexpected error while converting {network}'s hypervisor {address} [dex: {dex}] at block {block}] to dictionary using public RPC ->    error:{sys.exc_info()[0]}"
+        )
 
     logging.getLogger(__name__).warning(
-        f" Could not use any public RPC endpoint to get {network}'s hypervisor {address} [dex: {dex}] at block {block}] to dictionary. Using private."
+        f" Could not use a public RPC endpoint to get {network}'s hypervisor {address} [dex: {dex}] at block {block}] to dictionary. Using private."
     )
     return create_db_hypervisor(
-        address=address,
-        network=network,
-        block=block,
-        dex=dex,
-        static_mode=static_mode,
+        address=address, network=network, block=block, dex=dex, static_mode=static_mode
     )
 
 
