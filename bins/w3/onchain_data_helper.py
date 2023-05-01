@@ -29,10 +29,8 @@ from bins.configuration import CONFIGURATION
 
 
 class onchain_data_helper:
-
     # SETUP
     def __init__(self, network: str, protocol: str):
-
         # set init vars
         self.protocol = protocol
         self.network = network
@@ -227,7 +225,6 @@ class onchain_data_helper:
     def convert_operation(
         self, operation: dict, network: str, address_token0: str, address_token1: str
     ) -> db_operations_models.root_operation:
-
         # operation_hypervisor = operation["address"]
         operation_type = operation["topic"]
         block = operation["blockNumber"]
@@ -251,7 +248,6 @@ class onchain_data_helper:
 
         # create data object
         if operation_type in ["deposit", "withdraw"]:
-
             originator = (
                 operation["sender"] if operation_type == "deposit" else operation["to"]
             )
@@ -322,7 +318,6 @@ class onchain_data_helper:
             else:
                 raise ValueError("Unexpected operation type {}".format(operation_type))
         elif operation_type == "transfer":
-
             result = db_operations_models.transfer_operation(
                 price_usd_token0=price_usd_token0,
                 price_usd_token1=price_usd_token1,
@@ -510,7 +505,6 @@ class onchain_data_helper:
     def get_blocklist_fromDates(
         self, date_ini: dt.datetime, date_end: dt.datetime, network: str
     ) -> list:
-
         # create a dummy helper ( use only web3wrap functions)
         dummy_helper = self.create_web3_helper(
             address="0x0000000000000000000000000000000000000000", network=network
@@ -556,7 +550,6 @@ class onchain_data_helper:
     def get_custom_blockBounds(
         self, date_ini: dt.datetime, date_end: dt.datetime, network: str, step="week"
     ) -> tuple[int, int]:
-
         if step == "week":
             # convert date_ini in that same week first day first hour
             year, week_num, day_of_week = date_ini.isocalendar()
@@ -621,10 +614,8 @@ class onchain_data_helper:
 
 
 class onchain_data_helper2:
-
     # SETUP
     def __init__(self, protocol: str):
-
         # set init vars
         self.protocol = protocol
 
@@ -809,7 +800,6 @@ class onchain_data_helper2:
             contracts=[Web3.toChecksumAddress(x) for x in addresses],
             max_blocks=max_blocks,
         ):
-
             yield operation
 
     def get_standard_blockBounds(self, network: str) -> tuple:
@@ -952,7 +942,6 @@ class onchain_data_helper2:
     def get_blocklist_fromDates(
         self, date_ini: dt.datetime, date_end: dt.datetime, network: str
     ) -> list:
-
         # create a dummy helper ( use only web3wrap functions)
         dummy_helper = self.create_web3_helper(
             address="0x0000000000000000000000000000000000000000", network=network
@@ -998,7 +987,6 @@ class onchain_data_helper2:
     def get_custom_blockBounds(
         self, date_ini: dt.datetime, date_end: dt.datetime, network: str, step="week"
     ) -> tuple[int, int]:
-
         if step == "week":
             # convert date_ini in that same week first day first hour
             year, week_num, day_of_week = date_ini.isocalendar()
@@ -1076,7 +1064,6 @@ class onchain_data_helper2:
     def get_block_fromDatetime(
         self, date: dt.datetime, network: str, step="week"
     ) -> int:
-
         if step == "week":
             # convert date_ini in that same week first day first hour
             year, week_num, day_of_week = date.isocalendar()
@@ -1171,4 +1158,4 @@ class onchain_data_helper2:
                 " blockBounds step not implemented: {}".format(step)
             )
 
-            return result
+        return result

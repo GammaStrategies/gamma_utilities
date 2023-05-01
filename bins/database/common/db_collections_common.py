@@ -499,6 +499,24 @@ class database_local(db_collections_common):
         data["id"] = data["address"]
         self.save_item_to_database(data=data, collection_name="static")
 
+    def get_gamma_service_fees(self) -> dict:
+        """Get the agreed service fee (%) to be collected by the gamma protocol for each hypervisor
+
+        Returns:
+            dict: {"hypervisor address":  {"symbol":<symbol>, "dex":<dex> ,"fee":<fee>} }
+        """
+        # some hypes have the pool fee at gamma fees field: those are 1/10 hardcoded
+        return {
+            x["address"]: {
+                x["symbol"],
+                x["dex"],
+                (1 / x["fee"]) if x["fee"] < 100 else 1 / 10,
+            }
+            for x in self.get_items_from_database(
+                collection_name="static", projection={"address", "symbol", "dex", "fee"}
+            )
+        }
+
     def get_unique_tokens(self) -> list:
         """Get a unique token list from static database
 
