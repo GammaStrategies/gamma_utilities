@@ -109,6 +109,9 @@ STATIC_REGISTRY_ADDRESSES = {
             "zyberswap": "0x37595FCaF29E4fBAc0f7C1863E3dF2Fe6e2247e9",
         },
         "MasterChefV2Registry": {},
+        "zyberswap_v1_masterchefs": [
+            "0x9ba666165867e916ee7ed3a3ae6c19415c2fbddd",
+        ],
     },
     "celo": {
         "hypervisors": {
@@ -122,4 +125,61 @@ STATIC_REGISTRY_ADDRESSES = {
         },
         "MasterChefV2Registry": {},
     },
+}
+
+
+KNOWN_VALID_MASTERCHEFS = {
+    "polygon": {
+        "uniswapv3": ["0x570d60a60baa356d47fda3017a190a48537fcd7d"],
+        "quickswap": [
+            "0x20ec0d06f447d550fc6edee42121bc8c1817b97d",
+            "0x68678cf174695fc2d27bd312df67a3984364ffdd",
+        ],
+    },
+    "optimism": {
+        "uniswapv3": ["0xc7846d1bc4d8bcf7c45a7c998b77ce9b3c904365"],
+    },
+}
+
+
+RPC_URLS = {
+    "ethereum": [
+        # "https://mainnet.infura.io/v3/",
+        "https://api.mycryptoapi.com/eth",
+        "https://cloudflare-eth.com",
+        "https://ethereum.publicnode.com",
+    ],
+    "polygon": [
+        "https://polygon-rpc.com/",
+        "https://rpc-mainnet.matic.network",
+        "https://matic-mainnet.chainstacklabs.com",
+        "https://rpc-mainnet.maticvigil.com",
+        "https://rpc-mainnet.matic.quiknode.pro",
+        "https://matic-mainnet-full-rpc.bwarelabs.com",
+        "https://polygon-bor.publicnode.com",
+    ],
+    "optimism": ["https://mainnet.optimism.io/"],
+    "arbitrum": [
+        # "https://arbitrum-mainnet.infura.io/v3/",
+        # "https://arb-mainnet.g.alchemy.com/v2/",
+        "https://arb1.arbitrum.io/rpc",
+    ],
+    "celo": [
+        "https://forno.celo.org",
+    ],
+    "binance": [
+        "https://bsc-dataseed1.binance.org",
+        "https://bsc-dataseed2.binance.org",
+        "https://bsc-dataseed3.binance.org",
+        "https://bsc-dataseed4.binance.org",
+        "https://bsc-dataseed1.defibit.io",
+        "https://bsc-dataseed2.defibit.io",
+        "https://bsc-dataseed3.defibit.io",
+        "https://bsc-dataseed4.defibit.io",
+        "https://bsc-dataseed1.ninicoin.io",
+        "https://bsc-dataseed2.ninicoin.io",
+        "https://bsc-dataseed3.ninicoin.io",
+        "https://bsc-dataseed4.ninicoin.io",
+        "https://bsc.publicnode.com",
+    ],
 }

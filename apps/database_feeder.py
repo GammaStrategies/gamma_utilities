@@ -6,6 +6,7 @@ import concurrent.futures
 import contextlib
 from datetime import datetime, date, timedelta
 from pathlib import Path
+from web3 import Web3
 from web3.exceptions import ContractLogicError
 
 # from croniter import croniter
@@ -13,6 +14,7 @@ from web3.exceptions import ContractLogicError
 from bins.configuration import (
     CONFIGURATION,
     STATIC_REGISTRY_ADDRESSES,
+    RPC_URLS,
     add_to_memory,
     get_from_memory,
 )
@@ -23,6 +25,7 @@ from bins.general.general_utilities import (
 )
 from bins.w3.onchain_data_helper import onchain_data_helper2
 from bins.w3.onchain_utilities.protocols import (
+    gamma_hypervisor,
     gamma_hypervisor_cached,
     gamma_hypervisor_quickswap_cached,
     gamma_hypervisor_zyberswap_cached,
@@ -88,7 +91,9 @@ def feed_hypervisor_static(
                 (address, network, 0, dex, True) for address in hypervisor_addresses
             )
             with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-                for result in ex.map(lambda p: create_db_hypervisor(*p), args):
+                for result in ex.map(
+                    lambda p: create_db_hypervisor_publicRPCs(*p), args
+                ):
                     if result:
                         # progress
                         progress_bar.set_description(
@@ -107,7 +112,7 @@ def feed_hypervisor_static(
             for address in hypervisor_addresses:
                 progress_bar.set_description(f" 0x..{address[-4:]} to be processed")
                 progress_bar.refresh()
-                if result := create_db_hypervisor(
+                if result := create_db_hypervisor_publicRPCs(
                     address=address,
                     network=network,
                     block=0,
@@ -197,14 +202,34 @@ def _get_static_hypervisor_addresses_to_process(
     hypervisor_addresses_database = local_db.get_distinct_items_from_database(
         collection_name="static", field="address"
     )
-    hypervisor_addresses_registry = _get_hypervisors_from_registry(
-        gamma_registry=gamma_hypervisor_registry(
-            address=STATIC_REGISTRY_ADDRESSES.get(network, {})
-            .get("hypervisors", {})
-            .get(dex, None),
-            network=network,
+    # use public RPCs
+    hypervisor_addresses_registry = []
+    try:
+        for rpcURL in RPC_URLS[network]:
+            hypervisor_addresses_registry = _get_hypervisors_from_registry(
+                gamma_registry=gamma_hypervisor_registry(
+                    address=STATIC_REGISTRY_ADDRESSES.get(network, {})
+                    .get("hypervisors", {})
+                    .get(dex, None),
+                    network=network,
+                    custom_web3Url=rpcURL,
+                )
+            )
+            # exit loop if hypervisors addresses are found
+            break
+    except Exception as err:
+        logging.getLogger(__name__).error(
+            f"public RPC source could not be used for {network} hypervisors addresses retrieval. Using private's. error: {err}"
         )
-    )
+        hypervisor_addresses_registry = _get_hypervisors_from_registry(
+            gamma_registry=gamma_hypervisor_registry(
+                address=STATIC_REGISTRY_ADDRESSES.get(network, {})
+                .get("hypervisors", {})
+                .get(dex, None),
+                network=network,
+            )
+        )
+
     result = []
     # rewrite all static info?
     if not rewrite:
@@ -664,38 +689,119 @@ def feed_hypervisor_status(
             )
 
 
+def build_hypervisor(
+    address: str,
+    network: str,
+    block: int,
+    dex: str,
+    static_mode=False,
+    custom_web3: Web3 | None = None,
+    custom_web3Url: str | None = None,
+) -> gamma_hypervisor:
+    hypervisor = None
+    if dex == "uniswapv3":
+        hypervisor = gamma_hypervisor_cached(
+            address=address,
+            network=network,
+            block=block,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
+        )
+    elif dex == "quickswap":
+        hypervisor = gamma_hypervisor_quickswap_cached(
+            address=address,
+            network=network,
+            block=block,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
+        )
+    elif dex == "zyberswap":
+        hypervisor = gamma_hypervisor_zyberswap_cached(
+            address=address,
+            network=network,
+            block=block,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
+        )
+    elif dex == "thena":
+        hypervisor = gamma_hypervisor_thena_cached(
+            address=address,
+            network=network,
+            block=block,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
+        )
+    else:
+        raise NotImplementedError(f" {dex} exchange has not been implemented yet")
+
+    return hypervisor
+
+
 def create_db_hypervisor(
-    address: str, network: str, block: int, dex: str, static_mode=False
+    address: str,
+    network: str,
+    block: int,
+    dex: str,
+    static_mode=False,
+    custom_web3: Web3 | None = None,
+    custom_web3Url: str | None = None,
 ) -> dict():
     try:
-        if dex == "uniswapv3":
-            hypervisor = gamma_hypervisor_cached(
-                address=address, network=network, block=block
-            )
-        elif dex == "quickswap":
-            hypervisor = gamma_hypervisor_quickswap_cached(
-                address=address, network=network, block=block
-            )
-        elif dex == "zyberswap":
-            hypervisor = gamma_hypervisor_zyberswap_cached(
-                address=address, network=network, block=block
-            )
-        elif dex == "thena":
-            hypervisor = gamma_hypervisor_thena_cached(
-                address=address, network=network, block=block
-            )
-        else:
-            raise NotImplementedError(f" {dex} exchange has not been implemented yet")
+        hypervisor = build_hypervisor(
+            address=address,
+            network=network,
+            block=block,
+            dex=dex,
+            static_mode=static_mode,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
+        )
 
         # return converted hypervisor
         return hypervisor.as_dict(convert_bint=True, static_mode=static_mode)
 
     except Exception:
         logging.getLogger(__name__).exception(
-            f" Unexpected error while creating {network}'s hypervisor {address} [dex: {dex}] at block {block}->    error:{sys.exc_info()[0]}"
+            f" Unexpected error while converting {network}'s hypervisor {address} [dex: {dex}] at block {block}] to dictionary ->    error:{sys.exc_info()[0]}"
         )
 
     return None
+
+
+def create_db_hypervisor_publicRPCs(
+    address: str,
+    network: str,
+    block: int,
+    dex: str,
+    static_mode=False,
+) -> dict():
+    for urlRPC in RPC_URLS[network]:
+        try:
+            hypervisor = build_hypervisor(
+                address=address,
+                network=network,
+                block=block,
+                dex=dex,
+                static_mode=static_mode,
+                custom_web3Url=urlRPC,
+            )
+
+            # return converted hypervisor
+            return hypervisor.as_dict(convert_bint=True, static_mode=static_mode)
+
+        except Exception:
+            pass
+
+    logging.getLogger(__name__).warning(
+        f" Could not use any public RPC endpoint to get {network}'s hypervisor {address} [dex: {dex}] at block {block}] to dictionary. Using private."
+    )
+    return create_db_hypervisor(
+        address=address,
+        network=network,
+        block=block,
+        dex=dex,
+        static_mode=static_mode,
+    )
 
 
 ### Prices ######################
