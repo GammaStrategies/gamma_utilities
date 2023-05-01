@@ -482,6 +482,103 @@ def test_masterchef(network: str | None = None, dex: str | None = None):
                             break
 
 
+from bins.w3.onchain_utilities.protocols import zyberswap_masterchef_v1
+
+
+def test_zyberchef():
+    network = "arbitrum"
+    dex = "zyberswap"
+    for address in STATIC_REGISTRY_ADDRESSES[network]["zyberswap_v1_masterchefs"]:
+        # create database connection
+
+        mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+        db_name = f"{network}_{protocol}"
+        local_db = database_local(mongo_url=mongo_url, mongo_db=db_name)
+        global_db = database_global(mongo_url=mongo_url)
+        price_helper = price_scraper(cache=False)
+
+        # create zyberchef
+        zyberchef = zyberswap_masterchef_v1(address=address, network=network)
+        for pid in zyberchef.poolLength():
+            #  lpToken address, allocPoint uint256, lastRewardTimestamp uint256, accZyberPerShare uint256, depositFeeBP uint16, harvestInterval uint256, totalLp uint256
+            pinfo = zyberchef.poolInfo(pid)
+            # check lp token corresponds to gamma rewards: search address in database
+            if hype := local_db.get_items_from_database(
+                collection_name="status",
+                find={"address": pinfo["lpToken"].lower()},
+                sort=[("block", -1)],
+                limit=2,
+            ):
+                hype = hype[
+                    -1
+                ]  # first hype is the most recent hype status found. Pick the one before that to make sure price is already scraped.
+                #
+                # option 1)   rewardRate * secondsPerYear * price of token) / (totalSupply * price per LP Token)
+                #
+                poolRewardsPerSec = zyberchef.poolRewardsPerSec(
+                    pid
+                )  # addresses address[], symbols string[], decimals uint256[], rewardsPerSec uint256[]
+                secondsPerYear = 365 * 24 * 60 * 60
+
+                # get LPtoken price
+                price_token0 = global_db.get_price_usd(
+                    network=network,
+                    address=hype["pool"]["token0"]["address"],
+                    block=hype["block"],
+                )
+                price_token1 = global_db.get_price_usd(
+                    network=network,
+                    address=hype["pool"]["token1"]["address"],
+                    block=hype["block"],
+                )
+                price_lpToken = (
+                    price_token0
+                    * (
+                        int(hype["totalAmounts"]["total0"])
+                        / (10 ** int(hype["pool"]["token0"]["decimals"]))
+                    )
+                    + price_token1
+                    * (
+                        int(hype["totalAmounts"]["total1"])
+                        / (10 ** int(hype["pool"]["token1"]["decimals"]))
+                    )
+                ) / (int(hype["totalSupply"]["totalSupply"]) / (10 ** hype["decimals"]))
+
+                # get price of poolRewardsPerSec["address"]
+                poolRewardsPerSec["usd_price"] = []
+                for address, symbol, decimals, rewardsPerSec in zip(
+                    poolRewardsPerSec["addresses"],
+                    poolRewardsPerSec["symbols"],
+                    poolRewardsPerSec["decimals"],
+                    poolRewardsPerSec["rewardsPerSec"],
+                ):
+                    if rewardsPerSec:
+                        # get price of token
+                        price = price_helper.get_price(
+                            network=network,
+                            token_id=address.lower(),
+                            block=hype["block"],
+                        ) or global_db.get_price_usd(
+                            network=network,
+                            address=address.lower(),
+                            block=hype["block"],
+                        )
+
+                        poolRewardsPerSec["usd_price"].append(price)
+
+
+from web3._utils.contracts import prepare_transaction
+
+
+def custom_batch_request():
+    hype = gamma_hypervisor(
+        address="0xa3ecb6e941e773c6568052a509a04cf455a752ae", network="ethereum"
+    )
+    function01 = hype._contract.functions.name().call()
+
+    po = ""
+
+
 # START ####################################################################################################################
 from datetime import timezone
 
