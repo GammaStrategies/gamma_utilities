@@ -1495,6 +1495,9 @@ def feed_masterchef_static(
 
                             # manually add dex
                             result["dex"] = dex
+                            result["pid"] = i
+                            result["rid"] = rid
+
 
                             # save to database
                             local_db.set_rewards_static(data=result)
@@ -1512,6 +1515,8 @@ def feed_masterchef_static(
                                     f"   Unexpected error while feeding db with rewarders from {reward_registry_addresses} registry. hype: {hypervisor_address}  . error:{e}"
                                 )
                             break
+
+
 
 
 ### gamma_db_v1 -> FastAPI

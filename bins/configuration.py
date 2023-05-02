@@ -70,6 +70,8 @@ WEB3_CHAIN_IDS = {
     "arbitrum": 42161,
     "celo": 42220,
     "binance": 56,
+    "polygon_zk": 1101,
+    "avalanche": 43114,
 }
 
 

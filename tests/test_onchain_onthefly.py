@@ -267,12 +267,34 @@ def get_rewards_zyberswap(hypervisor_address: str, network: str):
                         }
 
 
-
 def get_rewards(hypervisor_address: str, network="arbitrum", dex="zyberswap"):
     if dex == "zyberswap":
         return get_rewards_zyberswap(
             hypervisor_address=hypervisor_address, network=network
         )
+
+
+#####
+def build_zyberswap_static_data(network="arbitrum", dex="zyberswap", protocol="gamma"):
+
+    for address in STATIC_REGISTRY_ADDRESSES[network]["zyberswap_v1_masterchefs"]:
+        # create zyberchef
+        zyberchef = zyberswap_masterchef_v1(address=address, network=network)
+        for pid in range(zyberchef.poolLength):
+            #  lpToken address, allocPoint uint256, lastRewardTimestamp uint256, accZyberPerShare uint256, depositFeeBP uint16, harvestInterval uint256, totalLp uint256
+            pinfo = zyberchef.poolInfo(pid)
+            # check lp token corresponds to gamma rewards: search address in database
+            if hypervisor := build_hypervisor(
+                network=network, dex=dex, block=0, hypervisor_address=pinfo[0]
+            ):  
+                network = network
+                dex = dex
+                masterchef_address = address
+                hypervisor_pid = pid
+                hypervisor_address = hypervisor.address
+                hypervisor_symbol = hypervisor.symbol
+                
+
 
 
 # START ################

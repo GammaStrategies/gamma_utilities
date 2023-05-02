@@ -1,3 +1,17 @@
+class hypervisor_static_data:
+    def __init__(self, address: str, network: str, dex: str):
+        self.address = address
+        self.network = network
+        self.dex = dex
+
+    def get_rewards(self):
+        # zyberswap
+        # masterchef v1
+        # masterchef v2
+        # thena gauges
+        pass
+
+
 static_gamma_data = {
     "ethereum": {
         "hypervisor_registry": [
