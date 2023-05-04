@@ -30,7 +30,7 @@ from bins.w3.onchain_utilities.protocols import (
 )
 
 from bins.log import log_helper
-from bins.formulas import univ3_formulas
+from bins.formulas import dex_formulas
 
 
 # this comparison contains many differences ( check  tegraph_vs_onchain tests  )
@@ -331,7 +331,7 @@ def test_uncollected_fees_comparison_api_thegraph(threaded: bool = False):
                     )
                 )
 
-            base_fees0 = univ3_formulas.get_uncollected_fees(
+            base_fees0 = dex_formulas.get_uncollected_fees(
                 feeGrowthGlobal=int(univ3_pool["feeGrowthGlobal0X128"]),
                 feeGrowthOutsideLower=feeGrowthOutsideLower,
                 feeGrowthOutsideUpper=feeGrowthOutsideUpper,
@@ -391,7 +391,7 @@ def test_uncollected_fees_comparison_api_thegraph(threaded: bool = False):
                     )
                 )
 
-            base_fees1 = univ3_formulas.get_uncollected_fees(
+            base_fees1 = dex_formulas.get_uncollected_fees(
                 feeGrowthGlobal=int(univ3_pool["feeGrowthGlobal1X128"]),
                 feeGrowthOutsideLower=feeGrowthOutsideLower,
                 feeGrowthOutsideUpper=feeGrowthOutsideUpper,
@@ -456,7 +456,7 @@ def test_uncollected_fees_comparison_api_thegraph(threaded: bool = False):
                     )
                 )
 
-            limit_fees0 = univ3_formulas.get_uncollected_fees(
+            limit_fees0 = dex_formulas.get_uncollected_fees(
                 feeGrowthGlobal=int(univ3_pool["feeGrowthGlobal0X128"]),
                 feeGrowthOutsideLower=feeGrowthOutsideLower,
                 feeGrowthOutsideUpper=feeGrowthOutsideUpper,
@@ -516,7 +516,7 @@ def test_uncollected_fees_comparison_api_thegraph(threaded: bool = False):
                     )
                 )
 
-            limit_fees1 = univ3_formulas.get_uncollected_fees(
+            limit_fees1 = dex_formulas.get_uncollected_fees(
                 feeGrowthGlobal=int(univ3_pool["feeGrowthGlobal1X128"]),
                 feeGrowthOutsideLower=feeGrowthOutsideLower,
                 feeGrowthOutsideUpper=feeGrowthOutsideUpper,
@@ -837,7 +837,7 @@ def test_uncollected_fees_comparison_formulas_thegraph(threaded: bool = False):
                 )
 
             # alternative formula
-            base_fees0 = univ3_formulas.get_uncollected_fees(
+            base_fees0 = dex_formulas.get_uncollected_fees(
                 feeGrowthGlobal=int(univ3_pool["feeGrowthGlobal0X128"]),
                 feeGrowthOutsideLower=feeGrowthOutsideLower_token0,
                 feeGrowthOutsideUpper=feeGrowthOutsideUpper_token0,
@@ -848,7 +848,7 @@ def test_uncollected_fees_comparison_formulas_thegraph(threaded: bool = False):
                 tickUpper=_upperTick,
             ) / (10**decimals_token0)
 
-            base_fees1 = univ3_formulas.get_uncollected_fees(
+            base_fees1 = dex_formulas.get_uncollected_fees(
                 feeGrowthGlobal=int(univ3_pool["feeGrowthGlobal1X128"]),
                 feeGrowthOutsideLower=feeGrowthOutsideLower_token1,
                 feeGrowthOutsideUpper=feeGrowthOutsideUpper_token1,
@@ -863,7 +863,7 @@ def test_uncollected_fees_comparison_formulas_thegraph(threaded: bool = False):
             (
                 gammawireFormula_base_fees0,
                 gammawireFormula_base_fees1,
-            ) = univ3_formulas.get_uncollected_fees_vGammawire(
+            ) = dex_formulas.get_uncollected_fees_vGammawire(
                 fee_growth_global_0=int(univ3_pool["feeGrowthGlobal0X128"]),
                 fee_growth_global_1=int(univ3_pool["feeGrowthGlobal1X128"]),
                 tick_current=currentTick,
@@ -971,7 +971,7 @@ def test_uncollected_fees_comparison_formulas_thegraph(threaded: bool = False):
                     )
                 )
 
-            limit_fees0 = univ3_formulas.get_uncollected_fees(
+            limit_fees0 = dex_formulas.get_uncollected_fees(
                 feeGrowthGlobal=int(univ3_pool["feeGrowthGlobal0X128"]),
                 feeGrowthOutsideLower=feeGrowthOutsideLower_token0,
                 feeGrowthOutsideUpper=feeGrowthOutsideUpper_token0,
@@ -982,7 +982,7 @@ def test_uncollected_fees_comparison_formulas_thegraph(threaded: bool = False):
                 tickUpper=_upperTick,
             ) / (10**decimals_token0)
 
-            limit_fees1 = univ3_formulas.get_uncollected_fees(
+            limit_fees1 = dex_formulas.get_uncollected_fees(
                 feeGrowthGlobal=int(univ3_pool["feeGrowthGlobal1X128"]),
                 feeGrowthOutsideLower=feeGrowthOutsideLower_token1,
                 feeGrowthOutsideUpper=feeGrowthOutsideUpper_token1,
@@ -997,7 +997,7 @@ def test_uncollected_fees_comparison_formulas_thegraph(threaded: bool = False):
             (
                 gammawireFormula_limit_fees0,
                 gammawireFormula_limit_fees1,
-            ) = univ3_formulas.get_uncollected_fees_vGammawire(
+            ) = dex_formulas.get_uncollected_fees_vGammawire(
                 fee_growth_global_0=int(univ3_pool["feeGrowthGlobal0X128"]),
                 fee_growth_global_1=int(univ3_pool["feeGrowthGlobal1X128"]),
                 tick_current=currentTick,
@@ -1241,7 +1241,7 @@ def test_uncollected_fees_comparison_formulas_onchain(threaded: bool = False):
         (
             gammawire_base_fees0,
             gammawire_base_fees1,
-        ) = univ3_formulas.get_uncollected_fees_vGammawire(
+        ) = dex_formulas.get_uncollected_fees_vGammawire(
             fee_growth_global_0=feeGrowthGlobal0X128,
             fee_growth_global_1=feeGrowthGlobal1X128,
             tick_current=tickCurrent,
@@ -1259,7 +1259,7 @@ def test_uncollected_fees_comparison_formulas_onchain(threaded: bool = False):
         gammawire_base_fees1 /= 10**decimals_token1
 
         # alternative formula
-        base_fees0 = univ3_formulas.get_uncollected_fees(
+        base_fees0 = dex_formulas.get_uncollected_fees(
             feeGrowthGlobal=feeGrowthGlobal0X128,
             feeGrowthOutsideLower=Ticks_lower_base["feeGrowthOutside0X128"],
             feeGrowthOutsideUpper=Ticks_upper_base["feeGrowthOutside0X128"],
@@ -1270,7 +1270,7 @@ def test_uncollected_fees_comparison_formulas_onchain(threaded: bool = False):
             tickUpper=tickUpper_base,
         ) / (10**decimals_token0)
 
-        base_fees1 = univ3_formulas.get_uncollected_fees(
+        base_fees1 = dex_formulas.get_uncollected_fees(
             feeGrowthGlobal=feeGrowthGlobal1X128,
             feeGrowthOutsideLower=Ticks_lower_base["feeGrowthOutside1X128"],
             feeGrowthOutsideUpper=Ticks_upper_base["feeGrowthOutside1X128"],
@@ -1286,7 +1286,7 @@ def test_uncollected_fees_comparison_formulas_onchain(threaded: bool = False):
         (
             gammawire_limit_fees0,
             gammawire_limit_fees1,
-        ) = univ3_formulas.get_uncollected_fees_vGammawire(
+        ) = dex_formulas.get_uncollected_fees_vGammawire(
             fee_growth_global_0=feeGrowthGlobal0X128,
             fee_growth_global_1=feeGrowthGlobal1X128,
             tick_current=tickCurrent,
@@ -1304,7 +1304,7 @@ def test_uncollected_fees_comparison_formulas_onchain(threaded: bool = False):
         gammawire_limit_fees1 /= 10**decimals_token1
 
         # alternative formula
-        limit_fees0 = univ3_formulas.get_uncollected_fees(
+        limit_fees0 = dex_formulas.get_uncollected_fees(
             feeGrowthGlobal=feeGrowthGlobal0X128,
             feeGrowthOutsideLower=Ticks_lower_limit["feeGrowthOutside0X128"],
             feeGrowthOutsideUpper=Ticks_upper_limit["feeGrowthOutside0X128"],
@@ -1315,7 +1315,7 @@ def test_uncollected_fees_comparison_formulas_onchain(threaded: bool = False):
             tickUpper=tickUpper_limit,
         ) / (10**decimals_token0)
 
-        limit_fees1 = univ3_formulas.get_uncollected_fees(
+        limit_fees1 = dex_formulas.get_uncollected_fees(
             feeGrowthGlobal=feeGrowthGlobal1X128,
             feeGrowthOutsideLower=Ticks_lower_limit["feeGrowthOutside1X128"],
             feeGrowthOutsideUpper=Ticks_upper_limit["feeGrowthOutside1X128"],
@@ -1942,7 +1942,7 @@ def test_uncollected_fees_thegraph(
                 )
 
             # alternative formula
-            base_fees0 = univ3_formulas.get_uncollected_fees(
+            base_fees0 = dex_formulas.get_uncollected_fees(
                 feeGrowthGlobal=int(univ3_pool["feeGrowthGlobal0X128"]),
                 feeGrowthOutsideLower=feeGrowthOutsideLower_token0,
                 feeGrowthOutsideUpper=feeGrowthOutsideUpper_token0,
@@ -1953,7 +1953,7 @@ def test_uncollected_fees_thegraph(
                 tickUpper=_upperTick,
             ) / (10**decimals_token0)
 
-            base_fees1 = univ3_formulas.get_uncollected_fees(
+            base_fees1 = dex_formulas.get_uncollected_fees(
                 feeGrowthGlobal=int(univ3_pool["feeGrowthGlobal1X128"]),
                 feeGrowthOutsideLower=feeGrowthOutsideLower_token1,
                 feeGrowthOutsideUpper=feeGrowthOutsideUpper_token1,
@@ -2051,7 +2051,7 @@ def test_uncollected_fees_thegraph(
                     )
                 )
 
-            limit_fees0 = univ3_formulas.get_uncollected_fees(
+            limit_fees0 = dex_formulas.get_uncollected_fees(
                 feeGrowthGlobal=int(univ3_pool["feeGrowthGlobal0X128"]),
                 feeGrowthOutsideLower=feeGrowthOutsideLower_token0,
                 feeGrowthOutsideUpper=feeGrowthOutsideUpper_token0,
@@ -2062,7 +2062,7 @@ def test_uncollected_fees_thegraph(
                 tickUpper=_upperTick,
             ) / (10**decimals_token0)
 
-            limit_fees1 = univ3_formulas.get_uncollected_fees(
+            limit_fees1 = dex_formulas.get_uncollected_fees(
                 feeGrowthGlobal=int(univ3_pool["feeGrowthGlobal1X128"]),
                 feeGrowthOutsideLower=feeGrowthOutsideLower_token1,
                 feeGrowthOutsideUpper=feeGrowthOutsideUpper_token1,
