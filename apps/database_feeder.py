@@ -1519,6 +1519,10 @@ def get_hypervisor_addresses(network: str, protocol: str) -> list[str]:
 def feed_rewards_static(
     network: str | None = None, dex: str | None = None, protocol: str = "gamma"
 ):
+    logging.getLogger(__name__).info(
+        f">Feeding rewards static information for {network}'s {dex}"
+    )
+
     local_db = database_local(
         mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
         db_name=f"{network}_{protocol}",
