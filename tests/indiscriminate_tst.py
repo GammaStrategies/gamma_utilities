@@ -32,6 +32,8 @@ from bins.w3.onchain_utilities.protocols import (
     gamma_hypervisor_quickswap_cached,
     gamma_hypervisor_zyberswap_cached,
     gamma_hypervisor_registry,
+)
+from bins.w3.onchain_utilities.rewarders import (
     gamma_masterchef_registry,
     gamma_masterchef_v1,
     gamma_masterchef_rewarder,
@@ -47,7 +49,6 @@ from bins.database.common.db_collections_common import (
 )
 
 from apps.database_checker import auto_get_prices, replace_quickswap_pool_dex_to_algebra
-from apps.database_feeder import feed_masterchef_static
 
 
 def test_w3_hypervisor_obj(
@@ -482,7 +483,7 @@ def test_masterchef(network: str | None = None, dex: str | None = None):
                             break
 
 
-from bins.w3.onchain_utilities.protocols import zyberswap_masterchef_v1
+from bins.w3.onchain_utilities.rewarders import zyberswap_masterchef_v1
 
 
 def test_zyberchef():
@@ -567,6 +568,15 @@ def test_zyberchef():
                         poolRewardsPerSec["usd_price"].append(price)
 
 
+from apps.database_feeder import feed_rewards_static
+
+
+def test_feed_rewards_static():
+    network = "binance"
+    dex = "thena"
+    feed_rewards_static(network=network, dex=dex)
+
+
 from web3._utils.contracts import prepare_transaction
 
 
@@ -594,7 +604,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    feed_masterchef_static()
+    test_feed_rewards_static()
 
     replace_quickswap_pool_dex_to_algebra(network="polygon")
     # test_prices()
