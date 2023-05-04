@@ -2,7 +2,6 @@ import sys
 import os
 
 from bins.general.general_utilities import (
-    convert_commandline_arguments,
     load_configuration,
     check_configuration_file,
 )
