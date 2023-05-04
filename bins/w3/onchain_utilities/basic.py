@@ -1,4 +1,5 @@
 import logging
+import random
 import sys
 import math
 import datetime as dt
@@ -45,7 +46,14 @@ class web3wrap:
         self.setup_cache()
 
         # set block
-        self._block = self._w3.eth.get_block("latest").number if block == 0 else block
+        if block == 0:
+            _block_data = self._w3.eth.get_block("latest")
+            self._block = _block_data.number
+            self._timestamp = _block_data.timestamp
+        else:
+            self._block = block
+            # TODO: find timestamp when only block is given
+            self._timestamp = 0
 
     def setup_abi(self, abi_filename: str, abi_path: str):
         # set optionals
@@ -436,6 +444,36 @@ class web3wrap:
         # lower case address to be able to be directly compared
         result["address"] = self.address.lower()
         return result
+
+    # TODO: universal failover execute funcion
+    def call_function(self, function_name: str, rpcUrls: list[str], **kwargs):
+        # loop choose url
+        for rpcUrl in rpcUrls:
+            try:
+                # create web3 conn
+                chain_connection = self.setup_w3(network=self._network, web3Url=rpcUrl)
+                # create contract
+                contract = chain_connection.eth.contract(
+                    address=self._address, abi=self._abi
+                )
+                # execute function
+                return getattr(contract.functions, function_name)(**kwargs).call(
+                    block_identifier=self.block
+                )
+            except Exception as e:
+                # not working rpc
+                logging.getLogger(__name__).warning(f" error using {rpcUrl} rpc: {e}")
+
+        # no rpcUrl worked
+        return None
+
+    def call_function_publicRpc(self, function_name: str, **kwargs):
+        # load public rpc url's
+        rpcUrls = []
+        random.shuffle(rpcUrls)
+        return self.call_function(
+            function_name=function_name, rpcUrls=rpcUrls, **kwargs
+        )
 
 
 class erc20(web3wrap):
