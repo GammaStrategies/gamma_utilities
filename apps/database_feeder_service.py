@@ -44,7 +44,7 @@ def network_sequence_loop(
         protocol (str):
         network (str):
     """
-    # TODO: feed static operations from all networks n dexes
+    # TODO: feed static rewards from all networks n dexes
     if network == "arbitrum":
         feed_rewards_static(network=network, dex="zyberswap")
     elif network == "binance":
