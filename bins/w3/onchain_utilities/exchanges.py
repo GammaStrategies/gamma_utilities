@@ -6,7 +6,7 @@ from decimal import Decimal
 from web3 import Web3
 
 from bins.configuration import CONFIGURATION, WEB3_CHAIN_IDS
-from bins.formulas import univ3_formulas
+from bins.formulas import dex_formulas
 from bins.w3.onchain_utilities.basic import web3wrap, erc20, erc20_cached
 from bins.cache import cache_utilities
 
@@ -265,7 +265,7 @@ class univ3_pool(web3wrap):
                    tokensOwed1   uint128 :  0
         """
         return self.positions(
-            univ3_formulas.get_positionKey(
+            dex_formulas.get_positionKey(
                 ownerAddress=ownerAddress,
                 tickLower=tickLower,
                 tickUpper=tickUpper,
@@ -311,13 +311,13 @@ class univ3_pool(web3wrap):
         # get current tick from slot
         tickCurrent = slot0["tick"]
         sqrtRatioX96 = slot0["sqrtPriceX96"]
-        sqrtRatioAX96 = univ3_formulas.TickMath.getSqrtRatioAtTick(tickLower)
-        sqrtRatioBX96 = univ3_formulas.TickMath.getSqrtRatioAtTick(tickUpper)
+        sqrtRatioAX96 = dex_formulas.TickMath.getSqrtRatioAtTick(tickLower)
+        sqrtRatioBX96 = dex_formulas.TickMath.getSqrtRatioAtTick(tickUpper)
         # calc quantity from liquidity
         (
             result["qtty_token0"],
             result["qtty_token1"],
-        ) = univ3_formulas.LiquidityAmounts.getAmountsForLiquidity(
+        ) = dex_formulas.LiquidityAmounts.getAmountsForLiquidity(
             sqrtRatioX96, sqrtRatioAX96, sqrtRatioBX96, pos["liquidity"]
         )
 
@@ -387,7 +387,7 @@ class univ3_pool(web3wrap):
         (
             result["qtty_token0"],
             result["qtty_token1"],
-        ) = univ3_formulas.get_uncollected_fees_vGammawire(
+        ) = dex_formulas.get_uncollected_fees_vGammawire(
             fee_growth_global_0=self.feeGrowthGlobal0X128,
             fee_growth_global_1=self.feeGrowthGlobal1X128,
             tick_current=tickCurrent,
@@ -1143,7 +1143,7 @@ class algebrav3_pool(web3wrap):
                    tokensOwed1   uint128 :  0
         """
         return self.positions(
-            univ3_formulas.get_positionKey_algebra(
+            dex_formulas.get_positionKey_algebra(
                 ownerAddress=ownerAddress,
                 tickLower=tickLower,
                 tickUpper=tickUpper,
@@ -1189,13 +1189,13 @@ class algebrav3_pool(web3wrap):
         # get current tick from slot
         tickCurrent = slot0["tick"]
         sqrtRatioX96 = slot0["sqrtPriceX96"]
-        sqrtRatioAX96 = univ3_formulas.TickMath.getSqrtRatioAtTick(tickLower)
-        sqrtRatioBX96 = univ3_formulas.TickMath.getSqrtRatioAtTick(tickUpper)
+        sqrtRatioAX96 = dex_formulas.TickMath.getSqrtRatioAtTick(tickLower)
+        sqrtRatioBX96 = dex_formulas.TickMath.getSqrtRatioAtTick(tickUpper)
         # calc quantity from liquidity
         (
             result["qtty_token0"],
             result["qtty_token1"],
-        ) = univ3_formulas.LiquidityAmounts.getAmountsForLiquidity(
+        ) = dex_formulas.LiquidityAmounts.getAmountsForLiquidity(
             sqrtRatioX96, sqrtRatioAX96, sqrtRatioBX96, pos["liquidity"]
         )
 
@@ -1265,7 +1265,7 @@ class algebrav3_pool(web3wrap):
         (
             result["qtty_token0"],
             result["qtty_token1"],
-        ) = univ3_formulas.get_uncollected_fees_vGammawire(
+        ) = dex_formulas.get_uncollected_fees_vGammawire(
             fee_growth_global_0=self.feeGrowthGlobal0X128,
             fee_growth_global_1=self.feeGrowthGlobal1X128,
             tick_current=tickCurrent,

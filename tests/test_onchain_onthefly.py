@@ -31,15 +31,17 @@ from bins.w3.onchain_utilities.protocols import (
     gamma_hypervisor_zyberswap,
     gamma_hypervisor_thena,
     gamma_hypervisor_registry,
-    gamma_masterchef_registry,
-    gamma_masterchef_v1,
-    gamma_masterchef_rewarder,
-    zyberswap_masterchef_v1,
     gamma_hypervisor_cached,
     gamma_hypervisor_quickswap_cached,
     gamma_hypervisor_algebra_cached,
     gamma_hypervisor_zyberswap_cached,
     gamma_hypervisor_thena_cached,
+)
+from bins.w3.onchain_utilities.rewarders import (
+    gamma_masterchef_registry,
+    gamma_masterchef_v1,
+    gamma_masterchef_rewarder,
+    zyberswap_masterchef_v1,
 )
 
 
@@ -276,7 +278,6 @@ def get_rewards(hypervisor_address: str, network="arbitrum", dex="zyberswap"):
 
 #####
 def build_zyberswap_static_data(network="arbitrum", dex="zyberswap", protocol="gamma"):
-
     for address in STATIC_REGISTRY_ADDRESSES[network]["zyberswap_v1_masterchefs"]:
         # create zyberchef
         zyberchef = zyberswap_masterchef_v1(address=address, network=network)
@@ -286,15 +287,13 @@ def build_zyberswap_static_data(network="arbitrum", dex="zyberswap", protocol="g
             # check lp token corresponds to gamma rewards: search address in database
             if hypervisor := build_hypervisor(
                 network=network, dex=dex, block=0, hypervisor_address=pinfo[0]
-            ):  
+            ):
                 network = network
                 dex = dex
                 masterchef_address = address
                 hypervisor_pid = pid
                 hypervisor_address = hypervisor.address
                 hypervisor_symbol = hypervisor.symbol
-                
-
 
 
 # START ################

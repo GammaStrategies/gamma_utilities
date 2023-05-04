@@ -28,14 +28,16 @@ from bins.w3.onchain_utilities.protocols import (
     gamma_hypervisor_zyberswap,
     gamma_hypervisor_thena,
     gamma_hypervisor_registry,
-    gamma_masterchef_registry,
-    gamma_masterchef_v1,
-    gamma_masterchef_rewarder,
     gamma_hypervisor_cached,
     gamma_hypervisor_quickswap_cached,
     gamma_hypervisor_algebra_cached,
     gamma_hypervisor_zyberswap_cached,
     gamma_hypervisor_thena_cached,
+)
+from bins.w3.onchain_utilities.rewarders import (
+    gamma_masterchef_registry,
+    gamma_masterchef_v1,
+    gamma_masterchef_rewarder,
 )
 
 
