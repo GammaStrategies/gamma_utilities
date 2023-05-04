@@ -22,6 +22,7 @@ from apps.database_feeder import (
     create_tokenBlocks_allTokensButWeth,
     create_tokenBlocks_topTokens,
     feed_prices_force_sqrtPriceX96,
+    feed_rewards_static,
     feed_timestamp_blocks,
     feed_blocks_timestamp,
     feed_user_status,
@@ -43,15 +44,11 @@ def network_sequence_loop(
         protocol (str):
         network (str):
     """
-    # # feed static operations
-    # for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][network]:
-    #     feed_hypervisor_static(
-    #         protocol=protocol,
-    #         network=network,
-    #         dex=dex,
-    #         rewrite=False,
-    #         threaded=True,
-    #     )
+    # TODO: feed static operations from all networks n dexes
+    if network == "arbitrum":
+        feed_rewards_static(network=network, dex="zyberswap")
+    elif network == "binance":
+        feed_rewards_static(network=network, dex="thena")
 
     # feed database with all operations from static hyprervisor addresses
     feed_operations(protocol=protocol, network=network)
