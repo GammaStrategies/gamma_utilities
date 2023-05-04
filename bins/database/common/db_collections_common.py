@@ -486,7 +486,11 @@ class database_local(db_collections_common):
                     "hypervisor_address": False,
                     "timestamp": False,
                 },
-                "rewards_static": {"id": True, "address": False},
+                "rewards_static": {
+                    "id": True,
+                    "hypervisor_address": False,
+                    "rewarder_address": False,
+                },
             }
 
         super().__init__(
@@ -772,28 +776,47 @@ class database_local(db_collections_common):
     # rewards_static
 
     def set_rewards_static(self, data: dict):
-        # define database id
-        data["id"] = f"{data['address']}_{data['hypervisor_address']}"
+        """Save rewarder static data to db
+
+        Args:
+            data (dict):        "network":
+                                "block":
+                                "timestamp":
+                                "hypervisor_address":
+                                "rewarder_address":
+                                "rewarder_type":        class type of rewarder, may be a masterchef or a thena rewarder or zyberswap masterchef ...
+                                "rewarder_refIds": [],  list of pids or any other info to identify the hypervisor inside the rewarder
+                                "rewardToken":
+                                "rewardToken_symbol":
+                                "rewardToken_decimals":
+                                "rewards_perSecond":   ( not converted to decimal)
+                                "total_hypervisorToken_qtty":  Total amount of hypervisor tokens inside the rewards contract
+        """
+        # define database id-->  hypervisorAddress_rewarderAddress_rewardToken
+        data[
+            "id"
+        ] = f"{data['hypervisor_address']}_{data['rewarder_address']}_{data['rewardToken']}"
         self.save_item_to_database(data=data, collection_name="rewards_static")
 
     def get_rewards_static(
-        self, address: str | None, hypervisor_address: str | None = None
+        self, rewarder_address: str | None, hypervisor_address: str | None = None
     ) -> list:
         """Get rewarders static data from db.
             Specify either address or hypervisor_address
 
         Args:
-            address (str | None): rewarder address
+            rewarder_address (str | None): rewarder address
             hypervisor_address (str | None, optional): hype address. Defaults to None.
 
         Returns:
             list: of rewarders found
         """
-        find = (
-            {"address": address}
-            if address
-            else {"hypervisor_address": hypervisor_address}
-        )
+        find = {}
+        if rewarder_address:
+            find["rewarder_address"] = rewarder_address
+        if hypervisor_address:
+            find["hypervisor_address"] = hypervisor_address
+
         return self.get_items_from_database(collection_name="rewards_static", find=find)
 
     # all
