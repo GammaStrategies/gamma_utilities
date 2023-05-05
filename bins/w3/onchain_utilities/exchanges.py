@@ -1056,7 +1056,7 @@ class algebrav3_pool(web3wrap):
         Returns:
            int: as Q128.128 fees of token0
         """
-        return self.call_function_autoRpc("feeGrowthGlobal0X128")
+        return self.call_function_autoRpc("totalFeeGrowth0Token")
 
     @property
     def feeGrowthGlobal1X128(self) -> int:
@@ -1064,7 +1064,7 @@ class algebrav3_pool(web3wrap):
         Returns:
            int: as Q128.128 fees of token1
         """
-        return self.call_function_autoRpc("feeGrowthGlobal1X128")
+        return self.call_function_autoRpc("totalFeeGrowth1Token")
 
     # CUSTOM PROPERTIES
     @property
