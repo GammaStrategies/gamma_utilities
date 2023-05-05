@@ -23,6 +23,7 @@ from apps.database_feeder import (
     create_tokenBlocks_topTokens,
     feed_prices_force_sqrtPriceX96,
     feed_rewards_static,
+    feed_rewards_status,
     feed_timestamp_blocks,
     feed_blocks_timestamp,
     feed_user_status,
@@ -50,6 +51,9 @@ def network_sequence_loop(
 
     # feed database with status from all operations
     feed_hypervisor_status(protocol=protocol, network=network, threaded=True)
+
+    # feed rewards status
+    feed_rewards_status(protocol=protocol, network=network)
 
     # feed global blocks data with status
     feed_timestamp_blocks(network=network, protocol=protocol)

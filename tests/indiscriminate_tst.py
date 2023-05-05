@@ -581,7 +581,7 @@ def test_feed_rewards_static():
 
 
 def test_feed_rewards_status():
-    feed_rewards_status(network="arbitrum")
+    feed_rewards_status(network="ethereum")
 
 
 from web3._utils.contracts import prepare_transaction
