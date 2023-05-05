@@ -44,11 +44,6 @@ def network_sequence_loop(
         protocol (str):
         network (str):
     """
-    # TODO: feed static rewards from all networks n dexes
-    if network == "arbitrum":
-        feed_rewards_static(network=network, dex="zyberswap")
-    elif network == "binance":
-        feed_rewards_static(network=network, dex="thena")
 
     # feed database with all operations from static hyprervisor addresses
     feed_operations(protocol=protocol, network=network)
@@ -61,14 +56,6 @@ def network_sequence_loop(
 
     # feed global blocks data with daily
     feed_blocks_timestamp(network=network)
-
-    # feed rewards
-    # try:
-    #     feed_masterchef_static(protocol=protocol, network=network)
-    # except Exception as e:
-    #     logging.getLogger(__name__).exception(
-    #         f" Unexpected error while feeding masterchef static data.  error {e}"
-    #     )
 
     if do_prices:
         # feed network prices ( before user status to avoid price related errors)

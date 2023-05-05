@@ -1568,8 +1568,10 @@ def feed_rewards_static(
             for reward_data in rewards_data:
                 # save to database
                 local_db.set_rewards_static(data=reward_data)
+
     else:
-        raise NotImplementedError(f"{network} {dex} not implemented")
+        # raise NotImplementedError(f"{network} {dex} not implemented")
+        pass
 
 
 def feed_rewards_status(
@@ -1837,7 +1839,6 @@ def main(option="operations"):
                     network
                 ]:
                     # feed database with static hypervisor info
-                    # todo: add rewrite data option to cmd
                     feed_hypervisor_static(
                         protocol=protocol,
                         network=network,
@@ -1846,6 +1847,9 @@ def main(option="operations"):
                             CONFIGURATION["_custom_"]["cml_parameters"].rewrite or True
                         ),
                     )
+
+                    # feed rewarders static
+                    feed_rewards_static(network=network, dex=dex, protocol=protocol)
 
             elif option == "operations":
                 for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][
