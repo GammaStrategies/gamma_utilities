@@ -473,20 +473,20 @@ class web3wrap:
     def call_function_autoRpc(
         self,
         function_name: str,
-        rpcKey_name: str | None = None,
+        rpcKey_names: list[str] | None = None,
         *args,
     ):
         """Call a function using an RPC list from configuration file
 
         Args:
             function_name (str): contract function name to call
-            rpcKey_name (str): private or public or whatever is placed in config w3Providers
+            rpcKey_names (list[str]): private or public or whatever is placed in config w3Providers
             args: function arguments
         Returns:
             Any or None: depending on the function called
         """
         # load public rpc url's
-        for key_name in rpcKey_name or CONFIGURATION["sources"].get(
+        for key_name in rpcKey_names or CONFIGURATION["sources"].get(
             "w3Providers_default_order", ["public", "pricate"]
         ):
             if (

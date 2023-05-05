@@ -1699,7 +1699,6 @@ class thena_voter_v3(web3wrap):
                     thena_gauge = thena_gauge_v2(
                         address=gauge_address, network=self._network, block=self.block
                     )
-
                     result += thena_gauge.get_rewards(convert_bint=convert_bint)
 
         else:
@@ -2044,19 +2043,21 @@ class thena_gauge_v2(gamma_rewarder):
         rewardToken_symbol = reward_token_instance.symbol
         rewardToken_decimals = reward_token_instance.decimals
 
-        return {
-            "network": self._network,
-            "block": self.block,
-            "timestamp": self._timestamp,
-            "hypervisor_address": self.TOKEN.lower(),
-            "rewarder_address": self.address,
-            "rewarder_type": "thena_gauge_v2",
-            "rewarder_refIds": [],
-            "rewardToken": rewardToken,
-            "rewardToken_symbol": rewardToken_symbol,
-            "rewardToken_decimals": rewardToken_decimals,
-            "rewards_perSecond": str(rewardRate) if convert_bint else rewardRate,
-            "total_hypervisorToken_qtty": str(totalSupply)
-            if convert_bint
-            else totalSupply,
-        }
+        return [
+            {
+                "network": self._network,
+                "block": self.block,
+                "timestamp": self._timestamp,
+                "hypervisor_address": self.token.lower(),
+                "rewarder_address": self.address,
+                "rewarder_type": "thena_gauge_v2",
+                "rewarder_refIds": [],
+                "rewardToken": rewardToken,
+                "rewardToken_symbol": rewardToken_symbol,
+                "rewardToken_decimals": rewardToken_decimals,
+                "rewards_perSecond": str(rewardRate) if convert_bint else rewardRate,
+                "total_hypervisorToken_qtty": str(totalSupply)
+                if convert_bint
+                else totalSupply,
+            }
+        ]
