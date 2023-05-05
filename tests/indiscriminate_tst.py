@@ -575,6 +575,9 @@ def test_feed_rewards_static():
     network = "binance"
     dex = "thena"
     feed_rewards_static(network=network, dex=dex)
+    network = "arbitrum"
+    dex = "zyberswap"
+    feed_rewards_static(network=network, dex=dex)
 
 
 from web3._utils.contracts import prepare_transaction
@@ -589,16 +592,55 @@ def custom_batch_request():
     po = ""
 
 
-def autoRpccalls():
-    hype = gamma_hypervisor(
-        address="0x35abccd8e577607275647edab08c537fa32cc65e".lower(), network="ethereum"
+def test_autoRpccalls(
+    network="ethereum", address="0x35abccd8e577607275647edab08c537fa32cc65e"
+):
+    print(" ")
+    print(f"  Testing {address} on {network}")
+
+    private_rpcUrls = [CONFIGURATION["sources"]["web3Providers"][network]]
+    hype = gamma_hypervisor(address=address.lower(), network=network)
+    rpckeys = ["public"]
+    # place first call
+    tmp_public = hype.call_function_autoRpc("getTotalAmounts", rpcKey_names=rpckeys)
+    # if tmp_public is not None:
+    #    result.append(tmp_public)
+    # save first var
+    first_block = hype.block
+    first_timestamp = hype._timestamp
+
+    for i in range(20):
+        # modify hypervisor block
+        hype.block = hype.block - 22500
+        block_data = hype._w3.eth.get_block(hype.block)
+        hype._timestamp = block_data.timestamp
+        # place subsequent calls
+        tmp_public = hype.call_function_autoRpc("getTotalAmounts", rpcKey_names=rpckeys)
+        if tmp_public is not None:
+            # compare with private call
+            tmp_private = hype.call_function("getTotalAmounts", rpcUrls=private_rpcUrls)
+            # result.append(tmp_public)
+            print(
+                f" {network} tested block:{hype.block}  timestamp:{hype._timestamp}  ({(first_timestamp-hype._timestamp)/(60*60)} hours back)"
+            )
+            if tmp_public != tmp_private:
+                print(" !!!!!!!!!!!!!!! MISMATCH  !!!!!!!!!!!!!!! ")
+                print(f"               public result: {tmp_public}")
+                print(f"              private result: {tmp_private}")
+                print(" ")
+        else:
+            print(f" no data found at block {hype.block}")
+            break
+    last_block = hype.block
+    last_timestamp = hype._timestamp
+    print(
+        f" {first_block-last_block} blocks back -> {(first_timestamp-last_timestamp)/(60*60)} hours back"
     )
-    fdata = hype.call_function_autoRpc("getTotalAmounts")
-    fdata = hype.call_function_autoRpc(
-        "balanceOf",
-        None,
-        Web3.toChecksumAddress("0x450E5dd66c3c243bBf3b07379aF7E8B261579970"),
-    )
+    # fdata = hype.call_function_autoRpc(
+    #     "balanceOf",
+    #     None,
+    #     Web3.toChecksumAddress("0x450E5dd66c3c243bBf3b07379aF7E8B261579970"),
+    # )
 
     po = ""
 
@@ -618,7 +660,34 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    autoRpccalls()
+    kwargs_list = [
+        {
+            "network": "arbitrum",
+            "address": "0xD06E6a71121BfD6c1079Bd0b4B231a92022953c9".lower(),
+        },
+        {
+            "network": "optimism",
+            "address": "0x2d6B26f430F261B77D14C495585116aA579b7217".lower(),
+        },
+        {
+            "network": "polygon",
+            "address": "0xb81686295822B639b647D3B421cD5e09Af700AdA".lower(),
+        },
+        {
+            "network": "binance",
+            "address": "0x1C2Ac2Ea1063395c34D2B5066ebC7F6745196e92".lower(),
+        },
+        {
+            "network": "celo",
+            "address": "0x897D907680D4890B91f3698f6878Ba56D2BF605c".lower(),
+        },
+        {
+            "network": "ethereum",
+            "address": "0x35abccd8e577607275647edab08c537fa32cc65e",
+        },
+    ]
+    for kwargs in kwargs_list:
+        test_autoRpccalls(**kwargs)
 
     test_feed_rewards_static()
 
