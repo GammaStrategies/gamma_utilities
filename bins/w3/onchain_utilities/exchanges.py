@@ -42,12 +42,12 @@ class univ3_pool(web3wrap):
     # PROPERTIES
     @property
     def factory(self) -> str:
-        return self._contract.functions.factory().call(block_identifier=self.block)
+        return self.call_function_autoRpc("factory")
 
     @property
     def fee(self) -> int:
         """The pool's fee in hundredths of a bip, i.e. 1e-6"""
-        return self._contract.functions.fee().call(block_identifier=self.block)
+        return self.call_function_autoRpc("fee")
 
     @property
     def feeGrowthGlobal0X128(self) -> int:
@@ -55,9 +55,7 @@ class univ3_pool(web3wrap):
         Returns:
            int: as Q128.128 fees of token0
         """
-        return self._contract.functions.feeGrowthGlobal0X128().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("feeGrowthGlobal0X128")
 
     @property
     def feeGrowthGlobal1X128(self) -> int:
@@ -65,24 +63,18 @@ class univ3_pool(web3wrap):
         Returns:
            int: as Q128.128 fees of token1
         """
-        return self._contract.functions.feeGrowthGlobal1X128().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("feeGrowthGlobal1X128")
 
     @property
     def liquidity(self) -> int:
-        return self._contract.functions.liquidity().call(block_identifier=self.block)
+        return self.call_function_autoRpc("liquidity")
 
     @property
     def maxLiquidityPerTick(self) -> int:
-        return self._contract.functions.maxLiquidityPerTick().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("maxLiquidityPerTick")
 
     def observations(self, input: int):
-        return self._contract.functions.observations(input).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("observations", None, input)
 
     def observe(self, secondsAgo: int):
         """observe _summary_
@@ -95,9 +87,7 @@ class univ3_pool(web3wrap):
                    secondsPerLiquidityCumulativeX128s   uint160[] :  242821134689165142944235398318169
 
         """
-        return self._contract.functions.observe(secondsAgo).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("observe", None, secondsAgo)
 
     def positions(self, position_key: str) -> dict:
         """
@@ -113,9 +103,7 @@ class univ3_pool(web3wrap):
                    tokensOwed0   uint128 :  0
                    tokensOwed1   uint128 :  0
         """
-        result = self._contract.functions.positions(position_key).call(
-            block_identifier=self.block
-        )
+        result = self.call_function_autoRpc("positions", None, position_key)
         return {
             "liquidity": result[0],
             "feeGrowthInside0LastX128": result[1],
@@ -131,7 +119,7 @@ class univ3_pool(web3wrap):
            list: [0,0]
 
         """
-        return self._contract.functions.protocolFees().call(block_identifier=self.block)
+        return self.call_function_autoRpc("protocolFees")
 
     @property
     def slot0(self) -> dict:
@@ -146,7 +134,7 @@ class univ3_pool(web3wrap):
                    feeProtocol   uint8 :  0
                    unlocked   bool :  true
         """
-        tmp = self._contract.functions.slot0().call(block_identifier=self.block)
+        tmp = self.call_function_autoRpc("slot0")
         return {
             "sqrtPriceX96": tmp[0],
             "tick": tmp[1],
@@ -158,18 +146,16 @@ class univ3_pool(web3wrap):
         }
 
     def snapshotCumulativeInside(self, tickLower: int, tickUpper: int):
-        return self._contract.functions.snapshotCumulativeInside(
-            tickLower, tickUpper
-        ).call(block_identifier=self.block)
+        return self.call_function_autoRpc(
+            "snapshotCumulativeInside", None, tickLower, tickUpper
+        )
 
     def tickBitmap(self, input: int) -> int:
-        return self._contract.functions.tickBitmap(input).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("tickBitmap", None, input)
 
     @property
     def tickSpacing(self) -> int:
-        return self._contract.functions.tickSpacing().call(block_identifier=self.block)
+        return self.call_function_autoRpc("tickSpacing")
 
     def ticks(self, tick: int) -> dict:
         """
@@ -187,7 +173,7 @@ class univ3_pool(web3wrap):
                        secondsOutside   uint32 :  0
                        initialized   bool :  false
         """
-        result = self._contract.functions.ticks(tick).call(block_identifier=self.block)
+        result = self.call_function_autoRpc("ticks", None, tick)
         return {
             "liquidityGross": result[0],
             "liquidityNet": result[1],
@@ -207,9 +193,7 @@ class univ3_pool(web3wrap):
         """
         if self._token0 is None:
             self._token0 = erc20(
-                address=self._contract.functions.token0().call(
-                    block_identifier=self.block
-                ),
+                address=self.call_function_autoRpc("token0"),
                 network=self._network,
                 block=self.block,
             )
@@ -224,21 +208,11 @@ class univ3_pool(web3wrap):
         """
         if self._token1 is None:
             self._token1 = erc20(
-                address=self._contract.functions.token1().call(
-                    block_identifier=self.block
-                ),
+                address=self.call_function_autoRpc("token1"),
                 network=self._network,
                 block=self.block,
             )
         return self._token1
-
-    # write function without state change ( not wrkin)
-    def collect(
-        self, recipient, tickLower, tickUpper, amount0Requested, amount1Requested, owner
-    ):
-        return self._contract.functions.collect(
-            recipient, tickLower, tickUpper, amount0Requested, amount1Requested
-        ).call({"from": owner})
 
     # CUSTOM PROPERTIES
     @property
@@ -806,7 +780,7 @@ class algebrav3_dataStorageOperator(web3wrap):
                         baseFee   uint16 :  400 }
 
         """
-        return self._contract.functions.feeConfig().call(block_identifier=self.block)
+        return self.call_function_autoRpc("feeConfig")
 
     @property
     def window(self) -> int:
@@ -815,7 +789,7 @@ class algebrav3_dataStorageOperator(web3wrap):
         Returns:
             int: 86400 uint32
         """
-        return self._contract.functions.window().call(block_identifier=self.block)
+        return self.call_function_autoRpc("window")
 
 
 class algebrav3_dataStorageOperator_cached(algebrav3_dataStorageOperator):
@@ -906,18 +880,14 @@ class algebrav3_pool(web3wrap):
         Returns:
             str: address
         """
-        return self._contract.functions.activeIncentive().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("activeIncentive")
 
     @property
     def dataStorageOperator(self) -> algebrav3_dataStorageOperator:
         """ """
         if self._dataStorage is None:
             self._dataStorage = algebrav3_dataStorageOperator(
-                address=self._contract.functions.dataStorageOperator().call(
-                    block_identifier=self.block
-                ),
+                address=self.call_function_autoRpc("dataStorageOperator"),
                 network=self._network,
                 block=self.block,
             )
@@ -925,19 +895,15 @@ class algebrav3_pool(web3wrap):
 
     @property
     def factory(self) -> str:
-        return self._contract.functions.factory().call(block_identifier=self.block)
+        return self.call_function_autoRpc("factory")
 
-    @property
     def getInnerCumulatives(self, bottomTick: int, topTick: int) -> dict:
-        return self._contract.functions.getInnerCumulatives(bottomTick, topTick).call(
-            block_identifier=self.block
+        return self.call_function_autoRpc(
+            "getInnerCumulatives", None, bottomTick, topTick
         )
 
-    @property
     def getTimepoints(self, secondsAgo: int) -> dict:
-        return self._contract.functions.getTimepoints(secondsAgo).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("getTimepoints", None, secondsAgo)
 
     @property
     def globalState(self) -> dict:
@@ -952,7 +918,7 @@ class algebrav3_pool(web3wrap):
                    communityFeeToken1   uint8 :  0
                    unlocked   bool :  true
         """
-        tmp = self._contract.functions.globalState().call(block_identifier=self.block)
+        tmp = self.call_function_autoRpc("globalState")
         return {
             "sqrtPriceX96": tmp[0],
             "tick": tmp[1],
@@ -970,7 +936,7 @@ class algebrav3_pool(web3wrap):
         Returns:
             int: 14468296980040792163 uint128
         """
-        return self._contract.functions.liquidity().call(block_identifier=self.block)
+        return self.call_function_autoRpc("liquidity")
 
     @property
     def liquidityCooldown(self) -> int:
@@ -979,9 +945,7 @@ class algebrav3_pool(web3wrap):
         Returns:
             int: 0 uint32
         """
-        return self._contract.functions.liquidityCooldown().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("liquidityCooldown")
 
     @property
     def maxLiquidityPerTick(self) -> int:
@@ -990,9 +954,7 @@ class algebrav3_pool(web3wrap):
         Returns:
             int: 11505743598341114571880798222544994 uint128
         """
-        return self._contract.functions.maxLiquidityPerTick().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("maxLiquidityPerTick")
 
     def positions(self, position_key: str) -> dict:
         """
@@ -1009,9 +971,7 @@ class algebrav3_pool(web3wrap):
                    fees0   uint128 :  0  (tokensOwed0)
                    fees1   uint128 :  0  ( tokensOwed1)
         """
-        result = self._contract.functions.positions(position_key).call(
-            block_identifier=self.block
-        )
+        result = self.call_function_autoRpc("positions", None, position_key)
         return {
             "liquidity": result[0],
             "lastLiquidityAddTimestamp": result[1],
@@ -1028,12 +988,10 @@ class algebrav3_pool(web3wrap):
         Returns:
             int: 60 int24
         """
-        return self._contract.functions.tickSpacing().call(block_identifier=self.block)
+        return self.call_function_autoRpc("tickSpacing")
 
     def tickTable(self, value: int) -> int:
-        return self._contract.functions.tickTable(value).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("tickTable", None, value)
 
     def ticks(self, tick: int) -> dict:
         """
@@ -1051,7 +1009,7 @@ class algebrav3_pool(web3wrap):
                        secondsOutside   uint32 :  0         outerSecondsSpent
                        initialized   bool :  false          initialized
         """
-        result = self._contract.functions.ticks(tick).call(block_identifier=self.block)
+        result = self.call_function_autoRpc("ticks", None, tick)
         return {
             "liquidityGross": result[0],
             "liquidityNet": result[1],
@@ -1065,9 +1023,7 @@ class algebrav3_pool(web3wrap):
 
     def timepoints(self, index: int) -> dict:
         #   initialized bool, blockTimestamp uint32, tickCumulative int56, secondsPerLiquidityCumulative uint160, volatilityCumulative uint88, averageTick int24, volumePerLiquidityCumulative uint144
-        result = self._contract.functions.timepoints(index).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("timepoints", None, index)
 
     @property
     def token0(self) -> erc20:
@@ -1078,9 +1034,7 @@ class algebrav3_pool(web3wrap):
         """
         if self._token0 is None:
             self._token0 = erc20(
-                address=self._contract.functions.token0().call(
-                    block_identifier=self.block
-                ),
+                address=self.call_function_autoRpc("token0"),
                 network=self._network,
                 block=self.block,
             )
@@ -1090,9 +1044,7 @@ class algebrav3_pool(web3wrap):
     def token1(self) -> erc20:
         if self._token1 is None:
             self._token1 = erc20(
-                address=self._contract.functions.token1().call(
-                    block_identifier=self.block
-                ),
+                address=self.call_function_autoRpc("token1"),
                 network=self._network,
                 block=self.block,
             )
@@ -1104,9 +1056,7 @@ class algebrav3_pool(web3wrap):
         Returns:
            int: as Q128.128 fees of token0
         """
-        return self._contract.functions.totalFeeGrowth0Token().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("feeGrowthGlobal0X128")
 
     @property
     def feeGrowthGlobal1X128(self) -> int:
@@ -1114,9 +1064,7 @@ class algebrav3_pool(web3wrap):
         Returns:
            int: as Q128.128 fees of token1
         """
-        return self._contract.functions.totalFeeGrowth1Token().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("feeGrowthGlobal1X128")
 
     # CUSTOM PROPERTIES
     @property
