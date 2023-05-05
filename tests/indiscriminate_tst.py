@@ -589,6 +589,20 @@ def custom_batch_request():
     po = ""
 
 
+def autoRpccalls():
+    hype = gamma_hypervisor(
+        address="0x35abccd8e577607275647edab08c537fa32cc65e".lower(), network="ethereum"
+    )
+    fdata = hype.call_function_autoRpc("getTotalAmounts")
+    fdata = hype.call_function_autoRpc(
+        "balanceOf",
+        None,
+        Web3.toChecksumAddress("0x450E5dd66c3c243bBf3b07379aF7E8B261579970"),
+    )
+
+    po = ""
+
+
 # START ####################################################################################################################
 from datetime import timezone
 
@@ -603,6 +617,8 @@ if __name__ == "__main__":
 
     # start time log
     _startime = datetime.now(timezone.utc)
+
+    autoRpccalls()
 
     test_feed_rewards_static()
 
