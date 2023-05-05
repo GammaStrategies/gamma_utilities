@@ -1182,13 +1182,14 @@ class zyberswap_masterchef_v1(gamma_rewarder):
         self,
         hypervisor_addresses: list[str] | None = None,
         pids: list[int] | None = None,
+        convert_bint: bool = False,
     ) -> list[dict]:
         """Search for rewards data
-
 
         Args:
             hypervisor_addresses (list[str] | None, optional): list of lower case hypervisor addresses. When defaults to None, all rewarded hypes ( gamma or non gamma) will be returned.
             pids (list[int] | None, optional): pool ids linked to hypervisor. When defaults to None, all pools will be returned.
+            convert_bint (bool, optional): Convert big integers to string. Defaults to False.
         Returns:
             list[dict]: network: str
                         block: int
@@ -1234,8 +1235,12 @@ class zyberswap_masterchef_v1(gamma_rewarder):
                                 "rewardToken": address,
                                 "rewardToken_symbol": symbol,
                                 "rewardToken_decimals": decimals,
-                                "rewards_perSecond": rewardsPerSec,
-                                "total_hypervisorToken_qtty": pinfo[6],
+                                "rewards_perSecond": str(rewardsPerSec)
+                                if convert_bint
+                                else rewardsPerSec,
+                                "total_hypervisorToken_qtty": str(pinfo[6])
+                                if convert_bint
+                                else pinfo[6],
                             }
                         )
 
@@ -1714,6 +1719,7 @@ class thena_voter_v3(web3wrap):
         self,
         hypervisor_addresses: list[str] | None = None,
         pids: list[int] | None = None,
+        convert_bint: bool = False,
     ) -> list[dict]:
         """Search for rewards data
 
@@ -1721,6 +1727,7 @@ class thena_voter_v3(web3wrap):
         Args:
             hypervisor_addresses (list[str] | None, optional): list of lower case hypervisor addresses. When defaults to None, all rewarded hypes ( gamma or non gamma) will be returned.
             pids (list[int] | None, optional): pool ids linked to hypervisor. When defaults to None, all pools will be returned.
+            convert_bint (bool, optional): Convert big integers to string. Defaults to False.
         Returns:
             list[dict]: network: str
                         block: int
@@ -1746,36 +1753,8 @@ class thena_voter_v3(web3wrap):
                     thena_gauge = thena_gauge_v2(
                         address=gauge_address, network=self._network, block=self.block
                     )
-                    rewardRate = thena_gauge.rewardRate
-                    rewardToken = thena_gauge.rewardToken
-                    totalSupply = thena_gauge.totalSupply
 
-                    # build reward token instance
-                    reward_token_instance = erc20_cached(
-                        address=rewardToken,
-                        network=self._network,
-                        block=self.block,
-                    )
-                    # get reward token data
-                    rewardToken_symbol = reward_token_instance.symbol
-                    rewardToken_decimals = reward_token_instance.decimals
-
-                    result.append(
-                        {
-                            "network": self._network,
-                            "block": self.block,
-                            "timestamp": self._timestamp,
-                            "hypervisor_address": hypervisor_address.lower(),
-                            "rewarder_address": gauge_address,
-                            "rewarder_type": "thena_gauge_v2",
-                            "rewarder_refIds": [],
-                            "rewardToken": rewardToken,
-                            "rewardToken_symbol": rewardToken_symbol,
-                            "rewardToken_decimals": rewardToken_decimals,
-                            "rewards_perSecond": rewardRate,
-                            "total_hypervisorToken_qtty": totalSupply,
-                        }
-                    )
+                    result += thena_gauge.get_rewards(convert_bint=convert_bint)
 
         else:
             # TODO: get all hypervisors data ... by pid
@@ -2107,3 +2086,49 @@ class thena_gauge_v2(gamma_rewarder):
         return self._contract.functions.userRewardPerTokenPaid(address).call(
             block_identifier=self.block
         )
+
+    # get all rewards
+    def get_rewards(
+        self,
+        convert_bint: bool = False,
+    ) -> list[dict]:
+        """Search for rewards data
+
+
+        Args:
+            convert_bint (bool, optional): Convert big integers to string. Defaults to False.
+        Returns:
+            list[dict]:
+        """
+        result = []
+
+        rewardRate = self.rewardRate
+        rewardToken = self.rewardToken
+        totalSupply = self.totalSupply
+
+        # build reward token instance
+        reward_token_instance = erc20_cached(
+            address=rewardToken,
+            network=self._network,
+            block=self.block,
+        )
+        # get reward token data
+        rewardToken_symbol = reward_token_instance.symbol
+        rewardToken_decimals = reward_token_instance.decimals
+
+        return {
+            "network": self._network,
+            "block": self.block,
+            "timestamp": self._timestamp,
+            "hypervisor_address": self.TOKEN.lower(),
+            "rewarder_address": self.address,
+            "rewarder_type": "thena_gauge_v2",
+            "rewarder_refIds": [],
+            "rewardToken": rewardToken,
+            "rewardToken_symbol": rewardToken_symbol,
+            "rewardToken_decimals": rewardToken_decimals,
+            "rewards_perSecond": str(rewardRate) if convert_bint else rewardRate,
+            "total_hypervisorToken_qtty": str(totalSupply)
+            if convert_bint
+            else totalSupply,
+        }

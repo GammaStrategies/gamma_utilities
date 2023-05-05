@@ -491,6 +491,13 @@ class database_local(db_collections_common):
                     "hypervisor_address": False,
                     "rewarder_address": False,
                 },
+                "rewards_status": {
+                    "id": True,
+                    "hypervisor_address": False,
+                    "rewarder_address": False,
+                    "block": False,
+                    "timestamp": False,
+                },
             }
 
         super().__init__(
@@ -773,7 +780,7 @@ class database_local(db_collections_common):
             )
         ]
 
-    # rewards_static
+    # rewards static
 
     def set_rewards_static(self, data: dict):
         """Save rewarder static data to db
@@ -792,10 +799,10 @@ class database_local(db_collections_common):
                                 "rewards_perSecond":   ( not converted to decimal)
                                 "total_hypervisorToken_qtty":  Total amount of hypervisor tokens inside the rewards contract
         """
-        # define database id-->  hypervisorAddress_rewarderAddress_rewardToken
-        data[
-            "id"
-        ] = f"{data['hypervisor_address']}_{data['rewarder_address']}_{data['rewardToken']}"
+        # define database id using the first refid if present ( being pid or any other info to identify the hypervisor inside the rewarder)
+        # dbid = data["rewarder_refIds"][0] if data["rewarder_refIds"] else 0
+        # define database id-->  hypervisorAddress_rewarderAddress
+        data["id"] = f"{data['hypervisor_address']}_{data['rewarder_address']}"
         self.save_item_to_database(data=data, collection_name="rewards_static")
 
     def get_rewards_static(
@@ -818,6 +825,37 @@ class database_local(db_collections_common):
             find["hypervisor_address"] = hypervisor_address
 
         return self.get_items_from_database(collection_name="rewards_static", find=find)
+
+    # rewards status
+    def set_rewards_status(self, data: dict):
+        """Save rewarder status data to db
+
+        Args:
+            data (dict):        "network":
+                                "block":
+                                "timestamp":
+                                "hypervisor_address":
+                                "rewarder_address":
+                                "rewarder_type":        class type of rewarder, may be a masterchef or a thena rewarder or zyberswap masterchef ...
+                                "rewarder_refIds": [],  list of pids or any other info to identify the hypervisor inside the rewarder
+                                "rewardToken":
+                                "rewardToken_symbol":
+                                "rewardToken_decimals":
+                                "rewards_perSecond":   ( not converted to decimal)
+                                "total_hypervisorToken_qtty":  Total amount of hypervisor tokens inside the rewards contract
+                                "apr"
+                                "hypervisor_symbol"
+                                "hyperivsor_share price"
+                                "token 0 price"
+                                "token 1 price"
+                                "rewardToken_price"
+
+        """
+        # define database id-->  hypervisorAddress_rewarderAddress_block
+        data[
+            "id"
+        ] = f"{data['hypervisor_address']}_{data['rewarder_address']}_{data['block']}"
+        self.save_item_to_database(data=data, collection_name="rewards_status")
 
     # all
 

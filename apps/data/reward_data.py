@@ -164,8 +164,8 @@ def get_rewards(dex: str, hypervisor_address: str, network: str):
                     network=network,
                     block=0,
                 ),
-                token_decimals=rewards["rewardToken_decimals"],
-                token_reward_rate=rewards["poolRewardsPerSec"],
+                token_reward_rate=rewards["poolRewardsPerSec"]
+                / (10 ** rewards["rewardToken_decimals"]),
                 total_lp_locked=(
                     rewards["poolTotalLp"] / (10 ** hypervisor_data["decimals"])
                 ),
@@ -194,8 +194,10 @@ def get_rewards(dex: str, hypervisor_address: str, network: str):
                 network=network,
                 block=0,
             ),
-            token_decimals=18,  # TODO: create erc20 instance and reat token decimals from there
-            token_reward_rate=rewards_data["poolRewardsPerSec"],
+            token_reward_rate=rewards_data["poolRewardsPerSec"]
+            / (
+                10**18
+            ),  # TODO: create erc20 instance and reat token decimals from there
             total_lp_locked=(
                 rewards_data["poolTotalLp"] / (10 ** hypervisor_data["decimals"])
             ),
