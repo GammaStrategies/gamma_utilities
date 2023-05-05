@@ -1618,105 +1618,105 @@ def feed_rewards_status(
                 # update progress
                 progress_bar.update(1)
 
-    for rewarder_static in to_be_processed_reward_static:
-        # already processed blocks for this hype rewarder combination
-        processed_blocks = local_db.get_distinct_items_from_database(
-            collection_name="rewards_status",
-            field="block",
-            condition={
-                "hypervisor_address": rewarder_static["hypervisor_address"],
-                "rewarder_address": rewarder_static["rewarder_address"],
-            },
-        )
+    # for rewarder_static in to_be_processed_reward_static:
+    #     # already processed blocks for this hype rewarder combination
+    #     processed_blocks = local_db.get_distinct_items_from_database(
+    #         collection_name="rewards_status",
+    #         field="block",
+    #         condition={
+    #             "hypervisor_address": rewarder_static["hypervisor_address"],
+    #             "rewarder_address": rewarder_static["rewarder_address"],
+    #         },
+    #     )
 
-        # to be processed as per the hypervisor status
-        to_process_hypervisor_status = local_db.get_items_from_database(
-            collection_name="status",
-            find={
-                "address": rewarder_static["hypervisor_address"],
-                "block": {
-                    {"$gte": rewarder_static["block"]},
-                    {"$nin": processed_blocks},
-                },
-            },
-        )
+    #     # to be processed as per the hypervisor status
+    #     to_process_hypervisor_status = local_db.get_items_from_database(
+    #         collection_name="status",
+    #         find={
+    #             "address": rewarder_static["hypervisor_address"],
+    #             "block": {
+    #                 {"$gte": rewarder_static["block"]},
+    #                 {"$nin": processed_blocks},
+    #             },
+    #         },
+    #     )
 
-        # process
-        for hypervisor_status in to_process_hypervisor_status:
-            rewards_data = []
-            if rewarder_static["type"] == "zyberswap_masterchef_v1":
-                # create masterchef object
-                zyberswap_masterchef = rewarders.zyberswap_masterchef_v1(
-                    address=rewarder_static["rewarder_address"],
-                    network=network,
-                    block=hypervisor_status["block"],
-                )
-                # get rewards status
-                rewards_data = zyberswap_masterchef.get_rewards(
-                    hypervisor_addresses=[rewarder_static["hypervisor_address"]],
-                    pids=rewarder_static["rewarder_refIds"],
-                    convert_bint=True,
-                )
+    #     # process
+    #     for hypervisor_status in to_process_hypervisor_status:
+    #         rewards_data = []
+    #         if rewarder_static["type"] == "zyberswap_masterchef_v1":
+    #             # create masterchef object
+    #             zyberswap_masterchef = rewarders.zyberswap_masterchef_v1(
+    #                 address=rewarder_static["rewarder_address"],
+    #                 network=network,
+    #                 block=hypervisor_status["block"],
+    #             )
+    #             # get rewards status
+    #             rewards_data = zyberswap_masterchef.get_rewards(
+    #                 hypervisor_addresses=[rewarder_static["hypervisor_address"]],
+    #                 pids=rewarder_static["rewarder_refIds"],
+    #                 convert_bint=True,
+    #             )
 
-            elif rewarder_static["type"] == "thena_gauge_v2":
-                thena_gauge = rewarders.thena_gauge_v2(
-                    address=rewarder_static["rewarder_address"],
-                    network=network,
-                    block=hypervisor_status["block"],
-                )
+    #         elif rewarder_static["type"] == "thena_gauge_v2":
+    #             thena_gauge = rewarders.thena_gauge_v2(
+    #                 address=rewarder_static["rewarder_address"],
+    #                 network=network,
+    #                 block=hypervisor_status["block"],
+    #             )
 
-                rewards_data += thena_gauge.get_rewards(convert_bint=True)
+    #             rewards_data += thena_gauge.get_rewards(convert_bint=True)
 
-            for reward_data in rewards_data:
-                # token_prices
-                rewardToken_price = feed_rewards_status_prices(
-                    network=network,
-                    block=hypervisor_status["block"],
-                    token_address=rewarder_static["rewardToken"],
-                )
-                hype_token0_price = feed_rewards_status_prices(
-                    network=network,
-                    block=hypervisor_status["block"],
-                    token_address=hypervisor_status["pool"]["token0"]["address"],
-                )
-                hype_token1_price = feed_rewards_status_prices(
-                    network=network,
-                    block=hypervisor_status["block"],
-                    token_address=hypervisor_status["pool"]["token1"]["address"],
-                )
-                # hypervisor price per share
-                hype_total0 = int(hypervisor_status["totalAmounts"]["total0"]) / (
-                    10 ** hypervisor_status["pool"]["token0"]["decimals"]
-                )
-                hype_total1 = int(hypervisor_status["totalAmounts"]["total1"]) / (
-                    10 ** hypervisor_status["pool"]["token1"]["decimals"]
-                )
-                hype_price_per_share = (
-                    hype_token0_price * hype_total0 + hype_token1_price * hype_total1
-                ) / (
-                    int(hypervisor_status["totalSupply"])
-                    / (10 ** hypervisor_status["decimals"])
-                )
+    #         for reward_data in rewards_data:
+    #             # token_prices
+    #             rewardToken_price = feed_rewards_status_prices(
+    #                 network=network,
+    #                 block=hypervisor_status["block"],
+    #                 token_address=rewarder_static["rewardToken"],
+    #             )
+    #             hype_token0_price = feed_rewards_status_prices(
+    #                 network=network,
+    #                 block=hypervisor_status["block"],
+    #                 token_address=hypervisor_status["pool"]["token0"]["address"],
+    #             )
+    #             hype_token1_price = feed_rewards_status_prices(
+    #                 network=network,
+    #                 block=hypervisor_status["block"],
+    #                 token_address=hypervisor_status["pool"]["token1"]["address"],
+    #             )
+    #             # hypervisor price per share
+    #             hype_total0 = int(hypervisor_status["totalAmounts"]["total0"]) / (
+    #                 10 ** hypervisor_status["pool"]["token0"]["decimals"]
+    #             )
+    #             hype_total1 = int(hypervisor_status["totalAmounts"]["total1"]) / (
+    #                 10 ** hypervisor_status["pool"]["token1"]["decimals"]
+    #             )
+    #             hype_price_per_share = (
+    #                 hype_token0_price * hype_total0 + hype_token1_price * hype_total1
+    #             ) / (
+    #                 int(hypervisor_status["totalSupply"])
+    #                 / (10 ** hypervisor_status["decimals"])
+    #             )
 
-                apr = calculate_rewards_apr(
-                    token_price=rewardToken_price,
-                    token_reward_rate=reward_data["rewards_perSecond"]
-                    / (10 ** reward_data["rewardToken_decimals"]),
-                    total_lp_locked=reward_data["total_hypervisorToken_qtty"]
-                    / (10 ** hypervisor_status["decimals"]),
-                    lp_token_price=hype_price_per_share,
-                )
+    #             apr = calculate_rewards_apr(
+    #                 token_price=rewardToken_price,
+    #                 token_reward_rate=reward_data["rewards_perSecond"]
+    #                 / (10 ** reward_data["rewardToken_decimals"]),
+    #                 total_lp_locked=reward_data["total_hypervisorToken_qtty"]
+    #                 / (10 ** hypervisor_status["decimals"]),
+    #                 lp_token_price=hype_price_per_share,
+    #             )
 
-                # add status fields ( APR )
-                reward_data["hypervisor_symbol"] = hypervisor_status["symbol"]
-                reward_data["apr"] = apr
-                reward_data["rewardToken_price_usd"] = rewardToken_price
-                reward_data["token0_price_usd"] = hype_token0_price
-                reward_data["token1_price_usd"] = hype_token1_price
-                reward_data["hypervisor_share_price_usd"] = hype_price_per_share
+    #             # add status fields ( APR )
+    #             reward_data["hypervisor_symbol"] = hypervisor_status["symbol"]
+    #             reward_data["apr"] = apr
+    #             reward_data["rewardToken_price_usd"] = rewardToken_price
+    #             reward_data["token0_price_usd"] = hype_token0_price
+    #             reward_data["token1_price_usd"] = hype_token1_price
+    #             reward_data["hypervisor_share_price_usd"] = hype_price_per_share
 
-                # save to database
-                local_db.set_rewards_status(data=reward_data)
+    #             # save to database
+    #             local_db.set_rewards_status(data=reward_data)
 
 
 def feed_rewards_status_loop(rewarder_static: dict):
@@ -1742,8 +1742,8 @@ def feed_rewards_status_loop(rewarder_static: dict):
         find={
             "address": rewarder_static["hypervisor_address"],
             "block": {
-                {"$gte": rewarder_static["block"]},
-                {"$nin": processed_blocks},
+                "$gte": rewarder_static["block"],
+                "$nin": processed_blocks,
             },
         },
     )
@@ -1752,7 +1752,7 @@ def feed_rewards_status_loop(rewarder_static: dict):
     # process
     for hypervisor_status in to_process_hypervisor_status:
         rewards_data = []
-        if rewarder_static["type"] == "zyberswap_masterchef_v1":
+        if rewarder_static["rewarder_type"] == "zyberswap_masterchef_v1":
             # create masterchef object
             zyberswap_masterchef = rewarders.zyberswap_masterchef_v1(
                 address=rewarder_static["rewarder_address"],
@@ -1766,7 +1766,7 @@ def feed_rewards_status_loop(rewarder_static: dict):
                 convert_bint=True,
             )
 
-        elif rewarder_static["type"] == "thena_gauge_v2":
+        elif rewarder_static["rewarder_type"] == "thena_gauge_v2":
             thena_gauge = rewarders.thena_gauge_v2(
                 address=rewarder_static["rewarder_address"],
                 network=network,
@@ -1777,17 +1777,17 @@ def feed_rewards_status_loop(rewarder_static: dict):
 
         for reward_data in rewards_data:
             # token_prices
-            rewardToken_price = feed_rewards_status_prices(
+            rewardToken_price = get_price(
                 network=network,
                 block=hypervisor_status["block"],
                 token_address=rewarder_static["rewardToken"],
             )
-            hype_token0_price = feed_rewards_status_prices(
+            hype_token0_price = get_price(
                 network=network,
                 block=hypervisor_status["block"],
                 token_address=hypervisor_status["pool"]["token0"]["address"],
             )
-            hype_token1_price = feed_rewards_status_prices(
+            hype_token1_price = get_price(
                 network=network,
                 block=hypervisor_status["block"],
                 token_address=hypervisor_status["pool"]["token1"]["address"],
@@ -1808,15 +1808,16 @@ def feed_rewards_status_loop(rewarder_static: dict):
 
             apr = calculate_rewards_apr(
                 token_price=rewardToken_price,
-                token_reward_rate=reward_data["rewards_perSecond"]
+                token_reward_rate=int(reward_data["rewards_perSecond"])
                 / (10 ** reward_data["rewardToken_decimals"]),
-                total_lp_locked=reward_data["total_hypervisorToken_qtty"]
+                total_lp_locked=int(reward_data["total_hypervisorToken_qtty"])
                 / (10 ** hypervisor_status["decimals"]),
                 lp_token_price=hype_price_per_share,
             )
 
             # add status fields ( APR )
             reward_data["hypervisor_symbol"] = hypervisor_status["symbol"]
+            reward_data["dex"] = hypervisor_status["dex"]
             reward_data["apr"] = apr
             reward_data["rewardToken_price_usd"] = rewardToken_price
             reward_data["token0_price_usd"] = hype_token0_price
@@ -1828,9 +1829,7 @@ def feed_rewards_status_loop(rewarder_static: dict):
     return result
 
 
-def feed_rewards_status_prices(
-    network: str, block: int, token_address: str
-) -> tuple[float]:
+def get_price(network: str, block: int, token_address: str) -> float:
     # try get the prices from database
     global_db = database_global(
         mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"]
@@ -1838,8 +1837,11 @@ def feed_rewards_status_prices(
     if token_price := global_db.get_price_usd(
         network=network, block=block, address=token_address
     ):
-        return token_price
+        return token_price[0]["price"]
 
+    logging.getLogger(__name__).debug(
+        f" Rewards-> Could not get {network}'s {token_address} price at block {block} from database. Trying external sources"
+    )
     # try get prices from external sources
     price_helper = price_scraper()
 
@@ -1851,7 +1853,7 @@ def feed_rewards_status_prices(
 
     if not token_price:
         raise ValueError(
-            f"  Rewards-> Could not get price for {token_address} on {network} at block {block}"
+            f"  Rewards-> Could not get price for {token_address} on {network} at block {block} by any available means"
         )
 
     return token_price

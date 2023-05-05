@@ -19,7 +19,7 @@ sys.path.append(PARENT_FOLDER)
 from bins.configuration import CONFIGURATION, STATIC_REGISTRY_ADDRESSES
 from bins.general import general_utilities, file_utilities
 
-from apps.database_feeder import feed_prices_force_sqrtPriceX96
+from apps.database_feeder import feed_prices_force_sqrtPriceX96, feed_rewards_status
 from apps.database_feeder_service import price_sequence_loop
 from apps.database_checker import check_database
 
@@ -580,6 +580,10 @@ def test_feed_rewards_static():
     feed_rewards_static(network=network, dex=dex)
 
 
+def test_feed_rewards_status():
+    feed_rewards_status(network="arbitrum")
+
+
 from web3._utils.contracts import prepare_transaction
 
 
@@ -659,6 +663,8 @@ if __name__ == "__main__":
 
     # start time log
     _startime = datetime.now(timezone.utc)
+
+    test_feed_rewards_status()
 
     kwargs_list = [
         {
