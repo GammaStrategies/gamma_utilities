@@ -912,9 +912,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
         Returns:
             int: unit16
         """
-        return self._contract.functions.MAXIMUM_DEPOSIT_FEE_RATE().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("MAXIMUM_DEPOSIT_FEE_RATE")
 
     @property
     def maximum_harvest_interval(self) -> int:
@@ -923,9 +921,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
         Returns:
             int: unit256
         """
-        return self._contract.functions.MAXIMUM_HARVEST_INTERVAL().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("MAXIMUM_HARVEST_INTERVAL")
 
     def canHarvest(self, pid: int, user: str) -> bool:
         """can harvest
@@ -937,9 +933,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
         Returns:
             bool: _description_
         """
-        return self._contract.functions.canHarvest(pid, user).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("canHarvest", None, pid, user)
 
     @property
     def feeAddress(self) -> str:
@@ -948,7 +942,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
         Returns:
             str: address
         """
-        return self._contract.functions.feeAddress().call(block_identifier=self.block)
+        return self.call_function_autoRpc("feeAddress")
 
     @property
     def getZyberPerSec(self) -> int:
@@ -957,9 +951,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
         Returns:
             int: unit256
         """
-        return self._contract.functions.getZyberPerSec().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("getZyberPerSec")
 
     @property
     def marketingAddress(self) -> str:
@@ -968,9 +960,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
         Returns:
             str: address
         """
-        return self._contract.functions.marketingAddress().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("marketingAddress")
 
     @property
     def marketingPercent(self) -> int:
@@ -979,9 +969,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
         Returns:
             int: unit256
         """
-        return self._contract.functions.marketingPercent().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("marketingPercent")
 
     @property
     def owner(self) -> str:
@@ -990,7 +978,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
         Returns:
             str: address
         """
-        return self._contract.functions.owner().call(block_identifier=self.block)
+        return self.call_function_autoRpc("owner")
 
     def pendingTokens(
         self, pid: int, user: str
@@ -1004,9 +992,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
         Returns:
             tuple: addresses address[], symbols string[], decimals uint256[], amounts uint256[]
         """
-        return self._contract.functions.pendingTokens(pid, user).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("pendingTokens", None, pid, user)
 
     def poolInfo(self, pid: int) -> tuple[str, int, int, int, int, int, int, int]:
         """pool info
@@ -1024,7 +1010,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
                 harvestInterval uint256,
                 totalLp uint256
         """
-        return self._contract.functions.poolInfo(pid).call(block_identifier=self.block)
+        return self.call_function_autoRpc("poolInfo", None, pid)
 
     @property
     def poolLength(self) -> int:
@@ -1033,7 +1019,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
         Returns:
             int: unit256
         """
-        return self._contract.functions.poolLength().call(block_identifier=self.block)
+        return self.call_function_autoRpc("poolLength")
 
     def poolRewarders(self, pid: int) -> list[str]:
         """pool rewarders
@@ -1044,9 +1030,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
         Returns:
             list[str]: address[]
         """
-        return self._contract.functions.poolRewarders(pid).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("poolRewarders", None, pid)
 
     def poolRewardsPerSec(
         self, pid: int
@@ -1062,9 +1046,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
             decimals uint256[],
             rewardsPerSec uint256[]
         """
-        return self._contract.functions.poolRewardsPerSec(pid).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("poolRewardsPerSec", None, pid)
 
     def poolTotalLp(self, pid: int) -> int:
         """pool total lp
@@ -1075,9 +1057,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
         Returns:
             int: unit256
         """
-        return self._contract.functions.poolTotalLp(pid).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("poolTotalLp", None, pid)
 
     @property
     def startTimestamp(self) -> int:
@@ -1086,9 +1066,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
         Returns:
             int: unit256
         """
-        return self._contract.functions.startTimestamp().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("startTimestamp")
 
     @property
     def teamAddress(self) -> str:
@@ -1097,7 +1075,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
         Returns:
             str: address
         """
-        return self._contract.functions.teamAddress().call(block_identifier=self.block)
+        return self.call_function_autoRpc("teamAddress")
 
     @property
     def teamPercent(self) -> int:
@@ -1106,7 +1084,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
         Returns:
             int: unit256
         """
-        return self._contract.functions.teamPercent().call(block_identifier=self.block)
+        return self.call_function_autoRpc("teamPercent")
 
     @property
     def totalAllocPoint(self) -> int:
@@ -1115,9 +1093,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
         Returns:
             int: unit256
         """
-        return self._contract.functions.totalAllocPoint().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("totalAllocPoint")
 
     @property
     def totalLockedUpRewards(self) -> int:
@@ -1126,9 +1102,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
         Returns:
             int: unit256
         """
-        return self._contract.functions.totalLockedUpRewards().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("totalLockedUpRewards")
 
     @property
     def totalZyberInPools(self) -> int:
@@ -1137,9 +1111,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
         Returns:
             int: unit256
         """
-        return self._contract.functions.totalZyberInPools().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("totalZyberInPools")
 
     def userInfo(self, pid: int, user: str) -> tuple[int, int, int, int]:
         """user info
@@ -1155,9 +1127,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
                 rewardLockedUp uint256,
                 nextHarvestUntil uint256
         """
-        return self._contract.functions.userInfo(pid, user).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("userInfo", None, pid, user)
 
     @property
     def zyber(self) -> str:
@@ -1166,7 +1136,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
         Returns:
             str: address
         """
-        return self._contract.functions.zyber().call(block_identifier=self.block)
+        return self.call_function_autoRpc("zyber")
 
     @property
     def zyberPerSec(self) -> int:
@@ -1175,7 +1145,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
         Returns:
             int: unit256
         """
-        return self._contract.functions.zyberPerSec().call(block_identifier=self.block)
+        return self.call_function_autoRpc("zyberPerSec")
 
     # get all rewards
     def get_rewards(
@@ -1292,9 +1262,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             int: uint256
         """
-        return self._contract.functions.MAX_VOTE_DELAY().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("MAX_VOTE_DELAY")
 
     @property
     def vote_delay(self) -> int:
@@ -1303,7 +1271,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             int: uint256
         """
-        return self._contract.functions.VOTE_DELAY().call(block_identifier=self.block)
+        return self.call_function_autoRpc("VOTE_DELAY")
 
     @property
     def _epochTimestamp(self) -> int:
@@ -1312,9 +1280,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             int: uint256
         """
-        return self._contract.functions._epochTimestamp().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("_epochTimestamp")
 
     @property
     def _factories(self) -> list[str]:
@@ -1323,7 +1289,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             list[str]: address[]
         """
-        return self._contract.functions._factories().call(block_identifier=self.block)
+        return self.call_function_autoRpc("_factories")
 
     @property
     def _ve(self) -> str:
@@ -1332,7 +1298,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             str: address
         """
-        return self._contract.functions._ve().call(block_identifier=self.block)
+        return self.call_function_autoRpc("_ve")
 
     @property
     def bribefactory(self) -> str:
@@ -1341,7 +1307,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             str: address
         """
-        return self._contract.functions.bribefactory().call(block_identifier=self.block)
+        return self.call_function_autoRpc("bribefactory")
 
     def claimable(self, address: str) -> int:
         """_summary_
@@ -1352,8 +1318,8 @@ class thena_voter_v3(web3wrap):
         Returns:
             int: uint256
         """
-        return self._contract.functions.claimable(address).call(
-            block_identifier=self.block
+        return self.call_function_autoRpc(
+            "claimable", None, Web3.toChecksumAddress(address)
         )
 
     def external_bribes(self, address: str) -> str:
@@ -1365,8 +1331,8 @@ class thena_voter_v3(web3wrap):
         Returns:
             str: address
         """
-        return self._contract.functions.external_bribes(address).call(
-            block_identifier=self.block
+        return self.call_function_autoRpc(
+            "external_bribes", None, Web3.toChecksumAddress(address)
         )
 
     def factories(self, index: int) -> str:
@@ -1378,9 +1344,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             str: address
         """
-        return self._contract.functions.factories(index).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("factories", None, index)
 
     @property
     def factory(self) -> str:
@@ -1389,7 +1353,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             str: address
         """
-        return self._contract.functions.factory().call(block_identifier=self.block)
+        return self.call_function_autoRpc("factory")
 
     @property
     def factoryLength(self) -> int:
@@ -1398,9 +1362,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             int: uint256
         """
-        return self._contract.functions.factoryLength().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("factoryLength")
 
     def gaugeFactories(self, index: int) -> str:
         """_summary_
@@ -1411,9 +1373,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             str: address
         """
-        return self._contract.functions.gaugeFactories(index).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("gaugeFactories", None, index)
 
     @property
     def gaugeFactoriesLength(self) -> int:
@@ -1422,9 +1382,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             int: uint256
         """
-        return self._contract.functions.gaugeFactoriesLength().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("gaugeFactoriesLength")
 
     @property
     def gaugefactory(self) -> str:
@@ -1433,7 +1391,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             str: address
         """
-        return self._contract.functions.gaugefactory().call(block_identifier=self.block)
+        return self.call_function_autoRpc("gaugefactory")
 
     def gauges(self, address: str) -> str:
         """_summary_
@@ -1444,8 +1402,8 @@ class thena_voter_v3(web3wrap):
         Returns:
             str: address
         """
-        return self._contract.functions.gauges(Web3.toChecksumAddress(address)).call(
-            block_identifier=self.block
+        return self.call_function_autoRpc(
+            "gauges", None, Web3.toChecksumAddress(address)
         )
 
     def gaugesDistributionTimestamp(self, address: str) -> int:
@@ -1457,8 +1415,8 @@ class thena_voter_v3(web3wrap):
         Returns:
             int: uint256
         """
-        return self._contract.functions.gaugesDistributionTimestamp(address).call(
-            block_identifier=self.block
+        return self.call_function_autoRpc(
+            "gaugesDistributionTimestamp", None, Web3.toChecksumAddress(address)
         )
 
     def internal_bribes(self, address: str) -> str:
@@ -1470,8 +1428,8 @@ class thena_voter_v3(web3wrap):
         Returns:
             str: address
         """
-        return self._contract.functions.internal_bribes(address).call(
-            block_identifier=self.block
+        return self.call_function_autoRpc(
+            "internal_bribes", None, Web3.toChecksumAddress(address)
         )
 
     @property
@@ -1481,7 +1439,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             bool: bool
         """
-        return self._contract.functions.isAlive().call(block_identifier=self.block)
+        return self.call_function_autoRpc("isAlive")
 
     def isFactory(self, address: str) -> bool:
         """_summary_
@@ -1492,8 +1450,8 @@ class thena_voter_v3(web3wrap):
         Returns:
             bool: bool
         """
-        return self._contract.functions.isFactory(address).call(
-            block_identifier=self.block
+        return self.call_function_autoRpc(
+            "isFactory", None, Web3.toChecksumAddress(address)
         )
 
     def isGauge(self, address: str) -> bool:
@@ -1505,8 +1463,8 @@ class thena_voter_v3(web3wrap):
         Returns:
             bool: bool
         """
-        return self._contract.functions.isGauge(address).call(
-            block_identifier=self.block
+        return self.call_function_autoRpc(
+            "isGauge", None, Web3.toChecksumAddress(address)
         )
 
     def isGaugeFactory(self, address: str) -> bool:
@@ -1518,8 +1476,8 @@ class thena_voter_v3(web3wrap):
         Returns:
             bool: bool
         """
-        return self._contract.functions.isGaugeFactory(address).call(
-            block_identifier=self.block
+        return self.call_function_autoRpc(
+            "isGaugeFactory", None, Web3.toChecksumAddress(address)
         )
 
     def isWhitelisted(self, address: str) -> bool:
@@ -1531,8 +1489,8 @@ class thena_voter_v3(web3wrap):
         Returns:
             bool: bool
         """
-        return self._contract.functions.isWhitelisted(address).call(
-            block_identifier=self.block
+        return self.call_function_autoRpc(
+            "isWhitelisted", None, Web3.toChecksumAddress(address)
         )
 
     def lastVoted(self, index: int) -> int:
@@ -1544,9 +1502,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             int: uint256
         """
-        return self._contract.functions.lastVoted(index).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("lastVoted", None, index)
 
     @property
     def length(self) -> int:
@@ -1555,7 +1511,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             int: uint256
         """
-        return self._contract.functions.length().call(block_identifier=self.block)
+        return self.call_function_autoRpc("length")
 
     @property
     def minter(self) -> str:
@@ -1564,7 +1520,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             str: address
         """
-        return self._contract.functions.minter().call(block_identifier=self.block)
+        return self.call_function_autoRpc("minter")
 
     @property
     def owner(self) -> str:
@@ -1573,7 +1529,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             str: address
         """
-        return self._contract.functions.owner().call(block_identifier=self.block)
+        return self.call_function_autoRpc("owner")
 
     @property
     def permissionRegistry(self) -> str:
@@ -1582,9 +1538,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             str: address
         """
-        return self._contract.functions.permissionRegistry().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("permissionRegistry")
 
     def poolForGauge(self, address: str) -> str:
         """_summary_
@@ -1595,8 +1549,8 @@ class thena_voter_v3(web3wrap):
         Returns:
             str: address
         """
-        return self._contract.functions.poolForGauge(address).call(
-            block_identifier=self.block
+        return self.call_function_autoRpc(
+            "poolForGauge", None, Web3.toChecksumAddress(address)
         )
 
     def poolVote(self, input1: int, input2: int) -> str:
@@ -1609,9 +1563,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             str: address
         """
-        return self._contract.functions.poolVote(input1, input2).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("poolVote", None, input1, input2)
 
     def poolVoteLength(self, tokenId: int) -> int:
         """_summary_
@@ -1622,9 +1574,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             int: uint256
         """
-        return self._contract.functions.poolVoteLength(tokenId).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("poolVoteLength", None, tokenId)
 
     def pools(self, index: int) -> str:
         """_summary_
@@ -1635,7 +1585,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             str: address
         """
-        return self._contract.functions.pools(index).call(block_identifier=self.block)
+        return self.call_function_autoRpc("pools", None, index)
 
     @property
     def totalWeight(self) -> int:
@@ -1644,7 +1594,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             int: uint256
         """
-        return self._contract.functions.totalWeight().call(block_identifier=self.block)
+        return self.call_function_autoRpc("totalWeight")
 
     def totalWeightAt(self, time: int) -> int:
         """_summary_
@@ -1655,9 +1605,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             int: uint256
         """
-        return self._contract.functions.totalWeightAt(time).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("totalWeightAt", None, time)
 
     def usedWeights(self, index: int) -> int:
         """_summary_
@@ -1668,9 +1616,7 @@ class thena_voter_v3(web3wrap):
         Returns:
             int: uint256
         """
-        return self._contract.functions.usedWeights(index).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("usedWeights", None, index)
 
     def votes(self, index: int, address: str) -> int:
         """_summary_
@@ -1682,8 +1628,8 @@ class thena_voter_v3(web3wrap):
         Returns:
             int: uint256
         """
-        return self._contract.functions.votes(index, address).call(
-            block_identifier=self.block
+        return self.call_function_autoRpc(
+            "votes", None, index, Web3.toChecksumAddress(address)
         )
 
     def weights(self, pool_address: str) -> int:
@@ -1695,8 +1641,8 @@ class thena_voter_v3(web3wrap):
         Returns:
             int: uint256
         """
-        return self._contract.functions.weights(pool_address).call(
-            block_identifier=self.block
+        return self.call_function_autoRpc(
+            "weights", None, Web3.toChecksumAddress(pool_address)
         )
 
     def weightsAt(self, pool_address: str, time: int) -> int:
@@ -1709,8 +1655,8 @@ class thena_voter_v3(web3wrap):
         Returns:
             int: uint256
         """
-        return self._contract.functions.weightsAt(pool_address, time).call(
-            block_identifier=self.block
+        return self.call_function_autoRpc(
+            "weightsAt", None, Web3.toChecksumAddress(pool_address), time
         )
 
     # custom functions
@@ -1795,7 +1741,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             str: address
         """
-        return self._contract.functions.DISTRIBUTION().call(block_identifier=self.block)
+        return self.call_function_autoRpc("DISTRIBUTION")
 
     @property
     def duration(self) -> int:
@@ -1804,7 +1750,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             int: uint256
         """
-        return self._contract.functions.DURATION().call(block_identifier=self.block)
+        return self.call_function_autoRpc("DURATION")
 
     @property
     def token(self) -> str:
@@ -1813,7 +1759,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             str: address
         """
-        return self._contract.functions.TOKEN().call(block_identifier=self.block)
+        return self.call_function_autoRpc("TOKEN")
 
     @property
     def _ve(self) -> str:
@@ -1822,7 +1768,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             str: address
         """
-        return self._contract.functions._VE().call(block_identifier=self.block)
+        return self.call_function_autoRpc("_VE")
 
     def _balances(self, address: str) -> int:
         """_summary_
@@ -1833,8 +1779,8 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             int: uint256
         """
-        return self._contract.functions._balances(address).call(
-            block_identifier=self.block
+        return self.call_function_autoRpc(
+            "_balances", None, Web3.toChecksumAddress(address)
         )
 
     @property
@@ -1844,9 +1790,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             int: uint256
         """
-        return self._contract.functions._periodFinish().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("_periodFinish")
 
     @property
     def _totalSupply(self) -> int:
@@ -1855,7 +1799,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             int: uint256
         """
-        return self._contract.functions._totalSupply().call(block_identifier=self.block)
+        return self.call_function_autoRpc("_totalSupply")
 
     def balanceOf(self, address: str) -> int:
         """_summary_
@@ -1866,8 +1810,8 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             int: uint256
         """
-        return self._contract.functions.balanceOf(address).call(
-            block_identifier=self.block
+        return self.call_function_autoRpc(
+            "balanceOf", None, Web3.toChecksumAddress(address)
         )
 
     def earned(self, address: str) -> int:
@@ -1879,8 +1823,8 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             int: uint256
         """
-        return self._contract.functions.earned(address).call(
-            block_identifier=self.block
+        return self.call_function_autoRpc(
+            "earned", None, Web3.toChecksumAddress(address)
         )
 
     @property
@@ -1890,7 +1834,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             bool: bool
         """
-        return self._contract.functions.emergency().call(block_identifier=self.block)
+        return self.call_function_autoRpc("emergency")
 
     @property
     def external_bribe(self) -> str:
@@ -1899,9 +1843,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             str: address
         """
-        return self._contract.functions.external_bribe().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("external_bribe")
 
     @property
     def feeVault(self) -> str:
@@ -1910,7 +1852,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             str: address
         """
-        return self._contract.functions.feeVault().call(block_identifier=self.block)
+        return self.call_function_autoRpc("feeVault")
 
     @property
     def fees0(self) -> int:
@@ -1919,7 +1861,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             int: uint256
         """
-        return self._contract.functions.fees0().call(block_identifier=self.block)
+        return self.call_function_autoRpc("fees0")
 
     @property
     def fees1(self) -> int:
@@ -1928,7 +1870,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             int: uint256
         """
-        return self._contract.functions.fees1().call(block_identifier=self.block)
+        return self.call_function_autoRpc("fees1")
 
     @property
     def gaugeRewarder(self) -> str:
@@ -1937,9 +1879,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             str: address
         """
-        return self._contract.functions.gaugeRewarder().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("gaugeRewarder")
 
     @property
     def internal_bribe(self) -> str:
@@ -1948,9 +1888,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             str: address
         """
-        return self._contract.functions.internal_bribe().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("internal_bribe")
 
     @property
     def lastTimeRewardApplicable(self) -> int:
@@ -1959,9 +1897,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             int: uint256
         """
-        return self._contract.functions.lastTimeRewardApplicable().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("lastTimeRewardApplicable")
 
     @property
     def lastUpdateTime(self) -> int:
@@ -1970,9 +1906,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             int: uint256
         """
-        return self._contract.functions.lastUpdateTime().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("lastUpdateTime")
 
     @property
     def owner(self) -> str:
@@ -1981,7 +1915,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             str: address
         """
-        return self._contract.functions.owner().call(block_identifier=self.block)
+        return self.call_function_autoRpc("owner")
 
     @property
     def periodFinish(self) -> int:
@@ -1990,7 +1924,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             int: uint256
         """
-        return self._contract.functions.periodFinish().call(block_identifier=self.block)
+        return self.call_function_autoRpc("periodFinish")
 
     @property
     def rewardPerDuration(self) -> int:
@@ -1999,9 +1933,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             int: uint256
         """
-        return self._contract.functions.rewardPerDuration().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("rewardPerDuration")
 
     @property
     def rewardPerToken(self) -> int:
@@ -2010,9 +1942,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             int: uint256
         """
-        return self._contract.functions.rewardPerToken().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("rewardPerToken")
 
     @property
     def rewardPerTokenStored(self) -> int:
@@ -2021,9 +1951,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             int: uint256
         """
-        return self._contract.functions.rewardPerTokenStored().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("rewardPerTokenStored")
 
     @property
     def rewardRate(self) -> int:
@@ -2032,7 +1960,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             int: uint256
         """
-        return self._contract.functions.rewardRate().call(block_identifier=self.block)
+        return self.call_function_autoRpc("rewardRate")
 
     @property
     def rewardToken(self) -> str:
@@ -2041,7 +1969,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             str: address
         """
-        return self._contract.functions.rewardToken().call(block_identifier=self.block)
+        return self.call_function_autoRpc("rewardToken")
 
     @property
     def rewardPid(self) -> int:
@@ -2050,7 +1978,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             int: uint256
         """
-        return self._contract.functions.rewardPid().call(block_identifier=self.block)
+        return self.call_function_autoRpc("rewardPid")
 
     def rewards(self, address: str) -> int:
         """_summary_
@@ -2061,8 +1989,8 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             int: uint256
         """
-        return self._contract.functions.rewards(address).call(
-            block_identifier=self.block
+        return self.call_function_autoRpc(
+            "rewards", None, Web3.toChecksumAddress(address)
         )
 
     @property
@@ -2072,7 +2000,7 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             int: uint256
         """
-        return self._contract.functions.totalSupply().call(block_identifier=self.block)
+        return self.call_function_autoRpc("totalSupply")
 
     def userRewardPerTokenPaid(self, address: str) -> int:
         """_summary_
@@ -2083,8 +2011,8 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             int: uint256
         """
-        return self._contract.functions.userRewardPerTokenPaid(address).call(
-            block_identifier=self.block
+        return self.call_function_autoRpc(
+            "userRewardPerTokenPaid", None, Web3.toChecksumAddress(address)
         )
 
     # get all rewards

@@ -446,7 +446,7 @@ class web3wrap:
         return result
 
     # TODO: universal failover execute funcion
-    def call_function(self, function_name: str, rpcUrls: list[str], **kwargs):
+    def call_function(self, function_name: str, rpcUrls: list[str], *args):
         # loop choose url
         for rpcUrl in rpcUrls:
             try:
@@ -457,23 +457,55 @@ class web3wrap:
                     address=self._address, abi=self._abi
                 )
                 # execute function
-                return getattr(contract.functions, function_name)(**kwargs).call(
+                return getattr(contract.functions, function_name)(*args).call(
                     block_identifier=self.block
                 )
+
             except Exception as e:
                 # not working rpc
-                logging.getLogger(__name__).warning(f" error using {rpcUrl} rpc: {e}")
+                logging.getLogger(__name__).debug(
+                    f" error calling function {function_name} using {rpcUrl} rpc: {e}"
+                )
 
         # no rpcUrl worked
         return None
 
-    def call_function_publicRpc(self, function_name: str, **kwargs):
+    def call_function_autoRpc(
+        self,
+        function_name: str,
+        rpcKey_name: str | None = None,
+        *args,
+    ):
+        """Call a function using an RPC list from configuration file
+
+        Args:
+            function_name (str): contract function name to call
+            rpcKey_name (str): private or public or whatever is placed in config w3Providers
+            args: function arguments
+        Returns:
+            Any or None: depending on the function called
+        """
         # load public rpc url's
-        rpcUrls = []
-        random.shuffle(rpcUrls)
-        return self.call_function(
-            function_name=function_name, rpcUrls=rpcUrls, **kwargs
-        )
+        for key_name in rpcKey_name or CONFIGURATION["sources"].get(
+            "w3Providers_default_order", ["public", "pricate"]
+        ):
+            if (
+                rpcUrls := CONFIGURATION["sources"]
+                .get("w3Providers", {})
+                .get(key_name, {})
+                .get(self._network, [])
+            ):
+                random.shuffle(rpcUrls)
+
+                result = self.call_function(function_name, rpcUrls, *args)
+                if not result is None:
+                    return result
+                else:
+                    logging.getLogger(__name__).debug(
+                        f" Could not use any {key_name} rpcProvider calling function {function_name} on {self._network} network {self.address}"
+                    )
+
+        return None
 
 
 class erc20(web3wrap):
@@ -504,28 +536,31 @@ class erc20(web3wrap):
     # PROPERTIES
     @property
     def decimals(self) -> int:
-        return self._contract.functions.decimals().call()
+        return self.call_function_autoRpc(function_name="decimals")
 
     def balanceOf(self, address: str) -> int:
-        return self._contract.functions.balanceOf(Web3.toChecksumAddress(address)).call(
-            block_identifier=self.block
+        return self.call_function_autoRpc(
+            "balanceOf", None, Web3.toChecksumAddress(address)
         )
 
     @property
     def totalSupply(self) -> int:
-        return self._contract.functions.totalSupply().call(block_identifier=self.block)
+        return self.call_function_autoRpc(function_name="totalSupply")
 
     @property
     def symbol(self) -> str:
         # MKR special: ( has a too large for python int )
         if self.address == "0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2":
             return "MKR"
-        return self._contract.functions.symbol().call()
+        return self.call_function_autoRpc(function_name="symbol")
 
     def allowance(self, owner: str, spender: str) -> int:
-        return self._contract.functions.allowance(
-            Web3.toChecksumAddress(owner), Web3.toChecksumAddress(spender)
-        ).call(block_identifier=self.block)
+        return self.call_function_autoRpc(
+            "allowance",
+            None,
+            Web3.toChecksumAddress(owner),
+            Web3.toChecksumAddress(spender),
+        )
 
     def as_dict(self, convert_bint=False) -> dict:
         """as_dict _summary_
