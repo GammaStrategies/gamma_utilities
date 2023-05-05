@@ -56,41 +56,33 @@ class gamma_masterchef_rewarder(gamma_rewarder):
 
     @property
     def acc_token_precision(self) -> int:
-        return self._contract.functions.ACC_TOKEN_PRECISION().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("ACC_TOKEN_PRECISION")
 
     @property
     def masterchef_v2(self) -> str:
-        return self._contract.functions.MASTERCHEF_V2().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("MASTERCHEF_V2")
 
     @property
     def funder(self) -> str:
-        return self._contract.functions.funder().call(block_identifier=self.block)
+        return self.call_function_autoRpc("funder")
 
     @property
     def owner(self) -> str:
-        return self._contract.functions.owner().call(block_identifier=self.block)
+        return self.call_function_autoRpc("owner")
 
     @property
     def pendingOwner(self) -> str:
-        return self._contract.functions.pendingOwner().call(block_identifier=self.block)
+        return self.call_function_autoRpc("pendingOwner")
 
     def pendingToken(self, pid: int, user: str) -> int:
-        return self._contract.functions.pendingToken(pid, user).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("pendingToken", None, pid, user)
 
     def pendingTokens(self, pid: int, user: str, input: int) -> tuple[list, list]:
         # rewardTokens address[], rewardAmounts uint256[]
-        return self._contract.functions.pendingTokens(pid, user, input).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("pendingTokens", None, pid, user, input)
 
     def poolIds(self, input: int) -> int:
-        return self._contract.functions.poolIds(input).call(block_identifier=self.block)
+        return self.call_function_autoRpc("poolIds", None, input)
 
     def poolInfo(self, input: int) -> tuple[int, int, int]:
         """_summary_
@@ -104,23 +96,19 @@ class gamma_masterchef_rewarder(gamma_rewarder):
                 lastRewardBlock — number of block, when the reward in the pool was the last time calculated
                 allocPoint — allocation points assigned to the pool. SUSHI to distribute per block per pool = SUSHI per block * pool.allocPoint / totalAllocPoint
         """
-        return self._contract.functions.poolInfo(input).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("poolInfo", None, input)
 
     @property
     def poolLength(self) -> int:
-        return self._contract.functions.poolLength().call(block_identifier=self.block)
+        return self.call_function_autoRpc("poolLength")
 
     @property
     def rewardPerSecond(self) -> int:
-        return self._contract.functions.rewardPerSecond().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("rewardPerSecond")
 
     @property
     def rewardToken(self) -> str:
-        return self._contract.functions.rewardToken().call(block_identifier=self.block)
+        return self.call_function_autoRpc("rewardToken")
 
     @property
     def totalAllocPoint(self) -> int:
@@ -129,9 +117,7 @@ class gamma_masterchef_rewarder(gamma_rewarder):
         Returns:
             int: totalAllocPoint
         """
-        return self._contract.functions.totalAllocPoint().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("totalAllocPoint")
 
     def userInfo(self, pid: int, user: str) -> tuple[int, int]:
         """_summary_
@@ -146,9 +132,7 @@ class gamma_masterchef_rewarder(gamma_rewarder):
                     rewardDebt — the amount of SUSHI entitled to the user
 
         """
-        return self._contract.functions.userInfo(pid, user).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("userInfo", None, pid, user)
 
     # CUSTOM
     def as_dict(self, convert_bint=False, static_mode: bool = False) -> dict:
@@ -225,7 +209,7 @@ class gamma_masterchef_v1(gamma_rewarder):
         Returns:
             str: token address
         """
-        return self._contract.functions.SUSHI().call(block_identifier=self.block)
+        return self.call_function_autoRpc("SUSHI")
 
     def getRewarder(self, pid: int, rid: int) -> str:
         """Retrieve rewarder address from masterchef
@@ -237,9 +221,7 @@ class gamma_masterchef_v1(gamma_rewarder):
         Returns:
             str: address
         """
-        return self._contract.functions.getRewarder(pid, rid).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("getRewarder", None, pid, rid)
 
     def lpToken(self, pid: int) -> str:
         """Retrieve lp token address (hypervisor) from masterchef
@@ -250,17 +232,16 @@ class gamma_masterchef_v1(gamma_rewarder):
         Returns:
             str:  hypervisor address ( LP token)
         """
-        return self._contract.functions.lpToken(pid).call(block_identifier=self.block)
+        return self.call_function_autoRpc("lpToken", None, pid)
 
     @property
     def owner(self) -> str:
-        return self._contract.functions.owner().call(block_identifier=self.block)
+        return self.call_function_autoRpc("owner")
 
     @property
     def pendingOwner(self) -> str:
-        return self._contract.functions.owner().call(block_identifier=self.block)
+        return self.call_function_autoRpc("pendingOwner")
 
-    @property
     def pendingSushi(self, pid: int, user: str) -> int:
         """pending SUSHI reward for a given user
 
@@ -271,19 +252,18 @@ class gamma_masterchef_v1(gamma_rewarder):
         Returns:
             int: _description_
         """
-        return self._contract.functions.pendingSushi(pid, user).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("pendingSushi", None, pid, user)
 
     def poolInfo(
         self,
+        pid: int,
     ) -> tuple[int, int, int]:
         """_summary_
 
         Returns:
             tuple[int,int,int]:  accSushiPerShare uint128, lastRewardTime uint64, allocPoint uint64
         """
-        return self._contract.functions.poolInfo().call(block_identifier=self.block)
+        return self.call_function_autoRpc("poolInfo", None, pid)
 
     @property
     def poolLength(self) -> int:
@@ -291,7 +271,7 @@ class gamma_masterchef_v1(gamma_rewarder):
         Returns:
             int:
         """
-        return self._contract.functions.poolLength().call(block_identifier=self.block)
+        return self.call_function_autoRpc("poolLength")
 
 
 # Gamma's Quickswap masterchef v2 ( Farmv3 )
@@ -331,9 +311,7 @@ class gamma_masterchef_v2(gamma_rewarder):
         Returns:
             int: _description_
         """
-        return self._contract.functions.deposited(pid, user).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("deposited", None, pid, user)
 
     @property
     def endTimestamp(self) -> int:
@@ -342,7 +320,7 @@ class gamma_masterchef_v2(gamma_rewarder):
         Returns:
             int: _description_
         """
-        return self._contract.functions.endTimestamp().call(block_identifier=self.block)
+        return self.call_function_autoRpc("endTimestamp")
 
     @property
     def erc20(self) -> str:
@@ -351,7 +329,7 @@ class gamma_masterchef_v2(gamma_rewarder):
         Returns:
             str: address
         """
-        return self._contract.functions.erc20().call(block_identifier=self.block)
+        return self.call_function_autoRpc("erc20")
 
     @property
     def feeAddress(self) -> str:
@@ -360,7 +338,7 @@ class gamma_masterchef_v2(gamma_rewarder):
         Returns:
             str: address
         """
-        return self._contract.functions.feeAddress().call(block_identifier=self.block)
+        return self.call_function_autoRpc("feeAddress")
 
     @property
     def owner(self) -> str:
@@ -369,7 +347,7 @@ class gamma_masterchef_v2(gamma_rewarder):
         Returns:
             str: address
         """
-        return self._contract.functions.owner().call(block_identifier=self.block)
+        return self.call_function_autoRpc("owner")
 
     @property
     def paidOut(self) -> int:
@@ -378,7 +356,7 @@ class gamma_masterchef_v2(gamma_rewarder):
         Returns:
             int: _description_
         """
-        return self._contract.functions.paidOut().call(block_identifier=self.block)
+        return self.call_function_autoRpc("paidOut")
 
     def pending(self, pid: int, user: str) -> int:
         """_summary_
@@ -390,9 +368,7 @@ class gamma_masterchef_v2(gamma_rewarder):
         Returns:
             int: _description_
         """
-        return self._contract.functions.pending(pid, user).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("pending", None, pid, user)
 
     def poolInfo(self, pid: int) -> tuple[str, int, int, int, int]:
         """_summary_
@@ -408,7 +384,7 @@ class gamma_masterchef_v2(gamma_rewarder):
                 accERC20PerShare uint256,
                 depositFeeBP uint16
         """
-        return self._contract.functions.poolInfo(pid).call(block_identifier=self.block)
+        return self.call_function_autoRpc("poolInfo", None, pid)
 
     @property
     def poolLength(self) -> int:
@@ -417,7 +393,7 @@ class gamma_masterchef_v2(gamma_rewarder):
         Returns:
             int: uint256
         """
-        return self._contract.functions.poolLength().call(block_identifier=self.block)
+        return self.call_function_autoRpc("poolLength")
 
     @property
     def rewardPerSecond(self) -> int:
@@ -426,9 +402,7 @@ class gamma_masterchef_v2(gamma_rewarder):
         Returns:
             int: uint256
         """
-        return self._contract.functions.rewardPerSecond().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("rewardPerSecond")
 
     @property
     def startTimestamp(self) -> int:
@@ -437,9 +411,7 @@ class gamma_masterchef_v2(gamma_rewarder):
         Returns:
             int: uint256
         """
-        return self._contract.functions.startTimestamp().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("startTimestamp")
 
     @property
     def totalAllocPoint(self) -> int:
@@ -448,9 +420,7 @@ class gamma_masterchef_v2(gamma_rewarder):
         Returns:
             int: uint256
         """
-        return self._contract.functions.totalAllocPoint().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("totalAllocPoint")
 
     def userInfo(self, pid: int, user: str) -> tuple[int, int]:
         """_summary_
@@ -464,9 +434,7 @@ class gamma_masterchef_v2(gamma_rewarder):
                 amount uint256,
                 rewardDebt uint256
         """
-        return self._contract.functions.userInfo(pid, user).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("userInfo", None, pid, user)
 
     # get all rewards
     def get_rewards(
@@ -591,7 +559,7 @@ class gamma_masterchef_registry(web3wrap):
         Returns:
             int: positions of hypervisors in registry
         """
-        return self._contract.functions.counter().call(block_identifier=self.block)
+        return self.call_function_autoRpc("counter")
 
     def hypeByIndex(self, index: int) -> tuple[str, int]:
         """Retrieve hype address and index from registry
@@ -603,23 +571,19 @@ class gamma_masterchef_registry(web3wrap):
         Returns:
             tuple[str, int]: hype address and index
         """
-        return self._contract.functions.hypeByIndex(index).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("hypeByIndex", None, index)
 
     @property
     def owner(self) -> str:
-        return self._contract.functions.owner().call(block_identifier=self.block)
+        return self.call_function_autoRpc("owner")
 
     def registry(self, index: int) -> str:
-        return self._contract.functions.registry(index).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("registry", None, index)
 
     def registryMap(self, address: str) -> int:
-        return self._contract.functions.registryMap(
-            Web3.toChecksumAddress(address)
-        ).call(block_identifier=self.block)
+        return self.call_function_autoRpc(
+            "registryMap", None, Web3.toChecksumAddress(address)
+        )
 
     # CUSTOM FUNCTIONS
 
@@ -710,36 +674,32 @@ class zyberswap_masterchef_rewarder(gamma_rewarder):
         )
 
     def _getTimeElapsed(self, _from: int, _to: int, _endTimestamp: int) -> int:
-        return self._contract.functions._getTimeElapsed(_from, _to, _endTimestamp).call(
-            block_identifier=self.block
+        return self.call_function_autoRpc(
+            "_getTimeElapsed", None, _from, _to, _endTimestamp
         )
 
     def currentTimestamp(self, pid: int) -> int:
-        return self._contract.functions._getTimeElapsed(pid).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("currentTimestamp", None, pid)
 
     @property
     def distributorV2(self) -> str:
-        return self._contract.functions.distributorV2().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("distributorV2")
 
     @property
     def isNative(self) -> bool:
-        return self._contract.functions.isNative().call(block_identifier=self.block)
+        return self.call_function_autoRpc("isNative")
 
     @property
     def owner(self) -> str:
-        return self._contract.functions.owner().call(block_identifier=self.block)
+        return self.call_function_autoRpc("owner")
 
     def pendingTokens(self, pid: int, user: str) -> int:
-        return self._contract.functions.pendingTokens(pid, user).call(
-            block_identifier=self.block
+        return self.call_function_autoRpc(
+            "pendingTokens", None, pid, Web3.toChecksumAddress(user)
         )
 
     def poolIds(self, input: int) -> int:
-        return self._contract.functions.poolIds(input).call(block_identifier=self.block)
+        return self.call_function_autoRpc("poolIds", None, input)
 
     def poolInfo(self, pid: int) -> tuple[int, int, int, int, int]:
         """
@@ -755,7 +715,7 @@ class zyberswap_masterchef_rewarder(gamma_rewarder):
                 allocPoint uint256 — allocation points assigned to the pool.
                 totalRewards uint256 — total rewards for the pool
         """
-        return self._contract.functions.poolInfo(pid).call(block_identifier=self.block)
+        return self.call_function_autoRpc("poolInfo", None, pid)
 
     def poolRewardInfo(self, input1: int, input2: int) -> tuple[int, int, int]:
         """_summary_
@@ -767,24 +727,18 @@ class zyberswap_masterchef_rewarder(gamma_rewarder):
         Returns:
             tuple[int,int,int]:  startTimestamp uint256, endTimestamp uint256, rewardPerSec uint256
         """
-        return self._contract.functions.poolRewardInfo(input1, input2).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("poolRewardInfo", None, input1, input2)
 
     def poolRewardsPerSec(self, pid: int) -> int:
-        return self._contract.functions.poolRewardsPerSec(pid).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("poolRewardsPerSec", None, pid)
 
     @property
     def rewardInfoLimit(self) -> int:
-        return self._contract.functions.rewardInfoLimit().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("rewardInfoLimit")
 
     @property
     def rewardToken(self) -> str:
-        return self._contract.functions.rewardToken().call(block_identifier=self.block)
+        return self.call_function_autoRpc("rewardToken")
 
     @property
     def totalAllocPoint(self) -> int:
@@ -793,9 +747,7 @@ class zyberswap_masterchef_rewarder(gamma_rewarder):
         Returns:
             int: totalAllocPoint
         """
-        return self._contract.functions.totalAllocPoint().call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("totalAllocPoint")
 
     def userInfo(self, pid: int, user: str) -> tuple[int, int]:
         """_summary_
@@ -810,9 +762,7 @@ class zyberswap_masterchef_rewarder(gamma_rewarder):
                     rewardDebt — the amount of SUSHI entitled to the user
 
         """
-        return self._contract.functions.userInfo(pid, user).call(
-            block_identifier=self.block
-        )
+        return self.call_function_autoRpc("userInfo", None, pid, user)
 
     # CUSTOM
     def as_dict(self, convert_bint=False, static_mode: bool = False) -> dict:
