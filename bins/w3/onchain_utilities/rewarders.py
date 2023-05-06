@@ -1128,41 +1128,40 @@ class zyberswap_masterchef_v1(gamma_rewarder):
 
         for pid in pids or range(self.poolLength):
             # lpToken address, allocPoint uint256, lastRewardTimestamp uint256, accZyberPerShare uint256, depositFeeBP uint16, harvestInterval uint256, totalLp uint256
-            pinfo = self.poolInfo(pid)
+            if pinfo := self.poolInfo(pid):
+                if not hypervisor_addresses or pinfo[0].lower() in hypervisor_addresses:
+                    # addresses address[], symbols string[], decimals uint256[], rewardsPerSec uint256[]
+                    poolRewardsPerSec = self.poolRewardsPerSec(pid)
 
-            if not hypervisor_addresses or pinfo[0].lower() in hypervisor_addresses:
-                # addresses address[], symbols string[], decimals uint256[], rewardsPerSec uint256[]
-                poolRewardsPerSec = self.poolRewardsPerSec(pid)
-
-                # get rewards data
-                rewards = {}
-                for address, symbol, decimals, rewardsPerSec in zip(
-                    poolRewardsPerSec[0],
-                    poolRewardsPerSec[1],
-                    poolRewardsPerSec[2],
-                    poolRewardsPerSec[3],
-                ):
-                    if rewardsPerSec:
-                        result.append(
-                            {
-                                "network": self._network,
-                                "block": self.block,
-                                "timestamp": self._timestamp,
-                                "hypervisor_address": pinfo[0].lower(),
-                                "rewarder_address": self.address,
-                                "rewarder_type": "zyberswap_masterchef_v1",
-                                "rewarder_refIds": [pid],
-                                "rewardToken": address,
-                                "rewardToken_symbol": symbol,
-                                "rewardToken_decimals": decimals,
-                                "rewards_perSecond": str(rewardsPerSec)
-                                if convert_bint
-                                else rewardsPerSec,
-                                "total_hypervisorToken_qtty": str(pinfo[6])
-                                if convert_bint
-                                else pinfo[6],
-                            }
-                        )
+                    # get rewards data
+                    rewards = {}
+                    for address, symbol, decimals, rewardsPerSec in zip(
+                        poolRewardsPerSec[0],
+                        poolRewardsPerSec[1],
+                        poolRewardsPerSec[2],
+                        poolRewardsPerSec[3],
+                    ):
+                        if rewardsPerSec:
+                            result.append(
+                                {
+                                    "network": self._network,
+                                    "block": self.block,
+                                    "timestamp": self._timestamp,
+                                    "hypervisor_address": pinfo[0].lower(),
+                                    "rewarder_address": self.address,
+                                    "rewarder_type": "zyberswap_masterchef_v1",
+                                    "rewarder_refIds": [pid],
+                                    "rewardToken": address,
+                                    "rewardToken_symbol": symbol,
+                                    "rewardToken_decimals": decimals,
+                                    "rewards_perSecond": str(rewardsPerSec)
+                                    if convert_bint
+                                    else rewardsPerSec,
+                                    "total_hypervisorToken_qtty": str(pinfo[6])
+                                    if convert_bint
+                                    else pinfo[6],
+                                }
+                            )
 
         return result
 
