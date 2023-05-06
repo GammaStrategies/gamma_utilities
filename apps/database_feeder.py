@@ -86,7 +86,7 @@ def feed_hypervisor_static(
 
     # hypervisor addresses to process
     hypervisor_addresses = _get_static_hypervisor_addresses_to_process(
-        local_db=local_db, protocol=protocol, network=network, dex=dex, rewrite=rewrite
+        protocol=protocol, network=network, dex=dex, rewrite=rewrite
     )
 
     # set log list of hypervisors with errors
@@ -146,46 +146,54 @@ def feed_hypervisor_static(
 
 # TODO: change gamma_hypervisor_registry to generic
 def _get_hypervisors_from_registry(
-    gamma_registry: gamma_hypervisor_registry, protocol: str = "gamma"
+    network: str, dex: str, protocol: str = "gamma", block: int = 0
 ) -> list:
     try:
-        return _get_hypervisors_from_registry_worker(gamma_registry, protocol)
+        # create registry
+        registry_address = (
+            STATIC_REGISTRY_ADDRESSES.get(network, {})
+            .get("hypervisors", {})
+            .get(dex, None)
+        )
+        gamma_registry = gamma_hypervisor_registry(
+            address=registry_address,
+            network=network,
+            block=block,
+        )
+
+        # get hypes
+        hypervisor_addresses_registry: list = gamma_registry.get_hypervisors_addresses()
+
+        # apply filters
+        filters: dict = (
+            CONFIGURATION["script"]["protocols"].get(protocol, {}).get("filters", {})
+        )
+        hypes_not_included: list = [
+            x.lower()
+            for x in filters.get("hypervisors_not_included", {}).get(
+                gamma_registry._network, []
+            )
+        ]
+
+        logging.getLogger(__name__).debug(
+            f"   excluding hypervisors: {hypes_not_included}"
+        )
+        hypervisor_addresses_registry = [
+            x for x in hypervisor_addresses_registry if x not in hypes_not_included
+        ]
+
+        return hypervisor_addresses_registry
 
     except ValueError as err:
         logging.getLogger(__name__).error(
             f" Error while fetching hypes from {gamma_registry._network} registry   .error: {sys.exc_info()[0]}"
         )
-        # return an empty hype address list
-        return []
 
-
-def _get_hypervisors_from_registry_worker(
-    gamma_registry: gamma_hypervisor_registry, protocol
-):
-    # get hypes
-    hypervisor_addresses_registry: list = gamma_registry.get_hypervisors_addresses()
-
-    # apply filters
-    filters: dict = (
-        CONFIGURATION["script"]["protocols"].get(protocol, {}).get("filters", {})
-    )
-    hypes_not_included: list = [
-        x.lower()
-        for x in filters.get("hypervisors_not_included", {}).get(
-            gamma_registry._network, []
-        )
-    ]
-
-    logging.getLogger(__name__).debug(f"   excluding hypervisors: {hypes_not_included}")
-    hypervisor_addresses_registry = [
-        x for x in hypervisor_addresses_registry if x not in hypes_not_included
-    ]
-
-    return hypervisor_addresses_registry
+    # return an empty hype address list
+    return []
 
 
 def _get_static_hypervisor_addresses_to_process(
-    local_db: database_local,
     protocol: str,
     network: str,
     dex: str,
@@ -204,14 +212,17 @@ def _get_static_hypervisor_addresses_to_process(
     logging.getLogger(__name__).debug(
         f"   Retrieving {network} hypervisors addresses from database"
     )
+    # debug variables
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    # set local database name and create manager
+    local_db = database_local(mongo_url=mongo_url, db_name=f"{network}_{protocol}")
+
     hypervisor_addresses_database = local_db.get_distinct_items_from_database(
         collection_name="static", field="address"
     )
     # use public RPCs
     hypervisor_addresses_registry = _get_hypervisors_from_registry(
-        gamma_registry=_build_hypervisor_registry(
-            network=network, dex=dex, publicRPC=True
-        )
+        network=network, dex=dex, protocol=protocol
     )
 
     result = []
@@ -232,45 +243,6 @@ def _get_static_hypervisor_addresses_to_process(
         )
 
     return result
-
-
-def _build_hypervisor_registry(
-    network: str, dex: str, publicRPC: bool = False
-) -> gamma_hypervisor_registry:
-    address = (
-        STATIC_REGISTRY_ADDRESSES.get(network, {}).get("hypervisors", {}).get(dex, None)
-    )
-    """ Will try to build a gamma_hypervisor_registry object using public RPCs. If it fails, it will use private RPCs
-
-    Returns:
-        gamma hype registry:
-    """
-    if publicRPC:
-        for rpcURL in RPC_URLS[network]:
-            try:
-                registry = gamma_hypervisor_registry(
-                    address=address,
-                    network=network,
-                    custom_web3Url=rpcURL,
-                )
-
-                # test if works
-                registry._contract.functions.counter().call()
-
-                # return working
-                return registry
-            except Exception as err:
-                logging.getLogger(__name__).warning(
-                    f"     RPC {rpcURL} could not be used. error: {err}"
-                )
-
-    logging.getLogger(__name__).warning(
-        f"public RPC source could not be used for {network} hypervisors addresses retrieval. Using private's."
-    )
-    return gamma_hypervisor_registry(
-        address=address,
-        network=network,
-    )
 
 
 def feed_operations(
@@ -741,38 +713,6 @@ def create_db_hypervisor(
         )
 
     return None
-
-
-# def create_db_hypervisor_publicRPCs(
-#     address: str,
-#     network: str,
-#     block: int,
-#     dex: str,
-#     static_mode=False,
-# ) -> dict():
-#     try:
-#         hypervisor = build_hypervisor_anyRpc(
-#             network=network,
-#             dex=dex,
-#             block=block,
-#             hypervisor_address=address,
-#             rpcUrls=RPC_URLS[network],
-#             test=True,
-#             cached=False,
-#         )
-#         # return converted hypervisor
-#         return hypervisor.as_dict(convert_bint=True, static_mode=static_mode)
-#     except Exception as e:
-#         logging.getLogger(__name__).warning(
-#             f" Unexpected error while converting {network}'s hypervisor {address} [dex: {dex}] at block {block}] to dictionary using public RPC ->    error:{e}"
-#         )
-
-#     logging.getLogger(__name__).warning(
-#         f" Could not use a public RPC endpoint. Using private."
-#     )
-#     return create_db_hypervisor(
-#         address=address, network=network, block=block, dex=dex, static_mode=static_mode
-#     )
 
 
 ### Prices ######################
