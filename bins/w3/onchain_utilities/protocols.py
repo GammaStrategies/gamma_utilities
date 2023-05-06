@@ -1636,6 +1636,17 @@ class gamma_hypervisor_registry(web3wrap):
 
         return result
 
+    def apply_blacklist(self, blacklist: list[str]):
+        """Save filters to be applied to the registry
+
+        Args:
+            blacklist (list[str]): list of addresses to blacklist
+        """
+        if self._network not in self.__blacklist_addresses:
+            self.__blacklist_addresses[self._network] = blacklist
+        else:
+            self.__blacklist_addresses[self._network] += blacklist
+
 
 #
 #
