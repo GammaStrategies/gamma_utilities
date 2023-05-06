@@ -103,22 +103,14 @@ class univ3_pool(web3wrap):
                    tokensOwed0   uint128 :  0
                    tokensOwed1   uint128 :  0
         """
-        if result := self.call_function_autoRpc("positions", None, position_key):
-            return {
-                "liquidity": result[0],
-                "feeGrowthInside0LastX128": result[1],
-                "feeGrowthInside1LastX128": result[2],
-                "tokensOwed0": result[3],
-                "tokensOwed1": result[4],
-            }
-        else:
-            return {
-                "liquidity": 0,
-                "feeGrowthInside0LastX128": 0,
-                "feeGrowthInside1LastX128": 0,
-                "tokensOwed0": 0,
-                "tokensOwed1": 0,
-            }
+        result = self.call_function_autoRpc("positions", None, position_key)
+        return {
+            "liquidity": result[0],
+            "feeGrowthInside0LastX128": result[1],
+            "feeGrowthInside1LastX128": result[2],
+            "tokensOwed0": result[3],
+            "tokensOwed1": result[4],
+        }
 
     @property
     def protocolFees(self) -> list[int]:
