@@ -98,9 +98,7 @@ def feed_hypervisor_static(
                 (address, network, 0, dex, True) for address in hypervisor_addresses
             )
             with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-                for result in ex.map(
-                    lambda p: create_db_hypervisor_publicRPCs(*p), args
-                ):
+                for result in ex.map(lambda p: create_db_hypervisor(*p), args):
                     if result:
                         # progress
                         progress_bar.set_description(
@@ -119,7 +117,7 @@ def feed_hypervisor_static(
             for address in hypervisor_addresses:
                 progress_bar.set_description(f" 0x..{address[-4:]} to be processed")
                 progress_bar.refresh()
-                if result := create_db_hypervisor_publicRPCs(
+                if result := create_db_hypervisor(
                     address=address,
                     network=network,
                     block=0,
@@ -745,36 +743,36 @@ def create_db_hypervisor(
     return None
 
 
-def create_db_hypervisor_publicRPCs(
-    address: str,
-    network: str,
-    block: int,
-    dex: str,
-    static_mode=False,
-) -> dict():
-    try:
-        hypervisor = build_hypervisor_anyRpc(
-            network=network,
-            dex=dex,
-            block=block,
-            hypervisor_address=address,
-            rpcUrls=RPC_URLS[network],
-            test=True,
-            cached=False,
-        )
-        # return converted hypervisor
-        return hypervisor.as_dict(convert_bint=True, static_mode=static_mode)
-    except Exception:
-        logging.getLogger(__name__).warning(
-            f" Unexpected error while converting {network}'s hypervisor {address} [dex: {dex}] at block {block}] to dictionary using public RPC ->    error:{sys.exc_info()[0]}"
-        )
+# def create_db_hypervisor_publicRPCs(
+#     address: str,
+#     network: str,
+#     block: int,
+#     dex: str,
+#     static_mode=False,
+# ) -> dict():
+#     try:
+#         hypervisor = build_hypervisor_anyRpc(
+#             network=network,
+#             dex=dex,
+#             block=block,
+#             hypervisor_address=address,
+#             rpcUrls=RPC_URLS[network],
+#             test=True,
+#             cached=False,
+#         )
+#         # return converted hypervisor
+#         return hypervisor.as_dict(convert_bint=True, static_mode=static_mode)
+#     except Exception as e:
+#         logging.getLogger(__name__).warning(
+#             f" Unexpected error while converting {network}'s hypervisor {address} [dex: {dex}] at block {block}] to dictionary using public RPC ->    error:{e}"
+#         )
 
-    logging.getLogger(__name__).warning(
-        f" Could not use a public RPC endpoint to get {network}'s hypervisor {address} [dex: {dex}] at block {block}] to dictionary. Using private."
-    )
-    return create_db_hypervisor(
-        address=address, network=network, block=block, dex=dex, static_mode=static_mode
-    )
+#     logging.getLogger(__name__).warning(
+#         f" Could not use a public RPC endpoint. Using private."
+#     )
+#     return create_db_hypervisor(
+#         address=address, network=network, block=block, dex=dex, static_mode=static_mode
+#     )
 
 
 ### Prices ######################
