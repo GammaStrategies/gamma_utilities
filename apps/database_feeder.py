@@ -1694,54 +1694,60 @@ def feed_rewards_status_loop(rewarder_static: dict):
 
         for reward_data in rewards_data:
             # token_prices
-            rewardToken_price = get_price(
-                network=network,
-                block=hypervisor_status["block"],
-                token_address=rewarder_static["rewardToken"],
-            )
-            hype_token0_price = get_price(
-                network=network,
-                block=hypervisor_status["block"],
-                token_address=hypervisor_status["pool"]["token0"]["address"],
-            )
-            hype_token1_price = get_price(
-                network=network,
-                block=hypervisor_status["block"],
-                token_address=hypervisor_status["pool"]["token1"]["address"],
-            )
-            # hypervisor price per share
-            hype_total0 = int(hypervisor_status["totalAmounts"]["total0"]) / (
-                10 ** hypervisor_status["pool"]["token0"]["decimals"]
-            )
-            hype_total1 = int(hypervisor_status["totalAmounts"]["total1"]) / (
-                10 ** hypervisor_status["pool"]["token1"]["decimals"]
-            )
-            hype_price_per_share = (
-                hype_token0_price * hype_total0 + hype_token1_price * hype_total1
-            ) / (
-                int(hypervisor_status["totalSupply"])
-                / (10 ** hypervisor_status["decimals"])
-            )
+            try:
+                rewardToken_price = get_price(
+                    network=network,
+                    block=hypervisor_status["block"],
+                    token_address=rewarder_static["rewardToken"],
+                )
+                hype_token0_price = get_price(
+                    network=network,
+                    block=hypervisor_status["block"],
+                    token_address=hypervisor_status["pool"]["token0"]["address"],
+                )
+                hype_token1_price = get_price(
+                    network=network,
+                    block=hypervisor_status["block"],
+                    token_address=hypervisor_status["pool"]["token1"]["address"],
+                )
+                # hypervisor price per share
+                hype_total0 = int(hypervisor_status["totalAmounts"]["total0"]) / (
+                    10 ** hypervisor_status["pool"]["token0"]["decimals"]
+                )
+                hype_total1 = int(hypervisor_status["totalAmounts"]["total1"]) / (
+                    10 ** hypervisor_status["pool"]["token1"]["decimals"]
+                )
+                hype_price_per_share = (
+                    hype_token0_price * hype_total0 + hype_token1_price * hype_total1
+                ) / (
+                    int(hypervisor_status["totalSupply"])
+                    / (10 ** hypervisor_status["decimals"])
+                )
 
-            apr = calculate_rewards_apr(
-                token_price=rewardToken_price,
-                token_reward_rate=int(reward_data["rewards_perSecond"])
-                / (10 ** reward_data["rewardToken_decimals"]),
-                total_lp_locked=int(reward_data["total_hypervisorToken_qtty"])
-                / (10 ** hypervisor_status["decimals"]),
-                lp_token_price=hype_price_per_share,
-            )
+                apr = calculate_rewards_apr(
+                    token_price=rewardToken_price,
+                    token_reward_rate=int(reward_data["rewards_perSecond"])
+                    / (10 ** reward_data["rewardToken_decimals"]),
+                    total_lp_locked=int(reward_data["total_hypervisorToken_qtty"])
+                    / (10 ** hypervisor_status["decimals"]),
+                    lp_token_price=hype_price_per_share,
+                )
 
-            # add status fields ( APR )
-            reward_data["hypervisor_symbol"] = hypervisor_status["symbol"]
-            reward_data["dex"] = hypervisor_status["dex"]
-            reward_data["apr"] = apr
-            reward_data["rewardToken_price_usd"] = rewardToken_price
-            reward_data["token0_price_usd"] = hype_token0_price
-            reward_data["token1_price_usd"] = hype_token1_price
-            reward_data["hypervisor_share_price_usd"] = hype_price_per_share
+                # add status fields ( APR )
+                reward_data["hypervisor_symbol"] = hypervisor_status["symbol"]
+                reward_data["dex"] = hypervisor_status["dex"]
+                reward_data["apr"] = apr
+                reward_data["rewardToken_price_usd"] = rewardToken_price
+                reward_data["token0_price_usd"] = hype_token0_price
+                reward_data["token1_price_usd"] = hype_token1_price
+                reward_data["hypervisor_share_price_usd"] = hype_price_per_share
 
-            result.append(reward_data)
+                result.append(reward_data)
+
+            except Exception as e:
+                logging.getLogger(__name__).error(
+                    f" Rewards-> {network}'s {rewarder_static['rewardToken']} price at block {hypervisor_status['block']} could not be calculated. Error: {e}"
+                )
 
     return result
 
