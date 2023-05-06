@@ -61,6 +61,7 @@ def parse_commandLine_args():
     # debug
     par_main.add_argument(
         "--debug",
+        action="store_true",
         help=" debug mode",
     )
 

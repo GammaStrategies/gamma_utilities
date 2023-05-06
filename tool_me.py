@@ -3,6 +3,8 @@ import sys
 import logging
 from datetime import datetime, timezone
 
+from bins.log import log_helper
+
 # set working directory the script's
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
@@ -19,7 +21,6 @@ from apps import (
 
 # START ####################################################################################################################
 if __name__ == "__main__":
-
     print(f" Python version: {sys.version}")
 
     __module_name = " Gamma tools"
@@ -31,6 +32,16 @@ if __name__ == "__main__":
 
     # start time log
     _startime = datetime.now(timezone.utc)
+
+    # cml debug mode ?
+    if CONFIGURATION["_custom_"]["cml_parameters"].debug:
+        try:
+            # set log level
+            CONFIGURATION["logs"]["level"] = "DEBUG"
+            # reload configuration
+            log_helper.setup_logging(customconf=CONFIGURATION)
+        except Exception as e:
+            logging.getLogger(__name__).error(f" Can't set cml debug mode. Error: {e} ")
 
     # convert datetimes if exist
     if CONFIGURATION["_custom_"]["cml_parameters"].ini_datetime:
