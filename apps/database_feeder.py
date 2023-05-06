@@ -14,7 +14,6 @@ from web3.exceptions import ContractLogicError
 from bins.configuration import (
     CONFIGURATION,
     STATIC_REGISTRY_ADDRESSES,
-    RPC_URLS,
     add_to_memory,
     get_from_memory,
 )
@@ -736,7 +735,7 @@ def feed_prices(
     # setup database managers
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     db_name = f"{network}_{protocol}"
-    local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
+    # local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
     global_db_manager = database_global(mongo_url=mongo_url)
 
     # get already processed prices

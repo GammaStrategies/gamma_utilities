@@ -1,15 +1,4 @@
-class hypervisor_static_data:
-    def __init__(self, address: str, network: str, dex: str):
-        self.address = address
-        self.network = network
-        self.dex = dex
-
-    def get_rewards(self):
-        # zyberswap
-        # masterchef v1
-        # masterchef v2
-        # thena gauges
-        pass
+from attr import dataclass
 
 
 static_gamma_data = {
@@ -64,6 +53,48 @@ static_gamma_data = {
         ]
     },
 }
+
+
+@dataclass
+class dex:
+    name: str
+
+
+@dataclass
+class fee_distributor:
+    address: str
+    start_block: int
+
+
+@dataclass
+class rewards_registry:
+    address: str
+    start_block: int
+
+
+@dataclass
+class rewarder:
+    type: str
+    address: str
+    start_block: int
+
+
+@dataclass
+class hypervisor:
+    address: str
+    network: str
+    dex: str
+    start_block: int
+    rewarders: list[rewarder]
+
+
+@dataclass
+class network:
+    name: str
+    hypervisors: list[hypervisor]
+    fee_distributors: list[fee_distributor]
+    reward_registries: list[rewards_registry]
+    hypervisor_registry: str
 
 
 STATIC_W3_ADDRESSES = {
