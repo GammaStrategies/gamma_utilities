@@ -27,6 +27,7 @@ from apps.database_feeder import (
     feed_timestamp_blocks,
     feed_blocks_timestamp,
     feed_user_status,
+    create_tokenBlocks_rewards,
 )
 from apps.database_checker import repair_all
 
@@ -76,6 +77,7 @@ def network_sequence_loop(
 
 def price_sequence_loop(protocol: str, network: str):
     # feed most used token proces
+    logging.getLogger(__name__).info(f">   top token prices")
     feed_prices(
         protocol=protocol,
         network=network,
@@ -83,9 +85,11 @@ def price_sequence_loop(protocol: str, network: str):
         coingecko=True,
     )
     # force feed prices from already known using conversion
+    logging.getLogger(__name__).info(f">   all token prices from already known/top")
     feed_prices_force_sqrtPriceX96(protocol=protocol, network=network)
 
     # feed all token prices left but weth
+    logging.getLogger(__name__).info(f">   all token prices left but weth")
     feed_prices(
         protocol=protocol,
         network=network,
@@ -95,10 +99,20 @@ def price_sequence_loop(protocol: str, network: str):
         coingecko=False,
     )
     # feed all token prices left
+    logging.getLogger(__name__).info(f">   all token prices left")
     feed_prices(
         protocol=protocol,
         network=network,
         price_ids=create_tokenBlocks_allTokens(protocol=protocol, network=network),
+        coingecko=True,
+    )
+
+    # feed rewards token prices
+    logging.getLogger(__name__).info(f">   rewards token prices")
+    feed_prices(
+        protocol=protocol,
+        network=network,
+        price_ids=create_tokenBlocks_rewards(protocol=protocol, network=network),
         coingecko=True,
     )
 
