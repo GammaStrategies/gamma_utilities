@@ -3,6 +3,7 @@ import sys
 import math
 
 from decimal import Decimal
+from hexbytes import HexBytes
 from web3 import Web3
 
 from bins.configuration import CONFIGURATION, WEB3_CHAIN_IDS
@@ -103,6 +104,9 @@ class univ3_pool(web3wrap):
                    tokensOwed0   uint128 :  0
                    tokensOwed1   uint128 :  0
         """
+        position_key = (
+            HexBytes(position_key) if type(position_key) == str else position_key
+        )
         result = self.call_function_autoRpc("positions", None, position_key)
         return {
             "liquidity": result[0],
@@ -971,6 +975,9 @@ class algebrav3_pool(web3wrap):
                    fees0   uint128 :  0  (tokensOwed0)
                    fees1   uint128 :  0  ( tokensOwed1)
         """
+        position_key = (
+            HexBytes(position_key) if type(position_key) == str else position_key
+        )
         result = self.call_function_autoRpc("positions", None, position_key)
         return {
             "liquidity": result[0],
