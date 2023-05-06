@@ -75,7 +75,6 @@ class thegraph_scraper_helper:
 
             # loop till no more results are retrieved
             while True:
-
                 try:
                     # wait till sufficient time has been passed between queries
                     RATE_LIMIT_THEGRAPH.continue_when_safe()
@@ -1475,7 +1474,7 @@ class arrakis_scraper(thegraph_scraper_helper):
                     }}
                     }}
             """.format(
-                _filter, _skip
+                filter, skip
             )
         elif name == "univ3_gelato":
             return """{{
@@ -1620,7 +1619,6 @@ class arrakis_scraper(thegraph_scraper_helper):
                 "withdraws",
             ]
         elif name == "deposits_messari":
-
             return """ {{
                 deposits({}, skip:{}) {{
                     amount
@@ -1716,7 +1714,6 @@ class arrakis_scraper(thegraph_scraper_helper):
 
         # official
         if query_name == "vaults":
-
             itm["token0"]["decimals"] = int(itm["token0"]["decimals"])
             itm["token1"]["decimals"] = int(itm["token1"]["decimals"])
 
@@ -1948,7 +1945,6 @@ class arrakis_scraper(thegraph_scraper_helper):
             # todo: it should be divided by 10^outputtokendecimals
             itm["stakedOutputTokenAmount"] = int(itm["stakedOutputTokenAmount"])
         elif query_name == "underlyingTokens_messari":
-
             itm["token0"]["decimals"] = int(itm["token0"]["decimals"])
             itm["token1"]["decimals"] = int(itm["token1"]["decimals"])
             # prepare vars
@@ -1982,7 +1978,6 @@ class arrakis_scraper(thegraph_scraper_helper):
         elif query_name == "simple_vaults_messari":
             pass  # nothing to convert
         elif query_name == "vaultHourlySnapshots_messari":
-
             itm["blockNumber"] = int(itm["blockNumber"])
             itm["timestamp"] = dt.datetime.fromtimestamp(int(itm["timestamp"]))
 
@@ -2555,7 +2550,6 @@ class uniswapv3_scraper(thegraph_scraper_helper):
            network
         """
         if query_name == "pools":
-
             itm["token0"]["decimals"] = int(itm["token0"]["decimals"])
             itm["token1"]["decimals"] = int(itm["token1"]["decimals"])
             # prepare vars
@@ -2592,7 +2586,6 @@ class uniswapv3_scraper(thegraph_scraper_helper):
             itm["tick"] = int(itm["tick"])
 
         elif query_name == "ticks":
-
             itm["pool"]["token0"]["decimals"] = int(itm["pool"]["token0"]["decimals"])
             itm["pool"]["token1"]["decimals"] = int(itm["pool"]["token1"]["decimals"])
             # prepare vars
@@ -2620,7 +2613,6 @@ class uniswapv3_scraper(thegraph_scraper_helper):
             itm["volumeUSD"] = float(itm["volumeUSD"])
 
         elif query_name == "positions":
-
             itm["pool"]["token0"]["decimals"] = int(itm["pool"]["token0"]["decimals"])
             itm["pool"]["token1"]["decimals"] = int(itm["pool"]["token1"]["decimals"])
 
@@ -2674,7 +2666,6 @@ class uniswapv3_scraper(thegraph_scraper_helper):
             itm["tickUpper"]["liquidityNet"] = int(itm["tickUpper"]["liquidityNet"])
 
         elif query_name == "tokens":
-
             itm["decimals"] = int(itm["decimals"])
             itm["derivedETH"] = float(itm["derivedETH"])
             itm["feesUSD"] = float(itm["feesUSD"])
@@ -2842,7 +2833,6 @@ class algebrav3_scraper(thegraph_scraper_helper):
            network
         """
         if query_name == "pools":
-
             itm["token0"]["decimals"] = int(itm["token0"]["decimals"])
             itm["token1"]["decimals"] = int(itm["token1"]["decimals"])
             # prepare vars
@@ -2879,7 +2869,6 @@ class algebrav3_scraper(thegraph_scraper_helper):
             itm["tick"] = int(itm["tick"])
 
         elif query_name == "ticks":
-
             itm["pool"]["token0"]["decimals"] = int(itm["pool"]["token0"]["decimals"])
             itm["pool"]["token1"]["decimals"] = int(itm["pool"]["token1"]["decimals"])
             # prepare vars
@@ -2907,7 +2896,6 @@ class algebrav3_scraper(thegraph_scraper_helper):
             itm["volumeUSD"] = float(itm["volumeUSD"])
 
         elif query_name == "positions":
-
             itm["pool"]["token0"]["decimals"] = int(itm["pool"]["token0"]["decimals"])
             itm["pool"]["token1"]["decimals"] = int(itm["pool"]["token1"]["decimals"])
 
@@ -2961,7 +2949,6 @@ class algebrav3_scraper(thegraph_scraper_helper):
             itm["tickUpper"]["liquidityNet"] = int(itm["tickUpper"]["liquidityNet"])
 
         elif query_name == "tokens":
-
             itm["decimals"] = int(itm["decimals"])
             itm["derivedMatic"] = float(itm["derivedMatic"])
             itm["feesUSD"] = float(itm["feesUSD"])
@@ -3419,7 +3406,6 @@ class blocks_scraper(thegraph_scraper_helper):
            network
         """
         if query_name == "blocks":
-
             self._extracted_from__converter_11(itm)
         else:
             logging.getLogger(__name__).error(
