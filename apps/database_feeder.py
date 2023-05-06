@@ -56,192 +56,11 @@ from bins.formulas.dex_formulas import (
 )
 from bins.formulas.apr import calculate_rewards_apr
 
+from apps.feeds.static import feed_hypervisor_static, feed_rewards_static
 from datetime import timezone
 
 
-### Static ######################
-def feed_hypervisor_static(
-    protocol: str, network: str, dex: str, rewrite: bool = False, threaded: bool = True
-):
-    """Save hypervisor static data using web3 calls from a hypervisor's registry
-
-    Args:
-        protocol (str):
-        network (str):
-        dex (str):
-        rewrite (bool): Force rewrite all hypervisors found
-        threaded (bool):
-    """
-
-    logging.getLogger(__name__).info(
-        f">Feeding {protocol}'s {network} {dex} hypervisors static information"
-    )
-
-    # debug variables
-    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-
-    # set local database name and create manager
-    local_db = database_local(mongo_url=mongo_url, db_name=f"{network}_{protocol}")
-
-    # hypervisor addresses to process
-    hypervisor_addresses = _get_static_hypervisor_addresses_to_process(
-        protocol=protocol, network=network, dex=dex, rewrite=rewrite
-    )
-
-    # set log list of hypervisors with errors
-    _errors = 0
-    with tqdm.tqdm(total=len(hypervisor_addresses), leave=False) as progress_bar:
-        if threaded:
-            # threaded
-            args = (
-                (address, network, 0, dex, True) for address in hypervisor_addresses
-            )
-            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-                for result in ex.map(lambda p: create_db_hypervisor(*p), args):
-                    if result:
-                        # progress
-                        progress_bar.set_description(
-                            f' 0x..{result["address"][-4:]} processed '
-                        )
-                        progress_bar.refresh()
-                        # add hypervisor status to database
-                        local_db.set_static(data=result)
-                        # update progress
-                        progress_bar.update(1)
-                    else:
-                        # error found
-                        _errors += 1
-        else:
-            # get operations from database
-            for address in hypervisor_addresses:
-                progress_bar.set_description(f" 0x..{address[-4:]} to be processed")
-                progress_bar.refresh()
-                if result := create_db_hypervisor(
-                    address=address,
-                    network=network,
-                    block=0,
-                    dex=dex,
-                    static_mode=True,
-                ):
-                    # add hypervisor static data to database
-                    local_db.set_static(data=result)
-                else:
-                    # error found
-                    _errors += 1
-
-                # update progress
-                progress_bar.update(1)
-
-    with contextlib.suppress(Exception):
-        if _errors > 0:
-            logging.getLogger(__name__).info(
-                "   {} of {} ({:,.1%}) hypervisors could not be scraped due to errors".format(
-                    _errors,
-                    len(hypervisor_addresses),
-                    _errors / len(hypervisor_addresses),
-                )
-            )
-
-
-# TODO: change gamma_hypervisor_registry to generic
-def _get_hypervisors_from_registry(
-    network: str, dex: str, protocol: str = "gamma", block: int = 0
-) -> list:
-    try:
-        # create registry
-        registry_address = (
-            STATIC_REGISTRY_ADDRESSES.get(network, {})
-            .get("hypervisors", {})
-            .get(dex, None)
-        )
-        gamma_registry = gamma_hypervisor_registry(
-            address=registry_address,
-            network=network,
-            block=block,
-        )
-
-        # get hypes
-        hypervisor_addresses_registry: list = gamma_registry.get_hypervisors_addresses()
-
-        # apply filters
-        filters: dict = (
-            CONFIGURATION["script"]["protocols"].get(protocol, {}).get("filters", {})
-        )
-        hypes_not_included: list = [
-            x.lower()
-            for x in filters.get("hypervisors_not_included", {}).get(
-                gamma_registry._network, []
-            )
-        ]
-
-        logging.getLogger(__name__).debug(
-            f"   excluding hypervisors: {hypes_not_included}"
-        )
-        hypervisor_addresses_registry = [
-            x for x in hypervisor_addresses_registry if x not in hypes_not_included
-        ]
-
-        return hypervisor_addresses_registry
-
-    except ValueError as err:
-        logging.getLogger(__name__).error(
-            f" Error while fetching hypes from {gamma_registry._network} registry   .error: {sys.exc_info()[0]}"
-        )
-
-    # return an empty hype address list
-    return []
-
-
-def _get_static_hypervisor_addresses_to_process(
-    protocol: str,
-    network: str,
-    dex: str,
-    rewrite: bool = False,
-) -> list:
-    """Create a list of hypervisor addresses to be scraped to feed static database collection
-
-    Args:
-        local_db (database_local): _description_
-        rewrite (bool, optional): _description_. Defaults to False.
-
-    Returns:
-        list:
-    """
-    # get hyp addresses from database
-    logging.getLogger(__name__).debug(
-        f"   Retrieving {network} hypervisors addresses from database"
-    )
-    # debug variables
-    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-    # set local database name and create manager
-    local_db = database_local(mongo_url=mongo_url, db_name=f"{network}_{protocol}")
-
-    hypervisor_addresses_database = local_db.get_distinct_items_from_database(
-        collection_name="static", field="address"
-    )
-    # use public RPCs
-    hypervisor_addresses_registry = _get_hypervisors_from_registry(
-        network=network, dex=dex, protocol=protocol
-    )
-
-    result = []
-    # rewrite all static info?
-    if not rewrite:
-        # filter already scraped hypervisors
-        for address in hypervisor_addresses_registry:
-            if address.lower() in hypervisor_addresses_database:
-                logging.getLogger(__name__).debug(
-                    f"   {address} hypervisor static info already in db"
-                )
-            else:
-                result.append(address)
-    else:
-        result = hypervisor_addresses_registry
-        logging.getLogger(__name__).debug(
-            f"   Rewriting all hypervisors static information of {network}'s {protocol} {dex} "
-        )
-
-    return result
+### Operations ######################
 
 
 def feed_operations(
@@ -285,18 +104,6 @@ def feed_operations(
 
         date_end = convert_string_datetime(date_end)
 
-    # get hypervisor addresses from static database collection and compare them to current operations distinct addresses
-    # to decide whether a full timeback query shall be made
-    logging.getLogger(__name__).debug(
-        f"   Retrieving {network} hypervisors addresses from database"
-    )
-
-    hypervisor_addresses = local_db.get_distinct_items_from_database(
-        collection_name="static", field="address"
-    )
-    hypervisor_addresses_in_operations = local_db.get_distinct_items_from_database(
-        collection_name="operations", field="address"
-    )
     # apply filters
     filters: dict = (
         CONFIGURATION["script"]["protocols"].get(protocol, {}).get("filters", {})
@@ -304,14 +111,28 @@ def feed_operations(
     hypes_not_included: list = [
         x.lower() for x in filters.get("hypervisors_not_included", {}).get(network, [])
     ]
-
     logging.getLogger(__name__).debug(f"   excluding hypervisors: {hypes_not_included}")
-    hypervisor_addresses = [
-        x for x in hypervisor_addresses if x not in hypes_not_included
-    ]
-    hypervisor_addresses_in_operations = [
-        x for x in hypervisor_addresses_in_operations if x not in hypes_not_included
-    ]
+
+    # get hypervisor addresses from static database collection and compare them to current operations distinct addresses
+    # to decide whether a full timeback query shall be made
+    logging.getLogger(__name__).debug(
+        f"   Retrieving {network} hypervisors addresses from database"
+    )
+    hypervisor_static_in_database = {
+        x["address"]: x
+        for x in local_db.get_items_from_database(
+            collection_name="static",
+            find={"address": {"$nin": hypes_not_included}},
+            projection={"address": 1, "block": 1, "timestamp": 1},
+        )
+        if x["address"] not in hypes_not_included
+    }
+    hypervisor_addresses = hypervisor_static_in_database.keys()
+    hypervisor_addresses_in_operations = local_db.get_distinct_items_from_database(
+        collection_name="operations",
+        field="address",
+        condition={"address": {"$nin": hypes_not_included}},
+    )
 
     try:
         # try getting initial block as last found in database
@@ -330,8 +151,19 @@ def feed_operations(
                     hypervisor_addresses, hypervisor_addresses_in_operations
                 )
                 # define a new initial block but traveling back time sufficienty to get missed ops
+                # get minimum block from the new hypervisors found
+                new_block_ini = min(
+                    [
+                        x["block"]
+                        for x in hypervisor_static_in_database
+                        if x["address"] in diffs
+                    ]
+                )
+                new_block_ini = (
+                    new_block_ini if new_block_ini < block_ini else block_ini
+                )
                 # TODO: avoid hardcoded vars ( blocks back in time )
-                new_block_ini = block_ini - int(block_ini * 0.005)
+                # new_block_ini = block_ini - int(block_ini * 0.005)
                 logging.getLogger(__name__).info(
                     f"   {len(diffs)} new hypervisors found in static but not in operations collections. Force initial block {block_ini} back time at {new_block_ini} [{block_ini-new_block_ini} blocks]"
                 )
@@ -1533,79 +1365,6 @@ def get_hypervisor_addresses(network: str, protocol: str) -> list[str]:
 #                                     f"   Unexpected error while feeding db with rewarders from {reward_registry_addresses} registry. hype: {hypervisor_address}  . error:{e}"
 #                                 )
 #                             break
-
-
-def feed_rewards_static(
-    network: str | None = None, dex: str | None = None, protocol: str = "gamma"
-):
-    logging.getLogger(__name__).info(
-        f">Feeding {protocol}'s {network} {dex} rewards static information"
-    )
-
-    local_db = database_local(
-        mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
-        db_name=f"{network}_{protocol}",
-    )
-
-    # zyberswap masterchef
-    if dex == "zyberswap":
-        # get hypervisor addresses from database
-        hypervisor_addresses = local_db.get_distinct_items_from_database(
-            collection_name="static", field="address", condition={"dex": "zyberswap"}
-        )
-
-        # TODO: zyberswap masterchef duo -> 0x72E4CcEe48fB8FEf18D99aF2965Ce6d06D55C8ba  creation_block: 80073186
-        to_process_contract_addresses = {
-            "0x9BA666165867E916Ee7Ed3a3aE6C19415C2fBDDD".lower(): {
-                "creation_block": 54769965,
-                "type": "zyberswap_masterchef_v1",
-            }
-        }
-        for masterchef_address, contract_data in to_process_contract_addresses.items():
-            if contract_data["type"] == "zyberswap_masterchef_v1":
-                # create masterchef object
-                zyberswap_masterchef = rewarders.zyberswap_masterchef_v1(
-                    address=masterchef_address, network=network
-                )
-                rewards_data = zyberswap_masterchef.get_rewards(
-                    hypervisor_addresses=hypervisor_addresses, convert_bint=True
-                )
-
-            for reward_data in rewards_data:
-                # modify block number manually -> block num. is later used to update rewards_status from
-                reward_data["block"] = contract_data["creation_block"]
-                # save to database
-                local_db.set_rewards_static(data=reward_data)
-
-    elif dex == "thena":
-        # thena gauges
-        hypervisor_addresses = local_db.get_distinct_items_from_database(
-            collection_name="static", field="address", condition={"dex": "thena"}
-        )
-
-        to_process_contract_addresses = {
-            "0x3a1d0952809f4948d15ebce8d345962a282c4fcb".lower(): {
-                "creation_block": 27114632,
-                "type": "thena_voter_v3",
-            }
-        }
-        for thenaVoter_address, contract_data in to_process_contract_addresses.items():
-            # create thena voter object
-            thena_voter = rewarders.thena_voter_v3(
-                address=thenaVoter_address, network=network
-            )
-            rewards_data = thena_voter.get_rewards(
-                hypervisor_addresses=hypervisor_addresses, convert_bint=True
-            )
-            for reward_data in rewards_data:
-                # modify block number manually -> block num. is later used to update rewards_status from
-                reward_data["block"] = contract_data["creation_block"]
-                # save to database
-                local_db.set_rewards_static(data=reward_data)
-
-    else:
-        # raise NotImplementedError(f"{network} {dex} not implemented")
-        pass
 
 
 def feed_rewards_status(

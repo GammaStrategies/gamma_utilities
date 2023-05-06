@@ -14,7 +14,6 @@ import time
 from bins.configuration import CONFIGURATION
 
 from apps.database_feeder import (
-    feed_hypervisor_static,
     feed_operations,
     feed_hypervisor_status,
     feed_prices,
@@ -22,13 +21,13 @@ from apps.database_feeder import (
     create_tokenBlocks_allTokensButWeth,
     create_tokenBlocks_topTokens,
     feed_prices_force_sqrtPriceX96,
-    feed_rewards_static,
     feed_rewards_status,
     feed_timestamp_blocks,
     feed_blocks_timestamp,
     feed_user_status,
     create_tokenBlocks_rewards,
 )
+from apps.feeds.static import feed_hypervisor_static, feed_rewards_static
 from apps.database_checker import repair_all
 
 

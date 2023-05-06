@@ -573,7 +573,7 @@ def test_zyberchef():
                         poolRewardsPerSec["usd_price"].append(price)
 
 
-from apps.database_feeder import feed_rewards_static
+from apps.feeds.static import feed_rewards_static
 
 
 def test_feed_rewards_static():
