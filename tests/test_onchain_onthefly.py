@@ -19,7 +19,7 @@ sys.path.append(PARENT_FOLDER)
 
 from bins.database.common.db_collections_common import database_global, database_local
 from bins.mixed.price_utilities import price_scraper
-from bins.configuration import CONFIGURATION, RPC_URLS, STATIC_REGISTRY_ADDRESSES
+from bins.configuration import CONFIGURATION, STATIC_REGISTRY_ADDRESSES
 from bins.general import general_utilities, file_utilities
 
 from bins.converters.onchain import convert_hypervisor_fromDict
@@ -49,45 +49,34 @@ def build_hypervisor(
     network: str, dex: str, block: int, hypervisor_address: str
 ) -> gamma_hypervisor:
     # save current configuration
-    for rpcUrl in RPC_URLS[network]:
-        try:
-            if dex == "zyberswap":
-                hypervisor = gamma_hypervisor_zyberswap(
-                    address=hypervisor_address,
-                    network=network,
-                    block=block,
-                    custom_web3Url=rpcUrl,
-                )
-            elif dex == "quickswap":
-                hypervisor = gamma_hypervisor_quickswap(
-                    address=hypervisor_address,
-                    network=network,
-                    block=block,
-                    custom_web3Url=rpcUrl,
-                )
-            elif dex == "thena":
-                hypervisor = gamma_hypervisor_thena(
-                    address=hypervisor_address,
-                    network=network,
-                    block=block,
-                    custom_web3Url=rpcUrl,
-                )
-            else:
-                # build hype
-                hypervisor = gamma_hypervisor(
-                    address=hypervisor_address,
-                    network=network,
-                    block=block,
-                    custom_web3Url=rpcUrl,
-                )
-            # test its working
-            hypervisor.fee
-            # return hype
-            return hypervisor
-        except:
-            pass
+    if dex == "zyberswap":
+        hypervisor = gamma_hypervisor_zyberswap(
+            address=hypervisor_address,
+            network=network,
+            block=block,
+        )
+    elif dex == "quickswap":
+        hypervisor = gamma_hypervisor_quickswap(
+            address=hypervisor_address,
+            network=network,
+            block=block,
+        )
+    elif dex == "thena":
+        hypervisor = gamma_hypervisor_thena(
+            address=hypervisor_address,
+            network=network,
+            block=block,
+        )
+    else:
+        # build hype
+        hypervisor = gamma_hypervisor(
+            address=hypervisor_address,
+            network=network,
+            block=block,
+        )
 
-    return None
+    # return hype
+    return hypervisor
 
 
 def get_rewards_zyberswap(network="arbitrum", dex="zyberswap", protocol="gamma"):
