@@ -1522,7 +1522,7 @@ def feed_rewards_static(
     network: str | None = None, dex: str | None = None, protocol: str = "gamma"
 ):
     logging.getLogger(__name__).info(
-        f">Feeding {protocol}'s {network} {dex} rewards status information"
+        f">Feeding {protocol}'s {network} {dex} rewards static information"
     )
 
     local_db = database_local(
