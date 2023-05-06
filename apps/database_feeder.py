@@ -1537,17 +1537,26 @@ def feed_rewards_static(
             collection_name="static", field="address", condition={"dex": "zyberswap"}
         )
 
-        # TODO: zyberswap masterchef duo -> 0x72E4CcEe48fB8FEf18D99aF2965Ce6d06D55C8ba
-        masterchef_addresses = ["0x9BA666165867E916Ee7Ed3a3aE6C19415C2fBDDD".lower()]
-        for masterchef_address in masterchef_addresses:
-            # create masterchef object
-            zyberswap_masterchef = rewarders.zyberswap_masterchef_v1(
-                address=masterchef_address, network=network
-            )
-            rewards_data = zyberswap_masterchef.get_rewards(
-                hypervisor_addresses=hypervisor_addresses, convert_bint=True
-            )
+        # TODO: zyberswap masterchef duo -> 0x72E4CcEe48fB8FEf18D99aF2965Ce6d06D55C8ba  creation_block: 80073186
+        to_process_contract_addresses = {
+            "0x9BA666165867E916Ee7Ed3a3aE6C19415C2fBDDD".lower(): {
+                "creation_block": 54769965,
+                "type": "zyberswap_masterchef_v1",
+            }
+        }
+        for masterchef_address, contract_data in to_process_contract_addresses.items():
+            if contract_data["type"] == "zyberswap_masterchef_v1":
+                # create masterchef object
+                zyberswap_masterchef = rewarders.zyberswap_masterchef_v1(
+                    address=masterchef_address, network=network
+                )
+                rewards_data = zyberswap_masterchef.get_rewards(
+                    hypervisor_addresses=hypervisor_addresses, convert_bint=True
+                )
+
             for reward_data in rewards_data:
+                # modify block number manually -> block num. is later used to update rewards_status from
+                reward_data["block"] = contract_data["creation_block"]
                 # save to database
                 local_db.set_rewards_static(data=reward_data)
 
@@ -1556,8 +1565,14 @@ def feed_rewards_static(
         hypervisor_addresses = local_db.get_distinct_items_from_database(
             collection_name="static", field="address", condition={"dex": "thena"}
         )
-        thenaVoter_addresses = ["0x3a1d0952809f4948d15ebce8d345962a282c4fcb".lower()]
-        for thenaVoter_address in thenaVoter_addresses:
+
+        to_process_contract_addresses = {
+            "0x3a1d0952809f4948d15ebce8d345962a282c4fcb".lower(): {
+                "creation_block": 27114632,
+                "type": "thena_voter_v3",
+            }
+        }
+        for thenaVoter_address, contract_data in to_process_contract_addresses.items():
             # create thena voter object
             thena_voter = rewarders.thena_voter_v3(
                 address=thenaVoter_address, network=network
@@ -1566,6 +1581,8 @@ def feed_rewards_static(
                 hypervisor_addresses=hypervisor_addresses, convert_bint=True
             )
             for reward_data in rewards_data:
+                # modify block number manually -> block num. is later used to update rewards_status from
+                reward_data["block"] = contract_data["creation_block"]
                 # save to database
                 local_db.set_rewards_static(data=reward_data)
 
@@ -1760,101 +1777,101 @@ def get_price(network: str, block: int, token_address: str) -> float:
 
 
 ### gamma_db_v1 -> FastAPI
-def feed_fastApi_impermanent(network: str, protocol: str):
-    # TODO implement threaded
-    threaded = True
+# def feed_fastApi_impermanent(network: str, protocol: str):
+#     # TODO implement threaded
+#     threaded = True
 
-    end_date = datetime.now(timezone.utc)
-    days = [1, 7, 15, 30]  # all impermament datetimeframes
+#     end_date = datetime.now(timezone.utc)
+#     days = [1, 7, 15, 30]  # all impermament datetimeframes
 
-    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-    # create global database manager to save to gamma_db_v1
-    gamma_db_v1 = db_collections_common(
-        mongo_url=mongo_url,
-        db_name="gamma_db_v1",
-        db_collections={"impermanent": {"id": True}},
-    )
+#     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+#     # create global database manager to save to gamma_db_v1
+#     gamma_db_v1 = db_collections_common(
+#         mongo_url=mongo_url,
+#         db_name="gamma_db_v1",
+#         db_collections={"impermanent": {"id": True}},
+#     )
 
-    # get a list of hype addresses to process
-    addresses = get_hypervisor_addresses(network=network, protocol=protocol)
+#     # get a list of hype addresses to process
+#     addresses = get_hypervisor_addresses(network=network, protocol=protocol)
 
-    # construct items to process arguments
-    args = (
-        (
-            address,
-            d,
-        )
-        for d in days
-        for address in addresses
-    )
+#     # construct items to process arguments
+#     args = (
+#         (
+#             address,
+#             d,
+#         )
+#         for d in days
+#         for address in addresses
+#     )
 
-    # control var
-    _errors = 1
-    args_lenght = len(days) * len(addresses)
+#     # control var
+#     _errors = 1
+#     args_lenght = len(days) * len(addresses)
 
-    with tqdm.tqdm(total=args_lenght) as progress_bar:
+#     with tqdm.tqdm(total=args_lenght) as progress_bar:
 
-        def construct_result(address: str, days: int) -> dict:
-            # create helper
-            hype_helper = direct_db_hypervisor_info(
-                hypervisor_address=address, network=network, protocol=protocol
-            )
-            return (
-                hype_helper.get_impermanent_data(
-                    ini_date=end_date - timedelta(days=days), end_date=end_date
-                ),
-                days,
-            )
+#         def construct_result(address: str, days: int) -> dict:
+#             # create helper
+#             hype_helper = direct_db_hypervisor_info(
+#                 hypervisor_address=address, network=network, protocol=protocol
+#             )
+#             return (
+#                 hype_helper.get_impermanent_data(
+#                     ini_date=end_date - timedelta(days=days), end_date=end_date
+#                 ),
+#                 days,
+#             )
 
-        if threaded:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-                for result, days in ex.map(lambda p: construct_result(*p), args):
-                    if result:
-                        progress_bar.set_description(
-                            f"""[er:{_errors}]  Saving impermanent loss data for {result[0]["symbol"]} at {days} days"""
-                        )
-                        progress_bar.refresh()
+#         if threaded:
+#             with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+#                 for result, days in ex.map(lambda p: construct_result(*p), args):
+#                     if result:
+#                         progress_bar.set_description(
+#                             f"""[er:{_errors}]  Saving impermanent loss data for {result[0]["symbol"]} at {days} days"""
+#                         )
+#                         progress_bar.refresh()
 
-                        # create database data with result
-                        data = {
-                            "id": "{}_{}_{}".format(
-                                network, result[0]["address"], days
-                            ),
-                            "network": network,
-                            "address": result[0]["address"],
-                            "symbol": result[0]["symbol"],
-                            "period": days,
-                            "data": result,
-                        }
+#                         # create database data with result
+#                         data = {
+#                             "id": "{}_{}_{}".format(
+#                                 network, result[0]["address"], days
+#                             ),
+#                             "network": network,
+#                             "address": result[0]["address"],
+#                             "symbol": result[0]["symbol"],
+#                             "period": days,
+#                             "data": result,
+#                         }
 
-                        # convert all decimal data to float
-                        data = gamma_db_v1.convert_decimal_to_float(data)
+#                         # convert all decimal data to float
+#                         data = gamma_db_v1.convert_decimal_to_float(data)
 
-                        # manually add/replace item to database
-                        gamma_db_v1.replace_item_to_database(
-                            data=data, collection_name="impermanent"
-                        )
-                    else:
-                        _errors += 1
+#                         # manually add/replace item to database
+#                         gamma_db_v1.replace_item_to_database(
+#                             data=data, collection_name="impermanent"
+#                         )
+#                     else:
+#                         _errors += 1
 
-                    # add one
-                    progress_bar.update(1)
+#                     # add one
+#                     progress_bar.update(1)
 
-        else:
-            for result, days in map(lambda p: construct_result(*p), args):
-                raise NotImplementedError(" not threaded process is not implemented")
+#         else:
+#             for result, days in map(lambda p: construct_result(*p), args):
+#                 raise NotImplementedError(" not threaded process is not implemented")
 
-    # control log
-    with contextlib.suppress(Exception):
-        if _errors > 0:
-            logging.getLogger(__name__).info(
-                "   {} of {} ({:,.1%}) {}'s hypervisor/day impermanent data could not be scraped due to errors (totalSupply?)".format(
-                    _errors,
-                    args_lenght,
-                    (_errors / args_lenght) if args_lenght > 0 else 0,
-                    network,
-                )
-            )
+#     # control log
+#     with contextlib.suppress(Exception):
+#         if _errors > 0:
+#             logging.getLogger(__name__).info(
+#                 "   {} of {} ({:,.1%}) {}'s hypervisor/day impermanent data could not be scraped due to errors (totalSupply?)".format(
+#                     _errors,
+#                     args_lenght,
+#                     (_errors / args_lenght) if args_lenght > 0 else 0,
+#                     network,
+#                 )
+#             )
 
 
 ####### main ###########
@@ -1929,9 +1946,9 @@ def main(option="operations"):
             elif option == "rewards":
                 feed_rewards_static(protocol=protocol, network=network)
 
-            elif option == "impermanent_v1":
-                # feed fastAPI database with impermanent data
-                feed_fastApi_impermanent(protocol=protocol, network=network)
+            # elif option == "impermanent_v1":
+            #     # feed fastAPI database with impermanent data
+            #     # feed_fastApi_impermanent(protocol=protocol, network=network)
 
             else:
                 raise NotImplementedError(
