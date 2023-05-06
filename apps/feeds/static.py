@@ -166,7 +166,7 @@ def feed_rewards_static(
     if dex == "zyberswap":
         # get hypervisor addresses from database
         hypervisor_addresses = local_db.get_distinct_items_from_database(
-            collection_name="static", field="address", condition={"dex": "zyberswap"}
+            collection_name="static", field="address", condition={"dex": dex}
         )
 
         # TODO: zyberswap masterchef duo -> 0x72E4CcEe48fB8FEf18D99aF2965Ce6d06D55C8ba  creation_block: 80073186
@@ -195,7 +195,7 @@ def feed_rewards_static(
     elif dex == "thena":
         # thena gauges
         hypervisor_addresses = local_db.get_distinct_items_from_database(
-            collection_name="static", field="address", condition={"dex": "thena"}
+            collection_name="static", field="address", condition={"dex": dex}
         )
 
         to_process_contract_addresses = {
