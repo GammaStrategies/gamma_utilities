@@ -20,6 +20,7 @@ from apps.database_checker import (
     add_price_to_token,
     get_all_logfiles,
 )
+from apps.database_feeder import feed_operations_hypervisors
 
 
 def manual_set_prices_by_log(log_file: str | None = None):
@@ -79,6 +80,43 @@ def manual_set_prices_by_log(log_file: str | None = None):
                             progress_bar.update(1)
 
 
+def manual_set_price_by_block():
+    # TODO: parallel process
+
+    # define prices manually
+    address_block_list = {}
+    address_block_list["ethereum"] = {
+        "0x967da4048cd07ab37855c090aaf366e4ce1b9f48".lower(): [
+            {"block": 17202552, "price": 1213},
+        ]
+    }
+
+    # setup database managers
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    global_db_manager = database_global(mongo_url=mongo_url)
+
+    for network, data in address_block_list.items():
+        for token_address, block_price_data in data.items():
+            # get all prices for address in database
+
+            with tqdm.tqdm(total=len(block_price_data)) as progress_bar:
+                for bpdata in block_price_data:
+                    # progress
+                    progress_bar.set_description(
+                        f" Processing {network} 0x..{token_address[:-4]}'s {bpdata['block']} block price {bpdata['price']}"
+                    )
+                    progress_bar.update(0)
+                    # update price to manual price
+                    add_price_to_token(
+                        network=network,
+                        block=bpdata["block"],
+                        token_address=token_address,
+                        price=bpdata["price"],
+                    )
+                    # update progress
+                    progress_bar.update(1)
+
+
 def manual_set_price_all():
     # TODO: parallel process
 
@@ -136,6 +174,44 @@ def read_logfile_regx(log_file: str | None = None):
     return network_token_blocks
 
 
+# def manual_feed_operations():
+
+#     data_operations_to_feed = {
+#         "polygon":{
+#             "0xcbb7fae80e4f5c0cbfe1af7bb1f19692f9532cfa": 41151107,
+#         },
+#         "binance":
+#         {
+#             "0x31257f40e65585cc45fdabeb12002c25bc95ee80":27955595,
+#             "0x69e8c26050daecf8e3b3334e3f612b70f8d40a4f":27955436,
+#             "0x0f51bcc98bdb85141692310a4e3abf2e0c552eb4":27430815,
+#             '0xb83f87ff5629c7e5ac9631095fbc9d06587b0f2c':27430778,
+#             '0xb84b03a6a02246ef71bcf3dde343b0a7e693e2b4':27955490,
+#             '0xb1a0e5fee652348a206d935985ae1e8a9182a245': ,
+#             '0x9c3e0445559e6de1fe6391e8e018dca02b480836': ,
+#             '0x87a4db5bcb99b73d6bf16e74374d292caf2bfcb3': ,
+#             '0xc9e88650db57e409371052abe7248aa854013613': ,
+#             '0xf2ba5122a1f2692c8785e0d3b10a99ac62475420': ,
+#             '0x1d6b56dada36ff58a454a3f5cca3a3631f17e405': ,
+#             '0xf937145b516cff1ea501cf1210832a5b7ea42c3a': ,
+#             '0xa4d37759a64df0e2b246945e81b50af7628a275e': ,
+#             '0x3bc5650d2afe11aeb805e230968018293befd561': ,
+#             '0xc3f6f60b6c26925b64a6ee77d331a7d4c3fed08f': ,
+#             '0x3513292a2e0e0c6fb0a82196d7ed8eb499fe5772': ,
+#             '0xfb50f3240aab04c8e3634a1e1074709fb56b2762': ,
+#             '0x60d0d9f18203745087806b69ac948b8be37cbe72': ,
+#             '0x5c15842fcc12313c4f94dfb6fad1af3f989d33e9': ,
+#             '0x3f8f3caeff393b1994a9968e835fd38ecba6c1be': ,
+#             '0xa15c281339aecdec3a79f44254d7dfcc811ea310': ,
+#             '0xdfba9e5af368bbf7ab92e68b09e05af3116f7fcf': ,
+#             '0x0087ca4844cae94b1c51dec0f9434a6f92006af9': ,
+#             '0xfaeaa34ef2102520e2854721a4b00136c1fdead0': ,
+
+#         },
+#     }
+
+#     feed_operations_hypervisors()
+
 if __name__ == "__main__":
     os.chdir(PARENT_FOLDER)
 
@@ -148,7 +224,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    manual_set_prices_by_log("logs/price.log")
+    manual_set_price_by_block()
 
     # end time log
     _timelapse = datetime.now(timezone.utc) - _startime
