@@ -1,5 +1,5 @@
 import sys
-import datetime as dt
+from datetime import datetime, timezone, timedelta
 import requests
 import logging
 import time
@@ -21,7 +21,6 @@ def post_request(
     wait_secs: int = 5,
     timeout_secs: int = 10,
 ) -> dict:
-
     try:
         request = requests.post(url=url, json={"query": query}, timeout=timeout_secs)
         return request.json()
@@ -97,7 +96,7 @@ class rate_limit:
     def __init__(self, rate_max_sec: float):
         self.rate_max_sec: float = rate_max_sec
         self.rate_sec: int = 0
-        self.rate_count_lastupdate: dt.datetime = dt.datetime.now() - dt.timedelta(
+        self.rate_count_lastupdate: datetime = datetime.now(timezone.utc) - timedelta(
             hours=8
         )
         self.lock = threading.Lock()  # threading.RLock
@@ -111,13 +110,15 @@ class rate_limit:
         """
         with self.lock:
             # update qtty rate per second so sum only if 1 sec has not yet passed
-            if (dt.datetime.now() - self.rate_count_lastupdate).total_seconds() <= 1:
+            if (
+                datetime.now(timezone.utc) - self.rate_count_lastupdate
+            ).total_seconds() <= 1:
                 # set current rate
                 self.rate_sec += 1
             else:
                 self.rate_sec = 1
                 # update last date
-                self.rate_count_lastupdate = dt.datetime.now()
+                self.rate_count_lastupdate = datetime.now(timezone.utc)
 
         # return if i'm save to go
         return self.im_safe()
@@ -132,18 +133,23 @@ class rate_limit:
 
     def continue_when_safe(self):
         """Wait here till rate is in bounds"""
-
+        _safe_break = datetime.now(timezone.utc)
         while (self.im_safe) == False:
+            if (datetime.now(timezone.utc) - _safe_break).total_seconds() >= 30:
+                logging.getLogger(__name__).warning(
+                    f"Waited for 30 seconds for rate limit to be safe.  Breaking."
+                )
+                return
             with self.lock:
                 if (
-                    dt.datetime.now() - self.rate_count_lastupdate
+                    datetime.now(timezone.utc) - self.rate_count_lastupdate
                 ).total_seconds() <= 1:
                     # set current rate
                     self.rate_sec += 1
                 else:
                     self.rate_sec = 1
                     # update last date
-                    self.rate_count_lastupdate = dt.datetime.now()
+                    self.rate_count_lastupdate = datetime.now(timezone.utc)
 
         # keep track
         self.hit()

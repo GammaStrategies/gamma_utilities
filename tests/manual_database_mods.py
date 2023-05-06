@@ -12,7 +12,7 @@ PARENT_FOLDER = os.path.dirname(CURRENT_FOLDER)
 sys.path.append(PARENT_FOLDER)
 
 from bins.configuration import CONFIGURATION
-from bins.database.common.db_collections_common import database_global
+from bins.database.common.db_collections_common import database_global, database_local
 
 from apps.database_checker import (
     get_failed_prices_from_log,
