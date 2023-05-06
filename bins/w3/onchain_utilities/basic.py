@@ -487,7 +487,7 @@ class web3wrap:
         """
         # load public rpc url's
         for key_name in rpcKey_names or CONFIGURATION["sources"].get(
-            "w3Providers_default_order", ["public", "pricate"]
+            "w3Providers_default_order", ["public", "private"]
         ):
             if (
                 rpcUrls := CONFIGURATION["sources"]
