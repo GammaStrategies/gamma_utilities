@@ -981,6 +981,86 @@ def create_tokenBlocks_topTokens(protocol: str, network: str, limit: int = 5) ->
     )
 
 
+def create_tokenBlocks_rewards(protocol: str, network: str) -> set:
+    """Create a list of token addresses blocks using static rewards token addresses and blocks from the status collection
+
+    Args:
+        protocol (str): _description_
+        network (str): _description_
+
+    Returns:
+        set: _description_
+    """
+    # setup database managers
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_name = f"{network}_{protocol}"
+    local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
+    global_db_manager = database_global(mongo_url=mongo_url)
+
+    # get static rewards token addresses
+    static_rewards = local_db_manager.get_items_from_database(
+        collection_name="rewards_static"
+    )
+
+    # build a query to get all to be processed blocks for those static rewards
+    static_rewards_hype_addresses = [x["hypervisor_address"] for x in static_rewards]
+    _query = [
+        {"$match": {"hypervisor_address": {"$in": static_rewards_hype_addresses}}},
+        {
+            "$project": {
+                "hype_address": "$hypervisor_address",
+                "rewardToken": "$rewardToken",
+                "block": "$block",
+            }
+        },
+        {
+            "$lookup": {
+                "from": "status",
+                "let": {
+                    "rew_hype_address": "$hype_address",
+                    "rew_block": "$block",
+                },
+                "pipeline": [
+                    {
+                        "$match": {
+                            "$expr": {
+                                "$and": [
+                                    {"$eq": ["$address", "$$rew_hype_address"]},
+                                    {"$gte": ["$block", "$$rew_block"]},
+                                ],
+                            }
+                        }
+                    },
+                    {"$unset": ["_id"]},
+                    {"$project": {"block": "$block"}},
+                ],
+                "as": "status_blocks",
+            }
+        },
+        {
+            "$project": {
+                "blocks": "$status_blocks.block",
+                "hypervisor_address": "$hype_address",
+                "rewardToken": "$rewardToken",
+            }
+        },
+        {"$unset": ["_id"]},
+    ]
+
+    result = set(
+        [
+            f'{network}_{block}_{reward_block_todo["rewardToken"]}'
+            for reward_block_todo in local_db_manager.query_items_from_database(
+                collection_name="rewards_static", query=_query
+            )
+            for block in reward_block_todo["blocks"]
+        ]
+    )
+
+    # return a list of network_block_tokenAddress
+    return result
+
+
 def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool = True):
     """Using global used known tokens like WETH, apply pools sqrtPriceX96 to
         get token pricess currently 0 or not found
@@ -1633,17 +1713,17 @@ def feed_rewards_status_loop(rewarder_static: dict):
         for reward_data in rewards_data:
             # token_prices
             try:
-                rewardToken_price = get_price(
+                rewardToken_price = get_price_from_db(
                     network=network,
                     block=hypervisor_status["block"],
                     token_address=rewarder_static["rewardToken"],
                 )
-                hype_token0_price = get_price(
+                hype_token0_price = get_price_from_db(
                     network=network,
                     block=hypervisor_status["block"],
                     token_address=hypervisor_status["pool"]["token0"]["address"],
                 )
-                hype_token1_price = get_price(
+                hype_token1_price = get_price_from_db(
                     network=network,
                     block=hypervisor_status["block"],
                     token_address=hypervisor_status["pool"]["token1"]["address"],
@@ -1690,7 +1770,11 @@ def feed_rewards_status_loop(rewarder_static: dict):
     return result
 
 
-def get_price(network: str, block: int, token_address: str) -> float:
+def get_price_from_db(
+    network: str,
+    block: int,
+    token_address: str,
+) -> float:
     # try get the prices from database
     global_db = database_global(
         mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"]
@@ -1700,24 +1784,9 @@ def get_price(network: str, block: int, token_address: str) -> float:
     ):
         return token_price[0]["price"]
 
-    logging.getLogger(__name__).debug(
-        f" Rewards-> Could not get {network}'s {token_address} price at block {block} from database. Trying external sources"
+    raise ValueError(
+        f" No price for {token_address} on {network} at block {block} in database."
     )
-    # try get prices from external sources
-    price_helper = price_scraper()
-
-    token_price = price_helper.get_price(
-        network=network,
-        token_id=token_address,
-        block=block,
-    )
-
-    if not token_price:
-        raise ValueError(
-            f"  Rewards-> Could not get price for {token_address} on {network} at block {block} by any available means"
-        )
-
-    return token_price
 
 
 ### gamma_db_v1 -> FastAPI

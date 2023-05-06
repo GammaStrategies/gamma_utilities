@@ -505,6 +505,9 @@ class web3wrap:
                         f" Could not use any {key_name} rpcProvider calling function {function_name} on {self._network} network {self.address}"
                     )
 
+        logging.getLogger(__name__).error(
+            f" Could not use any available rpcProvider calling function {function_name} on {self._network} network {self.address}"
+        )
         return None
 
 

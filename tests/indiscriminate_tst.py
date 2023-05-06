@@ -19,7 +19,12 @@ sys.path.append(PARENT_FOLDER)
 from bins.configuration import CONFIGURATION, STATIC_REGISTRY_ADDRESSES
 from bins.general import general_utilities, file_utilities
 
-from apps.database_feeder import feed_prices_force_sqrtPriceX96, feed_rewards_status
+from apps.database_feeder import (
+    create_tokenBlocks_rewards,
+    feed_prices,
+    feed_prices_force_sqrtPriceX96,
+    feed_rewards_status,
+)
 from apps.database_feeder_service import price_sequence_loop
 from apps.database_checker import check_database
 
@@ -649,6 +654,18 @@ def test_autoRpccalls(
     po = ""
 
 
+def test_me():
+    protocol = "gamma"
+    network = "arbitrum"
+    feed_prices(
+        protocol=protocol,
+        network=network,
+        price_ids=create_tokenBlocks_rewards(protocol=protocol, network=network),
+        coingecko=True,
+    )
+    pp = ""
+
+
 # START ####################################################################################################################
 from datetime import timezone
 
@@ -664,7 +681,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    test_feed_rewards_status()
+    test_me()
 
     kwargs_list = [
         {
