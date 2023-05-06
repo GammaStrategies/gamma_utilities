@@ -1,15 +1,28 @@
 configuration.yaml:
-  ☐ Convert hypervisor addresses to lower() on load
+  ☐ simplify rpcURl fields
 
 Dex:
-  ☐ Implement in configuration file
-  ☐ Im
+  ☐ 
+  ☐ 
 
 database_feeder:
   ☐ (line 87) -> implement onchain datetime block conversion individually 
             (onchain_helper.get_custom_blockBounds) -> for initial and end dates
-  ☐ Log number of errors at the end of feeding status ( maybe log error summary?)
-  ☐ Save status last block to db (current)
+  ☐ 
+  ☐ Save status last block to db (current)-> define meth to update last item till saving it permanently...
 
-database_analysis:
-  ☐ Implement new read only hypervisor with database as datasource
+prices:
+    Add coingecko terminal support https://api.geckoterminal.com/docs/index.html
+
+all:
+  ☐ Change uniswapv3 to uniswap in code and database
+  ☐ add timestamp to ini web3wrap
+
+
+user:
+  ☐ Change feed_user_status ( simplify so that polygon can be used/included ... )
+
+
+rewards:
+  ☐ Add gamma's masterchef rewards 
+  ☐ Add duo's ( monopoly) rewarders
