@@ -333,10 +333,10 @@ def feed_operations(
                 # define a new initial block but traveling back time sufficienty to get missed ops
                 # TODO: avoid hardcoded vars ( blocks back in time )
                 new_block_ini = block_ini - int(block_ini * 0.005)
-                logging.getLogger(__name__).debug(
+                logging.getLogger(__name__).info(
                     f"   {len(diffs)} new hypervisors found in static but not in operations collections. Force initial block {block_ini} back time at {new_block_ini} [{block_ini-new_block_ini} blocks]"
                 )
-                logging.getLogger(__name__).debug(f"   new hypervisors-->  {diffs}")
+                logging.getLogger(__name__).info(f"   new hypervisors-->  {diffs}")
                 # set initial block
                 block_ini = new_block_ini
 
