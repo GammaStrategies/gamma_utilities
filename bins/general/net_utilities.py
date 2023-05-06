@@ -136,10 +136,10 @@ class rate_limit:
         _safe_break = datetime.now(timezone.utc)
         while (self.im_safe) == False:
             if (datetime.now(timezone.utc) - _safe_break).total_seconds() >= 30:
-                logging.getLogger(__name__).warning(
+                logging.getLogger(__name__).error(
                     f"Waited for 30 seconds for rate limit to be safe.  Breaking."
                 )
-                return
+                return True
             with self.lock:
                 if (
                     datetime.now(timezone.utc) - self.rate_count_lastupdate
