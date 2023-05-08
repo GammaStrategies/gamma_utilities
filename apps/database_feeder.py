@@ -1451,6 +1451,7 @@ def feed_rewards_status_loop(rewarder_static: dict):
                 address=rewarder_static["rewarder_address"],
                 network=network,
                 block=hypervisor_status["block"],
+                timestamp=hypervisor_status["timestamp"],
             )
             # get rewards status
             rewards_data = zyberswap_masterchef.get_rewards(
@@ -1464,6 +1465,7 @@ def feed_rewards_status_loop(rewarder_static: dict):
                 address=rewarder_static["rewarder_address"],
                 network=network,
                 block=hypervisor_status["block"],
+                timestamp=hypervisor_status["timestamp"],
             )
 
             rewards_data += thena_gauge.get_rewards(convert_bint=True)
