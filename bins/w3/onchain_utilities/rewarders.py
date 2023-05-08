@@ -619,6 +619,7 @@ class gamma_masterchef_registry(web3wrap):
                     address=address,
                     network=self._network,
                     block=self.block,
+                    timestamp=self._timestamp,
                 )
 
             except Exception:
@@ -1822,7 +1823,10 @@ class thena_voter_v3(web3wrap):
                 if gauge_address != "0x0000000000000000000000000000000000000000":
                     # build a gauge
                     thena_gauge = thena_gauge_v2(
-                        address=gauge_address, network=self._network, block=self.block
+                        address=gauge_address,
+                        network=self._network,
+                        block=self.block,
+                        timestamp=self._timestamp,
                     )
                     result += thena_gauge.get_rewards(convert_bint=convert_bint)
 
@@ -2165,6 +2169,7 @@ class thena_gauge_v2(gamma_rewarder):
             address=rewardToken,
             network=self._network,
             block=self.block,
+            timestamp=self._timestamp,
         )
         # get reward token data
         rewardToken_symbol = reward_token_instance.symbol
