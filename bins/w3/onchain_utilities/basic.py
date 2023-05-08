@@ -445,13 +445,15 @@ class web3wrap:
         result["address"] = self.address.lower()
         return result
 
-    # TODO: universal failover execute funcion
+    # universal failover execute funcion
     def call_function(self, function_name: str, rpcUrls: list[str], *args):
         # loop choose url
         for rpcUrl in rpcUrls:
             try:
                 # create web3 conn
                 chain_connection = self.setup_w3(network=self._network, web3Url=rpcUrl)
+                # set root w3 conn
+                self._w3 = chain_connection
                 # create contract
                 contract = chain_connection.eth.contract(
                     address=self._address, abi=self._abi
