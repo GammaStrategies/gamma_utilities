@@ -1527,7 +1527,7 @@ def feed_rewards_status_loop(rewarder_static: dict):
                 logging.getLogger(__name__).error(
                     f" Rewards-> {network}'s {rewarder_static['rewardToken']} price at block {hypervisor_status['block']} could not be calculated. Error: {e}"
                 )
-                return []
+                # return []
 
     return result
 
