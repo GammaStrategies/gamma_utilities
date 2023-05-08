@@ -1390,11 +1390,11 @@ def feed_rewards_status(
     with tqdm.tqdm(
         total=len(to_be_processed_reward_static), leave=False
     ) as progress_bar:
-        with concurrent.futures.ThreadPoolExecutor() as ex:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
             for result in ex.map(
                 feed_rewards_status_loop, to_be_processed_reward_static
             ):
-                if not result:
+                if not len(result):
                     # error found
                     _errors += 1
 
@@ -1520,12 +1520,14 @@ def feed_rewards_status_loop(rewarder_static: dict):
                 reward_data["token1_price_usd"] = hype_token1_price
                 reward_data["hypervisor_share_price_usd"] = hype_price_per_share
 
+                # add to result
                 result.append(reward_data)
 
             except Exception as e:
                 logging.getLogger(__name__).error(
                     f" Rewards-> {network}'s {rewarder_static['rewardToken']} price at block {hypervisor_status['block']} could not be calculated. Error: {e}"
                 )
+                return []
 
     return result
 
