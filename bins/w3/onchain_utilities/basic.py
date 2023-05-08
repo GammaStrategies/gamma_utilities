@@ -23,6 +23,7 @@ class web3wrap:
         abi_filename: str = "",
         abi_path: str = "",
         block: int = 0,
+        timestamp: int = 0,
         custom_web3: Web3 | None = None,
         custom_web3Url: str | None = None,
     ):
@@ -52,8 +53,12 @@ class web3wrap:
             self._timestamp = _block_data.timestamp
         else:
             self._block = block
-            # TODO: find timestamp when only block is given
-            self._timestamp = 0
+            if timestamp == 0:
+                # find timestamp
+                _block_data = self._w3.eth.get_block(self._block)
+                self._timestamp = _block_data.timestamp
+            else:
+                self._timestamp = timestamp
 
     def setup_abi(self, abi_filename: str, abi_path: str):
         # set optionals
@@ -522,6 +527,7 @@ class erc20(web3wrap):
         abi_filename: str = "",
         abi_path: str = "",
         block: int = 0,
+        timestamp: int = 0,
         custom_web3: Web3 | None = None,
         custom_web3Url: str | None = None,
     ):
@@ -534,6 +540,7 @@ class erc20(web3wrap):
             abi_filename=self._abi_filename,
             abi_path=self._abi_path,
             block=block,
+            timestamp=timestamp,
             custom_web3=custom_web3,
             custom_web3Url=custom_web3Url,
         )
