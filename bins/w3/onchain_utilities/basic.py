@@ -492,7 +492,58 @@ class web3wrap:
         Returns:
             Any or None: depending on the function called
         """
-        # load public rpc url's
+
+        result = self.call_function(
+            function_name,
+            self.get_rpcUrls(rpcKey_names=rpcKey_names),
+            *args,
+        )
+        if not result is None:
+            return result
+        else:
+            logging.getLogger(__name__).debug(
+                f" Could not use any rpcProvider calling function {function_name} on {self._network} network {self.address}"
+            )
+
+        # # load configured rpc url's
+        # for key_name in rpcKey_names or CONFIGURATION["sources"].get(
+        #     "w3Providers_default_order", ["public", "private"]
+        # ):
+        #     if (
+        #         rpcUrls := CONFIGURATION["sources"]
+        #         .get("w3Providers", {})
+        #         .get(key_name, {})
+        #         .get(self._network, [])
+        #     ):
+        #         random.shuffle(rpcUrls)
+
+        #         result = self.call_function(function_name, rpcUrls, *args)
+        #         if not result is None:
+        #             return result
+        #         else:
+        #             logging.getLogger(__name__).debug(
+        #                 f" Could not use any {key_name} rpcProvider calling function {function_name} on {self._network} network {self.address}"
+        #             )
+
+        # logging.getLogger(__name__).error(
+        #     f" Could not use any available rpcProvider calling function {function_name} on {self._network} network {self.address}"
+        # )
+        return None
+
+    def get_rpcUrls(
+        self, rpcKey_names: list[str] | None = None, shuffle: bool = True
+    ) -> list[str]:
+        """Get a list of rpc urls from configuration file
+
+        Args:
+            rpcKey_names (list[str] | None, optional): private or public or whatever is placed in config w3Providers. Defaults to None.
+            shuffle (bool, optional): shuffle configured order. Defaults to True.
+
+        Returns:
+            list[str]: RPC urls
+        """
+        result = []
+        # load configured rpc url's
         for key_name in rpcKey_names or CONFIGURATION["sources"].get(
             "w3Providers_default_order", ["public", "private"]
         ):
@@ -502,19 +553,61 @@ class web3wrap:
                 .get(key_name, {})
                 .get(self._network, [])
             ):
-                random.shuffle(rpcUrls)
+                # shuffle if needed
+                if shuffle:
+                    random.shuffle(rpcUrls)
 
-                result = self.call_function(function_name, rpcUrls, *args)
-                if not result is None:
-                    return result
-                else:
-                    logging.getLogger(__name__).debug(
-                        f" Could not use any {key_name} rpcProvider calling function {function_name} on {self._network} network {self.address}"
-                    )
+                # add to result
+                result.extend([x for x in rpcUrls])
+        #
+        return result
 
-        logging.getLogger(__name__).error(
-            f" Could not use any available rpcProvider calling function {function_name} on {self._network} network {self.address}"
-        )
+    def _getTransactionReceipt(self, txHash: str):
+        """Get transaction receipt
+
+        Args:
+            txHash (str): transaction hash
+
+        Returns:
+            dict: transaction receipt
+        """
+
+        # get a list of rpc urls
+        rpcUrls = self.get_rpcUrls()
+        # execute query till it works
+        for rpcUrl in rpcUrls:
+            try:
+                _w3 = self.setup_w3(network=self._network, web3Url=rpcUrl)
+                return _w3.eth.getTransactionReceipt(txHash)
+            except Exception as e:
+                logging.getLogger(__name__).debug(
+                    f" error getting transaction receipt using {rpcUrl} rpc: {e}"
+                )
+                continue
+
+        return None
+
+    def _getBlockData(self, block: int | str):
+        """Get block data
+
+        Args:
+            block (int): block number or 'latest'
+
+        """
+
+        # get a list of rpc urls
+        rpcUrls = self.get_rpcUrls()
+        # execute query till it works
+        for rpcUrl in rpcUrls:
+            try:
+                _w3 = self.setup_w3(network=self._network, web3Url=rpcUrl)
+                return _w3.eth.getBlock(block)
+            except Exception as e:
+                logging.getLogger(__name__).debug(
+                    f" error getting block data using {rpcUrl} rpc: {e}"
+                )
+                continue
+
         return None
 
 

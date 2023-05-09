@@ -1631,8 +1631,7 @@ class gamma_hypervisor_registry(web3wrap):
 
         result = []
         for i in range(total_qtty):
-            # executiuon reverted:  arbitrum and mainnet have diff ways of indexing (+1 or 0)
-            with contextlib.suppress(Exception):
+            try:
                 hypervisor_id, idx = self.hypeByIndex(index=i)
 
                 # filter erroneous and blacklisted hypes
@@ -1645,6 +1644,11 @@ class gamma_hypervisor_registry(web3wrap):
                     continue
 
                 result.append(hypervisor_id)
+            except Exception as e:
+                # executiuon reverted:  arbitrum and mainnet have diff ways of indexing (+1 or 0)
+                logging.getLogger(__name__).warning(
+                    f" Error while retrieving addresses from registry {self._network} {self.address}  error-> {e} "
+                )
 
         return result
 

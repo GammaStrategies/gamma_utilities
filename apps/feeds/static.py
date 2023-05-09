@@ -126,7 +126,7 @@ def _create_hypervisor_static_dbObject(
         dex=dex,
         block=0,
         hypervisor_address=address,
-        cached=True,
+        cached=False,
     )
 
     # convert hypervisor to dictionary static mode on
@@ -339,13 +339,13 @@ def _get_contract_creation_block(network: str, contract_address: str) -> dict:
 
                     # create dummy web3 object
                     dummyw3 = erc20(
-                        address="0x000000000000000000000",
+                        address="0x0000000000000000000000000000000000000000",
                         network=network,
                         block=0,
-                        cached=False,
                     )
-                    creation_tx = dummyw3.w3.eth.getTransactionReceipt(item["txHash"])
-                    block_data = dummyw3.w3.eth.getBlock(creation_tx.blockNumber)
+                    # retrieve block data
+                    creation_tx = dummyw3._getTransactionReceipt(txHash=item["txHash"])
+                    block_data = dummyw3._getBlockData(block=creation_tx.blockNumber)
                     return {
                         "block": block_data.number,
                         "timestamp": block_data.timestamp,
