@@ -327,27 +327,32 @@ def _get_contract_creation_block(network: str, contract_address: str) -> dict:
     cg_helper = etherscan_helper(api_keys=CONFIGURATION["sources"]["api_keys"])
 
     if contract_creation_data := cg_helper.get_contract_creation(
-        network=network, contract_address=contract_address
+        network=network, contract_addresses=[contract_address]
     ):
         for item in contract_creation_data:
-            if (
-                "contractAddress" in item
-                and item["contractAddress"].lower() == contract_address.lower()
-            ):
-                # this is the contract creation transaction
+            try:
+                if (
+                    "contractAddress" in item
+                    and item["contractAddress"].lower() == contract_address.lower()
+                ):
+                    # this is the contract creation transaction
 
-                # create dummy web3 object
-                dummyw3 = erc20(
-                    address="0x000000000000000000000",
-                    network=network,
-                    block=0,
-                    cached=False,
+                    # create dummy web3 object
+                    dummyw3 = erc20(
+                        address="0x000000000000000000000",
+                        network=network,
+                        block=0,
+                        cached=False,
+                    )
+                    creation_tx = dummyw3.w3.eth.getTransactionReceipt(item["txHash"])
+                    block_data = dummyw3.w3.eth.getBlock(creation_tx.blockNumber)
+                    return {
+                        "block": block_data.number,
+                        "timestamp": block_data.timestamp,
+                    }
+            except Exception as e:
+                logging.getLogger(__name__).error(
+                    f" Error while fetching contract creation data from etherscan. error: {e}"
                 )
-                creation_tx = dummyw3.w3.eth.getTransactionReceipt(item["txHash"])
-                block_data = dummyw3.w3.eth.getBlock(creation_tx.blockNumber)
-                return {
-                    "block": block_data.number,
-                    "timestamp": block_data.timestamp,
-                }
 
     return None
