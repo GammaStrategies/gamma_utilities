@@ -698,19 +698,14 @@ def feed_prices(
 
 
 def get_not_to_process_prices(global_db_manager: database_global, network: str) -> set:
-    # already_processed_prices = [
-    #     x["id"]
-    #     for x in global_db_manager.get_items_from_database(
-    #         collection_name="usd_prices",
-    #         find={"network": network, "price": {"$gt": 0}},
-    #         projection={"id": 1, "_id": 0},
-    #     )
-    # ]
-    already_processed_prices = global_db_manager.get_distinct_items_from_database(
-        collection_name="usd_prices",
-        field="id",
-        condition={"network": network, "price": {"$gt": 0}},
-    )
+    already_processed_prices = [
+        x["id"]
+        for x in global_db_manager.get_items_from_database(
+            collection_name="usd_prices",
+            find={"network": network, "price": {"$gt": 0}},
+            projection={"id": 1, "_id": 0},
+        )
+    ]
 
     # get zero sqrtPriceX96 ( unsalvable errors found in the past)
     already_processed_prices += [
