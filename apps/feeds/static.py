@@ -51,8 +51,7 @@ def feed_hypervisor_static(
         if threaded:
             # threaded
             args = (
-                (address, network, dex, True)
-                for address in hypervisor_addresses_to_process
+                (address, network, dex) for address in hypervisor_addresses_to_process
             )
             with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
                 for result in ex.map(
@@ -81,7 +80,6 @@ def feed_hypervisor_static(
                     address=address,
                     network=network,
                     dex=dex,
-                    static_mode=True,
                 ):
                     # add hypervisor static data to database
                     local_db.set_static(data=result)
