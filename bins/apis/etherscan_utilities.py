@@ -11,6 +11,7 @@ class etherscan_helper:
         "arbitrum": "https://api.arbiscan.io",
         "celo": "https://api.celoscan.io",
         "polygon_zkevm": "https://api-zkevm.polygonscan.com/",
+        "binance": "https://api.bscscan.com",
     }
     _key_network_matches = {
         "etherscan": "ethereum",
