@@ -36,9 +36,6 @@ from bins.w3.onchain_utilities import rewarders
 from bins.w3.onchain_utilities.basic import erc20_cached
 from bins.w3.builders import (
     build_hypervisor,
-    build_hypervisor_registry,
-    build_hypervisor_anyRpc,
-    build_hypervisor_registry_anyRpc,
 )
 
 from bins.database.common.db_collections_common import (

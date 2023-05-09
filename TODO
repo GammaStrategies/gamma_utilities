@@ -13,6 +13,8 @@ database_feeder:
 
 prices:
     Add coingecko terminal support https://api.geckoterminal.com/docs/index.html
+    Optimize database queries ( queries affecting all prices are too big and slow)
+    Add onchain price support ( for uniswapv3 )
 
 all:
   ☐ Change uniswapv3 to uniswap in code and database
