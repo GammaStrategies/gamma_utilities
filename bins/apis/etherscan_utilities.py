@@ -12,6 +12,14 @@ class etherscan_helper:
         "celo": "https://api.celoscan.io",
         "polygon_zkevm": "https://api-zkevm.polygonscan.com/",
     }
+    _key_network_matches = {
+        "etherscan": "ethereum",
+        "polygonscan": "polygon",
+        "arbiscan": "arbitrum",
+        "optimisticetherscan": "optimism",
+        "bscscan": "binance",
+        "zkevmpolygonscan": "polygon_zkevm",
+    }
 
     def __init__(self, api_keys: dict):
         """Etherscan minimal API wrapper
@@ -34,20 +42,25 @@ class etherscan_helper:
         Args:
            tokens (_type_): as stated in config.yaml file
         """
-        if "etherscan" in apiKeys:
-            # needs to be processed
-            result = {}
-            for k, v in apiKeys.items():
-                if k.lower() == "etherscan":
-                    result["ethereum"] = v
-                    result["optimism"] = v
-                    result["arbitrum"] = v
-                    result["celo"] = v
-                elif k.lower() == "polygonscan":
-                    result["polygon"] = v
-        else:
-            # no need to process
-            result = apiKeys
+        result = {}
+        for k, v in apiKeys.items():
+            if k.lower() in self._key_network_matches.keys():
+                result[self._key_network_matches[k.lower()]] = v
+
+        # if "etherscan" in apiKeys:
+        #     # needs to be processed
+        #     result = {}
+        #     for k, v in apiKeys.items():
+        #         if k.lower() == "etherscan":
+        #             result["ethereum"] = v
+        #             result["optimism"] = v
+        #             result["arbitrum"] = v
+        #             result["celo"] = v
+        #         elif k.lower() == "polygonscan":
+        #             result["polygon"] = v
+        # else:
+        #     # no need to process
+        #     result = apiKeys
 
         return result
 
@@ -226,8 +239,9 @@ class etherscan_helper:
         _data = net_utilities.get_request(url)
         if _data["status"] == "1":
             return int(_data["result"])
+
         logging.getLogger(__name__).error(
-            f' Unexpected error while querying url {url}    . error message: {_data["message"]}'
+            f" Unexpected error while querying url {url}    . error message: {_data}"
         )
 
         return 0
