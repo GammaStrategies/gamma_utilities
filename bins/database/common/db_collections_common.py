@@ -626,7 +626,22 @@ class database_local(db_collections_common):
 
     def get_user_operations(
         self, user_address: str, timestamp_ini: int | None, timestamp_end: int | None
-    ) -> list:
+    ) -> list[dict]:
+        """Get all operations for a user
+
+        Args:
+            user_address (str):
+            timestamp_ini (int | None):
+            timestamp_end (int | None):
+
+        Returns:
+            list[dict]:  {
+                "hypervisor_address: str,
+                "operations": list[ operation dict]
+            }
+
+
+        """
         find = {
             "$or": [
                 {"src": user_address},

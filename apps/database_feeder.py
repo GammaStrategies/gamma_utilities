@@ -700,7 +700,11 @@ def feed_prices(
 def get_not_to_process_prices(global_db_manager: database_global, network: str) -> set:
     already_processed_prices = [
         x["id"]
-        for x in global_db_manager.get_unique_prices_addressBlock(network=network)
+        for x in global_db_manager.get_items_from_database(
+            collection_name="usd_prices",
+            find={"network": network, "price": {"$gt": 0}},
+            projection={"id": 1, "_id": 0},
+        )
     ]
 
     # get zero sqrtPriceX96 ( unsalvable errors found in the past)
@@ -726,14 +730,20 @@ def create_tokenBlocks_allTokensButWeth(protocol: str, network: str) -> set:
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     db_name = f"{network}_{protocol}"
     local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
-    global_db_manager = database_global(mongo_url=mongo_url)
 
     result = set()
-    for status in local_db_manager.get_items_from_database(collection_name="status"):
+    for status in local_db_manager.get_items_from_database(
+        collection_name="status",
+        find={
+            "pool.token0.symbol": {"$ne": "WETH"},
+            "pool.token1.symbol": {"$ne": "WETH"},
+        },
+        projection={"pool": 1, "_id": 0},
+    ):
         for i in [0, 1]:
             if status["pool"][f"token{i}"]["symbol"] != "WETH":
                 result.add(
-                    f'{network}_{status["block"]}_{status["pool"][f"token{i}"]["address"]}'
+                    f'{network}_{status["pool"]["block"]}_{status["pool"][f"token{i}"]["address"]}'
                 )
 
     # combine token block lists
@@ -756,10 +766,12 @@ def create_tokenBlocks_allTokens(protocol: str, network: str) -> set:
     local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
 
     result = set()
-    for status in local_db_manager.get_items_from_database(collection_name="status"):
+    for status in local_db_manager.get_items_from_database(
+        collection_name="status", projection={"pool": 1, "_id": 0}
+    ):
         for i in [0, 1]:
             result.add(
-                f'{network}_{status["block"]}_{status["pool"][f"token{i}"]["address"]}'
+                f'{network}_{status["pool"]["block"]}_{status["pool"][f"token{i}"]["address"]}'
             )
 
     return result
@@ -779,7 +791,6 @@ def create_tokenBlocks_topTokens(protocol: str, network: str, limit: int = 5) ->
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     db_name = f"{network}_{protocol}"
     local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
-    global_db_manager = database_global(mongo_url=mongo_url)
 
     # get most used token list
     top_token_symbols = [
@@ -790,26 +801,45 @@ def create_tokenBlocks_topTokens(protocol: str, network: str, limit: int = 5) ->
         top_token_symbols.append("WETH")
 
     # get a list of all status with those top tokens + blocks
-    return set(
-        (
-            [
-                f'{network}_{x["pool"]["token1"]["block"]}_{x["pool"]["token1"]["address"]}'
-                for x in local_db_manager.get_items(
-                    collection_name="status",
-                    find={"pool.token1.symbol": {"$in": top_token_symbols}},
-                    sort=[("block", 1)],
-                )
-            ]
-            + [
-                f'{network}_{x["pool"]["token0"]["block"]}_{x["pool"]["token0"]["address"]}'
-                for x in local_db_manager.get_items(
-                    collection_name="status",
-                    find={"pool.token0.symbol": {"$in": top_token_symbols}},
-                    sort=[("block", 1)],
-                )
-            ]
-        )
+    set(
+        [
+            f'{network}_{x["pool"]["token1"]["block"]}_{x["pool"]["token1"]["address"]}'
+            for x in local_db_manager.get_items(
+                collection_name="status",
+                find={
+                    "$or": [
+                        {"pool.token0.symbol": {"$in": top_token_symbols}},
+                        {"pool.token1.symbol": {"$in": top_token_symbols}},
+                    ]
+                },
+                projection={"pool": 1, "_id": 0},
+                sort=[("block", 1)],
+            )
+        ]
     )
+
+    # return set(
+    #     (
+    #         [
+    #             f'{network}_{x["pool"]["token1"]["block"]}_{x["pool"]["token1"]["address"]}'
+    #             for x in local_db_manager.get_items(
+    #                 collection_name="status",
+    #                 find={"pool.token1.symbol": {"$in": top_token_symbols}},
+    #                 projection={"pool": 1, "_id": 0},
+    #                 sort=[("block", 1)],
+    #             )
+    #         ]
+    #         + [
+    #             f'{network}_{x["pool"]["token0"]["block"]}_{x["pool"]["token0"]["address"]}'
+    #             for x in local_db_manager.get_items(
+    #                 collection_name="status",
+    #                 find={"pool.token0.symbol": {"$in": top_token_symbols}},
+    #                 projection={"pool": 1, "_id": 0},
+    #                 sort=[("block", 1)],
+    #             )
+    #         ]
+    #     )
+    # )
 
 
 def create_tokenBlocks_rewards(protocol: str, network: str) -> set:
@@ -826,7 +856,6 @@ def create_tokenBlocks_rewards(protocol: str, network: str) -> set:
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     db_name = f"{network}_{protocol}"
     local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
-    global_db_manager = database_global(mongo_url=mongo_url)
 
     # get static rewards token addresses
     static_rewards = local_db_manager.get_items_from_database(
@@ -930,6 +959,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
                 "pool.token1.symbol": {"$in": top_tokens},
                 "pool.token0.symbol": {"$nin": top_tokens},
             },
+            projection={"block": 1, "pool": 1, "_id": 0},
             sort=[("block", 1)],
         )
         if "{}_{}_{}".format(network, x["block"], x["pool"]["token0"]["address"])
