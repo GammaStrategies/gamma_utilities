@@ -30,12 +30,14 @@ from bins.w3.onchain_utilities.protocols import (
     gamma_hypervisor_algebra,
     gamma_hypervisor_zyberswap,
     gamma_hypervisor_thena,
+    gamma_hypervisor_camelot,
     gamma_hypervisor_registry,
     gamma_hypervisor_cached,
     gamma_hypervisor_quickswap_cached,
     gamma_hypervisor_algebra_cached,
     gamma_hypervisor_zyberswap_cached,
     gamma_hypervisor_thena_cached,
+    gamma_hypervisor_camelot_cached,
 )
 from bins.w3.onchain_utilities.rewarders import (
     gamma_masterchef_registry,
@@ -63,6 +65,12 @@ def build_hypervisor(
         )
     elif dex == "thena":
         hypervisor = gamma_hypervisor_thena(
+            address=hypervisor_address,
+            network=network,
+            block=block,
+        )
+    elif dex == "camelot":
+        hypervisor = gamma_hypervisor_camelot(
             address=hypervisor_address,
             network=network,
             block=block,

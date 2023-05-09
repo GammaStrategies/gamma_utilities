@@ -637,6 +637,33 @@ class gamma_hypervisor_thena(gamma_hypervisor_algebra):
         return self._pool
 
 
+class gamma_hypervisor_camelot(gamma_hypervisor_algebra):
+    def __init__(
+        self,
+        address: str,
+        network: str,
+        abi_filename: str = "",
+        abi_path: str = "",
+        block: int = 0,
+        timestamp: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
+    ):
+        self._abi_filename = abi_filename or "algebra_hypervisor"
+        self._abi_path = abi_path or "data/abi/gamma"
+
+        super().__init__(
+            address=address,
+            network=network,
+            abi_filename=self._abi_filename,
+            abi_path=self._abi_path,
+            block=block,
+            timestamp=timestamp,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
+        )
+
+
 # cached classes
 
 
@@ -1507,6 +1534,10 @@ class gamma_hypervisor_thena_cached(gamma_hypervisor_algebra_cached):
         return self._pool
 
 
+class gamma_hypervisor_camelot_cached(gamma_hypervisor_algebra_cached):
+    SAVE2FILE = True
+
+
 # registries
 
 
@@ -1644,6 +1675,11 @@ class gamma_hypervisor_registry(web3wrap):
                     continue
 
                 result.append(hypervisor_id)
+            except TypeError as e:
+                # hype index is out of bounds
+                logging.getLogger(__name__).debug(
+                    f" Hypervisor index used to call hypeByIndex is out of bounds for {self._network} {self.address}  error-> {e} "
+                )
             except Exception as e:
                 # executiuon reverted:  arbitrum and mainnet have diff ways of indexing (+1 or 0)
                 logging.getLogger(__name__).warning(

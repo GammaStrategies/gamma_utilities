@@ -113,7 +113,14 @@ def parse_commandLine_args():
     )
     par_main.add_argument(
         "--networks",
-        choices=["ethereum", "optimism", "polygon", "arbitrum", "binance"],
+        choices=[
+            "ethereum",
+            "optimism",
+            "polygon",
+            "polygon_zkevm",
+            "arbitrum",
+            "binance",
+        ],
         nargs="+",
         help=" specify networks to be processed",
     )

@@ -394,10 +394,12 @@ class web3wrap:
             gamma_hypervisor_quickswap,
             gamma_hypervisor_zyberswap,
             gamma_hypervisor_thena,
+            gamma_hypervisor_camelot,
             gamma_hypervisor_cached,
             gamma_hypervisor_quickswap_cached,
             gamma_hypervisor_zyberswap_cached,
             gamma_hypervisor_thena_cached,
+            gamma_hypervisor_camelot_cached,
         )
         from bins.w3.onchain_utilities.exchanges import univ3_pool, algebrav3_pool
 
@@ -428,6 +430,12 @@ class web3wrap:
             type(self), (gamma_hypervisor_thena, gamma_hypervisor_thena_cached)
         ):
             return "thena"
+        elif isinstance(
+            self, (gamma_hypervisor_camelot, gamma_hypervisor_camelot_cached)
+        ) or issubclass(
+            type(self), (gamma_hypervisor_camelot, gamma_hypervisor_camelot_cached)
+        ):
+            return "camelot"
 
         # KEEP GAMMA AT THE BOTTOM
         elif isinstance(self, gamma_hypervisor) or issubclass(
@@ -502,7 +510,7 @@ class web3wrap:
             return result
         else:
             logging.getLogger(__name__).debug(
-                f" Could not use any rpcProvider calling function {function_name} on {self._network} network {self.address}"
+                f" Could not use any rpcProvider calling function {function_name} with params {args} on {self._network} network {self.address}"
             )
 
         # # load configured rpc url's

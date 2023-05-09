@@ -69,7 +69,7 @@ WEB3_CHAIN_IDS = {
     "arbitrum": 42161,
     "celo": 42220,
     "binance": 56,
-    "polygon_zk": 1101,
+    "polygon_zkevm": 1101,
     "avalanche": 43114,
 }
 
@@ -108,8 +108,11 @@ STATIC_REGISTRY_ADDRESSES = {
         "hypervisors": {
             "uniswapv3": "0x66CD859053c458688044d816117D5Bdf42A56813",
             "zyberswap": "0x37595FCaF29E4fBAc0f7C1863E3dF2Fe6e2247e9",
+            "camelot": "0xa216C2b6554A0293f69A1555dd22f4b7e60Fe907",
         },
-        "MasterChefV2Registry": {},
+        "MasterChefV2Registry": {
+            "camelot": "0x26da8473AaA54e8c7835fA5fdd1599eB4c144d31",
+        },
         "zyberswap_v1_masterchefs": [
             "0x9ba666165867e916ee7ed3a3ae6c19415c2fbddd",
         ],
@@ -122,9 +125,15 @@ STATIC_REGISTRY_ADDRESSES = {
     },
     "binance": {
         "hypervisors": {
+            "uniswapv3": "0x0b4645179C1b668464Df01362fC6219a7ab3234c",
             "thena": "0xd4bcFC023736Db5617E5638748E127581d5929bd",
         },
         "MasterChefV2Registry": {},
+    },
+    "polygon_zkevm": {
+        "hypervisors": {
+            "quickswap": "0xD08B593eb3460B7aa5Ce76fFB0A3c5c938fd89b8",
+        },
     },
 }
 
