@@ -1413,30 +1413,35 @@ def feed_rewards_status_loop(rewarder_static: dict):
     # process
     for hypervisor_status in to_process_hypervisor_status:
         rewards_data = []
-        if rewarder_static["rewarder_type"] == "zyberswap_masterchef_v1":
-            # create masterchef object
-            zyberswap_masterchef = rewarders.zyberswap_masterchef_v1(
-                address=rewarder_static["rewarder_address"],
-                network=network,
-                block=hypervisor_status["block"],
-                timestamp=hypervisor_status["timestamp"],
-            )
-            # get rewards status
-            rewards_data = zyberswap_masterchef.get_rewards(
-                hypervisor_addresses=[rewarder_static["hypervisor_address"]],
-                pids=rewarder_static["rewarder_refIds"],
-                convert_bint=True,
-            )
+        try:
+            if rewarder_static["rewarder_type"] == "zyberswap_masterchef_v1":
+                # create masterchef object
+                zyberswap_masterchef = rewarders.zyberswap_masterchef_v1(
+                    address=rewarder_static["rewarder_address"],
+                    network=network,
+                    block=hypervisor_status["block"],
+                    timestamp=hypervisor_status["timestamp"],
+                )
+                # get rewards status
+                rewards_data = zyberswap_masterchef.get_rewards(
+                    hypervisor_addresses=[rewarder_static["hypervisor_address"]],
+                    pids=rewarder_static["rewarder_refIds"],
+                    convert_bint=True,
+                )
 
-        elif rewarder_static["rewarder_type"] == "thena_gauge_v2":
-            thena_gauge = rewarders.thena_gauge_v2(
-                address=rewarder_static["rewarder_address"],
-                network=network,
-                block=hypervisor_status["block"],
-                timestamp=hypervisor_status["timestamp"],
-            )
+            elif rewarder_static["rewarder_type"] == "thena_gauge_v2":
+                thena_gauge = rewarders.thena_gauge_v2(
+                    address=rewarder_static["rewarder_address"],
+                    network=network,
+                    block=hypervisor_status["block"],
+                    timestamp=hypervisor_status["timestamp"],
+                )
 
-            rewards_data += thena_gauge.get_rewards(convert_bint=True)
+                rewards_data += thena_gauge.get_rewards(convert_bint=True)
+        except Exception as e:
+            logging.getLogger(__name__).error(
+                f" Unexpected error constructing {network}'s {rewarder_static['rewarder_address']} rewarder data. error-> {e}"
+            )
 
         for reward_data in rewards_data:
             # token_prices
