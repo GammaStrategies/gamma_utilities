@@ -10,6 +10,7 @@ class etherscan_helper:
         "optimism": "https://api-optimistic.etherscan.io",
         "arbitrum": "https://api.arbiscan.io",
         "celo": "https://api.celoscan.io",
+        "polygon_zkevm": "https://api-zkevm.polygonscan.com/",
     }
 
     def __init__(self, api_keys: dict):
@@ -162,12 +163,15 @@ class etherscan_helper:
         # loop till no more results are retrieved
         while True:
             try:
+                # format contract address to match api requirements
+                contract_addresses_string = ",".join(contract_addresses)
+
                 url = "{}/api?{}&apiKey={}".format(
                     self._urls[network.lower()],
                     self.build_url_arguments(
                         module="contract",
                         action="getcontractcreation",
-                        contractaddress=contract_addresses,
+                        contractaddresses=contract_addresses_string,
                         page=page,
                         offset=offset,
                         sort="asc",
@@ -206,10 +210,10 @@ class etherscan_helper:
                     )
                     break
 
-            except Exception:
+            except Exception as e:
                 # do not continue
                 logging.getLogger(__name__).error(
-                    f' Unexpected error while querying url {url}    . error message: {_data["message"]}'
+                    f' Unexpected error while querying url {url}    . error message: {_data["message"] if _data else e}'
                 )
 
                 break
