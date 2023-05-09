@@ -1660,9 +1660,7 @@ def main(option="operations"):
                         protocol=protocol,
                         network=network,
                         dex=dex,
-                        rewrite=(
-                            CONFIGURATION["_custom_"]["cml_parameters"].rewrite or True
-                        ),
+                        rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
                     )
 
                     # feed rewarders static
