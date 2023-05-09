@@ -801,7 +801,7 @@ def create_tokenBlocks_topTokens(protocol: str, network: str, limit: int = 5) ->
         top_token_symbols.append("WETH")
 
     # get a list of all status with those top tokens + blocks
-    set(
+    return set(
         [
             f'{network}_{x["pool"]["token1"]["block"]}_{x["pool"]["token1"]["address"]}'
             for x in local_db_manager.get_items(
