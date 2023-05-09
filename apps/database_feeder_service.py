@@ -172,9 +172,9 @@ def global_db_service():
         logging.getLogger(__name__).debug(
             " Global database feeding loop stoped by user"
         )
-    except Exception:
+    except Exception as e:
         logging.getLogger(__name__).exception(
-            f" Unexpected error while loop-feeding global database data. error {sys.exc_info()[0]}"
+            f" Unexpected error while loop-feeding global database data. error {e}"
         )
     # send eveyone not updating anymore
     logging.getLogger("telegram").info(" Global database feeding loop stoped")

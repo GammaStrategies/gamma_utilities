@@ -570,7 +570,7 @@ def feed_prices(
     # local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
     global_db_manager = database_global(mongo_url=mongo_url)
 
-    # get already processed prices
+    # get already processed prices #TODO: limit to last 20000 blocks?
     already_processed_prices = get_not_to_process_prices(
         global_db_manager=global_db_manager, network=network
     )
@@ -698,14 +698,19 @@ def feed_prices(
 
 
 def get_not_to_process_prices(global_db_manager: database_global, network: str) -> set:
-    already_processed_prices = [
-        x["id"]
-        for x in global_db_manager.get_items_from_database(
-            collection_name="usd_prices",
-            find={"network": network, "price": {"$gt": 0}},
-            projection={"id": 1, "_id": 0},
-        )
-    ]
+    # already_processed_prices = [
+    #     x["id"]
+    #     for x in global_db_manager.get_items_from_database(
+    #         collection_name="usd_prices",
+    #         find={"network": network, "price": {"$gt": 0}},
+    #         projection={"id": 1, "_id": 0},
+    #     )
+    # ]
+    already_processed_prices = global_db_manager.get_distinct_items_from_database(
+        collection_name="usd_prices",
+        field="id",
+        condition={"network": network, "price": {"$gt": 0}},
+    )
 
     # get zero sqrtPriceX96 ( unsalvable errors found in the past)
     already_processed_prices += [
@@ -731,23 +736,28 @@ def create_tokenBlocks_allTokensButWeth(protocol: str, network: str) -> set:
     db_name = f"{network}_{protocol}"
     local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
 
-    result = set()
-    for status in local_db_manager.get_items_from_database(
-        collection_name="status",
-        find={
-            "pool.token0.symbol": {"$ne": "WETH"},
-            "pool.token1.symbol": {"$ne": "WETH"},
-        },
-        projection={"pool": 1, "_id": 0},
-    ):
-        for i in [0, 1]:
-            if status["pool"][f"token{i}"]["symbol"] != "WETH":
-                result.add(
-                    f'{network}_{status["pool"]["block"]}_{status["pool"][f"token{i}"]["address"]}'
+    try:
+        return set(
+            [
+                f'{network}_{status["pool"]["block"]}_{status["pool"][f"token{i}"]["address"]}'
+                for status in local_db_manager.get_items_from_database(
+                    collection_name="status",
+                    find={
+                        "pool.token0.symbol": {"$ne": "WETH"},
+                        "pool.token1.symbol": {"$ne": "WETH"},
+                    },
+                    projection={"pool": 1, "_id": 0},
                 )
+                for i in [0, 1]
+                if status["pool"][f"token{i}"]["symbol"] != "WETH"
+            ]
+        )
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            f"Unexpected error while getting {network} {protocol} allTokensButWeth blocks"
+        )
 
-    # combine token block lists
-    return result
+    return set()
 
 
 def create_tokenBlocks_allTokens(protocol: str, network: str) -> set:
@@ -766,13 +776,20 @@ def create_tokenBlocks_allTokens(protocol: str, network: str) -> set:
     local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
 
     result = set()
-    for status in local_db_manager.get_items_from_database(
-        collection_name="status", projection={"pool": 1, "_id": 0}
-    ):
-        for i in [0, 1]:
-            result.add(
+    try:
+        result = set(
+            [
                 f'{network}_{status["pool"]["block"]}_{status["pool"][f"token{i}"]["address"]}'
-            )
+                for status in local_db_manager.get_items_from_database(
+                    collection_name="status", projection={"pool": 1, "_id": 0}
+                )
+                for i in [0, 1]
+            ]
+        )
+    except Exception as e:
+        logging.getLogger(__name__).error(
+            f"  Unexpected error found while retrieving hypervisor status from {db_name} to create the allToken block list for price scraping. error-> {e}"
+        )
 
     return result
 
