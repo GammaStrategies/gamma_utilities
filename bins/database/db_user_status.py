@@ -2611,3 +2611,298 @@ class user_status_hypervisor_builder:
             "info_ini_investment": ini_investment,
             "info_end_investment": end_investment,
         }
+
+
+class user_status_hypervisor_builderV2:
+    def __init__(self, network: str, protocol: str):
+        """Fast forward emulate gamma hypervisor contract using database data
+
+        Args:
+            hypervisor_address (str):
+            network (str):
+            protocol (str):
+            t_ini (int): initial timestamp
+            t_end (int): end timestamp
+        """
+
+        # set global vars
+        self._network = network
+        self._protocol = protocol
+
+        self.__blacklist_addresses = ["0x0000000000000000000000000000000000000000"]
+
+    @property
+    def local_db_manager(self) -> database_local:
+        mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+        db_name = f"{self.network}_{self.protocol}"
+        return database_local(mongo_url=mongo_url, db_name=db_name)
+
+    @property
+    def network(self) -> str:
+        return self._network
+
+    @property
+    def protocol(self) -> str:
+        return self._protocol
+
+    @log_execution_time
+    def _process_operation(self, operation: dict):
+        # set current block
+        self.current_block = operation["blockNumber"]
+        # set current logIndex
+        self.current_logIndex = operation["logIndex"]
+
+        if operation["topic"] == "deposit":
+            self._add_user_status(status=self._process_deposit(operation=operation))
+
+        elif operation["topic"] == "withdraw":
+            self._add_user_status(status=self._process_withdraw(operation=operation))
+
+        elif operation["topic"] == "transfer":
+            # retrieve new status
+            op_source, op_destination = self._process_transfer(operation=operation)
+            # add to collection
+            if op_source:
+                self._add_user_status(status=op_source)
+            if op_destination:
+                self._add_user_status(status=op_destination)
+
+        elif operation["topic"] == "rebalance":
+            self._process_rebalance(operation=operation)
+
+        elif operation["topic"] == "approval":
+            # TODO: approval topic
+            # self._add_user_status(self._process_approval(operation=operation))
+            pass
+
+        elif operation["topic"] == "zeroBurn":
+            self._process_zeroBurn(operation=operation)
+
+        elif operation["topic"] == "setFee":
+            # TODO: setFee topic
+            pass
+
+        elif operation["topic"] == "report":
+            # global status for all addresses
+            self._process_topic_report(operation=operation)
+
+        else:
+            raise NotImplementedError(
+                f""" {operation["topic"]} topic not implemented yet"""
+            )
+
+    def create_empty_userStatus(
+        self, user_address: str, hypervisor_address: str
+    ) -> dict:
+        return {
+            "user_address": user_address,
+            "hypervisor_address": hypervisor_address,
+            "block": 0,
+            "timestamp": 0,
+            "deposits_token0": 0,
+            "deposits_token1": 0,
+            "deposits_shares": 0,
+            "withdraws_token0": 0,
+            "withdraws_token1": 0,
+            "withdraws_shares": 0,
+            "transfers_token0": 0,
+            "transfers_token1": 0,
+            "transfers_shares": 0,
+            "fees_token0": 0,
+            "fees_token1": 0,
+            "shares": 0,
+            "token0_usd": 0,
+            "token1_usd": 0,
+        }
+
+    def calculate_status(
+        self,
+        user_address: str,
+        block_ini: int | None = None,
+        block_end: int | None = None,
+        timestamp_ini: int | None = None,
+        timestamp_end: int | None = None,
+    ):
+        # get all user operations with this hypervisor
+        user_operations = self._get_user_operations(
+            user_address=user_address,
+            timestamp_ini=timestamp_ini,
+            timestamp_end=timestamp_end,
+        )
+
+        for hypervisor_data in user_operations:
+            hypervisor_address = hypervisor_data["hypervisor_address"]
+
+            # loop thu operations in order and calculate status
+            for operation in hypervisor_data["user_operations"]:
+                # setup new user status
+                user_status = self.create_empty_userStatus(
+                    user_address=user_address, hypervisor_address=hypervisor_address
+                )
+                user_status["block"] = operation["blockNumber"]
+                user_status["timestamp"] = operation["timestamp"]
+
+                # process operation
+                if operation["topic"] == "deposit":
+                    user_status["deposits_token0"] += int(operation["qtty_token0"]) / (
+                        10 ** operation["decimals_token0"]
+                    )
+                    user_status["deposits_token1"] += int(operation["qtty_token1"]) / (
+                        10 ** operation["decimals_token1"]
+                    )
+                    user_status["deposits_shares"] += int(operation["qtty_shares"]) / (
+                        10 ** operation["decimals_contract"]
+                    )
+                elif operation["topic"] == "withdraw":
+                    user_status["withdraws_token0"] += int(operation["qtty_token0"]) / (
+                        10 ** operation["decimals_token0"]
+                    )
+                    user_status["withdraws_token1"] += int(operation["qtty_token1"]) / (
+                        10 ** operation["decimals_token1"]
+                    )
+                    user_status["withdraws_shares"] += int(operation["qtty_shares"]) / (
+                        10 ** operation["decimals_contract"]
+                    )
+
+            # extract initial and end blocks from deposits and withdrawals
+            block_ini = min(
+                x["blockNumber"]
+                for x in hypervisor_data["user_operations"]
+                if x["topic"] == "deposit"
+            )
+            block_ini = min(
+                x["blockNumber"]
+                for x in hypervisor_data["user_operations"]
+                if x["topic"] == "deposit"
+            )
+
+        # get all hypervisor rebalance/zeroBurn operations from ini block to end block, linked with its status
+        _query = [
+            {
+                "$match": {
+                    "topic": {"$in": ["zeroBurn", "rebalance"]},
+                    "address": "0x20b520adc4d068974105104ed955a4dbadfa4ea6",
+                    "blockNumber": {"$gte": 22471915},
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "status",
+                    "let": {
+                        "operation_hype_address": "$address",
+                        "operation_block": "$blockNumber",
+                    },
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$and": [
+                                        {
+                                            "$eq": [
+                                                "$address",
+                                                "$$operation_hype_address",
+                                            ]
+                                        },
+                                        {"$eq": ["$block", "$$operation_block"]},
+                                    ],
+                                }
+                            }
+                        },
+                        {"$unset": ["_id"]},
+                    ],
+                    "as": "status",
+                }
+            },
+            {"$unset": ["_id"]},
+            {"$unwind": "$status"},
+            {"$sort": {"block": 1}},
+            {
+                "$group": {
+                    "_id": "$address",
+                    "hypervisor_address": {"$first": "$address"},
+                    "fees_operations": {"$push": "$$ROOT"},
+                }
+            },
+            {"$unset": ["_id"]},
+        ]
+
+        # hypervisor_operations = self.local_db_manager.query_items_from_database(query=self.local_db_manager.())
+
+        # calculate
+        #    % of shares in all operations
+        #    shares value in all operations
+        #    qtty token0 in all operations
+        #    qtty token1 ...
+        #    qtty usd in all operations
+        #    if any user operation transfer is to rewarder,
+        #       get staked time inside rewarder
+        #       get rewarder status from deposit to withdraw block
+        #       calculate rewarder reward
+
+    def _get_user_operations(
+        self,
+        user_address: str,
+        timestamp_ini: int | None = None,
+        timestamp_end: int | None = None,
+    ) -> list[dict] | None:
+        match_query = {
+            "$or": [
+                {"sender": user_address},
+                {"to": user_address},
+                {"src": user_address},
+                {"dst": user_address},
+            ]
+        }
+        if timestamp_ini and timestamp_end:
+            match_query["timestamp"] = {"$gte": timestamp_ini, "$lte": timestamp_end}
+        elif timestamp_ini:
+            match_query["timestamp"] = {"$gte": timestamp_ini}
+        elif timestamp_end:
+            match_query["timestamp"] = {"$lte": timestamp_end}
+
+        query = [
+            {"$match": match_query},
+            {
+                "$lookup": {
+                    "from": "status",
+                    "let": {
+                        "operation_hype_address": "$address",
+                        "operation_block": "$blockNumber",
+                    },
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$and": [
+                                        {
+                                            "$eq": [
+                                                "$address",
+                                                "$$operation_hype_address",
+                                            ]
+                                        },
+                                        {"$eq": ["$block", "$$operation_block"]},
+                                    ],
+                                }
+                            }
+                        },
+                        {"$unset": ["_id"]},
+                    ],
+                    "as": "status",
+                }
+            },
+            {"$unset": ["_id"]},
+            {"$unwind": "$status"},
+            {"$sort": {"block": 1}},
+            {
+                "$group": {
+                    "_id": "$address",
+                    "hypervisor_address": {"$first": "$address"},
+                    "user_operations": {"$push": "$$ROOT"},
+                }
+            },
+            {"$unset": ["_id"]},
+        ]
+
+        return self.local_db_manager.query_items_from_database(
+            query=query, collection_name="operations"
+        )

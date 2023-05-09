@@ -24,10 +24,11 @@ from apps.database_feeder import (
     feed_rewards_status,
     feed_timestamp_blocks,
     feed_blocks_timestamp,
-    feed_user_status,
     create_tokenBlocks_rewards,
 )
 from apps.feeds.static import feed_hypervisor_static, feed_rewards_static
+from apps.feeds.users import feed_user_status
+
 from apps.database_checker import repair_all
 
 

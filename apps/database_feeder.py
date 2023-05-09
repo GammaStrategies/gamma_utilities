@@ -4,7 +4,7 @@ import logging
 import tqdm
 import concurrent.futures
 import contextlib
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
 from web3 import Web3
 from web3.exceptions import ContractLogicError
@@ -57,7 +57,7 @@ from bins.formulas.dex_formulas import (
 from bins.formulas.apr import calculate_rewards_apr
 
 from apps.feeds.static import feed_hypervisor_static, feed_rewards_static
-from datetime import timezone
+from apps.feeds.users import feed_user_status
 
 
 ### Operations ######################
@@ -1246,68 +1246,6 @@ def feed_timestamp_blocks(network: str, protocol: str, threaded: bool = True):
                 (_errors / len(items_to_process)) if items_to_process else 0,
             )
         )
-
-
-### user Status #######################
-def feed_user_status(network: str, protocol: str):
-    addresses = get_hypervisor_addresses(network=network, protocol=protocol)
-    logging.getLogger(__name__).info(
-        f">Feeding {protocol}'s {network} user status information for {len(addresses)} hypervisors"
-    )
-
-    for idx, address in enumerate(addresses):
-        logging.getLogger(__name__).debug(
-            f"   [{idx} of {len(addresses)}] Building {network}'s {address} user status"
-        )
-
-        hype_new = user_status_hypervisor_builder(
-            hypervisor_address=address, network=network, protocol=protocol
-        )
-
-        try:
-            hype_new._process_operations()
-        except Exception:
-            logging.getLogger(__name__).exception(
-                f" Unexpected error while feeding user status of {network}'s  {address}"
-            )
-
-
-def get_hypervisor_addresses(network: str, protocol: str) -> list[str]:
-    result = []
-    # get database configuration
-    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-    db_name = f"{network}_{protocol}"
-
-    # get blacklisted hypervisors
-    blacklisted = (
-        CONFIGURATION.get("script", {})
-        .get("protocols", {})
-        .get(protocol, {})
-        .get("filters", {})
-        .get("hypervisors_not_included", {})
-        .get(network, [])
-    )
-    # check n clean
-    if blacklisted is None:
-        blacklisted = []
-
-    # retrieve all addresses from database
-    local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
-    result = local_db_manager.get_distinct_items_from_database(
-        collection_name="static", field="address"
-    )
-
-    # apply black list
-    logging.getLogger(__name__).debug(
-        f" Number of hypervisors to process before applying filters: {len(result)}"
-    )
-    # filter blacklisted
-    result = [x for x in result if x not in blacklisted]
-    logging.getLogger(__name__).debug(
-        f" Number of hypervisors to process after applying filters: {len(result)}"
-    )
-
-    return result
 
 
 ### Rewards  #######################
