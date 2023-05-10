@@ -3359,6 +3359,8 @@ class blocks_scraper(thegraph_scraper_helper):
             # "optimism": "https://api.thegraph.com/subgraphs/name/beethovenxfi/optimism-blocks/",
             "arbitrum": "https://api.thegraph.com/subgraphs/name/edoapp/arbitrum-blocks",
             # "celo":"",
+            "binance": "https://api.thegraph.com/subgraphs/name/emkay860/blocks",  # "https://api.thegraph.com/subgraphs/name/iliaazhel/bsc-blocks"
+            "avalanche": "https://api.thegraph.com/subgraphs/name/iliaazhel/avalanche-blocks",
         }
 
     def _query_constructor(self, skip: int, name: str, filter: str):
