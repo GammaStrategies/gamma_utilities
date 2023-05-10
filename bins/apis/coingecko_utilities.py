@@ -1,4 +1,5 @@
 import sys
+from time import sleep
 from pycoingecko import CoinGeckoAPI
 import datetime as dt
 import logging
@@ -211,7 +212,7 @@ class geckoterminal_price_helper:
         self.retries = retries
         self.request_timeout = request_timeout
 
-        self.__RATE_LIMIT = net_utilities.rate_limit(rate_max_sec=0.45)  #  rate limiter
+        self.__RATE_LIMIT = net_utilities.rate_limit(rate_max_sec=0.5)  #  rate limiter
 
     @property
     def networks(self) -> list[str]:
@@ -394,8 +395,26 @@ class geckoterminal_price_helper:
 
     # HELPERs
     def _request_data(self, url):
-        self.__RATE_LIMIT.continue_when_safe()
-        return net_utilities.get_request(url)
+        for retry in range(self.retries):
+            self.__RATE_LIMIT.continue_when_safe()
+            if data := net_utilities.get_request(
+                url=url, timeout_secs=self.request_timeout
+            ):
+                if "data" in data:
+                    return data
+                else:
+                    # {'status': '429', 'title': 'Rate Limited', 'debug': 'free limit'}
+                    if "status" in data and data["status"] == "429":
+                        logging.getLogger(__name__).warning(
+                            f" Rate Limited by geckoterminal. retrying in 1 sec..."
+                        )
+                    else:
+                        logging.getLogger(__name__).warning(
+                            f"no data returned by geckoterminal -> {data}. retrying in 1 sec..."
+                        )
+                    # wait 1 sec before retrying
+                    sleep(1)
+        return None
 
     def build_networks_url(self, network: str) -> str:
         return f"{self._main_url}networks/{self.netids[network]}"
