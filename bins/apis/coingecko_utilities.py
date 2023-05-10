@@ -211,7 +211,7 @@ class geckoterminal_price_helper:
         self.retries = retries
         self.request_timeout = request_timeout
 
-        self.__RATE_LIMIT = net_utilities.rate_limit(rate_max_sec=0.5)  #  rate limiter
+        self.__RATE_LIMIT = net_utilities.rate_limit(rate_max_sec=0.45)  #  rate limiter
 
     @property
     def networks(self) -> list[str]:

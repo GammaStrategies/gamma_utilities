@@ -284,8 +284,9 @@ class price_scraper:
 
         if block != 0:
             # convert block to timestamp
-            timestamp = self._convert_block_to_timestamp(network=network, block=block)
-            if timestamp != 0:
+            if timestamp := self._convert_block_to_timestamp(
+                network=network, block=block
+            ):
                 # get price at block
                 _price = self.coingecko_price_connector.get_price_historic(
                     network, token_id, timestamp
@@ -308,8 +309,9 @@ class price_scraper:
 
         if block != 0:
             # convert block to timestamp
-            timestamp = self._convert_block_to_timestamp(network=network, block=block)
-            if timestamp != 0:
+            if timestamp := self._convert_block_to_timestamp(
+                network=network, block=block
+            ):
                 # get price at block
                 _price = self.geckoterminal_price_connector.get_price_historic(
                     network=network, token_address=token_id, before_timestamp=timestamp
@@ -326,7 +328,7 @@ class price_scraper:
     # HELPERS
     def _convert_block_to_timestamp(self, network: str, block: int) -> int:
         # try database
-        with contextlib.suppress(Exception):
+        try:
             # create global database manager
             global_db = database_global(
                 mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"]
@@ -334,6 +336,13 @@ class price_scraper:
             return global_db.get_items_from_database(
                 collection_name="blocks", find={"block": block}
             )[0]["timestamp"]
+        except IndexError:
+            logging.getLogger(LOG_NAME).warning(f"Block {block} not found in database")
+        except Exception as e:
+            logging.getLogger(LOG_NAME).exception(
+                f"Error while getting block {block} timestamp from database. Error: {e}"
+            )
+
         # try thegraph
         try:
             block_data = self.thegraph_block_connector.get_all_results(
@@ -341,7 +350,10 @@ class price_scraper:
             )[0]
 
             return block_data["timestamp"]
-        except Exception:
+        except Exception as e:
+            logging.getLogger(LOG_NAME).exception(
+                f"Error while getting block {block} timestamp from thegraph. Error: {e}"
+            )
             return 0
 
     def _get_connector_candidates(self, network: str) -> dict:
