@@ -247,15 +247,25 @@ class geckoterminal_price_helper:
                             limit=1,
                             token=base_or_quote.replace("_token", ""),
                         ):
-                            (
-                                _timestamp,
-                                _open,
-                                _high,
-                                _low,
-                                _close,
-                                _volume,
-                            ) = ohlcsv_data["data"]["attributes"]["ohlcv_list"][0]
-                            return _close
+                            if (
+                                ohlcsv_data.get("data", {})
+                                .get("attributes", {})
+                                .get("ohlcv_list", None)
+                            ):
+                                (
+                                    _timestamp,
+                                    _open,
+                                    _high,
+                                    _low,
+                                    _close,
+                                    _volume,
+                                ) = ohlcsv_data["data"]["attributes"]["ohlcv_list"][0]
+                                return _close
+                            else:
+                                logging.getLogger(__name__).debug(
+                                    f" no ohlcv data was returned by geckoterminal -> {ohlcsv_data} for pool {pool_data['id']}"
+                                )
+                                return None
 
                 except Exception as e:
                     logging.getLogger(__name__).exception(

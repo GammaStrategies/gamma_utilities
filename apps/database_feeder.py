@@ -1484,14 +1484,20 @@ def feed_rewards_status_loop(rewarder_static: dict):
                     / (10 ** hypervisor_status["decimals"])
                 )
 
-                apr = calculate_rewards_apr(
-                    token_price=rewardToken_price,
-                    token_reward_rate=int(reward_data["rewards_perSecond"])
-                    / (10 ** reward_data["rewardToken_decimals"]),
-                    total_lp_locked=int(reward_data["total_hypervisorToken_qtty"])
-                    / (10 ** hypervisor_status["decimals"]),
-                    lp_token_price=hype_price_per_share,
-                )
+                
+                if int(reward_data["total_hypervisorToken_qtty"]) and hype_price_per_share:
+                    # if there is hype qtty staked and price per share
+                    apr = calculate_rewards_apr(
+                        token_price=rewardToken_price,
+                        token_reward_rate=int(reward_data["rewards_perSecond"])
+                        / (10 ** reward_data["rewardToken_decimals"]),
+                        total_lp_locked=int(reward_data["total_hypervisorToken_qtty"])
+                        / (10 ** hypervisor_status["decimals"]),
+                        lp_token_price=hype_price_per_share,
+                    )
+                else:
+                    # no apr if no hype qtty staked or no price per share
+                    apr = 0
 
                 # add status fields ( APR )
                 reward_data["hypervisor_symbol"] = hypervisor_status["symbol"]
@@ -1509,7 +1515,9 @@ def feed_rewards_status_loop(rewarder_static: dict):
                 logging.getLogger(__name__).error(
                     f" Rewards-> {network}'s {rewarder_static['rewardToken']} price at block {hypervisor_status['block']} could not be calculated. Error: {e}"
                 )
-                # return []
+                logging.getLogger(__name__).debug(
+                    f" Rewards last err debug data -> rewarder_static {rewarder_static}           hype status {hypervisor_status}"
+                )
 
     return result
 

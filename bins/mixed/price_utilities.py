@@ -1,6 +1,8 @@
 import contextlib
+from datetime import datetime
 import sys
 import logging
+import time
 from bins.cache import cache_utilities
 from bins.apis import thegraph_utilities, coingecko_utilities
 from bins.configuration import CONFIGURATION
@@ -317,6 +319,16 @@ class price_scraper:
                 _price = self.geckoterminal_price_connector.get_price_historic(
                     network=network, token_address=token_id, before_timestamp=timestamp
                 )
+
+                # if no historical price was found but timestamp is 5 minute close to current time, get current price
+                if _price in [0, None] and (time.time() - timestamp) <= (5 * 60):
+                    logging.getLogger(__name__).warning(
+                        f" Price at block {block} not found using ohlcvs geckoterminal. Because timestamp date {datetime.fromtimestamp(timestamp)} is close to current time, try getting current price"
+                    )
+                    _price = self.geckoterminal_price_connector.get_price_now(
+                        network=network, token_address=token_id
+                    )
+
         else:
             # get current block price
             _price = self.geckoterminal_price_connector.get_price_now(
