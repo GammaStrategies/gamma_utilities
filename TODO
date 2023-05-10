@@ -12,11 +12,11 @@ database_feeder:
   ☐ Save status last block to db (current)-> define meth to update last item till saving it permanently...
 
 prices:
-    Add coingecko terminal support https://api.geckoterminal.com/docs/index.html
     Optimize database queries ( queries affecting all prices are too big and slow)
     Add onchain price support ( for uniswapv3 )
 
 all:
+  ☐ Add Enum for networks, protocols and dexes
   ☐ Change uniswapv3 to uniswap in code and database
   ☐ add timestamp to ini web3wrap
 
