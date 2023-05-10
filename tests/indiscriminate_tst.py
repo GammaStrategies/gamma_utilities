@@ -11,6 +11,7 @@ import concurrent.futures
 
 from datetime import datetime, timedelta
 
+
 # append parent directory pth
 CURRENT_FOLDER = os.path.dirname(os.path.realpath(__file__))
 PARENT_FOLDER = os.path.dirname(CURRENT_FOLDER)
@@ -54,6 +55,8 @@ from bins.database.common.db_collections_common import (
 )
 
 from apps.database_checker import auto_get_prices, replace_quickswap_pool_dex_to_algebra
+
+from bins.apis.coingecko_utilities import geckoterminal_price_helper
 
 
 def test_w3_hypervisor_obj(
@@ -654,14 +657,11 @@ def test_autoRpccalls(
     po = ""
 
 
-def test_me():
-    protocol = "gamma"
-    network = "arbitrum"
-    feed_prices(
-        protocol=protocol,
-        network=network,
-        price_ids=create_tokenBlocks_rewards(protocol=protocol, network=network),
-        coingecko=True,
+def test_price_geckterm():
+    price_helper = geckoterminal_price_helper()
+    price = price_helper.get_price_now(
+        network="binance",
+        token_address="0x3cd55356433c89e50dc51ab07ee0fa0a95623d53",
     )
     pp = ""
 
@@ -681,7 +681,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    test_me()
+    test_price_geckterm()
 
     kwargs_list = [
         {
