@@ -11,9 +11,12 @@ LOG_NAME = "price"
 
 class price_scraper:
     def __init__(
-        self, cache: bool = True, cache_filename: str = "", coingecko: bool = True
+        self,
+        cache: bool = True,
+        cache_filename: str = "",
+        coingecko: bool = True,
+        geckoterminal: bool = True,
     ):
-
         cache_folderName = CONFIGURATION["cache"]["save_path"]
 
         # init cache
@@ -24,13 +27,13 @@ class price_scraper:
         )
 
         self.coingecko = coingecko
+        self.geckoterminal = geckoterminal
 
         # create price helpers
         self.init_apis(cache, cache_folderName)
 
     ## CONFIG ##
     def init_apis(self, cache: bool, cache_savePath: str):
-
         self.thegraph_connectors = {
             "uniswapv3": thegraph_utilities.uniswapv3_scraper(
                 cache=cache, cache_savePath=cache_savePath
@@ -53,6 +56,10 @@ class price_scraper:
         # price coingecko
         self.coingecko_price_connector = coingecko_utilities.coingecko_price_helper(
             retries=1, request_timeout=5
+        )
+
+        self.geckoterminal_price_connector = (
+            coingecko_utilities.geckoterminal_price_helper(retries=1, request_timeout=5)
         )
 
     ## PUBLIC ##
@@ -82,7 +89,6 @@ class price_scraper:
             thegraph_connectors = self._get_connector_candidates(network=network)
 
             for dex, connector in thegraph_connectors.items():
-
                 logging.getLogger(LOG_NAME).debug(
                     f" Trying to get {network}'s token {token_id} price at block {block} from {dex} subgraph"
                 )
@@ -116,6 +122,24 @@ class price_scraper:
             except Exception:
                 logging.getLogger(LOG_NAME).debug(
                     f" Could not get {network}'s token {token_id} price at block {block} from coingecko."
+                )
+
+        if (
+            self.geckoterminal
+            and _price in [None, 0]
+            and network in self.geckoterminal_price_connector.networks
+        ):
+            # GET FROM GECKOTERMINAL
+            logging.getLogger(LOG_NAME).debug(
+                f" Trying to get {network}'s token {token_id} price at block {block} from geckoterminal"
+            )
+            try:
+                _price = self._get_price_from_geckoterminal(
+                    network, token_id, block, of
+                )
+            except Exception:
+                logging.getLogger(LOG_NAME).debug(
+                    f" Could not get {network}'s token {token_id} price at block {block} from geckoterminal."
                 )
 
         # SAVE CACHE
@@ -156,7 +180,6 @@ class price_scraper:
         block: int,
         of: str,
     ) -> float:
-
         if of != "USD":
             raise NotImplementedError(
                 f" Cannot find {of} price method to be gathered from"
@@ -250,7 +273,6 @@ class price_scraper:
     def _get_price_from_coingecko(
         self, network: str, token_id: str, block: int, of: str
     ) -> float:
-
         _price = 0
         if of != "USD":
             raise NotImplementedError(
@@ -272,9 +294,34 @@ class price_scraper:
         #
         return _price
 
+    def _get_price_from_geckoterminal(
+        self, network: str, token_id: str, block: int, of: str
+    ) -> float:
+        _price = 0
+        if of != "USD":
+            raise NotImplementedError(
+                f" Cannot find {of} price method to be gathered from"
+            )
+
+        if block != 0:
+            # convert block to timestamp
+            timestamp = self._convert_block_to_timestamp(network=network, block=block)
+            if timestamp != 0:
+                # get price at block
+                _price = self.geckoterminal_price_connector.get_price_historic(
+                    network=network, token_address=token_id, before_timestamp=timestamp
+                )
+        else:
+            # get current block price
+            _price = self.geckoterminal_price_connector.get_price_now(
+                network=network, token_address=token_id
+            )
+
+        #
+        return _price
+
     # HELPERS
     def _convert_block_to_timestamp(self, network: str, block: int) -> int:
-
         # try database
         with contextlib.suppress(Exception):
             # create global database manager
