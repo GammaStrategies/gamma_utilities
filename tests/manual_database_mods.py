@@ -174,6 +174,45 @@ def read_logfile_regx(log_file: str | None = None):
     return network_token_blocks
 
 
+def manual_set_rewarder_static_block_timestamp():
+    """
+    This function is used to manually set the block and timestamp for static rewarders using status rewarders first object found in the database
+    """
+
+    network = "binance"
+    protocol = "gamma"
+
+    logging.getLogger(__name__).info(
+        f"Setting {protocol}'s {network} rewarders static block and timestamp mannually to first known in rewarders status collection"
+    )
+    # get all 1st rewarder status from database
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_name = f"{network}_{protocol}"
+    local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
+
+    # get all rewarders
+    for static_rewarder in local_db_manager.get_items_from_database(
+        collection_name="rewards_static"
+    ):
+        # get first known block and timestamp from the reward status collection
+        if reward_status := local_db_manager.get_items_from_database(
+            collection_name="rewards_status",
+            find={
+                "hypervisor_address": static_rewarder["hypervisor_address"],
+                "rewarder_address": static_rewarder["rewarder_address"],
+            },
+            sort=[("block", 1)],
+            projection={"block": 1, "timestamp": 1},
+            limit=1,
+        ):
+            # update static rewarder with block and timestamp
+            static_rewarder["block"] = reward_status[0]["block"]
+            static_rewarder["timestamp"] = reward_status[0]["timestamp"]
+
+            # update static rewarder in database
+            local_db_manager.set_rewards_static(data=static_rewarder)
+
+
 # def manual_feed_operations():
 
 #     data_operations_to_feed = {
@@ -224,7 +263,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    manual_set_price_by_block()
+    manual_set_rewarder_static_block_timestamp()
 
     # end time log
     _timelapse = datetime.now(timezone.utc) - _startime
