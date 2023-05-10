@@ -509,7 +509,7 @@ class web3wrap:
         if not result is None:
             return result
         else:
-            logging.getLogger(__name__).debug(
+            logging.getLogger(__name__).error(
                 f" Could not use any rpcProvider calling function {function_name} with params {args} on {self._network} network {self.address} block {self.block}"
             )
 
