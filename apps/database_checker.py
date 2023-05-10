@@ -61,7 +61,7 @@ def repair_prices(min_count: int = 1):
                         # block is string
                         block = int(block)
 
-                        # check if price isnot alreadty in database
+                        # check if price isnot already in database
                         if (
                             get_price_of_token(
                                 network=network, token_address=address, block=block
@@ -80,10 +80,9 @@ def repair_prices(min_count: int = 1):
 
                         # counter = number of times found in logs
                         if counter >= min_count:
-                            price = get_price(
+                            if price := get_price(
                                 network=network, token_address=address, block=block
-                            )
-                            if price != 0:
+                            ):
                                 logging.getLogger(__name__).debug(
                                     f" Added {price} as price for {network}'s {address} at block {block}  (found {counter} times in log)"
                                 )

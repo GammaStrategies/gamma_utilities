@@ -119,9 +119,9 @@ class price_scraper:
 
             try:
                 _price = self._get_price_from_coingecko(network, token_id, block, of)
-            except Exception:
+            except Exception as e:
                 logging.getLogger(LOG_NAME).debug(
-                    f" Could not get {network}'s token {token_id} price at block {block} from coingecko."
+                    f" Could not get {network}'s token {token_id} price at block {block} from coingecko. error-> {e}"
                 )
 
         if (
@@ -137,9 +137,9 @@ class price_scraper:
                 _price = self._get_price_from_geckoterminal(
                     network, token_id, block, of
                 )
-            except Exception:
+            except Exception as e:
                 logging.getLogger(LOG_NAME).debug(
-                    f" Could not get {network}'s token {token_id} price at block {block} from geckoterminal."
+                    f" Could not get {network}'s token {token_id} price at block {block} from geckoterminal. error-> {e}"
                 )
 
         # SAVE CACHE
@@ -329,7 +329,7 @@ class price_scraper:
                 mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"]
             )
             return global_db.get_items_from_database(
-                collection_name="block", find={"block": block}
+                collection_name="blocks", find={"block": block}
             )[0]["timestamp"]
         # try thegraph
         try:
