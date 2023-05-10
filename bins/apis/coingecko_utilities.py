@@ -469,7 +469,9 @@ class geckoterminal_price_helper:
         ):
             return "base_token"
         elif (
-            pool_data["relationships"]["quote"]["data"]["id"].split("_")[1].lower()
+            pool_data["relationships"]["quote_token"]["data"]["id"]
+            .split("_")[1]
+            .lower()
             == token_address.lower()
         ):
             return "quote_token"
