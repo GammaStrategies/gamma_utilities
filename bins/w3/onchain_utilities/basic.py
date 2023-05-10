@@ -510,32 +510,9 @@ class web3wrap:
             return result
         else:
             logging.getLogger(__name__).debug(
-                f" Could not use any rpcProvider calling function {function_name} with params {args} on {self._network} network {self.address}"
+                f" Could not use any rpcProvider calling function {function_name} with params {args} on {self._network} network {self.address} block {self.block}"
             )
 
-        # # load configured rpc url's
-        # for key_name in rpcKey_names or CONFIGURATION["sources"].get(
-        #     "w3Providers_default_order", ["public", "private"]
-        # ):
-        #     if (
-        #         rpcUrls := CONFIGURATION["sources"]
-        #         .get("w3Providers", {})
-        #         .get(key_name, {})
-        #         .get(self._network, [])
-        #     ):
-        #         random.shuffle(rpcUrls)
-
-        #         result = self.call_function(function_name, rpcUrls, *args)
-        #         if not result is None:
-        #             return result
-        #         else:
-        #             logging.getLogger(__name__).debug(
-        #                 f" Could not use any {key_name} rpcProvider calling function {function_name} on {self._network} network {self.address}"
-        #             )
-
-        # logging.getLogger(__name__).error(
-        #     f" Could not use any available rpcProvider calling function {function_name} on {self._network} network {self.address}"
-        # )
         return None
 
     def get_rpcUrls(
