@@ -106,24 +106,7 @@ class price_scraper:
                         # exit for loop
                         break
 
-        # coingecko
-        if (
-            self.coingecko
-            and _price in [None, 0]
-            and network in self.coingecko_price_connector.networks
-        ):
-            # GET FROM COINGECKO
-            logging.getLogger(LOG_NAME).debug(
-                f" Trying to get {network}'s token {token_id} price at block {block} from coingecko"
-            )
-
-            try:
-                _price = self._get_price_from_coingecko(network, token_id, block, of)
-            except Exception as e:
-                logging.getLogger(LOG_NAME).debug(
-                    f" Could not get {network}'s token {token_id} price at block {block} from coingecko. error-> {e}"
-                )
-
+        # geckoterminal
         if (
             self.geckoterminal
             and _price in [None, 0]
@@ -140,6 +123,24 @@ class price_scraper:
             except Exception as e:
                 logging.getLogger(LOG_NAME).debug(
                     f" Could not get {network}'s token {token_id} price at block {block} from geckoterminal. error-> {e}"
+                )
+
+        # coingecko
+        if (
+            self.coingecko
+            and _price in [None, 0]
+            and network in self.coingecko_price_connector.networks
+        ):
+            # GET FROM COINGECKO
+            logging.getLogger(LOG_NAME).debug(
+                f" Trying to get {network}'s token {token_id} price at block {block} from coingecko"
+            )
+
+            try:
+                _price = self._get_price_from_coingecko(network, token_id, block, of)
+            except Exception as e:
+                logging.getLogger(LOG_NAME).debug(
+                    f" Could not get {network}'s token {token_id} price at block {block} from coingecko. error-> {e}"
                 )
 
         # SAVE CACHE
