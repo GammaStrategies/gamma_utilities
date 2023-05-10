@@ -58,6 +58,8 @@ from apps.database_checker import auto_get_prices, replace_quickswap_pool_dex_to
 
 from bins.apis.coingecko_utilities import geckoterminal_price_helper
 
+from bins.w3.onchain_utilities import rewarders
+
 
 def test_w3_hypervisor_obj(
     protocol: str, network: str, dex: str, hypervisor_address: str, block: int
@@ -589,6 +591,15 @@ def test_feed_rewards_static():
 
 
 def test_feed_rewards_status():
+    network = "arbitrum"
+    zyberswap_masterchef = rewarders.zyberswap_masterchef_v1(
+        address="0x9BA666165867E916Ee7Ed3a3aE6C19415C2fBDDD",
+        network=network,
+        block=70464630,
+        timestamp=1674692152,
+    )
+    test = zyberswap_masterchef.poolInfo(pid=8)
+
     feed_rewards_status(network="ethereum")
 
 
@@ -681,7 +692,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    test_price_geckterm()
+    test_feed_rewards_status()
 
     kwargs_list = [
         {
