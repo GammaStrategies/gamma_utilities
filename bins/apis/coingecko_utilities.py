@@ -128,7 +128,7 @@ class coingecko_price_helper:
 
             # price not found
             logging.getLogger(__name__).debug(
-                f" Price not found for contract {contract_address} at {self.COINGECKO_netids[network]}  for timestamp {timestamp}"
+                f" Price not found for contract {contract_address} at {network}  for timestamp {timestamp}"
             )
 
             # TODO: should we try to increase timeframe window??
@@ -136,7 +136,7 @@ class coingecko_price_helper:
         except IndexError:
             # cannot find price return as zero
             logging.getLogger(__name__).debug(
-                f" Price not found for contract {contract_address}  at {self.COINGECKO_netids[network]}  for timestamp {timestamp}"
+                f" Price not found for contract {contract_address}  at {network}  for timestamp {timestamp}"
             )
 
             return 0

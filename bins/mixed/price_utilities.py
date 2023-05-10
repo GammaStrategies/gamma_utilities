@@ -337,7 +337,7 @@ class price_scraper:
                 collection_name="blocks", find={"block": block}
             )[0]["timestamp"]
         except IndexError:
-            logging.getLogger(LOG_NAME).warning(f"Block {block} not found in database")
+            logging.getLogger(__name__).error(f"Block {block} not found in database")
         except Exception as e:
             logging.getLogger(LOG_NAME).exception(
                 f"Error while getting block {block} timestamp from database. Error: {e}"
