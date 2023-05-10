@@ -385,6 +385,46 @@ class user_status_hypervisor_builder:
                     condition={"hypervisor_address": self._hypervisor_address},
                 )
             )
+
+            # add custom rewarders
+            if self.network == "polygon":
+                self._rewarders_list += [
+                    "0xf099FA1Bd92f8AAF4886e8927D7bd3c15bA0BbFd".lower(),  # Masterchef poly Quickswap
+                    "0x158B99aE660D4511e4c52799e1c47613cA47a78a".lower(),  # dQuick poly Quickswap
+                    "0xFa3deAFecd0Fad0b083AB050cF30E1d541720680".lower(),  # wmatic poly Quickswap
+                    "0xc35f556C8Ac05FB484A703eE96A2f997F8CAC957".lower(),  # dQuick poly Quickswap
+                    "0x9bA5cE366f99f2C10A38ED35159c60CC558ca626".lower(),  # ankr poly Quickswap
+                    "0x5554EdCaf47189894315d845D5B19eeB14D79048".lower(),  # ghst poly Quickswap
+                    "0x780e2496141f97dd48ed8cb296f5c0828f1cb317".lower(),  # ldo poly Quickswap
+                    "0xae361ab6c12e9c8aff711d3ddc178be6da2a7472".lower(),  # gddy poly Quickswap
+                    "0xB6985ce301E6C6c4766b4479dDdc152d4eD0f2d3".lower(),  # davos poly Quickswap
+                    "0xC84Ec966b4E6473249d64763366212D175b5c2bd".lower(),  # wmatic2 poly Quickswap
+                    "0x7636e51D352cf89a7A05aE7b66f8841c368080Ff".lower(),  # lcd poly Quickswap
+                    "0x88F54579fbB2a33c33342709A4B2a9A07dA94EE2".lower(),  # Axl poly Quickswap
+                    "0xF5052aD621D4fb273b752536A2625Ae0Fea3eb0E".lower(),  # Wombat poly Quickswap
+                    "0x570d60a60baa356d47fda3017a190a48537fcd7d".lower(),  # Masterchef poly uniswapv3
+                    "0xdb909073b3815a297024db0d72fafdfc6db5a7b7".lower(),  # Ankr poly Uniswapv3
+                    "0x4d7a374fce77eec67b3a002549a3a49deec9307c".lower(),  # Davos poly Uniswapv3
+                    "0x68678Cf174695fc2D27bd312DF67A3984364FFDd".lower(),  # Masterchef Quickswap
+                    "0x43e867915E4fBf7e3648800bF9bB5A4Bc7A49F37".lower(),  # Giddy poly Quickswap
+                ]
+            elif self.network == "optimism":
+                self._rewarders_list += [
+                    "0xc7846d1bc4d8bcf7c45a7c998b77ce9b3c904365".lower(),  # Masterchef Optimism uniswapv3
+                    "0xf099FA1Bd92f8AAF4886e8927D7bd3c15bA0BbFd".lower(),  # uniswapv3
+                    "0xAfBB6c1a235e105e568CCD4FD915dfFF76C415E1".lower(),  # op labs uniswapv3
+                ]
+            elif self.network == "arbitrum":
+                self._rewarders_list += [
+                    "0x72E4CcEe48fB8FEf18D99aF2965Ce6d06D55C8ba".lower(),  # Masterchef Arbitrum zyberswap
+                    "0x9BA666165867E916Ee7Ed3a3aE6C19415C2fBDDD".lower(),  # Masterchef Arbitrum zyberswap
+                ]
+            elif self.network == "binance":
+                self._rewarders_list += [
+                    "0x374cc2276b842fecd65af36d7c60a5b78373ede1".lower(),  # Voter Binance thena
+                    "0x3a1d0952809f4948d15ebce8d345962a282c4fcb".lower(),  #  thena_voter_v3 Binance thena
+                ]
+
             # update time
             self._rewarders_lastTime_update = datetime.utcnow()
         # return rewarders
@@ -601,7 +641,8 @@ class user_status_hypervisor_builder:
             )
         # address exculded
         if exclude_address != "":
-            find["address"] = {"$not": {"$regex": exclude_address}}
+            # find["address"] = {"$not": {"$regex": exclude_address}}
+            find["address"] = {"$ne": exclude_address}
 
         # build query
         query = [
@@ -2281,6 +2322,9 @@ class user_status_hypervisor_builder:
                 total_shares=total_shares,
             )
 
+            # add new status to hypervisor
+            self._add_user_status(status=new_user_status)
+
             # return
             return new_user_status, user_share
 
@@ -2295,7 +2339,7 @@ class user_status_hypervisor_builder:
                 # add user share to total processed control var
                 ctrl_total_percentage_applied += result_user_share
                 # add new status to hypervisor
-                self._add_user_status(status=result_status)
+                # self._add_user_status(status=result_status)
 
         # control remainders
         if ctrl_total_percentage_applied != Decimal("1"):
@@ -2715,6 +2759,16 @@ class user_status_hypervisor_builderV2:
             "token1_usd": 0,
         }
 
+    def create_empty_networkUserStatus(self, user_address: str) -> dict:
+        return {
+            "user_address": user_address,
+            "current_total_usd_value": 0,
+            "current_total_deposits_in_usd": 0,
+            "current_total_withdraws_in_usd": 0,
+            "data": [],
+        }
+
+
     def calculate_status(
         self,
         user_address: str,
@@ -2730,17 +2784,24 @@ class user_status_hypervisor_builderV2:
             timestamp_end=timestamp_end,
         )
 
+        network_user_status = self.create_empty_networkUserStatus(user_address=user_address)
+
         for hypervisor_data in user_operations:
             hypervisor_address = hypervisor_data["hypervisor_address"]
+            min_block = hypervisor_data["user_operations"][0]["blockNumber"]
 
+            # setup new user status
+            user_status = self.create_empty_userStatus(
+                user_address=user_address, hypervisor_address=hypervisor_address
+            )
+            user_status["block"] = operation["blockNumber"]
+            user_status["timestamp"] = operation["timestamp"]
+
+            initial_deposit_block =0
+            end_deposit_block = 0
+            
             # loop thu operations in order and calculate status
             for operation in hypervisor_data["user_operations"]:
-                # setup new user status
-                user_status = self.create_empty_userStatus(
-                    user_address=user_address, hypervisor_address=hypervisor_address
-                )
-                user_status["block"] = operation["blockNumber"]
-                user_status["timestamp"] = operation["timestamp"]
 
                 # process operation
                 if operation["topic"] == "deposit":
@@ -2763,68 +2824,13 @@ class user_status_hypervisor_builderV2:
                     user_status["withdraws_shares"] += int(operation["qtty_shares"]) / (
                         10 ** operation["decimals_contract"]
                     )
+                
 
-            # extract initial and end blocks from deposits and withdrawals
-            block_ini = min(
-                x["blockNumber"]
-                for x in hypervisor_data["user_operations"]
-                if x["topic"] == "deposit"
-            )
-            block_ini = min(
-                x["blockNumber"]
-                for x in hypervisor_data["user_operations"]
-                if x["topic"] == "deposit"
-            )
 
-        # get all hypervisor rebalance/zeroBurn operations from ini block to end block, linked with its status
-        _query = [
-            {
-                "$match": {
-                    "topic": {"$in": ["zeroBurn", "rebalance"]},
-                    "address": "0x20b520adc4d068974105104ed955a4dbadfa4ea6",
-                    "blockNumber": {"$gte": 22471915},
-                }
-            },
-            {
-                "$lookup": {
-                    "from": "status",
-                    "let": {
-                        "operation_hype_address": "$address",
-                        "operation_block": "$blockNumber",
-                    },
-                    "pipeline": [
-                        {
-                            "$match": {
-                                "$expr": {
-                                    "$and": [
-                                        {
-                                            "$eq": [
-                                                "$address",
-                                                "$$operation_hype_address",
-                                            ]
-                                        },
-                                        {"$eq": ["$block", "$$operation_block"]},
-                                    ],
-                                }
-                            }
-                        },
-                        {"$unset": ["_id"]},
-                    ],
-                    "as": "status",
-                }
-            },
-            {"$unset": ["_id"]},
-            {"$unwind": "$status"},
-            {"$sort": {"block": 1}},
-            {
-                "$group": {
-                    "_id": "$address",
-                    "hypervisor_address": {"$first": "$address"},
-                    "fees_operations": {"$push": "$$ROOT"},
-                }
-            },
-            {"$unset": ["_id"]},
-        ]
+
+            # add user status to network status
+            network_user_status["data"].append(user_status)
+
 
         # hypervisor_operations = self.local_db_manager.query_items_from_database(query=self.local_db_manager.())
 
@@ -2906,3 +2912,69 @@ class user_status_hypervisor_builderV2:
         return self.local_db_manager.query_items_from_database(
             query=query, collection_name="operations"
         )
+
+    def _get_fee_operations(
+        self,
+        hypervisor_address: str,
+        timestamp_ini: int | None = None,
+        timestamp_end: int | None = None,
+    ) -> list[dict] | None:
+        match_query = {
+            "topic": {"$in": ["zeroBurn", "rebalance"]},
+            "address": hypervisor_address,
+            "blockNumber": {"$gte": 22471915},
+        }
+        if timestamp_ini and timestamp_end:
+            match_query["timestamp"] = {"$gte": timestamp_ini, "$lte": timestamp_end}
+        elif timestamp_ini:
+            match_query["timestamp"] = {"$gte": timestamp_ini}
+        elif timestamp_end:
+            match_query["timestamp"] = {"$lte": timestamp_end}
+
+        query = [
+            {"$match": match_query},
+            {
+                "$lookup": {
+                    "from": "status",
+                    "let": {
+                        "operation_hype_address": "$address",
+                        "operation_block": "$blockNumber",
+                    },
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$and": [
+                                        {
+                                            "$eq": [
+                                                "$address",
+                                                "$$operation_hype_address",
+                                            ]
+                                        },
+                                        {"$eq": ["$block", "$$operation_block"]},
+                                    ],
+                                }
+                            }
+                        },
+                        {"$unset": ["_id"]},
+                    ],
+                    "as": "status",
+                }
+            },
+            {"$unset": ["_id"]},
+            {"$unwind": "$status"},
+            {"$sort": {"block": 1}},
+            {
+                "$group": {
+                    "_id": "$address",
+                    "hypervisor_address": {"$first": "$address"},
+                    "fees_operations": {"$push": "$$ROOT"},
+                }
+            },
+            {"$unset": ["_id"]},
+        ]
+
+        return self.local_db_manager.query_items_from_database(
+            query=query, collection_name="operations"
+        )
+

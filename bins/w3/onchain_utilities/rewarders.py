@@ -31,6 +31,9 @@ class gamma_rewarder(web3wrap):
 
 
 class gamma_masterchef_rewarder(gamma_rewarder):
+    # uniswapv3
+    "https://polygonscan.com/address/0x4d7A374Fce77eec67b3a002549a3A49DEeC9307C#readContract"
+
     def __init__(
         self,
         address: str,
