@@ -302,6 +302,7 @@ class price_scraper:
         self, network: str, token_id: str, block: int, of: str
     ) -> float:
         _price = 0
+
         if of != "USD":
             raise NotImplementedError(
                 f" Cannot find {of} price method to be gathered from"
