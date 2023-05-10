@@ -59,7 +59,9 @@ class price_scraper:
         )
 
         self.geckoterminal_price_connector = (
-            coingecko_utilities.geckoterminal_price_helper(retries=1, request_timeout=5)
+            coingecko_utilities.geckoterminal_price_helper(
+                retries=2, request_timeout=10
+            )
         )
 
     ## PUBLIC ##
@@ -84,6 +86,25 @@ class price_scraper:
         except Exception:
             _price = None
 
+        # geckoterminal
+        if (
+            self.geckoterminal
+            and _price in [None, 0]
+            and network in self.geckoterminal_price_connector.networks
+        ):
+            # GET FROM GECKOTERMINAL
+            logging.getLogger(LOG_NAME).debug(
+                f" Trying to get {network}'s token {token_id} price at block {block} from geckoterminal"
+            )
+            try:
+                _price = self._get_price_from_geckoterminal(
+                    network, token_id, block, of
+                )
+            except Exception as e:
+                logging.getLogger(LOG_NAME).debug(
+                    f" Could not get {network}'s token {token_id} price at block {block} from geckoterminal. error-> {e}"
+                )
+
         if _price in [None, 0]:
             # get a list of thegraph_connectors
             thegraph_connectors = self._get_connector_candidates(network=network)
@@ -105,25 +126,6 @@ class price_scraper:
                     if _price not in [None, 0]:
                         # exit for loop
                         break
-
-        # geckoterminal
-        if (
-            self.geckoterminal
-            and _price in [None, 0]
-            and network in self.geckoterminal_price_connector.networks
-        ):
-            # GET FROM GECKOTERMINAL
-            logging.getLogger(LOG_NAME).debug(
-                f" Trying to get {network}'s token {token_id} price at block {block} from geckoterminal"
-            )
-            try:
-                _price = self._get_price_from_geckoterminal(
-                    network, token_id, block, of
-                )
-            except Exception as e:
-                logging.getLogger(LOG_NAME).debug(
-                    f" Could not get {network}'s token {token_id} price at block {block} from geckoterminal. error-> {e}"
-                )
 
         # coingecko
         if (
