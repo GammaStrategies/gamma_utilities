@@ -907,7 +907,16 @@ class algebrav3_pool(web3wrap):
     def factory(self) -> str:
         return self.call_function_autoRpc("factory")
 
-    def getInnerCumulatives(self, bottomTick: int, topTick: int) -> dict:
+    def getInnerCumulatives(self, bottomTick: int, topTick: int):
+        """
+
+        Args:
+            bottomTick (int): _description_
+            topTick (int): _description_
+
+        Returns:
+            innerSecondsSpentPerLiquidity uint160, innerSecondsSpent uint32
+        """
         return self.call_function_autoRpc(
             "getInnerCumulatives", None, bottomTick, topTick
         )
@@ -1582,3 +1591,64 @@ class algebrav3_pool_cached(algebrav3_pool):
                 save2file=self.SAVE2FILE,
             )
         return result
+
+
+# algebra pool for camelot
+# TODO: work ongoing
+class algebraCamelot_pool(algebrav3_pool):
+    @property
+    def comunityFeeLastTimestamp(self) -> int:
+        return self.call_function_autoRpc("comunityFeeLastTimestamp")
+
+    @property
+    def comunityVault(self) -> str:
+        # TODO: comunityVault object
+        return self.call_function_autoRpc("comunityVault")
+
+    @property
+    def getComunityFeePending(self) -> tuple[int, int]:
+        """The amounts of token0 and token1 that will be sent to the vault
+
+        Returns:
+            tuple[int,int]: token0,token1
+        """
+        return self.call_function_autoRpc("getComunityFeePending")
+
+    def getTimepoints(self, secondsAgo: int):
+        raise NotImplementedError(" No get Timepoints in camelot")
+
+    @property
+    def getReserves(self) -> tuple[int, int]:
+        """The amounts of token0 and token1 currently held in reserves
+
+        Returns:
+            tuple[int,int]: token0,token1
+        """
+        return self.call_function_autoRpc("getReserves")
+
+    @property
+    def globalState(self) -> dict:
+        """
+
+        Returns:
+           dict:    uint160 price; // The square root of the current price in Q64.96 format
+                    int24 tick; // The current tick
+                    uint16 feeZtO; // The current fee for ZtO swap in hundredths of a bip, i.e. 1e-6
+                    uint16 feeOtZ; // The current fee for OtZ swap in hundredths of a bip, i.e. 1e-6
+                    uint16 timepointIndex; // The index of the last written timepoint
+                    uint8 communityFee; // The community fee represented as a percent of all collected fee in thousandths (1e-3)
+                    bool unlocked; // True if the contract is unlocked, otherwise - false
+        """
+        tmp = self.call_function_autoRpc("globalState")
+        return {
+            "sqrtPriceX96": tmp[0],
+            "tick": tmp[1],
+            "fee": tmp[2],
+            "timepointIndex": tmp[4],
+            "communityFeeToken0": tmp[5],
+            "communityFeeToken1": tmp[5],
+            "unlocked": tmp[6],
+            # special
+            "feeZtO": tmp[2],
+            "feeOtZ": tmp[3],
+        }
