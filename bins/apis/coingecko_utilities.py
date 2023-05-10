@@ -258,7 +258,7 @@ class geckoterminal_price_helper:
                             return _close
 
                 except Exception as e:
-                    logging.getLogger(__name__).error(
+                    logging.getLogger(__name__).exception(
                         f"Error while getting pool address from {pool_data['id']}: {e}"
                     )
         return None
