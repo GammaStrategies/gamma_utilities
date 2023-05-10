@@ -769,15 +769,16 @@ def create_tokenBlocks_allTokens(protocol: str, network: str) -> set:
 
     result = set()
     try:
-        result = set(
-            [
-                f'{network}_{status["pool"]["block"]}_{status["pool"][f"token{i}"]["address"]}'
-                for status in local_db_manager.get_items_from_database(
-                    collection_name="status", projection={"pool": 1, "_id": 0}
-                )
-                for i in [0, 1]
-            ]
-        )
+        if hypervisor_status := local_db_manager.get_items_from_database(
+            collection_name="status", projection={"pool": 1, "_id": 0}
+        ):
+            result = set(
+                [
+                    f'{network}_{status["pool"]["block"]}_{status["pool"][f"token{i}"]["address"]}'
+                    for status in hypervisor_status
+                    for i in [0, 1]
+                ]
+            )
     except Exception as e:
         logging.getLogger(__name__).error(
             f"  Unexpected error found while retrieving hypervisor status from {db_name} to create the allToken block list for price scraping. error-> {e}"
@@ -1484,8 +1485,10 @@ def feed_rewards_status_loop(rewarder_static: dict):
                     / (10 ** hypervisor_status["decimals"])
                 )
 
-                
-                if int(reward_data["total_hypervisorToken_qtty"]) and hype_price_per_share:
+                if (
+                    int(reward_data["total_hypervisorToken_qtty"])
+                    and hype_price_per_share
+                ):
                     # if there is hype qtty staked and price per share
                     apr = calculate_rewards_apr(
                         token_price=rewardToken_price,

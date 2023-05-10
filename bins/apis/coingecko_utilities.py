@@ -247,7 +247,7 @@ class geckoterminal_price_helper:
                             limit=1,
                             token=base_or_quote.replace("_token", ""),
                         ):
-                            if (
+                            if len(
                                 ohlcsv_data.get("data", {})
                                 .get("attributes", {})
                                 .get("ohlcv_list", None)
