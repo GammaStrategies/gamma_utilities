@@ -1203,7 +1203,7 @@ def feed_timestamp_blocks(network: str, protocol: str, threaded: bool = True):
                 logging.getLogger(__name__).exception(
                     f"Unexpected error while geting timestamp of block {block}"
                 )
-            return None
+            return None, block
 
         if threaded:
             # threaded
