@@ -921,14 +921,47 @@ class user_status_hypervisor_builder:
             user_status_blocks_processed = set()
 
         # get all available hypervisor operations, not already processed:  the hypervisor status at any time T needs all operations till that time to be build
-        result = [
-            operation
-            for operation in self.get_hypervisor_operations()
-            if operation["blockNumber"] not in user_status_blocks_processed
-        ]
+        result = self.get_hypervisor_operations(
+            exclude_blocks=list(user_status_blocks_processed)
+        )
+        # result = [
+        #     operation
+        #     for operation in self.get_hypervisor_operations()
+        #     if operation["blockNumber"] not in user_status_blocks_processed
+        # ]
+        # control var
+        initial_length = len(result)
 
-        # construct the todo block list
-        blocks_to_process = {x["blockNumber"] for x in result}
+        if initial_length == 0:
+            logging.getLogger(__name__).debug(
+                f" There are no hypervisor {self.address} operations to process. Zero returned"
+            )
+            return []
+
+        # loop over result and filter:
+        blocks_to_process = set()  # construct the todo block list
+        excluded_operations_qtty = 0  # count excluded operations
+        index = 0
+        while index < len(result):
+            x = result[index]
+            if (
+                x["topic"] in ["zeroBurn", "rebalance"]
+                and x["qtty_token0"] == "0"
+                and x["qtty_token1"] == "0"
+            ):
+                # remove operations with zeroBurn and rebalance topics that do not have qtty to share with users ( they only exist to rebalance the pool )
+                del result[index]
+                excluded_operations_qtty += 1
+            else:
+                # add block to process
+                blocks_to_process.add(x["blockNumber"])
+                index += 1
+
+        logging.getLogger(__name__).info(
+            "   {} fee related operations had zero qtty and were excluded. {:,.0%} of total".format(
+                excluded_operations_qtty, len(result) / initial_length
+            )
+        )
 
         # control var
         initial_length = len(result)
@@ -2015,19 +2048,25 @@ class user_status_hypervisor_builder:
         )
 
     @log_execution_time
-    def get_hypervisor_operations(self, block: int = 0) -> list[dict]:
+    def get_hypervisor_operations(
+        self, block: int = 0, exclude_blocks: list[str] | None = None
+    ) -> list[dict]:
         """Get all found hypervisor operations ordered by block (desc)
 
         Args:
             block (int, optional): . Defaults to 0.
+            exclude_blocks (list[str] | None, optional): . List of blocks to exclude from query Defaults to None.
 
         Returns:
             list[dict]:
         """
 
+        # build find and sort
         find = {"address": self.address.lower()}
         if block != 0:
             find["blockNumber"] = block
+        elif exclude_blocks:
+            find["blockNumber"] = {"$nin": exclude_blocks}
         sort = [("blockNumber", 1), ("logIndex", 1)]
 
         return self.local_db_manager.get_items_from_database(
