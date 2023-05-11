@@ -4,6 +4,7 @@ import logging
 import os
 from pathlib import Path
 import tqdm
+import concurrent.futures
 
 
 # append parent directory pth
@@ -213,6 +214,69 @@ def manual_set_rewarder_static_block_timestamp():
             local_db_manager.set_rewards_static(data=static_rewarder)
 
 
+def manual_set_database_field():
+    # variables
+    network = "arbitrum"
+    protocol = "gamma"
+    db_collection = "rewards_status"
+    find = {}
+    field = "rewarder_registry"
+    field_value = "0x9BA666165867E916Ee7Ed3a3aE6C19415C2fBDDD".lower()
+
+    #########
+    logging.getLogger(__name__).info(
+        f"Setting {protocol}'s {network} {field} database field  to {field_value} mannually"
+    )
+    # control
+    if field == "id":
+        raise ValueError("id field is not allowed to be set manually")
+
+    # get all 1st rewarder status from database
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_name = f"{network}_{protocol}"
+
+    def construct_result(dbItem):
+        try:
+            # update rewarder field
+            dbItem[field] = field_value
+
+            # deleteme custom
+            dbItem["hypervisor_address"] = dbItem["hypervisor_address"].lower()
+            dbItem["rewardToken"] = dbItem["rewardToken"].lower()
+            dbItem["rewarder_address"] = dbItem["rewarder_address"].lower()
+
+            # update static rewarder in database ( new instance of database manager to avoid pymongo cursor error)
+            database_local(mongo_url=mongo_url, db_name=db_name).save_item_to_database(
+                data=dbItem, collection_name=db_collection
+            )
+            result = True
+        except Exception as e:
+            logging.getLogger(__name__).error(
+                f"Failed to update {dbItem['hypervisor_address']} {dbItem['rewardToken']} {dbItem['rewarder_address']} {field} to {field_value}. Error: {e}"
+            )
+            result = False
+        return result, dbItem
+
+    _errors = 0
+    # get all items from database
+    if database_items := database_local(
+        mongo_url=mongo_url, db_name=db_name
+    ).get_items_from_database(
+        collection_name=db_collection, find=find, projection={"_id": 0}
+    ):
+        with tqdm.tqdm(total=len(database_items)) as progress_bar:
+            with concurrent.futures.ThreadPoolExecutor() as ex:
+                for result, dbItem in ex.map(construct_result, database_items):
+                    if not result:
+                        _errors += 1
+
+                    progress_bar.set_description(
+                        f"""[er:{_errors}]  item block {dbItem['block']} """
+                    )
+                    progress_bar.refresh()
+                    progress_bar.update(1)
+
+
 # def manual_feed_operations():
 
 #     data_operations_to_feed = {
@@ -263,7 +327,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    manual_set_rewarder_static_block_timestamp()
+    manual_set_database_field()
 
     # end time log
     _timelapse = datetime.now(timezone.utc) - _startime
