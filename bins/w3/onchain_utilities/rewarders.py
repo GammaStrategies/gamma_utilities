@@ -1167,6 +1167,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
                                     "rewarder_address": self.address,
                                     "rewarder_type": "zyberswap_masterchef_v1",
                                     "rewarder_refIds": [pid],
+                                    "rewarder_registry": self.address,
                                     "rewardToken": address,
                                     "rewardToken_symbol": symbol,
                                     "rewardToken_decimals": decimals,
@@ -1831,7 +1832,12 @@ class thena_voter_v3(web3wrap):
                         block=self.block,
                         timestamp=self._timestamp,
                     )
-                    result += thena_gauge.get_rewards(convert_bint=convert_bint)
+                    # add "rewarder_registry" to gauge result
+                    if gauge_result := thena_gauge.get_rewards(
+                        convert_bint=convert_bint
+                    ):
+                        gauge_result["rewarder_registry"] = self.address
+                        result += gauge_result
 
         else:
             # TODO: get all hypervisors data ... by pid
