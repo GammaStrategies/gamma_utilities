@@ -191,7 +191,7 @@ def repair_hype_status_from_user(min_count: int = 1):
                                 # add hypervisor status to database
                                 local_db.set_status(data=hype_status)
 
-                                logging.getLogger(__name__).debug(
+                                logging.getLogger(__name__).info(
                                     f" Added status for {network}'s {address} at block {block}  (found {counter} times in log)"
                                 )
                             else:
