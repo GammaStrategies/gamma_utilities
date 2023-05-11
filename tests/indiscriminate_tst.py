@@ -59,6 +59,7 @@ from apps.database_checker import auto_get_prices, replace_quickswap_pool_dex_to
 from bins.apis.coingecko_utilities import geckoterminal_price_helper
 
 from bins.w3.onchain_utilities import rewarders
+from bins.database.db_user_status import user_status_hypervisor_builderV2
 
 
 def test_w3_hypervisor_obj(
@@ -677,6 +678,19 @@ def test_price_geckterm():
     pp = ""
 
 
+def test_user_status2():
+    network = "polygon"
+    protocol = "gamma"
+    user_status_builder = user_status_hypervisor_builderV2(
+        network=network, protocol=protocol
+    )
+
+    network_user_status = user_status_builder.calculate_status(
+        user_address="0x93ab7580493da8e78a31c31250d3c5524b7ffd0e"
+    )
+    pp = ""
+
+
 # START ####################################################################################################################
 from datetime import timezone
 
@@ -692,7 +706,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    test_feed_rewards_status()
+    test_user_status2()
 
     kwargs_list = [
         {
