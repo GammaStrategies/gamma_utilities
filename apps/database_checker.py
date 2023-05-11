@@ -254,7 +254,7 @@ def repair_hype_status_by_operations():
                     operation_blocks, hype_status_blocks
                 ):
                     logging.getLogger(__name__).info(
-                        f" > Trying to repair {len(difference_blocks)} blocks to be snapshot'ed for {hype['address']}"
+                        f" > Trying to repair {len(difference_blocks)} blocks to be snapshot'ed for {network}'s {hype['address']}"
                     )
 
                     # prepare arguments for paralel scraping
