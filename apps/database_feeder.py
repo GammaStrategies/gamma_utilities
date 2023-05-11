@@ -102,9 +102,6 @@ def feed_operations(
         date_end = convert_string_datetime(date_end)
 
     # apply filters
-    filters: dict = (
-        CONFIGURATION["script"]["protocols"].get(protocol, {}).get("filters", {})
-    )
     hypes_not_included: list = [
         x.lower() for x in filters.get("hypervisors_not_included", {}).get(network, [])
     ]
