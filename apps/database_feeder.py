@@ -1370,7 +1370,7 @@ def feed_rewards_status(
     with tqdm.tqdm(
         total=len(to_be_processed_reward_static), leave=False
     ) as progress_bar:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
+        with concurrent.futures.ThreadPoolExecutor() as ex:
             for result in ex.map(
                 feed_rewards_status_loop, to_be_processed_reward_static
             ):

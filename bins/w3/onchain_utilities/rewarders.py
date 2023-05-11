@@ -1164,11 +1164,11 @@ class zyberswap_masterchef_v1(gamma_rewarder):
                                     "block": self.block,
                                     "timestamp": self._timestamp,
                                     "hypervisor_address": pinfo[0].lower(),
-                                    "rewarder_address": self.address,
+                                    "rewarder_address": self.address.lower(),
                                     "rewarder_type": "zyberswap_masterchef_v1",
                                     "rewarder_refIds": [pid],
-                                    "rewarder_registry": self.address,
-                                    "rewardToken": address,
+                                    "rewarder_registry": self.address.lower(),
+                                    "rewardToken": address.lower(),
                                     "rewardToken_symbol": symbol,
                                     "rewardToken_decimals": decimals,
                                     "rewards_perSecond": str(rewardsPerSec)
@@ -1836,7 +1836,7 @@ class thena_voter_v3(web3wrap):
                     if gauge_result := thena_gauge.get_rewards(
                         convert_bint=convert_bint
                     ):
-                        gauge_result["rewarder_registry"] = self.address
+                        gauge_result["rewarder_registry"] = self.address.lower()
                         result += gauge_result
 
         else:
@@ -2190,10 +2190,10 @@ class thena_gauge_v2(gamma_rewarder):
                 "block": self.block,
                 "timestamp": self._timestamp,
                 "hypervisor_address": self.token.lower(),
-                "rewarder_address": self.address,
+                "rewarder_address": self.address.lower(),
                 "rewarder_type": "thena_gauge_v2",
                 "rewarder_refIds": [],
-                "rewardToken": rewardToken,
+                "rewardToken": rewardToken.lower(),
                 "rewardToken_symbol": rewardToken_symbol,
                 "rewardToken_decimals": rewardToken_decimals,
                 "rewards_perSecond": str(rewardRate) if convert_bint else rewardRate,
