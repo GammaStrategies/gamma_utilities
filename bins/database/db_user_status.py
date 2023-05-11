@@ -2689,51 +2689,71 @@ class user_status_hypervisor_builderV2:
     def protocol(self) -> str:
         return self._protocol
 
-    @log_execution_time
-    def _process_operation(self, operation: dict):
-        # set current block
-        self.current_block = operation["blockNumber"]
-        # set current logIndex
-        self.current_logIndex = operation["logIndex"]
+    @property
+    def rewarders_list(self) -> list:
+        """Masterchef addresses that reward this hypervisor
 
-        if operation["topic"] == "deposit":
-            self._add_user_status(status=self._process_deposit(operation=operation))
-
-        elif operation["topic"] == "withdraw":
-            self._add_user_status(status=self._process_withdraw(operation=operation))
-
-        elif operation["topic"] == "transfer":
-            # retrieve new status
-            op_source, op_destination = self._process_transfer(operation=operation)
-            # add to collection
-            if op_source:
-                self._add_user_status(status=op_source)
-            if op_destination:
-                self._add_user_status(status=op_destination)
-
-        elif operation["topic"] == "rebalance":
-            self._process_rebalance(operation=operation)
-
-        elif operation["topic"] == "approval":
-            # TODO: approval topic
-            # self._add_user_status(self._process_approval(operation=operation))
-            pass
-
-        elif operation["topic"] == "zeroBurn":
-            self._process_zeroBurn(operation=operation)
-
-        elif operation["topic"] == "setFee":
-            # TODO: setFee topic
-            pass
-
-        elif operation["topic"] == "report":
-            # global status for all addresses
-            self._process_topic_report(operation=operation)
-
-        else:
-            raise NotImplementedError(
-                f""" {operation["topic"]} topic not implemented yet"""
+        Returns:
+            list: rewarders addresses
+        """
+        # get rewarders addresses from database every 20 minutes
+        if (
+            self._rewarders_lastTime_update is None
+            or (datetime.utcnow() - self._rewarders_lastTime_update).total_seconds()
+            >= 1200
+        ):
+            # update rewarders
+            self._rewarders_list = (
+                self.local_db_manager.get_distinct_items_from_database(
+                    collection_name="rewards_static",
+                    field="address",
+                    condition={"hypervisor_address": self._hypervisor_address},
+                )
             )
+
+            # add custom rewarders
+            if self.network == "polygon":
+                self._rewarders_list += [
+                    "0xf099FA1Bd92f8AAF4886e8927D7bd3c15bA0BbFd".lower(),  # Masterchef poly Quickswap
+                    "0x158B99aE660D4511e4c52799e1c47613cA47a78a".lower(),  # dQuick poly Quickswap
+                    "0xFa3deAFecd0Fad0b083AB050cF30E1d541720680".lower(),  # wmatic poly Quickswap
+                    "0xc35f556C8Ac05FB484A703eE96A2f997F8CAC957".lower(),  # dQuick poly Quickswap
+                    "0x9bA5cE366f99f2C10A38ED35159c60CC558ca626".lower(),  # ankr poly Quickswap
+                    "0x5554EdCaf47189894315d845D5B19eeB14D79048".lower(),  # ghst poly Quickswap
+                    "0x780e2496141f97dd48ed8cb296f5c0828f1cb317".lower(),  # ldo poly Quickswap
+                    "0xae361ab6c12e9c8aff711d3ddc178be6da2a7472".lower(),  # gddy poly Quickswap
+                    "0xB6985ce301E6C6c4766b4479dDdc152d4eD0f2d3".lower(),  # davos poly Quickswap
+                    "0xC84Ec966b4E6473249d64763366212D175b5c2bd".lower(),  # wmatic2 poly Quickswap
+                    "0x7636e51D352cf89a7A05aE7b66f8841c368080Ff".lower(),  # lcd poly Quickswap
+                    "0x88F54579fbB2a33c33342709A4B2a9A07dA94EE2".lower(),  # Axl poly Quickswap
+                    "0xF5052aD621D4fb273b752536A2625Ae0Fea3eb0E".lower(),  # Wombat poly Quickswap
+                    "0x570d60a60baa356d47fda3017a190a48537fcd7d".lower(),  # Masterchef poly uniswapv3
+                    "0xdb909073b3815a297024db0d72fafdfc6db5a7b7".lower(),  # Ankr poly Uniswapv3
+                    "0x4d7a374fce77eec67b3a002549a3a49deec9307c".lower(),  # Davos poly Uniswapv3
+                    "0x68678Cf174695fc2D27bd312DF67A3984364FFDd".lower(),  # Masterchef Quickswap
+                    "0x43e867915E4fBf7e3648800bF9bB5A4Bc7A49F37".lower(),  # Giddy poly Quickswap
+                ]
+            elif self.network == "optimism":
+                self._rewarders_list += [
+                    "0xc7846d1bc4d8bcf7c45a7c998b77ce9b3c904365".lower(),  # Masterchef Optimism uniswapv3
+                    "0xf099FA1Bd92f8AAF4886e8927D7bd3c15bA0BbFd".lower(),  # uniswapv3
+                    "0xAfBB6c1a235e105e568CCD4FD915dfFF76C415E1".lower(),  # op labs uniswapv3
+                ]
+            elif self.network == "arbitrum":
+                self._rewarders_list += [
+                    "0x72E4CcEe48fB8FEf18D99aF2965Ce6d06D55C8ba".lower(),  # Masterchef Arbitrum zyberswap
+                    "0x9BA666165867E916Ee7Ed3a3aE6C19415C2fBDDD".lower(),  # Masterchef Arbitrum zyberswap
+                ]
+            elif self.network == "binance":
+                self._rewarders_list += [
+                    "0x374cc2276b842fecd65af36d7c60a5b78373ede1".lower(),  # Voter Binance thena
+                    "0x3a1d0952809f4948d15ebce8d345962a282c4fcb".lower(),  #  thena_voter_v3 Binance thena
+                ]
+
+            # update time
+            self._rewarders_lastTime_update = datetime.utcnow()
+        # return rewarders
+        return self._rewarders_list
 
     def create_empty_userStatus(
         self, user_address: str, hypervisor_address: str
@@ -2749,34 +2769,37 @@ class user_status_hypervisor_builderV2:
             "withdraws_token0": 0,
             "withdraws_token1": 0,
             "withdraws_shares": 0,
-            "transfers_token0": 0,
-            "transfers_token1": 0,
-            "transfers_shares": 0,
+            # "transfers_token0": 0,
+            # "transfers_token1": 0,
+            # "transfers_shares": 0,
             "fees_token0": 0,
             "fees_token1": 0,
             "shares": 0,
-            "token0_usd": 0,
-            "token1_usd": 0,
+            "token0_price_usd": 0,
+            "token1_price_usd": 0,
         }
 
     def create_empty_networkUserStatus(self, user_address: str) -> dict:
         return {
             "user_address": user_address,
-            "current_total_usd_value": 0,
-            "current_total_deposits_in_usd": 0,
-            "current_total_withdraws_in_usd": 0,
-            "data": [],
+            "total_shares_usd_value": 0,
+            "total_deposits_in_usd": 0,
+            "total_withdraws_in_usd": 0,
+            "total_fees_collected_in_usd": 0,
+            "data": {},
         }
 
-
+    @log_execution_time
     def calculate_status(
         self,
         user_address: str,
-        block_ini: int | None = None,
-        block_end: int | None = None,
         timestamp_ini: int | None = None,
         timestamp_end: int | None = None,
     ):
+        network_user_status = self.create_empty_networkUserStatus(
+            user_address=user_address
+        )
+
         # get all user operations with this hypervisor
         user_operations = self._get_user_operations(
             user_address=user_address,
@@ -2784,67 +2807,240 @@ class user_status_hypervisor_builderV2:
             timestamp_end=timestamp_end,
         )
 
-        network_user_status = self.create_empty_networkUserStatus(user_address=user_address)
+        with tqdm.tqdm(total=len(user_operations), leave=False) as progress_bar:
+            for hypervisor_data in user_operations:
+                hypervisor_address = hypervisor_data["hypervisor_address"]
+                token0_address = hypervisor_data["user_operations"][0]["status"][
+                    "pool"
+                ]["token0"]["address"]
+                token1_address = hypervisor_data["user_operations"][0]["status"][
+                    "pool"
+                ]["token1"]["address"]
 
-        for hypervisor_data in user_operations:
-            hypervisor_address = hypervisor_data["hypervisor_address"]
-            min_block = hypervisor_data["user_operations"][0]["blockNumber"]
+                # get all available hype prices and place em into a  dict<block:address>
+                prices = self._get_prices(
+                    token0_address=token0_address, token1_address=token1_address
+                )
 
-            # setup new user status
-            user_status = self.create_empty_userStatus(
-                user_address=user_address, hypervisor_address=hypervisor_address
+                initial_deposit_timestamp = hypervisor_data["user_operations"][0][
+                    "timestamp"
+                ]
+
+                # get all fee operations and mix them with user operations
+                if fee_operations := self._get_fee_operations(
+                    hypervisor_address=hypervisor_address,
+                    timestamp_ini=initial_deposit_timestamp,
+                ):
+                    hypervisor_data["mixed_operations"] = sorted(
+                        hypervisor_data["user_operations"]
+                        + fee_operations[0]["fees_operations"],
+                        key=lambda x: x["blockNumber"],
+                    )
+                else:
+                    # no fee operations
+                    logging.getLogger(__name__).warning(
+                        f" No fee operations for {self.network}'s {hypervisor_address} were found in database"
+                    )
+                    hypervisor_data["mixed_operations"] = hypervisor_data[
+                        "user_operations"
+                    ]
+
+                # loop thu operations in order and calculate status
+                for operation in hypervisor_data["mixed_operations"]:
+
+                    def add_user_status(u_stat: dict):
+                        # add user status to network status
+                        if hypervisor_address not in network_user_status["data"]:
+                            network_user_status["data"][hypervisor_address] = []
+                        network_user_status["data"][hypervisor_address].append(u_stat)
+
+                    # progress show
+                    progress_bar.set_description(
+                        f' {operation["address"][-4:]}  {operation["blockNumber"]}  {operation["topic"]}'
+                    )
+                    progress_bar.refresh()
+
+                    # setup new user status
+                    user_status = self.create_empty_userStatus(
+                        user_address=user_address, hypervisor_address=hypervisor_address
+                    )
+
+                    try:
+                        user_status["block"] = operation["blockNumber"]
+                        user_status["timestamp"] = operation["timestamp"]
+
+                        user_status["token0_price_usd"] = prices[
+                            operation["blockNumber"]
+                        ][token0_address]
+                        user_status["token1_price_usd"] = prices[
+                            operation["blockNumber"]
+                        ][token1_address]
+
+                        # process operation
+                        if operation["topic"] == "deposit":
+                            user_status["deposits_token0"] += int(
+                                operation["qtty_token0"]
+                            ) / (10 ** operation["decimals_token0"])
+                            user_status["deposits_token1"] += int(
+                                operation["qtty_token1"]
+                            ) / (10 ** operation["decimals_token1"])
+                            user_status["deposits_shares"] += int(
+                                operation["qtty_shares"]
+                            ) / (10 ** operation["decimals_contract"])
+
+                            # set shares as in operation
+                            user_status["shares"] = int(operation["shares"]) / (
+                                10 ** operation["decimals_contract"]
+                            )
+
+                            add_user_status(user_status)
+
+                        elif operation["topic"] == "withdraw":
+                            user_status["withdraws_token0"] += int(
+                                operation["qtty_token0"]
+                            ) / (10 ** operation["decimals_token0"])
+                            user_status["withdraws_token1"] += int(
+                                operation["qtty_token1"]
+                            ) / (10 ** operation["decimals_token1"])
+                            user_status["withdraws_shares"] += int(
+                                operation["qtty_shares"]
+                            ) / (10 ** operation["decimals_contract"])
+                            # set shares as in operation
+                            user_status["shares"] = int(operation["shares"]) / (
+                                10 ** operation["decimals_contract"]
+                            )
+
+                            add_user_status(user_status)
+
+                        elif operation["topic"] == "transfer":
+                            if (
+                                operation["src"]
+                                != "0x0000000000000000000000000000000000000000"
+                                and operation["dst"]
+                                != "0x0000000000000000000000000000000000000000"
+                            ):
+                                if operation["dst"].lower() in self.rewarders_list:
+                                    # TODO: add rewarder logic
+                                    pass
+                                elif operation["src"].lower() in self.rewarders_list:
+                                    # TODO: add rewarder logic
+                                    pass
+                                elif operation["src"].lower() == user_address.lower():
+                                    # set shares as in operation
+                                    user_status["shares"] -= int(operation["qtty"]) / (
+                                        10 ** operation["decimals_contract"]
+                                    )
+                                elif operation["dst"].lower() == user_address.lower():
+                                    # set shares as in operation
+                                    user_status["shares"] += int(operation["qtty"]) / (
+                                        10 ** operation["decimals_contract"]
+                                    )
+
+                                add_user_status(user_status)
+
+                        elif operation["topic"] == "zeroBurn":
+                            totalAmount0 = int(operation["qtty_token0"]) / (
+                                10 ** operation["decimals_token0"]
+                            )
+                            totalAmount1 = int(operation["qtty_token1"]) / (
+                                10 ** operation["decimals_token1"]
+                            )
+                            current_user_share = user_status["shares"] / (
+                                int(operation["status"]["totalSupply"])
+                                / (10 ** operation["decimals_contract"])
+                            )
+                            user_status["fees_token0"] += (
+                                totalAmount0 * current_user_share
+                            )
+                            user_status["fees_token1"] += (
+                                totalAmount1 * current_user_share
+                            )
+
+                            add_user_status(user_status)
+
+                        elif operation["topic"] == "rebalance":
+                            totalAmount0 = int(operation["totalAmount0"]) / (
+                                10 ** operation["decimals_token0"]
+                            )
+                            totalAmount1 = int(operation["totalAmount1"]) / (
+                                10 ** operation["decimals_token1"]
+                            )
+                            current_user_share = user_status["shares"] / (
+                                int(operation["status"]["totalSupply"])
+                                / (10 ** operation["decimals_contract"])
+                            )
+                            user_status["fees_token0"] += (
+                                totalAmount0 * current_user_share
+                            )
+                            user_status["fees_token1"] += (
+                                totalAmount1 * current_user_share
+                            )
+
+                            add_user_status(user_status)
+
+                        else:
+                            raise Exception(f"unknown topic {operation['topic']}")
+
+                        # # add user status to network status
+                        # if hypervisor_address not in network_user_status["data"]:
+                        #     network_user_status["data"][hypervisor_address] = []
+                        # network_user_status["data"][hypervisor_address].append(
+                        #     user_status
+                        # )
+
+                    except Exception as e:
+                        logging.getLogger(__name__).error(
+                            f"Error processing operation {operation} for {self.network}'s {hypervisor_address}: {e}"
+                        )
+
+                progress_bar.update(1)
+
+        return network_user_status
+
+    @log_execution_time
+    def get_price(self, block: int, address: str) -> Decimal:
+        # Try to get it from global db
+        global_db_manager = database_global(
+            mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"]
+        )
+        try:
+            return Decimal(
+                global_db_manager.get_price_usd(
+                    network=self.network, block=block, address=address
+                )[0]["price"]
             )
-            user_status["block"] = operation["blockNumber"]
-            user_status["timestamp"] = operation["timestamp"]
+        except Exception:
+            logging.getLogger(__name__).error(
+                f" Can't find {self.network}'s {self.address} usd price for {address} at block {block}. Return Zero"
+            )
+            Decimal("0")
 
-            initial_deposit_block =0
-            end_deposit_block = 0
-            
-            # loop thu operations in order and calculate status
-            for operation in hypervisor_data["user_operations"]:
+    @log_execution_time
+    def _get_prices(self, token0_address: str, token1_address: str) -> dict:
+        """_load prices from database"""
+        # database link
+        mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+        global_db_manager = database_global(mongo_url=mongo_url)
 
-                # process operation
-                if operation["topic"] == "deposit":
-                    user_status["deposits_token0"] += int(operation["qtty_token0"]) / (
-                        10 ** operation["decimals_token0"]
-                    )
-                    user_status["deposits_token1"] += int(operation["qtty_token1"]) / (
-                        10 ** operation["decimals_token1"]
-                    )
-                    user_status["deposits_shares"] += int(operation["qtty_shares"]) / (
-                        10 ** operation["decimals_contract"]
-                    )
-                elif operation["topic"] == "withdraw":
-                    user_status["withdraws_token0"] += int(operation["qtty_token0"]) / (
-                        10 ** operation["decimals_token0"]
-                    )
-                    user_status["withdraws_token1"] += int(operation["qtty_token1"]) / (
-                        10 ** operation["decimals_token1"]
-                    )
-                    user_status["withdraws_shares"] += int(operation["qtty_shares"]) / (
-                        10 ** operation["decimals_contract"]
-                    )
-                
+        # define query
+        or_query = [
+            {"address": token0_address},
+            {"address": token1_address},
+        ]
+        find = {"$or": or_query, "network": self.network}
+        sort = [("block", 1)]
 
+        result = {}
+        for x in global_db_manager.get_items_from_database(
+            collection_name="usd_prices", find=find, sort=sort
+        ):
+            if x["block"] not in result:
+                result[x["block"]] = {}
+            result[x["block"]][x["address"]] = x["price"]
 
+        return result
 
-            # add user status to network status
-            network_user_status["data"].append(user_status)
-
-
-        # hypervisor_operations = self.local_db_manager.query_items_from_database(query=self.local_db_manager.())
-
-        # calculate
-        #    % of shares in all operations
-        #    shares value in all operations
-        #    qtty token0 in all operations
-        #    qtty token1 ...
-        #    qtty usd in all operations
-        #    if any user operation transfer is to rewarder,
-        #       get staked time inside rewarder
-        #       get rewarder status from deposit to withdraw block
-        #       calculate rewarder reward
-
+    @log_execution_time
     def _get_user_operations(
         self,
         user_address: str,
@@ -2867,6 +3063,7 @@ class user_status_hypervisor_builderV2:
             match_query["timestamp"] = {"$lte": timestamp_end}
 
         query = [
+            {"$sort": {"blockNumber": 1}},
             {"$match": match_query},
             {
                 "$lookup": {
@@ -2889,6 +3086,13 @@ class user_status_hypervisor_builderV2:
                                         {"$eq": ["$block", "$$operation_block"]},
                                     ],
                                 }
+                            }
+                        },
+                        {
+                            "$project": {
+                                "symbol": "$symbol",
+                                "totalSupply": "$totalSupply",
+                                "pool": "$pool",
                             }
                         },
                         {"$unset": ["_id"]},
@@ -2913,6 +3117,7 @@ class user_status_hypervisor_builderV2:
             query=query, collection_name="operations"
         )
 
+    @log_execution_time
     def _get_fee_operations(
         self,
         hypervisor_address: str,
@@ -2922,7 +3127,6 @@ class user_status_hypervisor_builderV2:
         match_query = {
             "topic": {"$in": ["zeroBurn", "rebalance"]},
             "address": hypervisor_address,
-            "blockNumber": {"$gte": 22471915},
         }
         if timestamp_ini and timestamp_end:
             match_query["timestamp"] = {"$gte": timestamp_ini, "$lte": timestamp_end}
@@ -2933,6 +3137,7 @@ class user_status_hypervisor_builderV2:
 
         query = [
             {"$match": match_query},
+            {"$sort": {"blockNumber": 1}},
             {
                 "$lookup": {
                     "from": "status",
@@ -2956,6 +3161,13 @@ class user_status_hypervisor_builderV2:
                                 }
                             }
                         },
+                        {
+                            "$project": {
+                                "symbol": "$symbol",
+                                "totalSupply": "$totalSupply",
+                                "pool": "$pool",
+                            }
+                        },
                         {"$unset": ["_id"]},
                     ],
                     "as": "status",
@@ -2977,4 +3189,3 @@ class user_status_hypervisor_builderV2:
         return self.local_db_manager.query_items_from_database(
             query=query, collection_name="operations"
         )
-
