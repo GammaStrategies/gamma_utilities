@@ -1414,10 +1414,10 @@ def feed_rewards_status_loop(rewarder_static: dict):
         collection_name="status",
         find={
             "address": rewarder_static["hypervisor_address"],
-            "block": {
-                "$gte": rewarder_static["block"],
-                "$nin": processed_blocks,
-            },
+            "$and": [
+                {"block": {"$gte": rewarder_static["block"]}},
+                {"block": {"$nin": processed_blocks}},
+            ],
         },
     )
 
