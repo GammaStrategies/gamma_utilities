@@ -2675,6 +2675,10 @@ class user_status_hypervisor_builderV2:
 
         self.__blacklist_addresses = ["0x0000000000000000000000000000000000000000"]
 
+        # init rewarders masterchefs
+        self._rewarders_list = []
+        self._rewarders_lastTime_update = None
+
     @property
     def local_db_manager(self) -> database_local:
         mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
@@ -2689,8 +2693,7 @@ class user_status_hypervisor_builderV2:
     def protocol(self) -> str:
         return self._protocol
 
-    @property
-    def rewarders_list(self) -> list:
+    def rewarders_list(self, hypervisor_address: str) -> list:
         """Masterchef addresses that reward this hypervisor
 
         Returns:
@@ -2707,7 +2710,7 @@ class user_status_hypervisor_builderV2:
                 self.local_db_manager.get_distinct_items_from_database(
                     collection_name="rewards_static",
                     field="address",
-                    condition={"hypervisor_address": self._hypervisor_address},
+                    condition={"hypervisor_address": hypervisor_address},
                 )
             )
 
@@ -2826,6 +2829,11 @@ class user_status_hypervisor_builderV2:
                     "timestamp"
                 ]
 
+                # create an hype total user status
+                hypervisor_user_status = self.create_empty_userStatus(
+                    user_address=user_address, hypervisor_address=hypervisor_address
+                )
+
                 # get all fee operations and mix them with user operations
                 if fee_operations := self._get_fee_operations(
                     hypervisor_address=hypervisor_address,
@@ -2852,6 +2860,23 @@ class user_status_hypervisor_builderV2:
                         # add user status to network status
                         if hypervisor_address not in network_user_status["data"]:
                             network_user_status["data"][hypervisor_address] = []
+
+                        # add user to hypervisor status
+                        for k, v in u_stat.items():
+                            if k in [
+                                "token0_price_usd",
+                                "token1_price_usd",
+                                "user_address",
+                                "hypervisor_address",
+                                "block",
+                                "timestamp",
+                                "shares",
+                            ]:
+                                hypervisor_user_status[k] = v
+                            else:
+                                hypervisor_user_status[k] += v
+
+                        # add user to network status
                         network_user_status["data"][hypervisor_address].append(u_stat)
 
                     # progress show
@@ -2885,7 +2910,7 @@ class user_status_hypervisor_builderV2:
                                 operation["qtty_token1"]
                             ) / (10 ** operation["decimals_token1"])
                             user_status["deposits_shares"] += int(
-                                operation["qtty_shares"]
+                                operation["shares"]
                             ) / (10 ** operation["decimals_contract"])
 
                             # set shares as in operation
@@ -2903,7 +2928,7 @@ class user_status_hypervisor_builderV2:
                                 operation["qtty_token1"]
                             ) / (10 ** operation["decimals_token1"])
                             user_status["withdraws_shares"] += int(
-                                operation["qtty_shares"]
+                                operation["shares"]
                             ) / (10 ** operation["decimals_contract"])
                             # set shares as in operation
                             user_status["shares"] = int(operation["shares"]) / (
@@ -2919,10 +2944,14 @@ class user_status_hypervisor_builderV2:
                                 and operation["dst"]
                                 != "0x0000000000000000000000000000000000000000"
                             ):
-                                if operation["dst"].lower() in self.rewarders_list:
+                                if operation["dst"].lower() in self.rewarders_list(
+                                    hypervisor_address=hypervisor_address
+                                ):
                                     # TODO: add rewarder logic
                                     pass
-                                elif operation["src"].lower() in self.rewarders_list:
+                                elif operation["src"].lower() in self.rewarders_list(
+                                    hypervisor_address=hypervisor_address
+                                ):
                                     # TODO: add rewarder logic
                                     pass
                                 elif operation["src"].lower() == user_address.lower():
@@ -2938,55 +2967,59 @@ class user_status_hypervisor_builderV2:
 
                                 add_user_status(user_status)
 
-                        elif operation["topic"] == "zeroBurn":
-                            totalAmount0 = int(operation["qtty_token0"]) / (
+                        elif (
+                            operation["topic"] == "zeroBurn"
+                            and hypervisor_user_status["shares"] > 0
+                        ):
+                            qtty_token0 = int(operation["qtty_token0"]) / (
                                 10 ** operation["decimals_token0"]
                             )
-                            totalAmount1 = int(operation["qtty_token1"]) / (
+                            qtty_token1 = int(operation["qtty_token1"]) / (
                                 10 ** operation["decimals_token1"]
                             )
-                            current_user_share = user_status["shares"] / (
+
+                            current_user_share = hypervisor_user_status["shares"] / (
                                 int(operation["status"]["totalSupply"])
                                 / (10 ** operation["decimals_contract"])
                             )
+
                             user_status["fees_token0"] += (
-                                totalAmount0 * current_user_share
+                                qtty_token0 * current_user_share
                             )
                             user_status["fees_token1"] += (
-                                totalAmount1 * current_user_share
+                                qtty_token1 * current_user_share
                             )
 
                             add_user_status(user_status)
 
-                        elif operation["topic"] == "rebalance":
-                            totalAmount0 = int(operation["totalAmount0"]) / (
+                        elif (
+                            operation["topic"] == "rebalance"
+                            and hypervisor_user_status["shares"] > 0
+                        ):
+                            qtty_token0 = int(operation["qtty_token0"]) / (
                                 10 ** operation["decimals_token0"]
                             )
-                            totalAmount1 = int(operation["totalAmount1"]) / (
+                            qtty_token1 = int(operation["qtty_token1"]) / (
                                 10 ** operation["decimals_token1"]
                             )
-                            current_user_share = user_status["shares"] / (
+
+                            current_user_share = hypervisor_user_status["shares"] / (
                                 int(operation["status"]["totalSupply"])
                                 / (10 ** operation["decimals_contract"])
                             )
+
                             user_status["fees_token0"] += (
-                                totalAmount0 * current_user_share
+                                qtty_token0 * current_user_share
                             )
                             user_status["fees_token1"] += (
-                                totalAmount1 * current_user_share
+                                qtty_token1 * current_user_share
                             )
 
                             add_user_status(user_status)
 
                         else:
-                            raise Exception(f"unknown topic {operation['topic']}")
-
-                        # # add user status to network status
-                        # if hypervisor_address not in network_user_status["data"]:
-                        #     network_user_status["data"][hypervisor_address] = []
-                        # network_user_status["data"][hypervisor_address].append(
-                        #     user_status
-                        # )
+                            if hypervisor_user_status["shares"] > 0:
+                                raise Exception(f"unknown topic {operation['topic']}")
 
                     except Exception as e:
                         logging.getLogger(__name__).error(
@@ -3126,6 +3159,7 @@ class user_status_hypervisor_builderV2:
     ) -> list[dict] | None:
         match_query = {
             "topic": {"$in": ["zeroBurn", "rebalance"]},
+            "$or": [{"qtty_token0": {"$ne": "0"}}, {"qtty_token1": {"$ne": "0"}}],
             "address": hypervisor_address,
         }
         if timestamp_ini and timestamp_end:
@@ -3185,6 +3219,11 @@ class user_status_hypervisor_builderV2:
             },
             {"$unset": ["_id"]},
         ]
+
+        # for op in self.local_db_manager.get_cursor(
+        #     query=query, collection_name="operations"
+        # ):
+        #     yield op
 
         return self.local_db_manager.query_items_from_database(
             query=query, collection_name="operations"

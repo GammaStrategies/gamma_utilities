@@ -77,7 +77,6 @@ class db_collections_common:
         query: list[dict],
         collection_name: str,
     ) -> list:
-        # db_manager = self.create_db_manager()
         with MongoDbManager(
             url=self._db_mongo_url,
             db_name=self._db_name,
@@ -94,9 +93,12 @@ class db_collections_common:
             db_name=self._db_name,
             collections=self._db_collections,
         ) as _db_manager:
-            result = _db_manager.get_items(coll_name=collection_name, **kwargs)
-            result = list(result)
-        return result
+            return [
+                x
+                for x in self.get_cursor(
+                    db_manager=_db_manager, collection_name=collection_name, **kwargs
+                )
+            ]
 
     def get_distinct_items_from_database(
         self, collection_name: str, field: str, condition: dict = None
@@ -114,6 +116,9 @@ class db_collections_common:
                 )
             )
         return result
+
+    def get_cursor(self, db_manager: MongoDbManager, collection_name: str, **kwargs):
+        return db_manager.get_items(coll_name=collection_name, **kwargs)
 
     @staticmethod
     def convert_decimal_to_d128(item: dict) -> dict:
