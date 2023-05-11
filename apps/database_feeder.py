@@ -151,9 +151,9 @@ def feed_operations(
                 # get minimum block from the new hypervisors found
                 new_block_ini = min(
                     [
-                        x["block"]
-                        for x in hypervisor_static_in_database
-                        if x["address"] in diffs
+                        v["block"]
+                        for k, v in hypervisor_static_in_database.items()
+                        if k in diffs
                     ]
                 )
                 new_block_ini = (
@@ -222,9 +222,9 @@ def feed_operations(
             local_db=local_db,
         )
 
-    except Exception:
+    except Exception as e:
         logging.getLogger(__name__).exception(
-            f" Unexpected error while looping    .error: {sys.exc_info()[0]}"
+            f" Unexpected error while operations looping    .error: {e}"
         )
 
 
