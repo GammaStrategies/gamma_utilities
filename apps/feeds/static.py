@@ -149,7 +149,10 @@ def _create_hypervisor_static_dbObject(
 
 
 def feed_rewards_static(
-    network: str | None = None, dex: str | None = None, protocol: str = "gamma"
+    network: str | None = None,
+    dex: str | None = None,
+    protocol: str = "gamma",
+    rewrite: bool = False,
 ):
     logging.getLogger(__name__).info(
         f">Feeding {protocol}'s {network} {dex} rewards static information"
@@ -159,6 +162,14 @@ def feed_rewards_static(
         mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
         db_name=f"{network}_{protocol}",
     )
+
+    try:
+        already_processed = (
+            [x["id"] for x in local_db.get_rewards_static()] if not rewrite else []
+        )
+    except Exception as e:
+        logging.getLogger(__name__).warning(f" Could not get rewards static data : {e}")
+        already_processed = []
 
     # zyberswap masterchef
     if dex == "zyberswap":
@@ -187,8 +198,13 @@ def feed_rewards_static(
             for reward_data in rewards_data:
                 # modify block number manually -> block num. is later used to update rewards_status from
                 reward_data["block"] = contract_data["creation_block"]
-                # save to database
-                local_db.set_rewards_static(data=reward_data)
+                if (
+                    rewrite
+                    or f"{reward_data['hypervisor_address']}_{reward_data['rewarder_address']}"
+                    not in already_processed
+                ):
+                    # save to database
+                    local_db.set_rewards_static(data=reward_data)
 
     elif dex == "thena":
         # thena gauges
@@ -213,8 +229,13 @@ def feed_rewards_static(
             for reward_data in rewards_data:
                 # modify block number manually -> block num. is later used to update rewards_status from
                 reward_data["block"] = contract_data["creation_block"]
-                # save to database
-                local_db.set_rewards_static(data=reward_data)
+                if (
+                    rewrite
+                    or f"{reward_data['hypervisor_address']}_{reward_data['rewarder_address']}"
+                    not in already_processed
+                ):
+                    # save to database
+                    local_db.set_rewards_static(data=reward_data)
 
     else:
         # raise NotImplementedError(f"{network} {dex} not implemented")
