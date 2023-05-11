@@ -1191,6 +1191,8 @@ def feed_timestamp_blocks(network: str, protocol: str, threaded: bool = True):
         if block not in blocks_indb:
             items_to_process.append(block)
 
+    _errors = 0
+
     # beguin processing
     with tqdm.tqdm(total=len(items_to_process)) as progress_bar:
 
