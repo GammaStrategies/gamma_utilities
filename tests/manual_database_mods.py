@@ -180,7 +180,7 @@ def manual_set_rewarder_static_block_timestamp():
     This function is used to manually set the block and timestamp for static rewarders using status rewarders first object found in the database
     """
 
-    network = "binance"
+    network = "arbitrum"
     protocol = "gamma"
 
     logging.getLogger(__name__).info(
@@ -327,7 +327,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    manual_set_database_field()
+    manual_set_rewarder_static_block_timestamp()
 
     # end time log
     _timelapse = datetime.now(timezone.utc) - _startime
