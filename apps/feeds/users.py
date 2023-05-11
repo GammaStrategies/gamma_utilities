@@ -19,7 +19,7 @@ def feed_user_status(network: str, protocol: str):
     )
 
     for idx, address in enumerate(hypervisor_addresses):
-        logging.getLogger(__name__).debug(
+        logging.getLogger(__name__).info(
             f"   [{idx} of {len(hypervisor_addresses)}] Building {network}'s {address} user status"
         )
 
