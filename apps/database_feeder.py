@@ -1669,7 +1669,12 @@ def main(option="operations"):
                     )
 
                     # feed rewarders static
-                    feed_rewards_static(network=network, dex=dex, protocol=protocol)
+                    feed_rewards_static(
+                        network=network,
+                        dex=dex,
+                        protocol=protocol,
+                        rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
+                    )
 
             elif option == "operations":
                 for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][

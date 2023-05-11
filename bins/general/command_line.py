@@ -138,7 +138,7 @@ def parse_commandLine_args():
     )
     par_main.add_argument(
         "--rewrite",
-        type=bool,
+        action="store_true",
         help=" rewrite information in database",
     )
 

@@ -274,7 +274,7 @@ def _get_static_hypervisor_addresses_to_process(
             collection_name="static", field="id"
         )
     else:
-        logging.getLogger(__name__).debug(
+        logging.getLogger(__name__).info(
             f"   Rewriting all hypervisors static information of {network}'s {protocol} {dex} "
         )
 
