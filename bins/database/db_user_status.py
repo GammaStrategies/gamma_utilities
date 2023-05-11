@@ -921,12 +921,12 @@ class user_status_hypervisor_builder:
             user_status_blocks_processed = set()
 
         # get all available hypervisor operations, not already processed:  the hypervisor status at any time T needs all operations till that time to be build
-        result = self.get_hypervisor_operations(
+        result = self.get_filtered_hypervisor_operations(
             exclude_blocks=list(user_status_blocks_processed)
         )
         # result = [
         #     operation
-        #     for operation in self.get_hypervisor_operations()
+        #     for operation in self.get_filtered_hypervisor_operations()
         #     if operation["blockNumber"] not in user_status_blocks_processed
         # ]
         # control var
@@ -957,11 +957,12 @@ class user_status_hypervisor_builder:
                 blocks_to_process.add(x["blockNumber"])
                 index += 1
 
-        logging.getLogger(__name__).info(
-            "   {} fee related operations had zero qtty and were excluded. {:,.0%} of total".format(
-                excluded_operations_qtty, len(result) / initial_length
+        if excluded_operations_qtty:
+            logging.getLogger(__name__).info(
+                "   {} fee related operations had zero qtty and were excluded. {:,.0%} of total".format(
+                    excluded_operations_qtty, excluded_operations_qtty / initial_length
+                )
             )
-        )
 
         # control var
         initial_length = len(result)
@@ -1007,7 +1008,7 @@ class user_status_hypervisor_builder:
                     }
                 )
 
-        logging.getLogger(__name__).debug(
+        logging.getLogger(__name__).info(
             f" Added {len(result)-initial_length} report operations from status blocks. Processed: {len(user_status_blocks_processed)} -> total to process {len(result)}"
         )
         # return sorted by block->logindex
@@ -2048,11 +2049,11 @@ class user_status_hypervisor_builder:
         )
 
     @log_execution_time
-    def get_hypervisor_operations(
+    def get_filtered_hypervisor_operations(
         self, block: int = 0, exclude_blocks: list[str] | None = None
     ) -> list[dict]:
-        """Get all found hypervisor operations ordered by block (desc)
-
+        """Get a filtered list of hypervisor operations ordered by block (desc)
+              filter-> exclude zero qtty operations and destination/source zero addresses
         Args:
             block (int, optional): . Defaults to 0.
             exclude_blocks (list[str] | None, optional): . List of blocks to exclude from query Defaults to None.
@@ -2061,8 +2062,16 @@ class user_status_hypervisor_builder:
             list[dict]:
         """
 
+        # if operation["dst"] == "0x0000000000000000000000000000000000000000":
+
         # build find and sort
-        find = {"address": self.address.lower()}
+        find = {
+            "address": self.address.lower(),
+            "qtty_token0": {"$ne": "0"},
+            "qtty_token1": {"$ne": "0"},
+            "src": {"$ne": "0x0000000000000000000000000000000000000000"},
+            "dst": {"$ne": "0x0000000000000000000000000000000000000000"},
+        }
         if block != 0:
             find["blockNumber"] = block
         elif exclude_blocks:
@@ -2803,19 +2812,24 @@ class user_status_hypervisor_builderV2:
         return {
             "user_address": user_address,
             "hypervisor_address": hypervisor_address,
+            "hypervisor_total_shares": 0,
+            "hypervisor_share_price_usd": 0,
             "block": 0,
             "timestamp": 0,
+            "deposits_usd": 0,
             "deposits_token0": 0,
             "deposits_token1": 0,
-            "deposits_shares": 0,
+            "withdraws_usd": 0,
             "withdraws_token0": 0,
             "withdraws_token1": 0,
-            "withdraws_shares": 0,
             # "transfers_token0": 0,
             # "transfers_token1": 0,
-            # "transfers_shares": 0,
+            "fees_usd": 0,
             "fees_token0": 0,
             "fees_token1": 0,
+            "underlying_usd": 0,
+            "underlying_token0": 0,
+            "underlying_token1": 0,
             "shares": 0,
             "token0_price_usd": 0,
             "token1_price_usd": 0,
@@ -2910,8 +2924,11 @@ class user_status_hypervisor_builderV2:
                                 "block",
                                 "timestamp",
                                 "shares",
+                                "hypervisor_total_shares",
+                                "hypervisor_share_price_usd",
                             ]:
                                 hypervisor_user_status[k] = v
+
                             else:
                                 hypervisor_user_status[k] += v
 
@@ -2948,9 +2965,6 @@ class user_status_hypervisor_builderV2:
                             user_status["deposits_token1"] += int(
                                 operation["qtty_token1"]
                             ) / (10 ** operation["decimals_token1"])
-                            user_status["deposits_shares"] += int(
-                                operation["shares"]
-                            ) / (10 ** operation["decimals_contract"])
 
                             # set shares as in operation
                             user_status["shares"] = int(operation["shares"]) / (
@@ -2966,9 +2980,7 @@ class user_status_hypervisor_builderV2:
                             user_status["withdraws_token1"] += int(
                                 operation["qtty_token1"]
                             ) / (10 ** operation["decimals_token1"])
-                            user_status["withdraws_shares"] += int(
-                                operation["shares"]
-                            ) / (10 ** operation["decimals_contract"])
+
                             # set shares as in operation
                             user_status["shares"] = int(operation["shares"]) / (
                                 10 ** operation["decimals_contract"]

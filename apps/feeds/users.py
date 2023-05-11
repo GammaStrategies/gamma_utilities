@@ -29,9 +29,9 @@ def feed_user_status(network: str, protocol: str):
 
         try:
             hype_new._process_operations()
-        except Exception:
+        except Exception as e:
             logging.getLogger(__name__).exception(
-                f" Unexpected error while feeding user status of {network}'s  {address}"
+                f" Unexpected error while feeding user status of {network}'s  {address} -> error {e}"
             )
 
 
