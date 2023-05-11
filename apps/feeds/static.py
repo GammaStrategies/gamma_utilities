@@ -163,6 +163,7 @@ def feed_rewards_static(
         db_name=f"{network}_{protocol}",
     )
 
+    # set already processed static rewards
     try:
         already_processed = (
             [x["id"] for x in local_db.get_rewards_static()] if not rewrite else []
