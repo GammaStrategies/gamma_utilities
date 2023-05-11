@@ -241,13 +241,16 @@ def repair_hype_status_by_operations():
                 )
 
                 # get all operations blocks
-                operation_blocks = database_local(
+                operation_blocks=[]
+                for block in database_local(
                     mongo_url=mongo_url, db_name=db_name
                 ).get_distinct_items_from_database(
                     collection_name="operations",
                     field="blockNumber",
                     condition={"address": hype["address"]},
-                )
+                ):
+                    operation_blocks.append(int(block))
+                    operation_blocks.append(int(block-1))
 
                 # get differences
                 if difference_blocks := differences(
