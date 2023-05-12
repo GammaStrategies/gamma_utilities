@@ -1169,6 +1169,9 @@ class user_status_hypervisor_builder:
             block=block, address=self._static["pool"]["token1"]["address"]
         )
 
+        # check prices
+        self._check_prices(price_usd_t0, price_usd_t1, block)
+
         # create result
         new_user_status = user_status(
             timestamp=operation["timestamp"],
@@ -1240,6 +1243,9 @@ class user_status_hypervisor_builder:
         price_usd_t1 = self.get_price(
             block=block, address=self._static["pool"]["token1"]["address"]
         )
+
+        # check prices
+        self._check_prices(price_usd_t0, price_usd_t1, block)
 
         # create new status item
         new_user_status = user_status(
@@ -1452,6 +1458,9 @@ class user_status_hypervisor_builder:
         price_usd_t1 = self.get_price(
             block=block, address=self._static["pool"]["token1"]["address"]
         )
+
+        # check prices
+        self._check_prices(price_usd_t0, price_usd_t1, block)
 
         # get current total shares
         if (
@@ -1710,7 +1719,7 @@ class user_status_hypervisor_builder:
             )
             if len(current_status_data) == 0:
                 raise ValueError(
-                    f" No hypervisor status found for {self.network}'s {self.address} at block {current_user_status.block}"
+                    f" No hypervisor status found for {self.network}'s {self.address} at block {current_user_status.block}. Solve to continue."
                 )
             current_status_data = current_status_data[0]
 
@@ -2400,6 +2409,9 @@ class user_status_hypervisor_builder:
             block=block, address=self._static["pool"]["token1"]["address"]
         )
 
+        # check prices
+        self._check_prices(price_usd_t0, price_usd_t1, block)
+
         current_status_data = self.get_hypervisor_status(block=block)
         if len(current_status_data) == 0:
             raise ValueError(
@@ -2549,6 +2561,9 @@ class user_status_hypervisor_builder:
         price_usd_t1 = self.get_price(
             block=block, address=self._static["pool"]["token1"]["address"]
         )
+
+        # check prices
+        self._check_prices(price_usd_t0, price_usd_t1, block)
 
         # create fee sharing loop for threaded processing
         def loop_process_report(
@@ -2789,6 +2804,31 @@ class user_status_hypervisor_builder:
             "info_ini_investment": ini_investment,
             "info_end_investment": end_investment,
         }
+
+    # Checks and Error reporting
+    def _check_prices(self, price0, price1, block: int):
+        """Raise Value error on price0 or price1 not available
+
+        Args:
+            price0 (_type_):
+            price1 (_type_):
+            block (int):
+
+        Raises:
+            ValueError:
+        """
+
+        message = None
+        # check if prices are available
+        if not price0 and not price1:
+            message = f" Prices not available for {self.network}'s {self._static['pool']['token0']['address']} and {self._static['pool']['token1']['address']} token addresses at {block} block. Solve to continue."
+        elif not price0:
+            message = f" Price not available for {self.network}'s {self._static['pool']['token0']['address']} token address at {block} block. Solve to continue."
+        elif not price1:
+            message = f" Price not available for {self.network}'s {self._static['pool']['token1']['address']} token address at {block} block. Solve to continue."
+
+        if message:
+            raise ValueError(message)
 
 
 class user_status_hypervisor_builderV2:
