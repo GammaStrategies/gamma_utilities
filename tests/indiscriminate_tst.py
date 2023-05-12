@@ -24,8 +24,10 @@ from apps.database_feeder import (
     create_tokenBlocks_rewards,
     feed_prices,
     feed_prices_force_sqrtPriceX96,
-    feed_rewards_status,
 )
+
+from apps.feeds.status import feed_rewards_status
+
 from apps.database_feeder_service import price_sequence_loop
 from apps.database_checker import check_database
 
@@ -691,6 +693,31 @@ def test_user_status2():
     pp = ""
 
 
+def calculate_missing():
+    network = "polygon"
+    protocol = "gamma"
+    hypervisor_address = "0xf874d4957861e193aec9937223062679c14f9aca"
+    # get all operation blocks from database
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_name = f"{network}_{protocol}"
+
+    timestamps = database_local(
+        mongo_url=mongo_url, db_name=db_name
+    ).get_distinct_items_from_database(
+        collection_name="status",
+        field="timestamp",
+        condition={"address": hypervisor_address},
+    )
+
+    missing_timestamps = general_utilities.get_missing_integers(timestamps, 1200)
+
+    print(
+        f"  missing_timestamps: {len(missing_timestamps)}  [ vs {len(timestamps)} found in db]"
+    )
+
+    po = ""
+
+
 # START ####################################################################################################################
 from datetime import timezone
 
@@ -706,7 +733,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    test_user_status2()
+    calculate_missing()
 
     kwargs_list = [
         {

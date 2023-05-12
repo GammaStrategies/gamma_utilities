@@ -12,6 +12,7 @@ from web3.exceptions import ContractLogicError
 
 
 from bins.configuration import CONFIGURATION
+from bins.database.db_user_status import user_status_hypervisor_builder
 from bins.general.general_utilities import (
     convert_string_datetime,
     differences,
@@ -30,7 +31,7 @@ from bins.w3.onchain_utilities.basic import erc20_cached
 from bins.database.common.db_collections_common import database_local, database_global
 from bins.mixed.price_utilities import price_scraper
 
-from apps.database_feeder import create_db_hypervisor
+from bins.w3.builders import build_db_hypervisor
 
 
 # repair apps
@@ -181,7 +182,7 @@ def repair_hype_status_from_user(min_count: int = 1):
                                 continue
 
                             # scrape hypervisor status at block
-                            hype_status = create_db_hypervisor(
+                            hype_status = build_db_hypervisor(
                                 address=address,
                                 network=network,
                                 block=block,
@@ -221,16 +222,14 @@ def repair_hype_status_by_operations():
             or CONFIGURATION["script"]["protocols"][protocol]["networks"]
         )
         for network in networks:
-            # get all operations blocks from database
+            # get all operation blocks from database
             mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
             db_name = f"{network}_{protocol}"
 
-            # get all hypervisors from database
-            hypervisors = database_local(
+            # loop thru all hypervisors in database
+            for hype in database_local(
                 mongo_url=mongo_url, db_name=db_name
-            ).get_items_from_database(collection_name="static", find={})
-
-            for hype in hypervisors:
+            ).get_items_from_database(collection_name="static", find={}):
                 # get all status blocks
                 hype_status_blocks = database_local(
                     mongo_url=mongo_url, db_name=db_name
@@ -241,7 +240,7 @@ def repair_hype_status_by_operations():
                 )
 
                 # get all operations blocks
-                operation_blocks=[]
+                operation_blocks = []
                 for block in database_local(
                     mongo_url=mongo_url, db_name=db_name
                 ).get_distinct_items_from_database(
@@ -250,7 +249,7 @@ def repair_hype_status_by_operations():
                     condition={"address": hype["address"]},
                 ):
                     operation_blocks.append(int(block))
-                    operation_blocks.append(int(block-1))
+                    operation_blocks.append(int(block - 1))
 
                 # get differences
                 if difference_blocks := differences(
@@ -271,10 +270,11 @@ def repair_hype_status_by_operations():
                         )
                         for block in difference_blocks
                     )
+                    # scrape missing status
                     with tqdm.tqdm(total=len(difference_blocks)) as progress_bar:
                         with concurrent.futures.ThreadPoolExecutor() as ex:
                             for result in ex.map(
-                                lambda p: create_db_hypervisor(*p), args
+                                lambda p: build_db_hypervisor(*p), args
                             ):
                                 if result is None:
                                     # error found

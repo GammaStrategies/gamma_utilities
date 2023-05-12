@@ -126,3 +126,34 @@ def build_hypervisor(
         raise NotImplementedError(f" {dex} exchange has not been implemented yet")
 
     return hypervisor
+
+
+def build_db_hypervisor(
+    address: str,
+    network: str,
+    block: int,
+    dex: str,
+    static_mode=False,
+    custom_web3: Web3 | None = None,
+    custom_web3Url: str | None = None,
+) -> dict():
+    try:
+        hypervisor = build_hypervisor(
+            network=network,
+            dex=dex,
+            block=block,
+            hypervisor_address=address,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
+            cached=True,
+        )
+
+        # return converted hypervisor
+        return hypervisor.as_dict(convert_bint=True, static_mode=static_mode)
+
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            f" Unexpected error while converting {network}'s hypervisor {address} [dex: {dex}] at block {block}] to dictionary ->    error:{e}"
+        )
+
+    return None

@@ -22,6 +22,7 @@ from apps.database_checker import (
     get_all_logfiles,
 )
 from apps.database_feeder import feed_operations_hypervisors
+from bins.database.db_user_status import user_status_hypervisor_builder
 
 
 def manual_set_prices_by_log(log_file: str | None = None):
@@ -216,16 +217,16 @@ def manual_set_rewarder_static_block_timestamp():
 
 def manual_set_database_field():
     # variables
-    network = "arbitrum"
+    network = "binance"
     protocol = "gamma"
     db_collection = "rewards_status"
     find = {}
     field = "rewarder_registry"
-    field_value = "0x9BA666165867E916Ee7Ed3a3aE6C19415C2fBDDD".lower()
+    field_value = "0x3a1d0952809f4948d15ebce8d345962a282c4fcb".lower()
 
     #########
     logging.getLogger(__name__).info(
-        f"Setting {protocol}'s {network} {field} database field  to {field_value} mannually"
+        f"Setting {protocol}'s {network} {field} database field from {db_collection} collection to {field_value} mannually"
     )
     # control
     if field == "id":
@@ -277,43 +278,21 @@ def manual_set_database_field():
                     progress_bar.update(1)
 
 
-# def manual_feed_operations():
+def manual_feed_user_status():
+    network = "polygon"
+    protocol = "gamma"
+    hypervisor_address = "0x3cc20a6795c4b57d9817399f68e83e71c8626580"
 
-#     data_operations_to_feed = {
-#         "polygon":{
-#             "0xcbb7fae80e4f5c0cbfe1af7bb1f19692f9532cfa": 41151107,
-#         },
-#         "binance":
-#         {
-#             "0x31257f40e65585cc45fdabeb12002c25bc95ee80":27955595,
-#             "0x69e8c26050daecf8e3b3334e3f612b70f8d40a4f":27955436,
-#             "0x0f51bcc98bdb85141692310a4e3abf2e0c552eb4":27430815,
-#             '0xb83f87ff5629c7e5ac9631095fbc9d06587b0f2c':27430778,
-#             '0xb84b03a6a02246ef71bcf3dde343b0a7e693e2b4':27955490,
-#             '0xb1a0e5fee652348a206d935985ae1e8a9182a245': ,
-#             '0x9c3e0445559e6de1fe6391e8e018dca02b480836': ,
-#             '0x87a4db5bcb99b73d6bf16e74374d292caf2bfcb3': ,
-#             '0xc9e88650db57e409371052abe7248aa854013613': ,
-#             '0xf2ba5122a1f2692c8785e0d3b10a99ac62475420': ,
-#             '0x1d6b56dada36ff58a454a3f5cca3a3631f17e405': ,
-#             '0xf937145b516cff1ea501cf1210832a5b7ea42c3a': ,
-#             '0xa4d37759a64df0e2b246945e81b50af7628a275e': ,
-#             '0x3bc5650d2afe11aeb805e230968018293befd561': ,
-#             '0xc3f6f60b6c26925b64a6ee77d331a7d4c3fed08f': ,
-#             '0x3513292a2e0e0c6fb0a82196d7ed8eb499fe5772': ,
-#             '0xfb50f3240aab04c8e3634a1e1074709fb56b2762': ,
-#             '0x60d0d9f18203745087806b69ac948b8be37cbe72': ,
-#             '0x5c15842fcc12313c4f94dfb6fad1af3f989d33e9': ,
-#             '0x3f8f3caeff393b1994a9968e835fd38ecba6c1be': ,
-#             '0xa15c281339aecdec3a79f44254d7dfcc811ea310': ,
-#             '0xdfba9e5af368bbf7ab92e68b09e05af3116f7fcf': ,
-#             '0x0087ca4844cae94b1c51dec0f9434a6f92006af9': ,
-#             '0xfaeaa34ef2102520e2854721a4b00136c1fdead0': ,
+    hype_new = user_status_hypervisor_builder(
+        hypervisor_address=hypervisor_address, network=network, protocol=protocol
+    )
+    try:
+        hype_new._process_operations()
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            f" Unexpected error while manually feeding user status of {network}'s  {hypervisor_address} -> error {e}"
+        )
 
-#         },
-#     }
-
-#     feed_operations_hypervisors()
 
 if __name__ == "__main__":
     os.chdir(PARENT_FOLDER)
@@ -327,7 +306,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    manual_set_rewarder_static_block_timestamp()
+    manual_set_database_field()
 
     # end time log
     _timelapse = datetime.now(timezone.utc) - _startime

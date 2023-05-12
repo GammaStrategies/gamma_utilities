@@ -15,19 +15,18 @@ from bins.configuration import CONFIGURATION
 
 from apps.database_feeder import (
     feed_operations,
-    feed_hypervisor_status,
     feed_prices,
     create_tokenBlocks_allTokens,
     create_tokenBlocks_allTokensButWeth,
     create_tokenBlocks_topTokens,
     feed_prices_force_sqrtPriceX96,
-    feed_rewards_status,
     feed_timestamp_blocks,
     feed_blocks_timestamp,
     create_tokenBlocks_rewards,
 )
 from apps.feeds.static import feed_hypervisor_static, feed_rewards_static
 from apps.feeds.users import feed_user_status
+from apps.feeds.status import feed_rewards_status, feed_hypervisor_status
 
 from apps.database_checker import repair_all
 
