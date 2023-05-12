@@ -154,6 +154,31 @@ def signal_first(it: Iterable[Any]) -> Iterable[Tuple[bool, Any]]:
         yield False, val
 
 
+def get_missing_integers(data: list[int], interval: int = 1200) -> list[int]:
+    """Given a list of integers, return a list of missing integers following a given interval
+         The interval shall be 2 times greater than the defined so that it fits between the data items already in the list
+
+    Args:
+        data (list[int]):
+        interval (int, optional):  . Defaults to 1200.
+
+    Returns:
+        list[int]: _description_
+    """
+    # Initialize the result list
+    result_list = []
+
+    for i, item in enumerate(data[:-1]):
+        if data[i + 1] - item > interval * 2:
+            # calculate how many items are missing between the current and the next item
+            missing_items = (data[i + 1] - item) // interval
+            # add the missing items to the result list
+            for j in range(1, missing_items):
+                result_list.append(item + interval * j)
+
+    return result_list
+
+
 # DATETIME
 def convert_string_datetime(string: str) -> dt.datetime:
     if string.lower().strip() == "now":
