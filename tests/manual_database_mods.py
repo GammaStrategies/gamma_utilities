@@ -226,7 +226,7 @@ def manual_set_database_field():
 
     #########
     logging.getLogger(__name__).info(
-        f"Setting {protocol}'s {network} {field} database field from {db_collection} collection to {field_value} mannually"
+        f"Setting {protocol}'s {network} {field} database field from {db_collection} collection to {field_value}"
     )
     # control
     if field == "id":
