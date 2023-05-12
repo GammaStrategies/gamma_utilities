@@ -96,10 +96,10 @@ def repair_missing_hypervisor_status(
                             database_local(
                                 mongo_url=mongo_url, db_name=db_name
                             ).set_status(data=result)
-                        # progress
-                        progress_bar.set_description(
-                            f' {result.get("address", "")}  {result.get("block", " ")} processed'
-                        )
+                            # progress
+                            progress_bar.set_description(
+                                f' {result.get("address", "")}  {result.get("block", " ")} processed'
+                            )
                         # update progress
                         progress_bar.update(1)
 
