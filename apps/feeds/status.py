@@ -83,6 +83,7 @@ def repair_missing_hypervisor_status(
                 for block in difference_blocks
             )
             # scrape missing status
+            _errors = 0
             with tqdm.tqdm(total=len(difference_blocks)) as progress_bar:
                 with concurrent.futures.ThreadPoolExecutor() as ex:
                     for result in ex.map(lambda p: build_db_hypervisor(*p), args):
