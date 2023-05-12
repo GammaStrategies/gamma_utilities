@@ -900,6 +900,8 @@ class user_status_hypervisor_builder:
 
     @log_execution_time
     def _create_operations_to_process(self) -> list[dict]:
+        # at least all operation blocks shall be processed. One operation block missing will cause a gap in the user status
+
         # get all blocks from user status ( what has already been done [ careful because last  =  block + logIndex ] )
         user_status_blocks_processed = sorted(
             self.local_db_manager.get_distinct_items_from_database(
@@ -920,15 +922,14 @@ class user_status_hypervisor_builder:
             # reset and do it all from zero
             user_status_blocks_processed = set()
 
-        # get all available hypervisor operations, not already processed:  the hypervisor status at any time T needs all operations till that time to be build
-        result = self.get_filtered_hypervisor_operations(
-            exclude_blocks=list(user_status_blocks_processed)
+        # result = self.get_filtered_hypervisor_operations(
+        #     exclude_blocks=list(user_status_blocks_processed)
+        # )
+
+        result = self.get_hypervisor_operations(
+            initial_block=self._get_initial_block_to_process()
         )
-        # result = [
-        #     operation
-        #     for operation in self.get_filtered_hypervisor_operations()
-        #     if operation["blockNumber"] not in user_status_blocks_processed
-        # ]
+
         # control var
         initial_length = len(result)
 
@@ -939,33 +940,35 @@ class user_status_hypervisor_builder:
             return []
 
         # loop over result and filter:
-        blocks_to_process = set()  # construct the todo block list
-        excluded_operations_qtty = 0  # count excluded operations
-        index = 0
-        while index < len(result):
-            x = result[index]
-            if (
-                x["topic"] in ["zeroBurn", "rebalance"]
-                and x["qtty_token0"] == "0"
-                and x["qtty_token1"] == "0"
-            ):
-                # remove operations with zeroBurn and rebalance topics that do not have qtty to share with users ( they only exist to rebalance the pool )
-                del result[index]
-                excluded_operations_qtty += 1
-            else:
-                # add block to process
-                blocks_to_process.add(x["blockNumber"])
-                index += 1
+        # blocks_to_process = set()  # construct the todo block list
+        # excluded_operations_qtty = 0  # count excluded operations
+        # index = 0
+        # while index < len(result):
+        #     x = result[index]
+        #     if (
+        #         x["topic"] in ["zeroBurn", "rebalance"]
+        #         and x["qtty_token0"] == "0"
+        #         and x["qtty_token1"] == "0"
+        #     ):
+        #         # remove operations with zeroBurn and rebalance topics that do not have qtty to share with users ( they only exist to rebalance the pool )
+        #         del result[index]
+        #         excluded_operations_qtty += 1
+        #     else:
+        #         # add block to process
+        #         blocks_to_process.add(x["blockNumber"])
+        #         index += 1
 
-        if excluded_operations_qtty:
-            logging.getLogger(__name__).info(
-                "   {} fee related operations had zero qtty and were excluded. {:,.0%} of total".format(
-                    excluded_operations_qtty, excluded_operations_qtty / initial_length
-                )
-            )
+        # if excluded_operations_qtty:
+        #     logging.getLogger(__name__).info(
+        #         "   {} fee related operations had zero qtty and were excluded. {:,.0%} of total".format(
+        #             excluded_operations_qtty, excluded_operations_qtty / initial_length
+        #         )
+        #     )
+
+        blocks_to_process = set([x["blockNumber"] for x in result])
 
         # control var
-        initial_length = len(result)
+        # initial_length = len(result)
 
         # mix blocks to process ( extracted from operations)
         combined_blocks = list(blocks_to_process) + list(user_status_blocks_processed)
@@ -1013,6 +1016,55 @@ class user_status_hypervisor_builder:
         )
         # return sorted by block->logindex
         return sorted(result, key=lambda x: (x["blockNumber"], x["logIndex"]))
+
+    def _get_initial_block_to_process(self) -> int | None:
+        # at least all operation blocks shall be processed. One operation block missing will cause a gap in the user status
+
+        try:
+            # get all blocks from user status ( what has already been done [ careful because last  =  block + logIndex ] )
+            user_status_blocks_processed = sorted(
+                self.local_db_manager.get_distinct_items_from_database(
+                    collection_name="user_status",
+                    field="block",
+                    condition={"hypervisor_address": self.address},
+                )
+            )
+            # substract last couple of blocks to make sure db data has not been left between the same block and different logIndexes
+            if len(user_status_blocks_processed) > 1:
+                try:
+                    user_status_blocks_processed = user_status_blocks_processed[:-2]
+                except Exception:
+                    logging.getLogger(__name__).error(
+                        f" Unexpected error slicing block array while creating operations to process. array length: {len(user_status_blocks_processed)}"
+                    )
+            else:
+                # reset and do it all from zero
+                user_status_blocks_processed = []
+
+            # get all operation blocks not already processed and not empty ( fee and transfer related operations)
+            operation_blocks = sorted(
+                self.local_db_manager.get_distinct_items_from_database(
+                    collection_name="operations",
+                    field="blockNumber",
+                    condition={
+                        "address": self.address,
+                        "blockNumber": {"$nin": user_status_blocks_processed},
+                        "qtty_token0": {"$ne": "0"},
+                        "qtty_token1": {"$ne": "0"},
+                        "src": {"$ne": "0x0000000000000000000000000000000000000000"},
+                        "dst": {"$ne": "0x0000000000000000000000000000000000000000"},
+                    },
+                )
+            )
+
+            # get all operations from the initial block to the last operation block
+
+            return operation_blocks[0]
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f" Error getting initial block to process for {self.address} {self.symbol} {e}"
+            )
+            return None
 
     def _process_operations(self):
         """process all operations"""
@@ -2083,6 +2135,40 @@ class user_status_hypervisor_builder:
         )
 
     @log_execution_time
+    def get_hypervisor_operations(self, initial_block: int | None) -> list[dict]:
+        """Get all hypervisor operations from block to latest
+            Discard any topic not in ["transfer","deposit","withdraw","rebalance","zeroBurn"]
+        Args:
+            initial_block (int, optional): The block from where to start. Defaults to 0.
+
+        Returns:
+            list[dict]:
+        """
+
+        # if operation["dst"] == "0x0000000000000000000000000000000000000000":
+
+        # build find and sort
+        find = {
+            "address": self.address.lower(),
+            "qtty_token0": {"$ne": "0"},
+            "qtty_token1": {"$ne": "0"},
+            "src": {"$ne": "0x0000000000000000000000000000000000000000"},
+            "dst": {"$ne": "0x0000000000000000000000000000000000000000"},
+            "topic": {
+                "$in": ["transfer", "deposit", "withdraw", "rebalance", "zeroBurn"]
+            },
+        }
+        if initial_block:
+            find["blockNumber"] = {"$gte": initial_block}
+        sort = [("blockNumber", 1), ("logIndex", 1)]
+
+        # debug_query = f"{find}"
+
+        return self.local_db_manager.get_items_from_database(
+            collection_name="operations", find=find, sort=sort
+        )
+
+    @log_execution_time
     def get_hypervisor_status(self, block: int = 0) -> list[dict]:
         """Get all found hypervisor status ordered by block (desc)
 
@@ -2286,9 +2372,9 @@ class user_status_hypervisor_builder:
         )
 
         # check if any fees have actually been collected to proceed ...
-        if total_shares == 0:
+        if total_shares == Decimal("0"):
             # there is no deposits yet... hypervisor is in testing or seting up mode
-            if fees_collected_token0 == fees_collected_token1 == 0:
+            if fees_collected_token0 == fees_collected_token1 == Decimal("0"):
                 logging.getLogger(__name__).debug(
                     f" Not processing 0x..{self.address[-4:]} fee collection as it has no deposits yet and collected fees are zero"
                 )
@@ -2298,7 +2384,7 @@ class user_status_hypervisor_builder:
                 )
             # exit
             return
-        if fees_collected_token0 == fees_collected_token1 == 0:
+        if fees_collected_token0 == fees_collected_token1 == Decimal("0"):
             # there is no collection made ... but hypervisor changed tick boundaries
             logging.getLogger(__name__).debug(
                 f" Not processing 0x..{self.address[-4:]} fee collection as it has not collected any fees."
