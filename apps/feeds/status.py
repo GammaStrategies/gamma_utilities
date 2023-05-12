@@ -19,11 +19,12 @@ from bins.w3.onchain_utilities.basic import erc20_cached
 ### Status ######################
 
 
-def feed_hypervisor_status_NEW(
-    protocol: str, network: str, rewrite: bool = False, threaded: bool = True
+def repair_missing_hypervisor_status(
+    protocol: str,
+    network: str,
 ):
-    """Creates hypervisor status at all operations block and block-1
-            + every 20 minutes after last found status block ( if those minutes have already passed )
+    """Creates hypervisor status at all operations block and block-1 not already present in database,
+        using the difference between operations and status blocks
 
     Args:
         protocol (str):
@@ -33,7 +34,7 @@ def feed_hypervisor_status_NEW(
     """
 
     logging.getLogger(__name__).info(
-        f">Feeding {protocol}'s {network} hypervisors status information {'[rewriting all]' if rewrite else ''}"
+        f">Feeding {protocol}'s {network} hypervisors status information using the difference between operations and status blocks"
     )
     # get all operation blocks from database
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]

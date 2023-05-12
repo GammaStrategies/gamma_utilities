@@ -220,7 +220,7 @@ def manual_set_database_field():
     network = "binance"
     protocol = "gamma"
     db_collection = "rewards_status"
-    find = {}
+    find = {"rewarder_registry": {"$exists": False}}
     field = "rewarder_registry"
     field_value = "0x3a1d0952809f4948d15ebce8d345962a282c4fcb".lower()
 

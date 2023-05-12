@@ -26,7 +26,11 @@ from apps.database_feeder import (
 )
 from apps.feeds.static import feed_hypervisor_static, feed_rewards_static
 from apps.feeds.users import feed_user_status
-from apps.feeds.status import feed_rewards_status, feed_hypervisor_status
+from apps.feeds.status import (
+    feed_rewards_status,
+    feed_hypervisor_status,
+    repair_missing_hypervisor_status,
+)
 
 from apps.database_checker import repair_all
 
@@ -50,6 +54,7 @@ def network_sequence_loop(
     feed_operations(protocol=protocol, network=network)
 
     # feed database with status from all operations
+    repair_missing_hypervisor_status(protocol=protocol, network=network)
     feed_hypervisor_status(protocol=protocol, network=network, threaded=True)
 
     # feed rewards status

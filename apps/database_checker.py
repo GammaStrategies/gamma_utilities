@@ -33,6 +33,8 @@ from bins.mixed.price_utilities import price_scraper
 
 from bins.w3.builders import build_db_hypervisor
 
+from apps.feeds.status import repair_missing_hypervisor_status
+
 
 # repair apps
 def repair_all():
@@ -222,75 +224,7 @@ def repair_hype_status_by_operations():
             or CONFIGURATION["script"]["protocols"][protocol]["networks"]
         )
         for network in networks:
-            # get all operation blocks from database
-            mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-            db_name = f"{network}_{protocol}"
-
-            # loop thru all hypervisors in database
-            for hype in database_local(
-                mongo_url=mongo_url, db_name=db_name
-            ).get_items_from_database(collection_name="static", find={}):
-                # get all status blocks
-                hype_status_blocks = database_local(
-                    mongo_url=mongo_url, db_name=db_name
-                ).get_distinct_items_from_database(
-                    collection_name="status",
-                    field="block",
-                    condition={"address": hype["address"]},
-                )
-
-                # get all operations blocks
-                operation_blocks = []
-                for block in database_local(
-                    mongo_url=mongo_url, db_name=db_name
-                ).get_distinct_items_from_database(
-                    collection_name="operations",
-                    field="blockNumber",
-                    condition={"address": hype["address"]},
-                ):
-                    operation_blocks.append(int(block))
-                    operation_blocks.append(int(block - 1))
-
-                # get differences
-                if difference_blocks := differences(
-                    operation_blocks, hype_status_blocks
-                ):
-                    logging.getLogger(__name__).info(
-                        f" > Trying to repair {len(difference_blocks)} blocks to be snapshot'ed for {network}'s {hype['address']}"
-                    )
-
-                    # prepare arguments for paralel scraping
-                    args = (
-                        (
-                            hype["address"],
-                            network,
-                            block,
-                            hype["dex"],
-                            False,
-                        )
-                        for block in difference_blocks
-                    )
-                    # scrape missing status
-                    with tqdm.tqdm(total=len(difference_blocks)) as progress_bar:
-                        with concurrent.futures.ThreadPoolExecutor() as ex:
-                            for result in ex.map(
-                                lambda p: build_db_hypervisor(*p), args
-                            ):
-                                if result is None:
-                                    # error found
-                                    _errors += 1
-
-                                else:
-                                    # add hypervisor status to database
-                                    database_local(
-                                        mongo_url=mongo_url, db_name=db_name
-                                    ).set_status(data=result)
-                                # progress
-                                progress_bar.set_description(
-                                    f' {result.get("address", "")}  {result.get("block", " ")} processed'
-                                )
-                                # update progress
-                                progress_bar.update(1)
+            repair_missing_hypervisor_status(protocol=protocol, network=network)
 
 
 # one time utils
