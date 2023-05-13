@@ -294,6 +294,75 @@ def manual_feed_user_status():
         )
 
 
+def manual_sync_databases(rewrite: bool = False):
+    origin_mongo_url = "mongodb://localhost:27072"
+    origin_db_name = "global"
+    origin_collection_name = "usd_prices"
+    destination_mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    destination_db_name = origin_db_name
+    destination_collection_name = origin_collection_name
+
+    batch_size = 100000
+
+    def origin_db():
+        return database_global(mongo_url=origin_mongo_url, db_name=origin_db_name)
+
+    def destination_db():
+        return database_global(
+            mongo_url=destination_mongo_url, db_name=destination_db_name
+        )
+
+    # create a list of items not to be synced
+    limit = batch_size
+    skip = 0
+    while True:
+        if origin_data := origin_db().get_items_from_database(
+            collection_name=destination_collection_name, find={}, limit=limit, skip=skip
+        ):
+            # set items to be saved database
+            origin_data_toSave = origin_data
+
+            if not rewrite:
+                origin_ids = [x["id"] for x in origin_data]
+                # get destination ids
+                if destination_ids := destination_db().get_items_from_database(
+                    collection_name=destination_collection_name,
+                    find={"id": {"$in": origin_ids}},
+                    projection={"id": 1, "_id": 0},
+                    batch_size=batch_size,
+                ):
+                    destination_ids = [x["id"] for x in destination_ids]
+
+                    if difference := set(origin_ids) - set(destination_ids):
+                        logging.getLogger(__name__).info(
+                            f"Found {len(difference)} items to be synced on batch {skip//limit}"
+                        )
+
+                        # set items to be saved database
+                        origin_data_toSave = [
+                            x for x in origin_data if x["id"] in difference
+                        ]
+                    else:
+                        logging.getLogger(__name__).info(
+                            f" No items found to be synced on batch {skip//limit}"
+                        )
+                        origin_data_toSave = None
+            else:
+                logging.getLogger(__name__).debug(
+                    f" Rewriting {len(difference)} items on batch {skip//limit}"
+                )
+
+            if origin_data_toSave:
+                destination_db().save_items_to_database(
+                    collection_name=destination_collection_name, data=origin_data_toSave
+                )
+
+            # add skip to get next batch of data
+            skip += limit
+        else:
+            break
+
+
 if __name__ == "__main__":
     os.chdir(PARENT_FOLDER)
 
@@ -306,7 +375,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    manual_set_database_field()
+    manual_sync_databases()
 
     # end time log
     _timelapse = datetime.now(timezone.utc) - _startime

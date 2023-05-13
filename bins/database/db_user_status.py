@@ -1042,7 +1042,7 @@ class user_status_hypervisor_builder:
                 user_status_blocks_processed = []
 
             # get all operation blocks not already processed and not empty ( fee and transfer related operations)
-            operation_blocks = sorted(
+            if operation_blocks := sorted(
                 self.local_db_manager.get_distinct_items_from_database(
                     collection_name="operations",
                     field="blockNumber",
@@ -1055,16 +1055,16 @@ class user_status_hypervisor_builder:
                         "dst": {"$ne": "0x0000000000000000000000000000000000000000"},
                     },
                 )
-            )
+            ):
+                # return first operation block to process
+                return operation_blocks[0]
 
-            # get all operations from the initial block to the last operation block
-
-            return operation_blocks[0]
         except Exception as e:
             logging.getLogger(__name__).exception(
                 f" Error getting initial block to process for {self.address} {self.symbol} {e}"
             )
-            return None
+
+        return None
 
     def _process_operations(self):
         """process all operations"""
