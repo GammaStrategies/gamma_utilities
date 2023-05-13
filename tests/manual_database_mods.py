@@ -23,6 +23,7 @@ from apps.database_checker import (
 )
 from apps.database_feeder import feed_operations_hypervisors
 from bins.database.db_user_status import user_status_hypervisor_builder
+from bins.general.general_utilities import log_execution_time
 
 
 def manual_set_prices_by_log(log_file: str | None = None):
@@ -166,6 +167,113 @@ def manual_set_price_all():
 
                     # update progress
                     progress_bar.update(1)
+
+
+@log_execution_time
+def manual_get_missing_prices():
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    batch_size = 100000
+
+    for protocol in CONFIGURATION["script"]["protocols"]:
+        # override networks if specified in cml
+        networks = (
+            CONFIGURATION["_custom_"]["cml_parameters"].networks
+            or CONFIGURATION["script"]["protocols"][protocol]["networks"]
+        )
+
+        with tqdm.tqdm(total=len(networks)) as progress_bar:
+            for network in networks:
+                # database name
+                db_name = f"{network}_{protocol}"
+
+                # database helper
+                def _db():
+                    return database_global(mongo_url=mongo_url, db_name=db_name)
+
+                # prices to get = all token0 and token1 addresses from hypervisor status + rewarder status blocks
+                # price id = network_block_address
+                price_ids_shouldBe = set()
+                blocks_shouldBe = set()
+                # progress
+                progress_bar.set_description(
+                    f" {network} should be prices: {len(price_ids_shouldBe)}"
+                )
+                progress_bar.update(0)
+
+                # get all token addressess + block from status hypervisors
+                logging.getLogger(__name__).info(
+                    f" Getting hypervisor status token addresses and blocks for {network}"
+                )
+                for hype_status in _db().get_items_from_database(
+                    collection_name="status", find={}, batch_size=batch_size
+                ):
+                    # add token addresses
+                    price_ids_shouldBe.add(
+                        f"{network}_{hype_status['block']}_{hype_status['pool']['token0']['address']}"
+                    )
+                    price_ids_shouldBe.add(
+                        f"{network}_{hype_status['block']}_{hype_status['pool']['token1']['address']}"
+                    )
+                    # add block
+                    blocks_shouldBe.add(hype_status["block"])
+
+                    # progress
+                    progress_bar.set_description(
+                        f" {network} should be prices: {len(price_ids_shouldBe)}"
+                    )
+                    progress_bar.update(0)
+
+                logging.getLogger(__name__).info(
+                    f" Getting rewarder status token addresses and blocks for {network}"
+                )
+                for rewarder_status in _db().get_items_from_database(
+                    collection_name="rewards_status",
+                    find={"blocks": {"$nin": list(blocks_shouldBe)}},
+                    batch_size=batch_size,
+                ):
+                    # add token addresses
+                    price_ids_shouldBe.add(
+                        f"{network}_{rewarder_status['block']}_{rewarder_status['rewardToken']}"
+                    )
+
+                    # add block
+                    blocks_shouldBe.add(rewarder_status["block"])
+
+                    # progress
+                    progress_bar.set_description(
+                        f" {network} should be prices: {len(price_ids_shouldBe)}"
+                    )
+                    progress_bar.update(0)
+
+                logging.getLogger(__name__).info(
+                    f" Checking if there are {len(price_ids_shouldBe)} prices for {network} in the price database"
+                )
+                for id in database_global(mongo_url=mongo_url).get_items_from_database(
+                    collection_name="usd_prices",
+                    find={"network": network},
+                    batch_size=batch_size,
+                ):
+                    # add token addresses
+                    if id["id"] in price_ids_shouldBe:
+                        price_ids_shouldBe.remove(id["id"])
+
+                    # progress
+                    progress_bar.set_description(
+                        f" {network} should be prices: {len(price_ids_shouldBe)}"
+                    )
+                    progress_bar.update(0)
+
+                if price_ids_shouldBe:
+                    logging.getLogger(__name__).info(
+                        f" Found {len(price_ids_shouldBe)} missing prices for {network}"
+                    )
+                else:
+                    logging.getLogger(__name__).info(
+                        f" No missing prices found for {network}"
+                    )
+
+                # progress
+                progress_bar.update(1)
 
 
 def read_logfile_regx(log_file: str | None = None):
@@ -375,7 +483,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    manual_sync_databases()
+    manual_get_missing_prices()
 
     # end time log
     _timelapse = datetime.now(timezone.utc) - _startime
