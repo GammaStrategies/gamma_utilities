@@ -826,7 +826,7 @@ class database_local(db_collections_common):
         self.save_item_to_database(data=data, collection_name="rewards_static")
 
     def get_rewards_static(
-        self, rewarder_address: str | None, hypervisor_address: str | None = None
+        self, rewarder_address: str | None = None, hypervisor_address: str | None = None
     ) -> list:
         """Get rewarders static data from db.
             Specify either address or hypervisor_address
