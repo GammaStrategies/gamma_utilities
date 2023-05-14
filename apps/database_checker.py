@@ -40,6 +40,9 @@ from apps.feeds.status import repair_missing_hypervisor_status
 def repair_all():
     """Repair all errors found in logs"""
 
+    # repair blocks
+    repair_blocks()
+
     # repair hypervisors status
     repair_hypervisor_status()
 
@@ -366,6 +369,101 @@ def repair_hype_status_by_operations():
         )
         for network in networks:
             repair_missing_hypervisor_status(protocol=protocol, network=network)
+
+
+def repair_blocks():
+    for protocol in CONFIGURATION["script"]["protocols"]:
+        # override networks if specified in cml
+        networks = (
+            CONFIGURATION["_custom_"]["cml_parameters"].networks
+            or CONFIGURATION["script"]["protocols"][protocol]["networks"]
+        )
+        for network in networks:
+            repair_missing_blocks(protocol=protocol, network=network)
+
+
+def repair_missing_blocks(protocol: str, network: str, batch_size: int = 100000):
+    # get a list of blocks from global database
+    database_blocks = [
+        x["block"]
+        for x in database_global(
+            mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"]
+        ).get_items_from_database(
+            collection_name="blocks",
+            find={"network": network},
+            projection={"block": 1},
+            batch_size=batch_size,
+        )
+    ]
+
+    # get a list of status blocks from local database
+    todo_blocks = {
+        x["block"]: {
+            "id": f"{network}_{x['block']}",
+            "network": network,
+            "block": x["block"],
+            "timestamp": x["timestamp"],
+        }
+        for x in database_local(
+            mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
+            db_name=f"{network}_{protocol}",
+        ).get_items_from_database(
+            collection_name="status",
+            find={"block": {"$nin": database_blocks}},
+            projection={"block": 1, "timestamp": 1},
+            batch_size=batch_size,
+        )
+    }
+
+    # get a list of status rewards from local database
+    todo_blocks.update(
+        {
+            x["block"]: {
+                "id": f"{network}_{x['block']}",
+                "network": network,
+                "block": x["block"],
+                "timestamp": x["timestamp"],
+            }
+            for x in database_local(
+                mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
+                db_name=f"{network}_{protocol}",
+            ).get_items_from_database(
+                collection_name="rewards_status",
+                find={"block": {"$nin": database_blocks}},
+                projection={"block": 1, "timestamp": 1},
+                batch_size=batch_size,
+            )
+        }
+    )
+
+    if todo_blocks:
+        logging.getLogger(__name__).info(
+            f" Found {len(todo_blocks)} missing blocks in {network}. Adding to global database..."
+        )
+        # add missing blocks to global database
+        database_global(
+            mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"]
+        ).save_items_to_database(data=todo_blocks.values(), collection_name="blocks")
+    else:
+        logging.getLogger(__name__).info(f" No missing blocks found in {network}.")
+
+    # _errors = 0
+    # with tqdm.tqdm(total=len(todo_blocks)) as progress_bar:
+    #     for block, timestamp in todo_blocks.items():
+    #         try:
+    #             database_global(
+    #                 mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    #             ).set_block(network=network, block=block, timestamp=timestamp)
+    #         except Exception as e:
+    #             logging.getLogger(__name__).error(
+    #                 f" Error adding block {block} to global database {e}"
+    #             )
+    #             _errors += 1
+
+    #         progress_bar.set_description(
+    #             f" Check & solve {network}'s block num. {block}"
+    #         )
+    #         progress_bar.update(1)
 
 
 # one time utils
@@ -932,7 +1030,6 @@ def main(option: str, **kwargs):
         check_database()
     if option == "hypervisor_status":
         repair_hypervisor_status()
-
     if option == "repair":
         repair_all()
     if option == "special":
