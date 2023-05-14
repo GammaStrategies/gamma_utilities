@@ -6,6 +6,8 @@ import concurrent.futures
 import contextlib
 import re
 
+import polars as pl
+
 from datetime import datetime
 from pathlib import Path
 from web3.exceptions import ContractLogicError
