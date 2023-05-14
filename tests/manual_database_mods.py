@@ -421,54 +421,42 @@ def manual_sync_databases(rewrite: bool = False):
         )
 
     # create a list of items not to be synced
-    limit = batch_size
-    skip = 0
-    while True:
-        if origin_data := origin_db().get_items_from_database(
-            collection_name=destination_collection_name, find={}, limit=limit, skip=skip
-        ):
-            # set items to be saved database
-            origin_data_toSave = origin_data
+    if origin_data := origin_db().get_items_from_database(
+        collection_name=destination_collection_name, find={}, batch_size=batch_size
+    ):
+        # set items to be saved database
+        origin_data_toSave = origin_data
 
-            if not rewrite:
-                origin_ids = [x["id"] for x in origin_data]
-                # get destination ids
-                if destination_ids := destination_db().get_items_from_database(
-                    collection_name=destination_collection_name,
-                    find={"id": {"$in": origin_ids}},
-                    projection={"id": 1, "_id": 0},
-                    batch_size=batch_size,
-                ):
-                    destination_ids = [x["id"] for x in destination_ids]
+        if not rewrite:
+            origin_ids = [x["id"] for x in origin_data]
+            # get destination ids
+            if destination_ids := destination_db().get_items_from_database(
+                collection_name=destination_collection_name,
+                find={"id": {"$in": origin_ids}},
+                projection={"id": 1, "_id": 0},
+                batch_size=batch_size,
+            ):
+                destination_ids = [x["id"] for x in destination_ids]
 
-                    if difference := set(origin_ids) - set(destination_ids):
-                        logging.getLogger(__name__).info(
-                            f"Found {len(difference)} items to be synced on batch {skip//limit}"
-                        )
+                if difference := set(origin_ids) - set(destination_ids):
+                    logging.getLogger(__name__).info(
+                        f"Found {len(difference)} items to be synced"
+                    )
 
-                        # set items to be saved database
-                        origin_data_toSave = [
-                            x for x in origin_data if x["id"] in difference
-                        ]
-                    else:
-                        logging.getLogger(__name__).info(
-                            f" No items found to be synced on batch {skip//limit}"
-                        )
-                        origin_data_toSave = None
-            else:
-                logging.getLogger(__name__).debug(
-                    f" Rewriting {len(difference)} items on batch {skip//limit}"
-                )
-
-            if origin_data_toSave:
-                destination_db().save_items_to_database(
-                    collection_name=destination_collection_name, data=origin_data_toSave
-                )
-
-            # add skip to get next batch of data
-            skip += limit
+                    # set items to be saved database
+                    origin_data_toSave = [
+                        x for x in origin_data if x["id"] in difference
+                    ]
+                else:
+                    logging.getLogger(__name__).info(f" No items found to be synced")
+                    origin_data_toSave = None
         else:
-            break
+            logging.getLogger(__name__).debug(f" Rewriting {len(difference)} items")
+
+        if origin_data_toSave:
+            destination_db().save_items_to_database(
+                collection_name=destination_collection_name, data=origin_data_toSave
+            )
 
 
 if __name__ == "__main__":
