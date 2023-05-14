@@ -217,6 +217,7 @@ def repair_prices_from_status():
                     logging.getLogger(__name__).info(
                         f" Found {len(price_ids_shouldBe)} missing prices for {network}"
                     )
+                    progress_bar.total += len(price_ids_shouldBe)
                     # get prices
                     for price_id in price_ids_shouldBe:
                         network, block, address = price_id.split("_")
@@ -239,6 +240,10 @@ def repair_prices_from_status():
                             logging.getLogger(__name__).debug(
                                 f" Could not find price for {network}'s {address} at block {block}"
                             )
+
+                        # progress
+                        progress_bar.set_description(f" {network} {address} {block}")
+                        progress_bar.update(1)
 
                 else:
                     logging.getLogger(__name__).info(
