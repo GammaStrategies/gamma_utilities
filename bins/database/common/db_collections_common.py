@@ -3,7 +3,7 @@ import logging
 from bson.decimal128 import Decimal128, create_decimal128_context
 from decimal import Decimal, localcontext
 from datetime import datetime
-
+from pymongo.errors import ConnectionFailure, BulkWriteError
 from bins.database.common.db_managers import MongoDbManager
 
 
@@ -21,16 +21,33 @@ class db_collections_common:
         data: list[dict],
         collection_name: str,
     ):
-        """Save dictionary values to the database collection replacing any equal id defined
+        """Save multiple items in a collection at once ( in bulk)
 
         Args:
-            data (list): data list following tool_mongodb_general class to be saved to database in a dict format
-            collection_name (str): collection name to save data to
+            data (list[dict]): _description_
+            collection_name (str): _description_
         """
-        # add item by item to database
-        for key, item in data.items():
-            # add to mongodb
-            self.save_item_to_database(data=item, collection_name=collection_name)
+        try:
+            # create bulk data object
+            bulk_data = [{"filter": {"id": item["id"]}, "data": item} for item in data]
+
+            with MongoDbManager(
+                url=self._db_mongo_url,
+                db_name=self._db_name,
+                collections=self._db_collections,
+            ) as _db_manager:
+                # add to mongodb
+                _db_manager.add_items_bulk(
+                    coll_name=collection_name, data=bulk_data, upsert=True
+                )
+        except BulkWriteError as bwe:
+            logging.getLogger(__name__).error(
+                f"  Error while saving multiple items to {collection_name} collection database. Items qtty: {len(data)}  error-> {bwe.details}"
+            )
+        except Exception as e:
+            logging.getLogger(__name__).error(
+                f" Unable to save multiple items to mongo's {collection_name} collection. Items qtty: {len(data)}  error-> {e}"
+            )
 
     def save_item_to_database(
         self,
@@ -70,6 +87,39 @@ class db_collections_common:
         except Exception as e:
             logging.getLogger(__name__).error(
                 f" Unable to replace data in mongo's {collection_name} collection.  Item: {data}    error-> {e}"
+            )
+
+    def replace_items_to_database(
+        self,
+        data: list[dict],
+        collection_name: str,
+    ):
+        """Replace multiple items in a collection at once ( in bulk)
+
+        Args:
+            data (list[dict]): _description_
+            collection_name (str): _description_
+        """
+        try:
+            # create bulk data object
+            bulk_data = [{"filter": {"id": item["id"]}, "data": item} for item in data]
+
+            with MongoDbManager(
+                url=self._db_mongo_url,
+                db_name=self._db_name,
+                collections=self._db_collections,
+            ) as _db_manager:
+                # add to mongodb
+                _db_manager.replace_items_bulk(
+                    coll_name=collection_name, data=bulk_data, upsert=True
+                )
+        except BulkWriteError as bwe:
+            logging.getLogger(__name__).error(
+                f"  Error while replacing multiple items in {collection_name} collection database. Items qtty: {len(data)}  error-> {bwe.details}"
+            )
+        except Exception as e:
+            logging.getLogger(__name__).error(
+                f" Unable to replace multiple items in mongo's {collection_name} collection.  Items qtty: {len(data)}    error-> {e}"
             )
 
     def query_items_from_database(
@@ -786,6 +836,21 @@ class database_local(db_collections_common):
 
         # convert decimal to bson compatible and save
         self.replace_item_to_database(data=data, collection_name="user_status")
+
+    def set_user_status_bulk(self, data: list[dict]):
+        """Bulk insert user status
+
+        Args:
+            data (list[dict]):
+        """
+        # define database ids
+        for item in data:
+            item[
+                "id"
+            ] = f"{item['address']}_{item['block']}_{item['logIndex']}_{item['hypervisor_address']}"
+
+        # convert decimal to bson compatible and save
+        self.replace_items_to_database(data=data, collection_name="user_status")
 
     def get_user_status(
         self, address: str, block_ini: int = 0, block_end: int = 0

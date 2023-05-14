@@ -1,5 +1,6 @@
 from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure
+from pymongo.errors import ConnectionFailure, BulkWriteError
+from pymongo import InsertOne, DeleteMany, ReplaceOne, UpdateOne
 
 
 class MongoDbManager:
@@ -90,6 +91,37 @@ class MongoDbManager:
             filter=dbFilter, update={"$set": data}, upsert=True
         )
 
+    def add_items_bulk(self, coll_name: str, data: list, upsert=True):
+        """Add or Update item
+
+        Args:
+           coll_name (str): collection name
+           dbFilter (dict): filter to use as to replacement filter, like { address:<>, chain:<>}
+           data (dict): data to save
+           upsert (bool, optional): replace or add item. Defaults to True.
+
+        Raises:
+           ValueError: if coll_name is not defined at the class init <collections> field
+        """
+
+        # check collection configuration exists
+        if coll_name not in self.collections_config.keys():
+            raise ValueError(
+                f" No configuration found for {coll_name} database collection."
+            )
+        # create collection if it does not exist yet
+        self.create_collection(
+            coll_name=coll_name, **self.collections_config[coll_name]
+        )
+
+        # add/ update to database (add or replace)
+        self.database[coll_name].bulk_write(
+            [
+                UpdateOne(filter=item["filter"], update=item["data"], upsert=True)
+                for item in data
+            ]
+        )
+
     def replace_item(self, coll_name: str, dbFilter: dict, data: dict, upsert=True):
         """Add or Update item
 
@@ -116,6 +148,36 @@ class MongoDbManager:
         # add/ update to database (add or replace)
         self.database[coll_name].replace_one(
             filter=dbFilter, replacement=data, upsert=True
+        )
+
+    def replace_items_bulk(self, coll_name: str, data: list, upsert=True):
+        """Add or Update items
+
+        Args:
+           coll_name (str): collection name
+           data (list): list of data to save
+           upsert (bool, optional): replace or add item. Defaults to True.
+
+        Raises:
+           ValueError: if coll_name is not defined at the class init <collections> field
+        """
+
+        # check collection configuration exists
+        if coll_name not in self.collections_config.keys():
+            raise ValueError(
+                f" No configuration found for {coll_name} database collection."
+            )
+        # create collection if it does not exist yet
+        self.create_collection(
+            coll_name=coll_name, **self.collections_config[coll_name]
+        )
+
+        # add/ update to database (add or replace)
+        self.database[coll_name].bulk_write(
+            [
+                ReplaceOne(filter=item["filter"], replacement=item["data"], upsert=True)
+                for item in data
+            ]
         )
 
     def get_items(self, coll_name: str, **kwargs):
