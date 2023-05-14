@@ -1020,11 +1020,11 @@ class user_status_hypervisor_builder:
     @log_execution_time
     def _create_operations_to_process(self) -> list[dict]:
         # get hypes operations from the last block processed
-        if result := self.get_hypervisor_operations(
-            initial_block=self._get_initial_block_to_process()
-        ):
+        initial_block = self._get_initial_block_to_process()
+
+        if result := self.get_hypervisor_operations(initial_block=initial_block):
             logging.getLogger(__name__).info(
-                f" Found {len(result)} operations to process for {self.network}'s {self.address}"
+                f" Found {len(result)} operations to process for {self.network}'s {self.address} starting from block {initial_block or '-'}"
             )
             return sorted(result, key=lambda x: (x["blockNumber"], x["logIndex"]))
 
@@ -1045,10 +1045,10 @@ class user_status_hypervisor_builder:
                     condition={"hypervisor_address": self.address},
                 )
             )
-            # substract last couple of blocks to make sure db data has not been left between the same block and different logIndexes
+            # substract 1 block to make sure db data has not been left between the same block and different logIndexes
             if len(user_status_blocks_processed) > 1:
                 try:
-                    user_status_blocks_processed = user_status_blocks_processed[:-2]
+                    user_status_blocks_processed = user_status_blocks_processed[:-1]
                 except Exception:
                     logging.getLogger(__name__).error(
                         f" Unexpected error slicing block array while creating operations to process. array length: {len(user_status_blocks_processed)}"
@@ -1069,6 +1069,15 @@ class user_status_hypervisor_builder:
                         "qtty_token1": {"$ne": "0"},
                         "src": {"$ne": "0x0000000000000000000000000000000000000000"},
                         "dst": {"$ne": "0x0000000000000000000000000000000000000000"},
+                        "topic": {
+                            "$in": [
+                                "transfer",
+                                "deposit",
+                                "withdraw",
+                                "rebalance",
+                                "zeroBurn",
+                            ]
+                        },
                     },
                 )
             ):
