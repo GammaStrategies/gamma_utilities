@@ -29,7 +29,7 @@ from apps.database_feeder import (
 from apps.feeds.status import feed_rewards_status
 
 from apps.database_feeder_service import price_sequence_loop
-from apps.database_checker import check_database
+from apps.database_checker import check_database, repair_blocks
 
 from bins.mixed.price_utilities import price_scraper
 
@@ -733,7 +733,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    calculate_missing()
+    repair_blocks()
 
     kwargs_list = [
         {
