@@ -1020,13 +1020,13 @@ class user_status_hypervisor_builder:
     @log_execution_time
     def _create_operations_to_process(self) -> list[dict]:
         # get hypes operations from the last block processed
-        initial_block = self._get_initial_block_to_process()
 
-        if result := self.get_hypervisor_operations(initial_block=initial_block):
-            logging.getLogger(__name__).info(
-                f" Found {len(result)} operations to process for {self.network}'s {self.address} starting from block {initial_block or '-'}"
-            )
-            return sorted(result, key=lambda x: (x["blockNumber"], x["logIndex"]))
+        if initial_block := self._get_initial_block_to_process():
+            if result := self.get_hypervisor_operations(initial_block=initial_block):
+                logging.getLogger(__name__).info(
+                    f" Found {len(result)} operations to process for {self.network}'s {self.address} starting from block {initial_block or '-'}"
+                )
+                return sorted(result, key=lambda x: (x["blockNumber"], x["logIndex"]))
 
         logging.getLogger(__name__).debug(
             f" There are no operations to process for {self.network}'s {self.address}"

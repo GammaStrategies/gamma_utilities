@@ -16,6 +16,7 @@ prices:
     Add onchain price support ( for uniswapv3 )
 
 all:
+  ☐ Implement polars
   ☐ Reload config file on every loop: Not everithing... but the "script" part and maybe "sources"
   ☐ Add Enum for networks, protocols and dexes
   ☐ Change uniswapv3 to uniswap in code and database
