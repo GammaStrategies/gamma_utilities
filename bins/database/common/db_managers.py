@@ -10,7 +10,10 @@ class MongoDbManager:
         Args:
            url (str): full mongodb url
            db_name (str): database name
-           collections (dict): { <collection name>: {<field>:<uniqueness>, ...} ...}
+           collections (dict): {
+                             <collection name>: {
+                                "mono_indexes": { <field>:<uniqueness>, ...} ...}
+                                "multi_indexes": [  [<field>, ORDER, ...]  ]
                            example: {
                                "static":
                                        {"id":True,
@@ -47,8 +50,12 @@ class MongoDbManager:
     def configure_collections(self):
         """define collection names and create indexes"""
         for coll_name, fields in self.collections_config.items():
-            for field, unique in fields.items():
+            # mono indexes
+            for field, unique in fields.get("mono_indexes", {}).items():
                 self.database[coll_name].create_index(field, unique=unique)
+            # multi indexes
+            for field in fields.get("multi_indexes", []):
+                self.database[coll_name].create_index(field)
 
     def create_collection(self, coll_name: str, **indexes):
         """Creates a collection if it does not exist.
@@ -57,8 +64,12 @@ class MongoDbManager:
         """
 
         if coll_name not in self.database_collections:
-            for field, unique in indexes.items():
+            # mono indexes
+            for field, unique in indexes.get("mono_indexes", {}).items():
                 self.database[coll_name].create_index(field, unique=unique)
+            # multi indexes
+            for fields in indexes.get("multi_indexes", []):
+                self.database[coll_name].create_index(fields)
 
             # refresh database collection names
             self.database_collections = self.database.list_collection_names()

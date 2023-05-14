@@ -733,7 +733,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    repair_blocks()
+    test_user_status2()
 
     kwargs_list = [
         {

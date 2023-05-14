@@ -4,6 +4,7 @@ from bson.decimal128 import Decimal128, create_decimal128_context
 from decimal import Decimal, localcontext
 from datetime import datetime
 from pymongo.errors import ConnectionFailure, BulkWriteError
+from pymongo import DESCENDING, ASCENDING
 from bins.database.common.db_managers import MongoDbManager
 
 
@@ -273,8 +274,14 @@ class database_global(db_collections_common):
     ):
         if db_collections is None:
             db_collections = {
-                "blocks": {"id": True, "network": False, "block": False},
-                "usd_prices": {"id": True, "address": False},
+                "blocks": {
+                    "mono_indexes": {"id": True, "network": False, "block": False},
+                    "multi_indexes": [],
+                },
+                "usd_prices": {
+                    "mono_indexes": {"id": True, "address": False},
+                    "multi_indexes": [],
+                },
             }
         super().__init__(
             mongo_url=mongo_url, db_name=db_name, db_collections=db_collections
@@ -520,38 +527,99 @@ class database_local(db_collections_common):
 
     def __init__(self, mongo_url: str, db_name: str, db_collections: dict = None):
         if db_collections is None:
+            # db_collections = {
+            #     "static": {"id": True, "address": False},
+            #     "operations": {
+            #         "id": True,
+            #         "blockNumber": False,
+            #         "address": False,
+            #         "timestamp": False,
+            #         [("blockNumber", ASCENDING), ("logIndex", ASCENDING)]: False,
+            #     },
+            #     "status": {
+            #         "id": True,
+            #         "block": False,
+            #         "address": False,
+            #         "timestamp": False,
+            #     },
+            #     "user_status": {
+            #         "id": True,
+            #         "block": False,
+            #         "address": False,
+            #         "hypervisor_address": False,
+            #         "timestamp": False,
+            #         "logIndex": False,
+            #         [("block", DESCENDING), ("logIndex", DESCENDING)]: False,
+            #     },
+            #     "rewards_static": {
+            #         "id": True,
+            #         "hypervisor_address": False,
+            #         "rewarder_address": False,
+            #     },
+            #     "rewards_status": {
+            #         "id": True,
+            #         "hypervisor_address": False,
+            #         "rewarder_address": False,
+            #         "block": False,
+            #         "timestamp": False,
+            #     },
+            # }
+
             db_collections = {
-                "static": {"id": True, "address": False},
+                "static": {
+                    "mono_indexes": {"id": True, "address": False},
+                    "multi_indexes": [],
+                },
                 "operations": {
-                    "id": True,
-                    "blockNumber": False,
-                    "address": False,
-                    "timestamp": False,
+                    "mono_indexes": {
+                        "id": True,
+                        "blockNumber": False,
+                        "address": False,
+                        "timestamp": False,
+                    },
+                    "multi_indexes": [
+                        [("blockNumber", ASCENDING), ("logIndex", ASCENDING)],
+                    ],
                 },
                 "status": {
-                    "id": True,
-                    "block": False,
-                    "address": False,
-                    "timestamp": False,
+                    "mono_indexes": {
+                        "id": True,
+                        "block": False,
+                        "address": False,
+                        "timestamp": False,
+                    },
+                    "multi_indexes": [],
                 },
                 "user_status": {
-                    "id": True,
-                    "block": False,
-                    "address": False,
-                    "hypervisor_address": False,
-                    "timestamp": False,
+                    "mono_indexes": {
+                        "id": True,
+                        "block": False,
+                        "address": False,
+                        "hypervisor_address": False,
+                        "timestamp": False,
+                        "logIndex": False,
+                    },
+                    "multi_indexes": [
+                        [("block", DESCENDING), ("logIndex", DESCENDING)],
+                    ],
                 },
                 "rewards_static": {
-                    "id": True,
-                    "hypervisor_address": False,
-                    "rewarder_address": False,
+                    "mono_indexes": {
+                        "id": True,
+                        "hypervisor_address": False,
+                        "rewarder_address": False,
+                    },
+                    "multi_indexes": [],
                 },
                 "rewards_status": {
-                    "id": True,
-                    "hypervisor_address": False,
-                    "rewarder_address": False,
-                    "block": False,
-                    "timestamp": False,
+                    "mono_indexes": {
+                        "id": True,
+                        "hypervisor_address": False,
+                        "rewarder_address": False,
+                        "block": False,
+                        "timestamp": False,
+                    },
+                    "multi_indexes": [],
                 },
             }
 

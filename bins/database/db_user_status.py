@@ -2028,6 +2028,10 @@ class user_status_hypervisor_builder:
             raise ValueError(
                 " logIndex was set but Block is not.. this is nonesense .. [all_operation_blocks]  "
             )
+        # with shares filter: last user status should have shares
+        if with_shares:
+            find["shares_qtty"] = {"$gt": 0}
+
         # build query
         query = [
             {"$match": find},
@@ -2040,10 +2044,6 @@ class user_status_hypervisor_builder:
             },
             {"$replaceRoot": {"newRoot": "$last_doc"}},
         ]
-
-        # with shares filter: last user status should have shares
-        if with_shares:
-            query.append({"$match": {"shares_qtty": {"$gt": 0}}})
 
         return [
             self.convert_user_status_fromDb(item)
@@ -3070,6 +3070,8 @@ class user_status_hypervisor_builderV2:
 
         self.__blacklist_addresses = ["0x0000000000000000000000000000000000000000"]
 
+        self.batch_size = 50000
+
         # init rewarders masterchefs
         self._rewarders_list = []
         self._rewarders_lastTime_update = None
@@ -3544,8 +3546,8 @@ class user_status_hypervisor_builderV2:
             {"$unset": ["_id"]},
         ]
 
-        return self.local_db_manager.query_items_from_database(
-            query=query, collection_name="operations"
+        return self.local_db_manager.get_items_from_database(
+            aggregate=query, collection_name="operations", batch_size=self.batch_size
         )
 
     @log_execution_time
@@ -3618,11 +3620,6 @@ class user_status_hypervisor_builderV2:
             {"$unset": ["_id"]},
         ]
 
-        # for op in self.local_db_manager.get_cursor(
-        #     query=query, collection_name="operations"
-        # ):
-        #     yield op
-
-        return self.local_db_manager.query_items_from_database(
-            query=query, collection_name="operations"
+        return self.local_db_manager.get_items_from_database(
+            aggregate=query, collection_name="operations", batch_size=self.batch_size
         )
