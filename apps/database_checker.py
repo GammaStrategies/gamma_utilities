@@ -201,28 +201,40 @@ def repair_prices_from_status():
                 logging.getLogger(__name__).info(
                     f" Checking if there are {len(price_ids_shouldBe)} prices for {network} in the price database"
                 )
-                for id in database_global(mongo_url=mongo_url).get_items_from_database(
-                    collection_name="usd_prices",
-                    find={"network": network},
-                    batch_size=batch_size,
+
+                # for id in database_global(mongo_url=mongo_url).get_items_from_database(
+                #     collection_name="usd_prices",
+                #     find={"network": network},
+                #     batch_size=batch_size,
+                # ):
+                #     # add token addresses
+                #     if id["id"] in price_ids_shouldBe:
+                #         price_ids_shouldBe.remove(id["id"])
+
+                #     # progress
+                #     progress_bar.set_description(
+                #         f" {network} should be prices: {len(price_ids_shouldBe)}"
+                #     )
+                #     progress_bar.update(0)
+
+                if price_ids_diffs := price_ids_shouldBe - set(
+                    [
+                        id["id"]
+                        for id in database_global(
+                            mongo_url=mongo_url
+                        ).get_items_from_database(
+                            collection_name="usd_prices",
+                            find={"network": network},
+                            batch_size=batch_size,
+                        )
+                    ]
                 ):
-                    # add token addresses
-                    if id["id"] in price_ids_shouldBe:
-                        price_ids_shouldBe.remove(id["id"])
-
-                    # progress
-                    progress_bar.set_description(
-                        f" {network} should be prices: {len(price_ids_shouldBe)}"
-                    )
-                    progress_bar.update(0)
-
-                if price_ids_shouldBe:
                     logging.getLogger(__name__).info(
-                        f" Found {len(price_ids_shouldBe)} missing prices for {network}"
+                        f" Found {len(price_ids_diffs)} missing prices for {network}"
                     )
-                    progress_bar.total += len(price_ids_shouldBe)
+                    progress_bar.total += len(price_ids_diffs)
                     # get prices
-                    for price_id in price_ids_shouldBe:
+                    for price_id in price_ids_diffs:
                         network, block, address = price_id.split("_")
                         logging.getLogger(__name__).debug(
                             f" Getting price for {network}'s {address} at block {block}"
