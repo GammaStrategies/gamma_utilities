@@ -1836,7 +1836,8 @@ class thena_voter_v3(web3wrap):
                     if gauge_result := thena_gauge.get_rewards(
                         convert_bint=convert_bint
                     ):
-                        gauge_result["rewarder_registry"] = self.address.lower()
+                        for gauge in gauge_result:
+                            gauge["rewarder_registry"] = self.address.lower()
                         result += gauge_result
 
         else:
