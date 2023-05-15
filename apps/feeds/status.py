@@ -412,7 +412,7 @@ def feed_rewards_status_loop(rewarder_static: dict):
                 # add to returnable data
                 rewards_data += rewards_from_gauge
         except Exception as e:
-            logging.getLogger(__name__).error(
+            logging.getLogger(__name__).exception(
                 f" Unexpected error constructing {network}'s {rewarder_static['rewarder_address']} rewarder data. error-> {e}"
             )
 
