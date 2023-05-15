@@ -825,7 +825,7 @@ class user_operations_hypervisor_builder:
                 return last_operation[-1]
         except Exception as e:
             logging.getLogger(__name__).error(
-                f" Could not get the last user operation block for {self.network}'s {self.address} from db:  {e}"
+                f" No user operations found for {self.network}'s {self.address} from db:  {e}. Starting sync from the beguining."
             )
             return None
 
