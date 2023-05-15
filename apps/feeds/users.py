@@ -3,6 +3,7 @@ import logging
 from bins.configuration import CONFIGURATION
 from bins.database.common.db_collections_common import database_local
 from bins.database.db_user_status import user_status_hypervisor_builder
+from bins.database.db_user_operations import user_operations_hypervisor_builder
 
 
 ### user Status #######################
@@ -24,6 +25,38 @@ def feed_user_status(network: str, protocol: str):
         )
 
         hype_new = user_status_hypervisor_builder(
+            hypervisor_address=address, network=network, protocol=protocol
+        )
+
+        try:
+            hype_new._process_operations()
+        except ValueError as e:
+            logging.getLogger(__name__).error(
+                f" Unexpected error while feeding user status of {network}'s  {address} -> error {e}"
+            )
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f" Unexpected error while feeding user status of {network}'s  {address} -> error {e}"
+            )
+
+
+### user operations ###################
+def feed_user_operations(network: str, protocol: str):
+    # get hypervisor addresses from database
+    hypervisor_addresses = get_hypervisor_addresses_from_database(
+        network=network, protocol=protocol
+    )
+
+    logging.getLogger(__name__).info(
+        f">Feeding {protocol}'s {network} user operations information for {len(hypervisor_addresses)} hypervisors"
+    )
+
+    for idx, address in enumerate(hypervisor_addresses):
+        logging.getLogger(__name__).info(
+            f"   [{idx} of {len(hypervisor_addresses)}] Building {network}'s {address} user status"
+        )
+
+        hype_new = user_operations_hypervisor_builder(
             hypervisor_address=address, network=network, protocol=protocol
         )
 

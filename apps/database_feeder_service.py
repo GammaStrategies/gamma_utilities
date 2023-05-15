@@ -25,7 +25,7 @@ from apps.database_feeder import (
     create_tokenBlocks_rewards,
 )
 from apps.feeds.static import feed_hypervisor_static, feed_rewards_static
-from apps.feeds.users import feed_user_status
+from apps.feeds.users import feed_user_status, feed_user_operations
 from apps.feeds.status import (
     feed_rewards_status,
     feed_hypervisor_status,
@@ -72,7 +72,7 @@ def network_sequence_loop(
 
     if do_userStatus:
         # feed user_status data
-        feed_user_status(protocol=protocol, network=network)
+        feed_user_operations(protocol=protocol, network=network)
 
     if do_repairs:
         # try to repair all errors found in logs

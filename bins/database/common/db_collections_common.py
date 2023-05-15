@@ -527,44 +527,6 @@ class database_local(db_collections_common):
 
     def __init__(self, mongo_url: str, db_name: str, db_collections: dict = None):
         if db_collections is None:
-            # db_collections = {
-            #     "static": {"id": True, "address": False},
-            #     "operations": {
-            #         "id": True,
-            #         "blockNumber": False,
-            #         "address": False,
-            #         "timestamp": False,
-            #         [("blockNumber", ASCENDING), ("logIndex", ASCENDING)]: False,
-            #     },
-            #     "status": {
-            #         "id": True,
-            #         "block": False,
-            #         "address": False,
-            #         "timestamp": False,
-            #     },
-            #     "user_status": {
-            #         "id": True,
-            #         "block": False,
-            #         "address": False,
-            #         "hypervisor_address": False,
-            #         "timestamp": False,
-            #         "logIndex": False,
-            #         [("block", DESCENDING), ("logIndex", DESCENDING)]: False,
-            #     },
-            #     "rewards_static": {
-            #         "id": True,
-            #         "hypervisor_address": False,
-            #         "rewarder_address": False,
-            #     },
-            #     "rewards_status": {
-            #         "id": True,
-            #         "hypervisor_address": False,
-            #         "rewarder_address": False,
-            #         "block": False,
-            #         "timestamp": False,
-            #     },
-            # }
-
             db_collections = {
                 "static": {
                     "mono_indexes": {"id": True, "address": False},
@@ -598,6 +560,20 @@ class database_local(db_collections_common):
                         "hypervisor_address": False,
                         "timestamp": False,
                         "logIndex": False,
+                    },
+                    "multi_indexes": [
+                        [("block", DESCENDING), ("logIndex", DESCENDING)],
+                    ],
+                },
+                "user_operations": {
+                    "mono_indexes": {
+                        "id": True,
+                        "block": False,
+                        "user_address": False,
+                        "hypervisor_address": False,
+                        "timestamp": False,
+                        "logIndex": False,
+                        "topic": False,
                     },
                     "multi_indexes": [
                         [("block", DESCENDING), ("logIndex", DESCENDING)],
@@ -932,6 +908,36 @@ class database_local(db_collections_common):
                 collection_name="user_status", find=find, sort=sort
             )
         ]
+
+    # user operations
+    def set_user_operation(self, data: dict):
+        """
+
+        Args:
+            data (dict):
+        """
+        # define database id
+        data[
+            "id"
+        ] = f"{data['user_address']}_{data['block']}_{data['logIndex']}_{data['hypervisor_address']}"
+
+        # convert decimal to bson compatible and save
+        self.replace_item_to_database(data=data, collection_name="user_operations")
+
+    def set_user_operations_bulk(self, data: list[dict]):
+        """Bulk insert user operations
+
+        Args:
+            data (list[dict]):
+        """
+        # define database ids
+        for item in data:
+            item[
+                "id"
+            ] = f"{item['user_address']}_{item['block']}_{item['logIndex']}_{item['hypervisor_address']}"
+
+        # convert decimal to bson compatible and save
+        self.replace_items_to_database(data=data, collection_name="user_operations")
 
     # rewards static
 

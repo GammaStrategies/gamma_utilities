@@ -6,6 +6,8 @@ from pathlib import Path
 import tqdm
 import concurrent.futures
 
+from bins.w3.onchain_data_helper import onchain_data_helper2
+
 
 # append parent directory pth
 CURRENT_FOLDER = os.path.dirname(os.path.realpath(__file__))

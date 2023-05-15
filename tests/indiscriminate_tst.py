@@ -63,6 +63,8 @@ from bins.apis.coingecko_utilities import geckoterminal_price_helper
 from bins.w3.onchain_utilities import rewarders
 from bins.database.db_user_status import user_status_hypervisor_builderV2
 
+from bins.database.db_user_operations import user_operations_hypervisor_builder
+
 
 def test_w3_hypervisor_obj(
     protocol: str, network: str, dex: str, hypervisor_address: str, block: int
@@ -687,10 +689,37 @@ def test_user_status2():
         network=network, protocol=protocol
     )
 
-    network_user_status = user_status_builder.calculate_status(
-        user_address="0x93ab7580493da8e78a31c31250d3c5524b7ffd0e"
-    )
+    network_user_status = user_status_builder.calculate_status(user_address="")
     pp = ""
+
+
+def test_userOperations():
+    network = "ethereum"
+    protocol = "gamma"
+    hypervisor_address = "0x35abccd8e577607275647edab08c537fa32cc65e"
+
+    user_operations_builder = user_operations_hypervisor_builder(
+        hypervisor_address=hypervisor_address, network=network, protocol=protocol
+    )
+    # user_addresses = [
+    #     "0x09c46a907ba6167c50423ca130ad123dc6ec9862",
+    #     "0x6baadd8b3770fc18f0428f25ed50cc00c71e6201",
+    #     "0xb2dcab83583e0451ed1a2bc98743997c38e10c47",
+    #     "0xade38bd2e8d5a52e60047affe6e595bb5e61923a",
+    #     "0xfe105197324dd92b55dca239be0450251d7379d0",
+    # ]
+    # block = 14516282
+    # logIndex = 16
+    # result = {}
+    # for user_address in user_addresses:
+    #     result[user_address] = user_operations_builder.get_user_shares(
+    #         user_address=user_address, block=block, logIndex=logIndex
+    #     )
+
+    # compare get_user_shares with manual user shares
+
+    user_operations_builder._process_operations()
+    po = ""
 
 
 def calculate_missing():
@@ -733,7 +762,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    test_user_status2()
+    test_userOperations()
 
     kwargs_list = [
         {

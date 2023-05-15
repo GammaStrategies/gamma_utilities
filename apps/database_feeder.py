@@ -55,7 +55,7 @@ from bins.formulas.dex_formulas import (
 from bins.formulas.apr import calculate_rewards_apr
 
 from apps.feeds.static import feed_hypervisor_static, feed_rewards_static
-from apps.feeds.users import feed_user_status
+from apps.feeds.users import feed_user_status, feed_user_operations
 from apps.feeds.status import feed_hypervisor_status, repair_missing_hypervisor_status
 
 
@@ -1275,7 +1275,7 @@ def main(option="operations"):
 
             elif option == "user_status":
                 # feed database with user status
-                feed_user_status(protocol=protocol, network=network)
+                feed_user_operations(protocol=protocol, network=network)
 
             elif option == "prices":
                 # feed database with prices from all status
