@@ -50,12 +50,14 @@ def network_sequence_loop(
         network (str):
     """
 
-    # feed database with all operations from static hyprervisor addresses
+    # feed database with all operations from static hypervisor addresses
     feed_operations(protocol=protocol, network=network)
 
-    # feed database with status from all operations
-    repair_missing_hypervisor_status(protocol=protocol, network=network)
+    # feed database with status
     feed_hypervisor_status(protocol=protocol, network=network, threaded=True)
+
+    # make sure all operations blocks have hype status
+    repair_missing_hypervisor_status(protocol=protocol, network=network)
 
     # feed rewards status
     feed_rewards_status(protocol=protocol, network=network)

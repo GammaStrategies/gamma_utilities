@@ -22,6 +22,7 @@ from bins.w3.onchain_utilities.basic import erc20_cached
 def repair_missing_hypervisor_status(
     protocol: str,
     network: str,
+    cache: bool = True,
 ):
     """Creates hypervisor status at all operations block and block-1 not already present in database,
         using the difference between operations and status blocks
@@ -73,13 +74,7 @@ def repair_missing_hypervisor_status(
 
             # prepare arguments for paralel scraping
             args = (
-                (
-                    hype["address"],
-                    network,
-                    block,
-                    hype["dex"],
-                    False,
-                )
+                (hype["address"], network, block, hype["dex"], False, None, None, cache)
                 for block in difference_blocks
             )
             # scrape missing status

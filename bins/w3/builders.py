@@ -136,6 +136,7 @@ def build_db_hypervisor(
     static_mode=False,
     custom_web3: Web3 | None = None,
     custom_web3Url: str | None = None,
+    cached: bool = True,
 ) -> dict():
     try:
         hypervisor = build_hypervisor(
@@ -145,7 +146,7 @@ def build_db_hypervisor(
             hypervisor_address=address,
             custom_web3=custom_web3,
             custom_web3Url=custom_web3Url,
-            cached=True,
+            cached=cached,
         )
 
         # return converted hypervisor
