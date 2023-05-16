@@ -399,13 +399,15 @@ def feed_rewards_status_loop(rewarder_static: dict):
                 )
 
                 # get rewards directly from gauge ( rewarder ).  Warning-> will not contain rewarder_registry field!!
-                rewards_from_gauge = thena_gauge.get_rewards(convert_bint=True)
-                # add rewarder registry address
-                rewards_from_gauge["rewarder_registry"] = rewarder_static[
-                    "rewarder_registry"
-                ]
-                # add to returnable data
-                rewards_data += rewards_from_gauge
+                if rewards_from_gauge := thena_gauge.get_rewards(convert_bint=True):
+                    # add rewarder registry address
+                    for reward in rewards_from_gauge:
+                        reward["rewarder_registry"] = rewarder_static[
+                            "rewarder_registry"
+                        ]
+
+                    # add to returnable data
+                    rewards_data += rewards_from_gauge
         except Exception as e:
             logging.getLogger(__name__).exception(
                 f" Unexpected error constructing {network}'s {rewarder_static['rewarder_address']} rewarder data. error-> {e}"
