@@ -35,8 +35,6 @@ from bins.mixed.price_utilities import price_scraper
 
 from bins.w3.builders import build_db_hypervisor
 
-from apps.feeds.status import repair_missing_hypervisor_status
-
 
 # repair apps
 def repair_all():
@@ -260,9 +258,6 @@ def repair_hypervisor_status():
     # from user_status debug log
     repair_hype_status_from_user()
 
-    # repair hypervisors status equivalent to operations database blocks and not fount in database
-    repair_hype_status_by_operations()
-
 
 def repair_hype_status_from_user(min_count: int = 1):
     protocol = "gamma"
@@ -332,6 +327,7 @@ def repair_hype_status_from_user(min_count: int = 1):
                                 network=network,
                                 block=block,
                                 dex=dex,
+                                cached=False,
                             )
                             if hype_status:
                                 # add hypervisor status to database
@@ -355,19 +351,6 @@ def repair_hype_status_from_user(min_count: int = 1):
         logging.getLogger(__name__).error(
             f" Error repairing hypervisor status not found {e}"
         )
-
-
-def repair_hype_status_by_operations():
-    """Find differences between operations blocks and status blocks and scrape missing status"""
-
-    for protocol in CONFIGURATION["script"]["protocols"]:
-        # override networks if specified in cml
-        networks = (
-            CONFIGURATION["_custom_"]["cml_parameters"].networks
-            or CONFIGURATION["script"]["protocols"][protocol]["networks"]
-        )
-        for network in networks:
-            repair_missing_hypervisor_status(protocol=protocol, network=network)
 
 
 def repair_blocks():
