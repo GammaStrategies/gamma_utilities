@@ -6,8 +6,6 @@ from pathlib import Path
 import tqdm
 import concurrent.futures
 
-from bins.w3.onchain_data_helper import onchain_data_helper2
-
 
 # append parent directory pth
 CURRENT_FOLDER = os.path.dirname(os.path.realpath(__file__))
@@ -26,6 +24,8 @@ from apps.database_checker import (
 from apps.database_feeder import feed_operations_hypervisors
 from bins.database.db_user_status import user_status_hypervisor_builder
 from bins.general.general_utilities import log_execution_time
+
+from bins.w3.onchain_data_helper import onchain_data_helper2
 
 
 def manual_set_prices_by_log(log_file: str | None = None):
@@ -90,9 +90,18 @@ def manual_set_price_by_block():
 
     # define prices manually
     address_block_list = {}
-    address_block_list["ethereum"] = {
-        "0x967da4048cd07ab37855c090aaf366e4ce1b9f48".lower(): [
-            {"block": 17202552, "price": 1213},
+    address_block_list["polygon"] = {
+        "0x1d734a02ef1e1f5886e66b0673b71af5b53ffa94".lower(): [
+            {"block": 41011508, "price": 0.92},
+        ],
+        "0x2791bca1f2de4661ed88a30c99a7a9449aa84174".lower(): [
+            {"block": 41011508, "price": 0.99},
+        ],
+    }
+    address_block_list["optimism"] = {
+        "0x4200000000000000000000000000000000000006".lower(): [
+            {"block": 98224140, "price": 1806.99},
+            {"block": 98087928, "price": 1798.85},
         ]
     }
 
@@ -473,7 +482,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    manual_get_missing_prices()
+    manual_set_price_by_block()
 
     # end time log
     _timelapse = datetime.now(timezone.utc) - _startime
