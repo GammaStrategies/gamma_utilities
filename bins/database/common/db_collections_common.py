@@ -349,7 +349,8 @@ class database_global(db_collections_common):
         network: str,
         block: int,
         address: str,
-    ) -> dict:
+        limit: int = 2,
+    ) -> list[dict]:
         """get usd price from closest block to <block>
 
         Args:
@@ -361,7 +362,7 @@ class database_global(db_collections_common):
             dict:
         """
         return self.query_items_from_database(
-            query=self.query_blocks_closest(network=network, block=block),
+            query=self.query_blocks_closest(network=network, block=block, limit=limit),
             collection_name="usd_prices",
         )
 
@@ -425,7 +426,7 @@ class database_global(db_collections_common):
 
     @staticmethod
     def query_blocks_closest(
-        network: str, block: int = 0, timestamp: int = 0
+        network: str, block: int = 0, timestamp: int = 0, limit: int = 10
     ) -> list[dict]:
         """find closest block/timestamp item in database
 
@@ -460,7 +461,7 @@ class database_global(db_collections_common):
             # Order the docs by diff
             {"$sort": {"diff": 1}},
             # Take the first one
-            {"$limit": 1},
+            {"$limit": limit},
         ]
 
 

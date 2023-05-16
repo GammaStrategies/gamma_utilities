@@ -1027,8 +1027,6 @@ class user_operations_hypervisor_builder:
         self, user_address: str, block: int | None = None, logIndex: int | None = None
     ):
         # TODO: remove this after debugging
-        # if user_address == "0x09c46a907ba6167c50423ca130ad123dc6ec9862":
-        #     po = ""
         # tmp_shares = self.get_user_shares(user_address, block, logIndex)
         if not user_address in self._manual_user_shares:
             # self._manual_user_shares[user_address] = tmp_shares
@@ -1037,7 +1035,6 @@ class user_operations_hypervisor_builder:
             )
         # else:
         # TODO: remove this after debugging
-        # tmp_shares = self.get_user_shares(user_address, block, logIndex)
         # if tmp_shares != self._manual_user_shares[user_address]:
         #     logging.getLogger(__name__).warning(
         #         f"Manual shares for {user_address} are not equal to the ones in the db. Manual: {self._manual_user_shares[user_address]}, db: {tmp_shares}"
