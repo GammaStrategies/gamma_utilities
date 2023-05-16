@@ -85,24 +85,76 @@ def manual_set_prices_by_log(log_file: str | None = None):
                             progress_bar.update(1)
 
 
+def manual_set_price_average_between_blocks():
+    address_block_list = {}
+    address_block_list["arbitrum"] = {
+        "0x82af49447d8a07e3bd95bd0d56f35241523fbab1".lower(): [
+            70182518,
+            91006567,
+            70164588,
+        ],
+        "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9".lower(): [70182518],
+        "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8".lower(): [90714723, 90362324],
+        "0xfa5ed56a203466cbbc2430a43c66b9d8723528e7".lower(): [90714723],
+        "0x1a5b0aaf478bf1fda7b934c76e7692d722982a6d".lower(): [91006567],
+        "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f".lower(): [90362324],
+    }
+
+    # find closest prices known to block
+    # setup database managers
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    global_db_manager = database_global(mongo_url=mongo_url)
+
+    for network, data in address_block_list.items():
+        for token_address, blocks in data.items():
+            with tqdm.tqdm(total=len(blocks)) as progress_bar:
+                for block in blocks:
+                    # try get price from 3rd party
+                    if price := get_price(
+                        network=network,
+                        token_address=token_address,
+                        block=int(block),
+                    ):
+                        logging.getLogger(__name__).debug(
+                            f" Found price for {network}'s {token_address} at block {block}"
+                        )
+                    else:
+                        # get prices for address in database, close to block
+                        closeprices = global_db_manager.get_price_usd_closestBlock(
+                            network=network, block=block, address=token_address
+                        )
+                        # get average price
+                        price = sum([p["price"] for p in closeprices]) / len(
+                            closeprices
+                        )
+                        logging.getLogger(__name__).debug(
+                            f" Found price {price} for {network}'s {token_address} at block {block} using average of {closeprices}"
+                        )
+
+                    # add price to database
+                    add_price_to_token(
+                        network=network,
+                        token_address=token_address,
+                        block=block,
+                        price=price,
+                    )
+
+                # update progress
+                progress_bar.update(1)
+
+
 def manual_set_price_by_block():
     # TODO: parallel process
 
     # define prices manually
     address_block_list = {}
-    address_block_list["polygon"] = {
-        "0x1d734a02ef1e1f5886e66b0673b71af5b53ffa94".lower(): [
-            {"block": 41011508, "price": 0.92},
+    address_block_list["arbitrum"] = {
+        "0x82af49447d8a07e3bd95bd0d56f35241523fbab1".lower(): [
+            {"block": 70182518, "price": 1800},
         ],
         "0x2791bca1f2de4661ed88a30c99a7a9449aa84174".lower(): [
             {"block": 41011508, "price": 0.99},
         ],
-    }
-    address_block_list["optimism"] = {
-        "0x4200000000000000000000000000000000000006".lower(): [
-            {"block": 98224140, "price": 1806.99},
-            {"block": 98087928, "price": 1798.85},
-        ]
     }
 
     # setup database managers
