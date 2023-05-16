@@ -128,7 +128,7 @@ class MongoDbManager:
         # add/ update to database (add or replace)
         self.database[coll_name].bulk_write(
             [
-                UpdateOne(filter=item["filter"], update=item["data"], upsert=True)
+                UpdateOne(filter=item["filter"], update=item["data"], upsert=upsert)
                 for item in data
             ]
         )

@@ -28,6 +28,8 @@ class db_collections_common:
             data (list[dict]): _description_
             collection_name (str): _description_
         """
+        # TODO: solve error not saving  :
+
         try:
             # create bulk data object
             bulk_data = [{"filter": {"id": item["id"]}, "data": item} for item in data]

@@ -442,7 +442,7 @@ def repair_missing_blocks(protocol: str, network: str, batch_size: int = 100000)
         # add missing blocks to global database
         database_global(
             mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"]
-        ).save_items_to_database(data=todo_blocks.values(), collection_name="blocks")
+        ).replace_items_to_database(data=todo_blocks.values(), collection_name="blocks")
     else:
         logging.getLogger(__name__).info(f" No missing blocks found in {network}.")
 

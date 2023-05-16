@@ -20,6 +20,7 @@ from apps.database_checker import (
     get_price,
     add_price_to_token,
     get_all_logfiles,
+    repair_blocks,
 )
 from apps.database_feeder import feed_operations_hypervisors
 from bins.database.db_user_status import user_status_hypervisor_builder
@@ -517,7 +518,7 @@ def manual_sync_databases(rewrite: bool = False):
             logging.getLogger(__name__).debug(f" Rewriting {len(difference)} items")
 
         if origin_data_toSave:
-            destination_db().save_items_to_database(
+            destination_db().replace_items_to_database(
                 collection_name=destination_collection_name, data=origin_data_toSave
             )
 
@@ -534,7 +535,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    manual_set_price_by_block()
+    repair_blocks()
 
     # end time log
     _timelapse = datetime.now(timezone.utc) - _startime
