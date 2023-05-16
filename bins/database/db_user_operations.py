@@ -259,9 +259,21 @@ class user_operations_hypervisor_builder:
         self.current_logIndex = operation["logIndex"]
 
         if operation["topic"] == "deposit":
+            # check if it is a Gamma NFT hypervisor
+            if operation["sender"] != operation["to"]:
+                raise ValueError(
+                    f" {self.network}'s {self.address} is an old Gamma NFT hypervisor ... remove from processing"
+                )
+
             self._add_user_status(status=self._process_deposit(operation=operation))
 
         elif operation["topic"] == "withdraw":
+            # check if it is a Gamma NFT hypervisor
+            if operation["sender"] != operation["to"]:
+                raise ValueError(
+                    f" {self.network}'s {self.address} is an old Gamma NFT hypervisor ... remove from processing"
+                )
+
             self._add_user_status(status=self._process_withdraw(operation=operation))
 
         elif operation["topic"] == "transfer":
@@ -405,10 +417,14 @@ class user_operations_hypervisor_builder:
             # check if transfer is to/from a rewarder
             if operation["dst"].lower() in self.rewarders_list:
                 # TODO: staking into masterchef implementation
-                pass
+                logging.getLogger(__name__).debug(
+                    f"{operation['src']} user staking into {operation['dst']} not processed yet. TODO: implement"
+                )
             elif operation["src"].lower() in self.rewarders_list:
                 # TODO: unstaking out of masterchef implementation
-                pass
+                logging.getLogger(__name__).debug(
+                    f"{operation['dst']} user unstaking from {operation['src']} not processed yet. TODO: implement"
+                )
             else:
                 # transfer all values to other user address
                 return self._transfer_to_user(operation=operation)
@@ -845,8 +861,8 @@ class user_operations_hypervisor_builder:
         match = {
             "address": self.address,
             "$and": [
-                {"src": {"$ne": "0x0000000000000000000000000000000000000000"}},
-                {"dst": {"$ne": "0x0000000000000000000000000000000000000000"}},
+                {"src": {"$nin": self.__blacklist_addresses + self.rewarders_list}},
+                {"dst": {"$nin": self.__blacklist_addresses + self.rewarders_list}},
                 {
                     "$or": [
                         {"sender": user_address},
@@ -1011,6 +1027,8 @@ class user_operations_hypervisor_builder:
         self, user_address: str, block: int | None = None, logIndex: int | None = None
     ):
         # TODO: remove this after debugging
+        # if user_address == "0x09c46a907ba6167c50423ca130ad123dc6ec9862":
+        #     po = ""
         # tmp_shares = self.get_user_shares(user_address, block, logIndex)
         if not user_address in self._manual_user_shares:
             # self._manual_user_shares[user_address] = tmp_shares
@@ -1021,9 +1039,9 @@ class user_operations_hypervisor_builder:
         # TODO: remove this after debugging
         # tmp_shares = self.get_user_shares(user_address, block, logIndex)
         # if tmp_shares != self._manual_user_shares[user_address]:
-        # logging.getLogger(__name__).warning(
-        #     f"Manual shares for {user_address} are not equal to the ones in the db. Manual: {self._manual_user_shares[user_address]}, db: {tmp_shares}"
-        # )
+        #     logging.getLogger(__name__).warning(
+        #         f"Manual shares for {user_address} are not equal to the ones in the db. Manual: {self._manual_user_shares[user_address]}, db: {tmp_shares}"
+        #     )
 
         return self._manual_user_shares[user_address]
 
