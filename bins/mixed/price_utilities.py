@@ -360,14 +360,39 @@ class price_scraper:
 
         # try thegraph
         try:
-            block_data = self.thegraph_block_connector.get_all_results(
-                network=network, query_name="blocks", where=f""" number: "{block}" """
-            )[0]
+            if network in self.thegraph_block_connector._URLS.keys():
+                block_data = self.thegraph_block_connector.get_all_results(
+                    network=network,
+                    query_name="blocks",
+                    where=f""" number: "{block}" """,
+                )[0]
 
-            return block_data["timestamp"]
+                return block_data["timestamp"]
+            else:
+                logging.getLogger(__name__).debug(
+                    f" No {network} thegraph block connector found. Can't get block {block} timestamp from thegraph"
+                )
         except Exception as e:
             logging.getLogger(LOG_NAME).exception(
                 f"Error while getting block {block} timestamp from thegraph. Error: {e}"
+            )
+            return 0
+
+        # try web3
+        try:
+            # create an erc20 dummy token
+            from bins.w3.onchain_utilities.basic import erc20
+
+            dummy = erc20(
+                address="0x0000000000000000000000000000000000000000", network=network
+            )
+            block_data = dummy._getBlockData(block=block)
+
+            return block_data["timestamp"]
+
+        except Exception as e:
+            logging.getLogger(LOG_NAME).exception(
+                f"Error while getting block {block} timestamp from web3. Error: {e}"
             )
             return 0
 
