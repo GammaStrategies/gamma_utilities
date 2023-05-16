@@ -217,6 +217,14 @@ def repair_prices_from_status():
                     logging.getLogger(__name__).info(
                         f" Found {len(price_ids_diffs)} missing prices for {network}"
                     )
+                    # do not repair more than 100 prices at once to avoid being too much time in the same network
+                    if len(price_ids_diffs) > 100:
+                        logging.getLogger(__name__).info(
+                        f" Too many prices found to be repaired. Reducing the list to the first 100. Next loop will repair the next 100"
+                    )
+                        # choose to repair the first 100
+                        price_ids_diffs = price_ids_diffs[:100]
+
                     progress_bar.total += len(price_ids_diffs)
                     # get prices
                     for price_id in price_ids_diffs:
