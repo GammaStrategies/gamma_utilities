@@ -67,11 +67,11 @@ def repair_missing_hypervisor_status(
 
         # get differences
         if difference_blocks := differences(operation_blocks, hype_status_blocks):
-            logging.getLogger(__name__).debug(
+            logging.getLogger(__name__).info(
                 f" Found {len(difference_blocks)} missing blocks for {network}'s {hype['address']}"
             )
             if max_repair and len(difference_blocks) > max_repair:
-                logging.getLogger(__name__).debug(
+                logging.getLogger(__name__).info(
                     f"  Selecting a random sample of {max_repair} hypervisor status missing due to max_repair limit set."
                 )
                 difference_blocks = random.sample(difference_blocks, max_repair)
