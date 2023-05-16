@@ -2,6 +2,7 @@ import contextlib
 from datetime import datetime, timezone
 import logging
 import concurrent.futures
+import random
 import tqdm
 from web3 import Web3
 
@@ -20,9 +21,7 @@ from bins.w3.onchain_utilities.basic import erc20_cached
 
 
 def repair_missing_hypervisor_status(
-    protocol: str,
-    network: str,
-    cache: bool = True,
+    protocol: str, network: str, cache: bool = True, max_repair: int = None
 ):
     """Creates hypervisor status at all operations block and block-1 not already present in database,
         using the difference between operations and status blocks
@@ -68,6 +67,15 @@ def repair_missing_hypervisor_status(
 
         # get differences
         if difference_blocks := differences(operation_blocks, hype_status_blocks):
+            logging.getLogger(__name__).debug(
+                f" Found {len(difference_blocks)} missing blocks for {network}'s {hype['address']}"
+            )
+            if max_repair and len(difference_blocks) > max_repair:
+                logging.getLogger(__name__).debug(
+                    f"  Selecting a random sample of {max_repair} hypervisor status missing due to max_repair limit set."
+                )
+                difference_blocks = random.sample(difference_blocks, max_repair)
+
             logging.getLogger(__name__).info(
                 f"  Feeding hypervisor status collection with {len(difference_blocks)} blocks for {network}'s {hype['address']}"
             )

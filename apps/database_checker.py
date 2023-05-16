@@ -1,4 +1,5 @@
 import os
+import random
 import sys
 import logging
 import tqdm
@@ -122,10 +123,11 @@ def repair_prices_from_logs(min_count: int = 1):
         )
 
 
-def repair_prices_from_status():
+def repair_prices_from_status(
+    batch_size: int = 100000, max_repair_per_network: int | None = None
+):
     """Check prices not present in database but present in hypervisors and rewards status and try to scrape again"""
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-    batch_size = 100000
 
     for protocol in CONFIGURATION["script"]["protocols"]:
         # override networks if specified in cml
@@ -217,13 +219,18 @@ def repair_prices_from_status():
                     logging.getLogger(__name__).info(
                         f" Found {len(price_ids_diffs)} missing prices for {network}"
                     )
-                    # do not repair more than 100 prices at once to avoid being too much time in the same network
-                    if len(price_ids_diffs) > 100:
+                    # do not repair more than max_repair_per_network prices at once to avoid being too much time in the same network
+                    if (
+                        max_repair_per_network
+                        and len(price_ids_diffs) > max_repair_per_network
+                    ):
                         logging.getLogger(__name__).info(
-                        f" Too many prices found to be repaired. Reducing the list to the first 100. Next loop will repair the next 100"
-                    )
-                        # choose to repair the first 100
-                        price_ids_diffs = price_ids_diffs[:100]
+                            f" Selecting a random sample of {max_repair_per_network} prices due to maximum repair limit set. Next loop will repair the next ones."
+                        )
+                        # choose to repair the first max_repair_per_network
+                        price_ids_diffs = random.sample(
+                            price_ids_diffs, max_repair_per_network
+                        )
 
                     progress_bar.total += len(price_ids_diffs)
                     # get prices
