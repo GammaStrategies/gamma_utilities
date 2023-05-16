@@ -12,6 +12,7 @@ import polars as pl
 from datetime import datetime
 from pathlib import Path
 from web3.exceptions import ContractLogicError
+from apps.feeds.status import repair_missing_hypervisor_status
 
 
 from bins.configuration import CONFIGURATION
@@ -54,7 +55,7 @@ def repair_all():
 def repair_prices(min_count: int = 1):
     repair_prices_from_logs(min_count=min_count)
 
-    repair_prices_from_status()
+    repair_prices_from_status(max_repair_per_network=50)
 
 
 def repair_prices_from_logs(min_count: int = 1):
@@ -273,6 +274,9 @@ def repair_hypervisor_status():
     # from user_status debug log
     repair_hype_status_from_user()
 
+    # missing hypes
+    repair_missing_hype_status()
+
 
 def repair_hype_status_from_user(min_count: int = 1):
     protocol = "gamma"
@@ -366,6 +370,19 @@ def repair_hype_status_from_user(min_count: int = 1):
         logging.getLogger(__name__).error(
             f" Error repairing hypervisor status not found {e}"
         )
+
+
+def repair_missing_hype_status():
+    for protocol in CONFIGURATION["script"]["protocols"]:
+        # override networks if specified in cml
+        networks = (
+            CONFIGURATION["_custom_"]["cml_parameters"].networks
+            or CONFIGURATION["script"]["protocols"][protocol]["networks"]
+        )
+        for network in networks:
+            repair_missing_hypervisor_status(
+                protocol=protocol, network=network, max_repair=20
+            )
 
 
 def repair_blocks():

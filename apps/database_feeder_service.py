@@ -57,7 +57,7 @@ def network_sequence_loop(
     feed_hypervisor_status(protocol=protocol, network=network, threaded=True)
 
     # make sure all operations blocks have hype status
-    repair_missing_hypervisor_status(protocol=protocol, network=network)
+    repair_missing_hypervisor_status(protocol=protocol, network=network, max_repair=50)
 
     # feed rewards status
     feed_rewards_status(protocol=protocol, network=network)
