@@ -68,7 +68,7 @@ def repair_missing_hypervisor_status(
         # get differences
         if difference_blocks := differences(operation_blocks, hype_status_blocks):
             logging.getLogger(__name__).info(
-                f" Found {len(difference_blocks)} missing blocks for {network}'s {hype['address']}"
+                f" Found {len(difference_blocks)} missing status blocks for {network}'s {hype['address']}"
             )
             if max_repair and len(difference_blocks) > max_repair:
                 logging.getLogger(__name__).info(
