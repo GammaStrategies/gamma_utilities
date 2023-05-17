@@ -74,6 +74,15 @@ class MongoDbManager:
             # refresh database collection names
             self.database_collections = self.database.list_collection_names()
 
+    def del_item(self, coll_name: str, dbFilter: dict):
+        # check collection configuration exists
+        if coll_name not in self.collections_config.keys():
+            raise ValueError(
+                f" No configuration found for {coll_name} database collection."
+            )
+        # add/ update to database (add or replace)
+        self.database[coll_name].delete_one(filter=dbFilter)
+
     def add_item(self, coll_name: str, dbFilter: dict, data: dict, upsert=True):
         """Add or Update item
 

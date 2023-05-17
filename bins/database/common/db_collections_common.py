@@ -16,6 +16,20 @@ class db_collections_common:
         self._db_name = db_name
         self._db_collections = db_collections
 
+    def delete_item(self, collection_name: str, item_id: str):
+        """Delete an item from a collection
+
+        Args:
+            collection_name (str): _description_
+            item_id (str): _description_
+        """
+        with MongoDbManager(
+            url=self._db_mongo_url,
+            db_name=self._db_name,
+            collections=self._db_collections,
+        ) as _db_manager:
+            _db_manager.del_item(coll_name=collection_name, dbFilter={"id": item_id})
+
     # actual db saving
     def save_items_to_database(
         self,
