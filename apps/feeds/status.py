@@ -335,6 +335,9 @@ def feed_rewards_status_loop(rewarder_static: dict):
 
     # get the last 20 hype status to process
     if to_process_hypervisor_status > 20:
+        logging.getLogger(__name__).info(
+            f"  Found {len(to_process_hypervisor_status)} status blocks to be scraped  but only the last 20 will be processed << TODO: change this >>"
+        )
         to_process_hypervisor_status = to_process_hypervisor_status[-20:]
 
     result = []
