@@ -956,6 +956,30 @@ class database_local(db_collections_common):
         # convert decimal to bson compatible and save
         self.replace_items_to_database(data=data, collection_name="user_operations")
 
+    # user rewards
+    def get_user_rewards_operations(
+        self, user_address: str, rewarders_addresses: list[str]
+    ) -> list[dict]:
+        """Get all rewarder addresses and its operations linked to an user address
+            "_id": rewarder_address
+            "staked" current qtty stakiet in the rewarder
+            "operations" user operations linked to the rewarder
+        Args:
+            user_address (str):
+
+        Returns:
+            list[dict]:
+        """
+        return [
+            self.convert_d128_to_decimal(item=item)
+            for item in self.get_items_from_database(
+                collection_name="operations",
+                aggregate=self.query_user_allRewarder_transactions(
+                    user_address=user_address, rewarders_addresses=rewarders_addresses
+                ),
+            )
+        ]
+
     # rewards static
 
     def set_rewards_static(self, data: dict):
@@ -1592,3 +1616,155 @@ class database_local(db_collections_common):
             _match["timestamp"] = {"$lte": timestamp_end}
 
         return [{"$match": _match}, {"$sort": {"timestamp": 1}}]
+
+    @staticmethod
+    def query_rewarders_by_rewardRegistry() -> list[dict]:
+        """return the query to build
+               list of {
+                    "_id": <rewarder_registry>,
+                    "rewarders": [<rewarder_address>,...]
+               }
+
+        Returns:
+            query:
+        """
+        return [
+            {
+                "$group": {
+                    "_id": "$rewarder_registry",
+                    "rewarders": {"$push": "$rewarder_address"},
+                }
+            }
+        ]
+
+    @staticmethod
+    def query_all_user_Rewarder_transactions(
+        user_address: str, rewarder_address: str
+    ) -> list[dict]:
+        """It will return a list of operations with the following Extra fields:
+                qtty_in: qtty staked in the rewarder
+                qtty_out: qtty unstaked from the rewarder
+                staked_in_rewarder: qtty_in - qtty_out
+
+                u can sum all operations <staked_in_rewarder> field to get the total staked in the rewarder
+
+        Args:
+            user_address (str):
+            rewarder_address (str):
+
+        Returns:
+            list[dict]:
+        """
+        return [
+            {
+                "$match": {
+                    "topic": "transfer",
+                    "$or": [
+                        {"dst": user_address},
+                        {"src": user_address},
+                    ],
+                }
+            },
+            {
+                "$addFields": {
+                    "qtty_in": {
+                        "$cond": [
+                            {"$eq": ["$dst", rewarder_address]},
+                            {"$toDecimal": "$qtty"},
+                            0,
+                        ]
+                    },
+                    "qtty_out": {
+                        "$cond": [
+                            {"$eq": ["$src", rewarder_address]},
+                            {"$toDecimal": "$qtty"},
+                            0,
+                        ]
+                    },
+                    "user_address": {
+                        "$cond": [{"$eq": ["$dst", rewarder_address]}, "$src", "$dst"]
+                    },
+                }
+            },
+            {
+                "$addFields": {
+                    "staked_in_rewarder": {"$subtract": ["$qtty_in", "$qtty_out"]},
+                }
+            },
+        ]
+
+    @staticmethod
+    def query_user_allRewarder_transactions(
+        user_address: str, rewarders_addresses: list[str]
+    ) -> list[dict]:
+        """Get all user transactions and summary status for all rewarders in the network
+                returns a list of operations with the following fields:
+                    "_id": <rewarder_address>,
+                    "staked: <total_staked_in_rewarder>,
+                    "operations": [<operation>,...]
+        Args:
+            user_address (str):
+            rewarders_addresses (list[str]):
+
+        Returns:
+            list[dict]: _description_
+        """
+        return [
+            {
+                "$match": {
+                    "topic": "transfer",
+                    "src": {"$ne": "0x0000000000000000000000000000000000000000"},
+                    "dst": {"$ne": "0x0000000000000000000000000000000000000000"},
+                    "$or": [
+                        {
+                            "$and": [
+                                {"dst": user_address},
+                                {"src": {"$in": rewarders_addresses}},
+                            ]
+                        },
+                        {
+                            "$and": [
+                                {"src": user_address},
+                                {"dst": {"$in": rewarders_addresses}},
+                            ]
+                        },
+                    ],
+                }
+            },
+            {
+                "$addFields": {
+                    "qtty_in": {
+                        "$cond": [
+                            {"$in": ["$dst", rewarders_addresses]},
+                            {"$toDecimal": "$qtty"},
+                            0,
+                        ]
+                    },
+                    "qtty_out": {
+                        "$cond": [
+                            {"$in": ["$src", rewarders_addresses]},
+                            {"$toDecimal": "$qtty"},
+                            0,
+                        ]
+                    },
+                    "user_address": {
+                        "$cond": [{"$eq": ["$dst", user_address]}, "$dst", "$src"]
+                    },
+                    "rewarder_address": {
+                        "$cond": [{"$eq": ["$src", user_address]}, "$dst", "$src"]
+                    },
+                }
+            },
+            {
+                "$addFields": {
+                    "staked_in_rewarder": {"$subtract": ["$qtty_in", "$qtty_out"]},
+                }
+            },
+            {
+                "$group": {
+                    "_id": "$rewarder_address",
+                    "staked": {"$sum": "$staked_in_rewarder"},
+                    "operations": {"$push": "$$ROOT"},
+                }
+            },
+        ]
