@@ -537,6 +537,7 @@ def manual_set_lowercase_addresses_rewards_static(
     ).get_items_from_database(
         collection_name=collection_name,
         find={},
+        projection={"_id": 0},
         batch_size=batch_size,
     )
     _errors = 0
@@ -595,6 +596,7 @@ def manual_set_lowercase_addresses_rewards_status(
     ).get_items_from_database(
         collection_name=collection_name,
         find={},
+        projection={"_id": 0},
         batch_size=batch_size,
     )
     _errors = 0
