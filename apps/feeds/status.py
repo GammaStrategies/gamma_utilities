@@ -285,22 +285,56 @@ def feed_rewards_status_loop(rewarder_static: dict):
         },
     )
 
-    # to be processed as per the hypervisor status
+    # TODO: decide blocks to process on rewarders
+    # Choose to process only operations blocks and not status blocks ( at least for the time being)
+    blocks = []
+    for operation in database_local(
+        mongo_url=mongo_url, db_name=db_name
+    ).get_items_from_database(
+        collection_name="operations",
+        find={
+            "$and": [
+                {"block": {"$gte": rewarder_static["block"]}},
+                {"block": {"$nin": processed_blocks}},
+                {"topic": {"$in": ["deposit", "withraw", "rebalance", "zeroBurn"]}},
+            ]
+        },
+    ):
+        blocks.append(operation["block"])
+        # blocks.append(operation["block"] - 1)
+
+    # get hypervisors at those blocks
     to_process_hypervisor_status = database_local(
         mongo_url=mongo_url, db_name=db_name
     ).get_items_from_database(
         collection_name="status",
         find={
-            "address": rewarder_static["hypervisor_address"],
             "$and": [
-                {"block": {"$gte": rewarder_static["block"]}},
-                {"block": {"$nin": processed_blocks}},
-            ],
+                {"address": rewarder_static["hypervisor_address"]},
+                {"block": {"$in": blocks}},
+            ]
         },
     )
 
+    # to be processed as per the hypervisor status
+    # to_process_hypervisor_status = database_local(
+    #     mongo_url=mongo_url, db_name=db_name
+    # ).get_items_from_database(
+    #     collection_name="status",
+    #     find={
+    #         "address": rewarder_static["hypervisor_address"],
+    #         "$and": [
+    #             {"block": {"$gte": rewarder_static["block"]}},
+    #             {"block": {"$nin": processed_blocks}},
+    #         ],
+    #     },
+    # )
+
     result = []
     # process
+    logging.getLogger(__name__).info(
+        f"    -> {len(to_process_hypervisor_status)} status blocks to be scraped for {network}'s rewarder {rewarder_static['rewarder_address']}"
+    )
     for hypervisor_status in to_process_hypervisor_status:
         rewards_data = []
         try:
@@ -342,6 +376,9 @@ def feed_rewards_status_loop(rewarder_static: dict):
                 f" Unexpected error constructing {network}'s {rewarder_static['rewarder_address']} rewarder data. error-> {e}"
             )
 
+        logging.getLogger(__name__).debug(
+            f"    -> Filling prices and APR for {network}'s rewarder {rewarder_static['rewarder_address']}"
+        )
         for reward_data in rewards_data:
             # token_prices
             try:
@@ -411,6 +448,9 @@ def feed_rewards_status_loop(rewarder_static: dict):
                     f" Rewards last err debug data -> rewarder_static {rewarder_static}           hype status {hypervisor_status}"
                 )
 
+        logging.getLogger(__name__).debug(
+            f"    -> Done processing {network}'s rewarder {rewarder_static['rewarder_address']}"
+        )
     return result
 
 
