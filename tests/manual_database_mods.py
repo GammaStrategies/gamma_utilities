@@ -523,6 +523,41 @@ def manual_sync_databases(rewrite: bool = False):
             )
 
 
+def manual_del_things():
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_name = "polygon_gamma"
+    batch_size = 100000
+
+    # get all operation blocks with topic not in ["withraw", "deposit", "rebalance", "zeroBurn"]
+    blocks = [
+        x["block"]
+        for x in database_local(
+            mongo_url=mongo_url, db_name=db_name
+        ).get_items_from_database(
+            collection_name="operations",
+            find={"topic": {"$nin": ["withraw", "deposit", "rebalance", "zeroBurn"]}},
+            projection={"_id": 0, "block": 1},
+            batch_size=batch_size,
+        )
+    ]
+
+    # get id of all status from those blocks
+    ids_to_remove = [
+        x["id"]
+        for x in database_local(
+            mongo_url=mongo_url, db_name=db_name
+        ).get_items_from_database(
+            collection_name="status",
+            find={"block": {"$in": blocks}},
+            projection={"_id": 0, "id": 1},
+            batch_size=batch_size,
+        )
+    ]
+
+    # remove status
+    po = ""
+
+
 if __name__ == "__main__":
     os.chdir(PARENT_FOLDER)
 

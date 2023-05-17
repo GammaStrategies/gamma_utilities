@@ -272,10 +272,11 @@ def feed_rewards_status_loop(rewarder_static: dict):
     # set local database name and create manager
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     db_name = f"{network}_gamma"  # TODO: change hardcoded db name to be dynamic
-    local_db = database_local(mongo_url=mongo_url, db_name=db_name)
 
     # already processed blocks for this hype rewarder combination
-    processed_blocks = local_db.get_distinct_items_from_database(
+    processed_blocks = database_local(
+        mongo_url=mongo_url, db_name=db_name
+    ).get_distinct_items_from_database(
         collection_name="rewards_status",
         field="block",
         condition={
@@ -285,7 +286,9 @@ def feed_rewards_status_loop(rewarder_static: dict):
     )
 
     # to be processed as per the hypervisor status
-    to_process_hypervisor_status = local_db.get_items_from_database(
+    to_process_hypervisor_status = database_local(
+        mongo_url=mongo_url, db_name=db_name
+    ).get_items_from_database(
         collection_name="status",
         find={
             "address": rewarder_static["hypervisor_address"],

@@ -54,7 +54,10 @@ def repair_all():
 def repair_prices(min_count: int = 1):
     repair_prices_from_logs(min_count=min_count)
 
-    repair_prices_from_status(max_repair_per_network=50)
+    repair_prices_from_status(
+        max_repair_per_network=50
+        or CONFIGURATION["_custom_"]["cml_parameters"].max_repair
+    )
 
 
 def repair_prices_from_logs(min_count: int = 1):
@@ -468,9 +471,12 @@ def repair_missing_hype_status():
             CONFIGURATION["_custom_"]["cml_parameters"].networks
             or CONFIGURATION["script"]["protocols"][protocol]["networks"]
         )
+
         for network in networks:
             repair_missing_hypervisor_status(
-                protocol=protocol, network=network, max_repair=20
+                protocol=protocol,
+                network=network,
+                max_repair=CONFIGURATION["_custom_"]["cml_parameters"].max_repair,
             )
 
 
@@ -703,10 +709,6 @@ def add_timestamps_to_status(network: str, protocol: str = "gamma"):
 
                 # update progress
                 progress_bar.update(1)
-
-
-def force_scrape_operations(network: str, protocol: str = "gamma"):
-    pass
 
 
 # helpers
