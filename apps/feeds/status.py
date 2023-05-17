@@ -273,6 +273,8 @@ def feed_rewards_status_loop(rewarder_static: dict):
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     db_name = f"{network}_gamma"  # TODO: change hardcoded db name to be dynamic
 
+    batch_size = 50000
+
     # already processed blocks for this hype rewarder combination
     processed_blocks = database_local(
         mongo_url=mongo_url, db_name=db_name
@@ -287,53 +289,58 @@ def feed_rewards_status_loop(rewarder_static: dict):
 
     # TODO: decide blocks to process on rewarders
     # Choose to process only operations blocks and not status blocks ( at least for the time being)
-    blocks = []
-    for operation in database_local(
-        mongo_url=mongo_url, db_name=db_name
-    ).get_items_from_database(
-        collection_name="operations",
-        find={
-            "$and": [
-                {"block": {"$gte": rewarder_static["block"]}},
-                {"block": {"$nin": processed_blocks}},
-                {"topic": {"$in": ["deposit", "withraw", "rebalance", "zeroBurn"]}},
-            ]
-        },
-    ):
-        blocks.append(operation["block"])
-        # blocks.append(operation["block"] - 1)
+    # blocks = []
+    # for operation in database_local(
+    #     mongo_url=mongo_url, db_name=db_name
+    # ).get_items_from_database(
+    #     collection_name="operations",
+    #     find={
+    #         "$and": [
+    #             {"block": {"$gte": rewarder_static["block"]}},
+    #             {"block": {"$nin": processed_blocks}},
+    #             {"topic": {"$in": ["deposit", "withraw", "rebalance", "zeroBurn"]}},
+    #         ]
+    #     },
+    # ):
+    #     blocks.append(operation["block"])
+    #     # blocks.append(operation["block"] - 1)
 
-    # get hypervisors at those blocks
-    to_process_hypervisor_status = database_local(
-        mongo_url=mongo_url, db_name=db_name
-    ).get_items_from_database(
-        collection_name="status",
-        find={
-            "$and": [
-                {"address": rewarder_static["hypervisor_address"]},
-                {"block": {"$in": blocks}},
-            ]
-        },
-    )
-
-    # to be processed as per the hypervisor status
+    # # get hypervisors at those blocks
     # to_process_hypervisor_status = database_local(
     #     mongo_url=mongo_url, db_name=db_name
     # ).get_items_from_database(
     #     collection_name="status",
     #     find={
-    #         "address": rewarder_static["hypervisor_address"],
     #         "$and": [
-    #             {"block": {"$gte": rewarder_static["block"]}},
-    #             {"block": {"$nin": processed_blocks}},
-    #         ],
+    #             {"address": rewarder_static["hypervisor_address"]},
+    #             {"block": {"$in": blocks}},
+    #         ]
     #     },
     # )
+
+    # to be processed as per the hypervisor status
+    to_process_hypervisor_status = database_local(
+        mongo_url=mongo_url, db_name=db_name
+    ).get_items_from_database(
+        collection_name="status",
+        find={
+            "address": rewarder_static["hypervisor_address"],
+            "$and": [
+                {"block": {"$gte": rewarder_static["block"]}},
+                {"block": {"$nin": processed_blocks}},
+            ],
+        },
+        batch_size=batch_size,
+    )
+
+    # get the last 20 hype status to process
+    if to_process_hypervisor_status > 20:
+        to_process_hypervisor_status = to_process_hypervisor_status[-20:]
 
     result = []
     # process
     logging.getLogger(__name__).info(
-        f"    -> {len(to_process_hypervisor_status)} status blocks to be scraped for {network}'s rewarder {rewarder_static['rewarder_address']}"
+        f"    -> {len(to_process_hypervisor_status)} status blocks to be scraped for {network}'s rewarder {rewarder_static['rewarder_address']} on hype {rewarder_static['hypervisor_address']}"
     )
     for hypervisor_status in to_process_hypervisor_status:
         rewards_data = []
