@@ -53,14 +53,17 @@ def repair_missing_hypervisor_status(
             condition={"address": hype["address"]},
         )
 
-        # get all operations blocks
+        # get all operations blocks with the topics=["deposit", "withdraw", "zeroBurn", "rebalance"]
         operation_blocks = []
         for block in database_local(
             mongo_url=mongo_url, db_name=db_name
         ).get_distinct_items_from_database(
             collection_name="operations",
             field="blockNumber",
-            condition={"address": hype["address"]},
+            condition={
+                "address": hype["address"],
+                "topics": {"$in": ["deposit", "withdraw", "zeroBurn", "rebalance"]},
+            },
         ):
             operation_blocks.append(int(block))
             operation_blocks.append(int(block - 1))
