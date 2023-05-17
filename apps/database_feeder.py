@@ -721,7 +721,7 @@ def create_tokenBlocks_rewards(protocol: str, network: str) -> set:
     return set(
         [
             f'{network}_{item["block"]}_{item["rewardToken"]}'
-            for item in local_db_manager.query_items_from_database(
+            for item in local_db_manager.get_items_from_database(
                 collection_name="rewards_status",
                 find={},
                 projection={"rewardToken": 1, "block": 1},
