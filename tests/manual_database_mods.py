@@ -542,7 +542,7 @@ def manual_set_lowercase_addresses_rewards_static(
     )
     _errors = 0
     logging.getLogger(__name__).info(
-        f"Found {len(items_to_process)} items to process at database collection {collection_name}"
+        f"{network}-> Found {len(items_to_process)} items to process at database collection {collection_name}"
     )
 
     def loop(item) -> bool:
@@ -601,7 +601,7 @@ def manual_set_lowercase_addresses_rewards_status(
     )
     _errors = 0
     logging.getLogger(__name__).info(
-        f"Found {len(items_to_process)} items to process at database collection {collection_name}"
+        f"{network}-> Found {len(items_to_process)} items to process at database collection {collection_name}"
     )
 
     def loop(item) -> bool:
@@ -654,7 +654,10 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    manual_set_lowercase_addresses_rewards_status(network="arbitrum")
+    manual_set_lowercase_addresses_rewards_static(network="arbitrum")
+    manual_set_lowercase_addresses_rewards_static(network="binance")
+    # manual_set_lowercase_addresses_rewards_status(network="arbitrum")
+    manual_set_lowercase_addresses_rewards_status(network="binance")
 
     # end time log
     _timelapse = datetime.now(timezone.utc) - _startime
