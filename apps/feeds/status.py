@@ -348,6 +348,11 @@ def feed_rewards_status(
                 # update progress
                 progress_bar.update(1)
 
+                if _errors > 20:
+                    raise Exception(
+                        f"Too many errors found {_errors} while feeding rewards status. Check"
+                    )
+
 
 def feed_rewards_status_loop(rewarder_static: dict):
     network = rewarder_static["network"]
