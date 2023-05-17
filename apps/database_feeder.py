@@ -56,7 +56,7 @@ from bins.formulas.apr import calculate_rewards_apr
 
 from apps.feeds.static import feed_hypervisor_static, feed_rewards_static
 from apps.feeds.users import feed_user_status, feed_user_operations
-from apps.feeds.status import feed_hypervisor_status, repair_missing_hypervisor_status
+from apps.feeds.status import feed_hypervisor_status
 
 
 ### Operations ######################
@@ -1268,11 +1268,6 @@ def main(option="operations"):
                 # feed status
                 feed_hypervisor_status(
                     protocol=protocol, network=network, threaded=True
-                )
-
-                # make sure all operations blocks have hype status
-                repair_missing_hypervisor_status(
-                    protocol=protocol, network=network, max_repair=50
                 )
 
                 # feed rewards status
