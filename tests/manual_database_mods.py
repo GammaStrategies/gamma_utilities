@@ -1,3 +1,4 @@
+import copy
 import sys
 from datetime import datetime, timezone
 import logging
@@ -523,39 +524,120 @@ def manual_sync_databases(rewrite: bool = False):
             )
 
 
-def manual_del_things():
+def manual_set_lowercase_addresses_rewards_static(
+    network: str, batch_size: int = 100000
+):
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-    db_name = "polygon_gamma"
-    batch_size = 100000
+    db_name = f"{network}_gamma"
 
-    # get all operation blocks with topic not in ["withraw", "deposit", "rebalance", "zeroBurn"]
-    blocks = [
-        x["block"]
-        for x in database_local(
-            mongo_url=mongo_url, db_name=db_name
-        ).get_items_from_database(
-            collection_name="operations",
-            find={"topic": {"$nin": ["withraw", "deposit", "rebalance", "zeroBurn"]}},
-            projection={"_id": 0, "block": 1},
-            batch_size=batch_size,
-        )
-    ]
+    # rewards static
+    collection_name = "rewards_static"
+    items_to_process = database_local(
+        mongo_url=mongo_url, db_name=db_name
+    ).get_items_from_database(
+        collection_name=collection_name,
+        find={},
+        batch_size=batch_size,
+    )
+    _errors = 0
+    logging.getLogger(__name__).info(
+        f"Found {len(items_to_process)} items to process at database collection {collection_name}"
+    )
 
-    # get id of all status from those blocks
-    ids_to_remove = [
-        x["id"]
-        for x in database_local(
-            mongo_url=mongo_url, db_name=db_name
-        ).get_items_from_database(
-            collection_name="status",
-            find={"block": {"$in": blocks}},
-            projection={"_id": 0, "id": 1},
-            batch_size=batch_size,
-        )
-    ]
+    def loop(item) -> bool:
+        try:
+            # copy item to new item
+            new_item = copy.deepcopy(item)
 
-    # remove status
-    po = ""
+            new_item["hypervisor_address"] = item["hypervisor_address"].lower()
+            new_item["rewardToken"] = item["rewardToken"].lower()
+            new_item["rewarder_address"] = item["rewarder_address"].lower()
+            new_item["rewarder_registry"] = item["rewarder_registry"].lower()
+            new_item["id"] = item["id"].lower()
+
+            # remove old item
+            database_local(mongo_url=mongo_url, db_name=db_name).delete_item(
+                collection_name=collection_name, item_id=item["id"]
+            )
+            # save new item
+            database_local(mongo_url=mongo_url, db_name=db_name).save_item_to_database(
+                collection_name=collection_name, data=new_item
+            )
+
+            return True
+
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f" Unexpected error while processing item {item['id']} -> error {e}"
+            )
+
+            return False
+
+    with tqdm.tqdm(total=len(items_to_process)) as progress_bar:
+        with concurrent.futures.ThreadPoolExecutor() as ex:
+            for result in ex.map(loop, items_to_process):
+                if not result:
+                    _errors += 1
+                progress_bar.set_description(f"""[er:{_errors}]  """)
+                progress_bar.update(1)
+
+
+def manual_set_lowercase_addresses_rewards_status(
+    network: str, batch_size: int = 100000
+):
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_name = f"{network}_gamma"
+
+    # rewards static
+    collection_name = "rewards_status"
+    items_to_process = database_local(
+        mongo_url=mongo_url, db_name=db_name
+    ).get_items_from_database(
+        collection_name=collection_name,
+        find={},
+        batch_size=batch_size,
+    )
+    _errors = 0
+    logging.getLogger(__name__).info(
+        f"Found {len(items_to_process)} items to process at database collection {collection_name}"
+    )
+
+    def loop(item) -> bool:
+        try:
+            # copy item to new item
+            new_item = copy.deepcopy(item)
+
+            new_item["hypervisor_address"] = item["hypervisor_address"].lower()
+            new_item["rewardToken"] = item["rewardToken"].lower()
+            new_item["rewarder_address"] = item["rewarder_address"].lower()
+            new_item["rewarder_registry"] = item["rewarder_registry"].lower()
+            new_item["id"] = item["id"].lower()
+
+            # remove old item
+            database_local(mongo_url=mongo_url, db_name=db_name).delete_item(
+                collection_name=collection_name, item_id=item["id"]
+            )
+            # save new item
+            database_local(mongo_url=mongo_url, db_name=db_name).save_item_to_database(
+                collection_name=collection_name, data=new_item
+            )
+
+            return True
+
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f" Unexpected error while processing item {item['id']} -> error {e}"
+            )
+
+            return False
+
+    with tqdm.tqdm(total=len(items_to_process)) as progress_bar:
+        with concurrent.futures.ThreadPoolExecutor() as ex:
+            for result in ex.map(loop, items_to_process):
+                if not result:
+                    _errors += 1
+                progress_bar.set_description(f"""[er:{_errors}]  """)
+                progress_bar.update(1)
 
 
 if __name__ == "__main__":
@@ -570,7 +652,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    repair_blocks()
+    manual_set_lowercase_addresses_rewards_status(network="arbitrum")
 
     # end time log
     _timelapse = datetime.now(timezone.utc) - _startime
