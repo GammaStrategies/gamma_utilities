@@ -127,7 +127,7 @@ class user_operations_hypervisor_builder:
             self._rewarders_list = (
                 self.local_db_manager.get_distinct_items_from_database(
                     collection_name="rewards_static",
-                    field="address",
+                    field="rewarder_address",
                     condition={"hypervisor_address": self._hypervisor_address},
                 )
             )
