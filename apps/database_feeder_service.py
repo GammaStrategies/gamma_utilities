@@ -29,7 +29,6 @@ from apps.feeds.users import feed_user_status, feed_user_operations
 from apps.feeds.status import (
     feed_rewards_status,
     feed_hypervisor_status,
-    repair_missing_hypervisor_status,
 )
 
 from apps.database_checker import repair_all
@@ -55,9 +54,6 @@ def network_sequence_loop(
 
     # feed database with status
     feed_hypervisor_status(protocol=protocol, network=network, threaded=True)
-
-    # make sure all operations blocks have hype status
-    repair_missing_hypervisor_status(protocol=protocol, network=network, max_repair=50)
 
     # feed global blocks data with status
     feed_timestamp_blocks(network=network, protocol=protocol)
