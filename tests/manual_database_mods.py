@@ -656,7 +656,7 @@ if __name__ == "__main__":
 
     manual_set_lowercase_addresses_rewards_static(network="arbitrum")
     manual_set_lowercase_addresses_rewards_static(network="binance")
-    # manual_set_lowercase_addresses_rewards_status(network="arbitrum")
+    manual_set_lowercase_addresses_rewards_status(network="arbitrum")
     manual_set_lowercase_addresses_rewards_status(network="binance")
 
     # end time log
