@@ -98,17 +98,17 @@ def parse_commandLine_args():
     )
     par_main.add_argument(
         "--do_prices",
-        type=bool,
+        action="store_true",
         help=" execute prices analysis on service network",
     )
     par_main.add_argument(
         "--do_userStatus",
-        type=bool,
+        action="store_true",
         help=" execute the user status feed inside the network feed loop",
     )
     par_main.add_argument(
         "--do_repairs",
-        type=bool,
+        action="store_true",
         help=" execute auto error repair inside the network feed loop",
     )
     par_main.add_argument(

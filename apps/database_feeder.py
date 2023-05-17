@@ -622,7 +622,7 @@ def create_tokenBlocks_topTokens(protocol: str, network: str, limit: int = 5) ->
     # )
 
 
-def create_tokenBlocks_rewards(protocol: str, network: str) -> set:
+def create_tokenBlocks_rewards_DELETEME(protocol: str, network: str) -> set:
     """Create a list of token addresses blocks using static rewards token addresses and blocks from the status collection
 
     Args:
@@ -699,6 +699,36 @@ def create_tokenBlocks_rewards(protocol: str, network: str) -> set:
 
     # return a list of network_block_tokenAddress
     return result
+
+
+def create_tokenBlocks_rewards(protocol: str, network: str) -> set:
+    """Create a list of token addresses blocks of all rewards tokens
+
+    Args:
+        protocol (str): _description_
+        network (str): _description_
+
+    Returns:
+        set: _description_
+    """
+    # setup database managers
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_name = f"{network}_{protocol}"
+    local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
+
+    batch_size = 50000
+
+    return set(
+        [
+            f'{network}_{item["block"]}_{item["rewardToken"]}'
+            for item in local_db_manager.query_items_from_database(
+                collection_name="rewards_status",
+                find={},
+                projection={"rewardToken": 1, "block": 1},
+                batch_size=batch_size,
+            )
+        ]
+    )
 
 
 def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool = True):
@@ -1021,13 +1051,14 @@ def feed_timestamp_blocks(network: str, protocol: str, threaded: bool = True):
                 progress_bar.update(1)
 
     with contextlib.suppress(Exception):
-        logging.getLogger(__name__).info(
-            "   {} of {} ({:,.1%}) blocks could not be scraped due to errors".format(
-                _errors,
-                len(items_to_process),
-                (_errors / len(items_to_process)) if items_to_process else 0,
+        if items_to_process:
+            logging.getLogger(__name__).info(
+                "   {} of {} ({:,.1%}) blocks could not be scraped due to errors".format(
+                    _errors,
+                    len(items_to_process),
+                    (_errors / len(items_to_process)) if items_to_process else 0,
+                )
             )
-        )
 
 
 ### Rewards  #######################
