@@ -234,37 +234,22 @@ def feed_rewards_status(
         collection_name="rewards_static"
     )
 
-    # set log list of hypervisors with errors
-    _errors = 0
-
     with tqdm.tqdm(
         total=len(to_be_processed_reward_static), leave=False
     ) as progress_bar:
-        with concurrent.futures.ThreadPoolExecutor() as ex:
-            for result in ex.map(
-                feed_rewards_status_loop, to_be_processed_reward_static
-            ):
-                if not len(result):
-                    # error found
-                    _errors += 1
+        for rewarder_static in to_be_processed_reward_static:
+            for reward in feed_rewards_status_loop(rewarder_static):
+                if reward:
+                    # add to database
+                    local_db.set_rewards_status(data=reward)
+                # else:
+                # no rewards found to be scraped
 
-                else:
-                    for reward in result:
-                        # progress
-                        progress_bar.set_description(
-                            f' {reward.get("hypervisor_symbol", " ")} processed '
-                        )
-                        progress_bar.refresh()
-                        # add to database
-                        local_db.set_rewards_status(data=reward)
-
-                # update progress
-                progress_bar.update(1)
-
-                if _errors > 20:
-                    raise Exception(
-                        f"Too many errors found {_errors} while feeding rewards status. Check"
-                    )
+            # progress
+            progress_bar.set_description(
+                f' {rewarder_static.get("hypervisor_symbol", " ")} processed '
+            )
+            progress_bar.update(1)
 
 
 def feed_rewards_status_loop(rewarder_static: dict):
@@ -287,37 +272,6 @@ def feed_rewards_status_loop(rewarder_static: dict):
         },
     )
 
-    # TODO: decide blocks to process on rewarders
-    # Choose to process only operations blocks and not status blocks ( at least for the time being)
-    # blocks = []
-    # for operation in database_local(
-    #     mongo_url=mongo_url, db_name=db_name
-    # ).get_items_from_database(
-    #     collection_name="operations",
-    #     find={
-    #         "$and": [
-    #             {"block": {"$gte": rewarder_static["block"]}},
-    #             {"block": {"$nin": processed_blocks}},
-    #             {"topic": {"$in": ["deposit", "withraw", "rebalance", "zeroBurn"]}},
-    #         ]
-    #     },
-    # ):
-    #     blocks.append(operation["block"])
-    #     # blocks.append(operation["block"] - 1)
-
-    # # get hypervisors at those blocks
-    # to_process_hypervisor_status = database_local(
-    #     mongo_url=mongo_url, db_name=db_name
-    # ).get_items_from_database(
-    #     collection_name="status",
-    #     find={
-    #         "$and": [
-    #             {"address": rewarder_static["hypervisor_address"]},
-    #             {"block": {"$in": blocks}},
-    #         ]
-    #     },
-    # )
-
     # to be processed as per the hypervisor status
     to_process_hypervisor_status = database_local(
         mongo_url=mongo_url, db_name=db_name
@@ -335,17 +289,18 @@ def feed_rewards_status_loop(rewarder_static: dict):
 
     # get the last 20 hype status to process
     if len(to_process_hypervisor_status) > 20:
-        logging.getLogger(__name__).info(
+        logging.getLogger(__name__).debug(
             f"  Found {len(to_process_hypervisor_status)} status blocks to be scraped  but only the last 20 will be processed << TODO: change this >>"
         )
         to_process_hypervisor_status = to_process_hypervisor_status[-20:]
 
     result = []
     # process
-    logging.getLogger(__name__).info(
+    logging.getLogger(__name__).debug(
         f"    -> {len(to_process_hypervisor_status)} status blocks to be scraped for {network}'s rewarder {rewarder_static['rewarder_address']} on hype {rewarder_static['hypervisor_address']}"
     )
-    for hypervisor_status in to_process_hypervisor_status:
+
+    def loop(hypervisor_status):
         rewards_data = []
         try:
             if rewarder_static["rewarder_type"] == "zyberswap_masterchef_v1":
@@ -389,6 +344,7 @@ def feed_rewards_status_loop(rewarder_static: dict):
         logging.getLogger(__name__).debug(
             f"    -> Filling prices and APR for {network}'s rewarder {rewarder_static['rewarder_address']}"
         )
+
         for reward_data in rewards_data:
             # token_prices
             try:
@@ -461,6 +417,11 @@ def feed_rewards_status_loop(rewarder_static: dict):
         logging.getLogger(__name__).debug(
             f"    -> Done processing {network}'s rewarder {rewarder_static['rewarder_address']}"
         )
+
+    with concurrent.futures.ThreadPoolExecutor() as ex:
+        for result_item in ex.map(loop, to_process_hypervisor_status):
+            result.append(result_item)
+
     return result
 
 
