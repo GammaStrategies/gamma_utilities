@@ -663,6 +663,19 @@ class gamma_hypervisor_camelot(gamma_hypervisor_algebra):
             custom_web3Url=custom_web3Url,
         )
 
+    @property
+    def pool(self) -> algebrav3_pool:
+        if self._pool is None:
+            self._pool = algebrav3_pool(
+                address=self._contract.functions.pool().call(
+                    block_identifier=self.block
+                ),
+                network=self._network,
+                block=self.block,
+                abi_filename="albebrav3pool_camelot",
+            )
+        return self._pool
+
 
 # cached classes
 
