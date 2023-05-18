@@ -5,7 +5,7 @@ import math
 import datetime as dt
 
 from decimal import Decimal
-from web3 import Web3, exceptions
+from web3 import Web3, exceptions, types
 from web3.contract import Contract
 from web3.middleware import geth_poa_middleware, simple_cache_middleware
 
@@ -572,7 +572,7 @@ class web3wrap:
 
         return None
 
-    def _getBlockData(self, block: int | str):
+    def _getBlockData(self, block: int | str) -> types.BlockData:
         """Get block data
 
         Args:
@@ -586,7 +586,7 @@ class web3wrap:
         for rpcUrl in rpcUrls:
             try:
                 _w3 = self.setup_w3(network=self._network, web3Url=rpcUrl)
-                return _w3.eth.getBlock(block)
+                return _w3.eth.get_block(block)
             except Exception as e:
                 logging.getLogger(__name__).debug(
                     f" error getting block data using {rpcUrl} rpc: {e}"
