@@ -17,7 +17,6 @@ from bins.w3.onchain_utilities.protocols import (
     gamma_hypervisor_quickswap_cached,
     gamma_hypervisor,
     gamma_hypervisor_quickswap,
-    arrakis_hypervisor_cached,
 )
 
 from bins.general import general_utilities, file_utilities
@@ -71,11 +70,6 @@ class onchain_data_helper:
         """
         if self.protocol == "gamma":
             return gamma_hypervisor_cached(
-                address=address, network=network, block=block
-            )
-
-        elif self.protocol == "arrakis":
-            return arrakis_hypervisor_cached(
                 address=address, network=network, block=block
             )
 
@@ -661,11 +655,6 @@ class onchain_data_helper2:
         """
         if self.protocol == "gamma":
             return gamma_hypervisor_cached(
-                address=address, network=network, block=block
-            )
-
-        elif self.protocol == "arrakis":
-            return arrakis_hypervisor_cached(
                 address=address, network=network, block=block
             )
 
