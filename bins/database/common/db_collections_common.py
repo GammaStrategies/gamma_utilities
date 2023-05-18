@@ -207,7 +207,8 @@ class db_collections_common:
                 db_collections_common.convert_decimal_to_d128(v)
             elif isinstance(v, list):
                 for l in v:
-                    db_collections_common.convert_decimal_to_d128(l)
+                    if isinstance(l, dict):
+                        db_collections_common.convert_decimal_to_d128(l)
             elif isinstance(v, Decimal):
                 decimal128_ctx = create_decimal128_context()
                 with localcontext(decimal128_ctx) as ctx:
@@ -235,7 +236,8 @@ class db_collections_common:
                 db_collections_common.convert_d128_to_decimal(v)
             elif isinstance(v, list):
                 for l in v:
-                    db_collections_common.convert_d128_to_decimal(l)
+                    if isinstance(l, dict):
+                        db_collections_common.convert_d128_to_decimal(l)
             elif isinstance(v, Decimal128):
                 item[k] = v.to_decimal()
 
@@ -261,7 +263,8 @@ class db_collections_common:
                 db_collections_common.convert_decimal_to_float(v)
             elif isinstance(v, list):
                 for l in v:
-                    db_collections_common.convert_decimal_to_float(l)
+                    if isinstance(l, dict):
+                        db_collections_common.convert_decimal_to_float(l)
             elif isinstance(v, Decimal):
                 item[k] = float(v)
 
@@ -687,6 +690,25 @@ class database_local(db_collections_common):
         sort = [("blockNumber", 1), ("logIndex", 1)]
         return self.get_items_from_database(
             collection_name="operations", find=find, sort=sort
+        )
+
+    def get_hypervisor_operations(
+        self,
+        hypervisor_address: str,
+        timestamp_ini: int | None = None,
+        timestamp_end: int | None = None,
+        block_ini: int | None = None,
+        block_end: int | None = None,
+    ) -> list:
+        return self.query_items_from_database(
+            collection_name="operations",
+            query=self.query_operations(
+                hypervisor_address=hypervisor_address,
+                timestamp_ini=timestamp_ini,
+                timestamp_end=timestamp_end,
+                block_ini=block_ini,
+                block_end=block_end,
+            ),
         )
 
     def get_hype_operations_btwn_timestamps(
@@ -1215,61 +1237,6 @@ class database_local(db_collections_common):
             {"$unset": ["_id"]},
         ]
 
-    # @staticmethod
-    # def query_status_feeAPY(
-    #     hypervisor_address: str,
-    #     timestamp_ini: int,
-    #     timestamp_end: int,
-    # ) -> list[dict]:
-    #     """get all status and their block operations between timestamps
-
-    #         a new field called "operations" with a list of operations will be available at status object dict
-
-    #     Args:
-    #         hypervisor_address (str): hypervsor address
-    #         timestamp_ini (int): initial timestamp greater or equal to
-    #         timestamp_end (int): ending timestamp less or equal to
-
-    #     Returns:
-    #         list[dict]: query
-    #     """
-    #     return [
-    #         {
-    #             "$match": {
-    #                 "address": hypervisor_address,
-    #                 "$and": [
-    #                     {"timestamp": {"$gte": timestamp_ini}},
-    #                     {"timestamp": {"$lte": timestamp_end}},
-    #                 ],
-    #             }
-    #         },
-    #         {
-    #             "$lookup": {
-    #                 "from": "operations",
-    #                 "let": {
-    #                     "status_address": "$address",
-    #                     "status_block": "$block",
-    #                     "topics": ["deposit", "withdraw", "rebalance", "zeroBurn"],
-    #                 },
-    #                 "pipeline": [
-    #                     {
-    #                         "$match": {
-    #                             "$expr": {
-    #                                 "$and": [
-    #                                     {"$eq": ["$address", "$$status_address"]},
-    #                                     {"$eq": ["$blockNumber", "$$status_block"]},
-    #                                     {"$in": ["$topic", "$$topics"]},
-    #                                 ],
-    #                             }
-    #                         }
-    #                     }
-    #                 ],
-    #                 "as": "operations",
-    #             }
-    #         },
-    #         {"$sort": {"block": 1}},
-    #     ]
-
     @staticmethod
     def query_status_feeReturn_data(
         hypervisor_address: str,
@@ -1616,6 +1583,357 @@ class database_local(db_collections_common):
             _match["timestamp"] = {"$lte": timestamp_end}
 
         return [{"$match": _match}, {"$sort": {"timestamp": 1}}]
+
+    @staticmethod
+    def query_uncollected_fees(
+        hypervisor_address: str | None = None,
+        timestamp: int | None = None,
+        block: int | None = None,
+    ) -> list[dict]:
+        """If no hypervisor_address is provided, it will return all uncollected fees
+
+        Args:
+            hypervisor_address (str | None, optional): . Defaults to None.
+            timestamp (int):  lower than or equeal to this timestamp. Defaults to None.
+            block (int):  lower than or equal to this block. Defaults to None.
+
+        Returns:
+            list[dict]: {
+             "address":
+            "symbol":
+            "block":
+            "timestamp":
+            "uncollectedFees0":
+            "uncollectedFees1":
+            "owedFees0":
+            "owedFees1"
+            "totalFees0"
+            "totalFees1"
+            }
+        """
+        query = [
+            {"$sort": {"block": -1}},
+            {
+                "$group": {
+                    "_id": "$address",
+                    "item": {"$first": "$$ROOT"},
+                }
+            },
+            {
+                "$project": {
+                    "address": "$_id",
+                    "symbol": "$item.symbol",
+                    "block": "$item.block",
+                    "timestamp": "$item.timestamp",
+                    "uncollectedFees0": {
+                        "$divide": [
+                            {"$toDecimal": "$item.fees_uncollected.qtty_token0"},
+                            {"$pow": [10, "$item.pool.token0.decimals"]},
+                        ]
+                    },
+                    "uncollectedFees1": {
+                        "$divide": [
+                            {"$toDecimal": "$item.fees_uncollected.qtty_token1"},
+                            {"$pow": [10, "$item.pool.token1.decimals"]},
+                        ]
+                    },
+                    "owedFees0": {
+                        "$divide": [
+                            {"$toDecimal": "$item.tvl.fees_owed_token0"},
+                            {"$pow": [10, "$item.pool.token0.decimals"]},
+                        ]
+                    },
+                    "owedFees1": {
+                        "$divide": [
+                            {"$toDecimal": "$item.tvl.fees_owed_token1"},
+                            {"$pow": [10, "$item.pool.token1.decimals"]},
+                        ]
+                    },
+                }
+            },
+            {
+                "$addFields": {
+                    "totalFees0": {"$sum": ["uncollectedFees0", "$owedFees0"]},
+                    "totalFees1": {"$sum": ["uncollectedFees1", "$owedFees1"]},
+                }
+            },
+            {"$unset": ["_id"]},
+        ]
+
+        if hypervisor_address:
+            if block:
+                query.insert(
+                    0,
+                    {
+                        "$match": {
+                            "address": hypervisor_address,
+                            "block": {"$lte": block},
+                        }
+                    },
+                )
+            elif timestamp:
+                query.insert(
+                    0,
+                    {
+                        "$match": {
+                            "address": hypervisor_address,
+                            "block": {"$lte": block},
+                        }
+                    },
+                )
+            else:
+                query.insert(0, {"$match": {"address": hypervisor_address}})
+
+        # debug_query = f"{query}"
+        return query
+
+    @staticmethod
+    def query_operations(
+        hypervisor_address: str,
+        timestamp_ini: int | None = None,
+        timestamp_end: int | None = None,
+        block_ini: int | None = None,
+        block_end: int | None = None,
+    ) -> list[dict]:
+        """get operations
+
+            Supply end timestamp or block to get operations until that point in time
+            Supply both timestamp and block to get operations between those points in time
+
+        Args:
+            timestamp_ini (int): initial timestamp
+            timestamp_end (int): end timestamp
+            block_ini (int): initial block
+            block_end (int): end block
+
+        Returns:
+            list[dict]:
+        """
+        _match = {
+            "address": hypervisor_address,
+            "timestamp": {"$gte": timestamp_ini, "$lte": timestamp_end},
+        }
+        if block_ini and block_end:
+            _match["blockNumber"] = {"$gte": block_ini, "$lte": block_end}
+        elif block_ini:
+            _match["blockNumber"] = {"$gte": block_ini}
+        elif block_end:
+            _match["blockNumber"] = {"$lte": block_end}
+        elif timestamp_ini and timestamp_end:
+            _match["timestamp"] = {"$gte": timestamp_ini, "$lte": timestamp_end}
+        elif timestamp_ini:
+            _match["timestamp"] = {"$gte": timestamp_ini}
+        elif timestamp_end:
+            _match["timestamp"] = {"$lte": timestamp_end}
+
+        return [
+            {"$match": _match},
+            {"$sort": {"blockNumber": -1, "logIndex": 1}},
+        ]
+
+    @staticmethod
+    def query_operations_summary(
+        hypervisor_address: str | None = None,
+        timestamp_ini: int | None = None,
+        timestamp_end: int | None = None,
+        block_ini: int | None = None,
+        block_end: int | None = None,
+    ) -> list[dict]:
+        """_summary_
+
+        Args:
+            hypervisor_address (str): _description_
+            timestamp_ini (int | None, optional): _description_. Defaults to None.
+            timestamp_end (int | None, optional): _description_. Defaults to None.
+            block_ini (int | None, optional): _description_. Defaults to None.
+            block_end (int | None, optional): _description_. Defaults to None.
+
+        Returns:
+            list[dict]: {
+                            "_id" : "0x7f92463e24b2ea1f7267aceed3ad68f7a956d2d8",
+                            "address" : "0x7f92463e24b2ea1f7267aceed3ad68f7a956d2d8",
+                            "block_ini" : NumberInt(13591510),
+                            "block_end" : NumberInt(15785095),
+                            "timestamp_ini" : NumberInt(1636587581),
+                            "timestamp_end" : NumberInt(1666218047),
+                            "deposits_token0" : NumberDecimal("95.257532479790920"),
+                            "deposits_token1" : NumberDecimal("8.1970"),
+                            "withdraws_token0" : NumberDecimal("84.270732146125590648"),
+                            "withdraws_token1" : NumberDecimal("1.619807984061774091"),
+                            "collectedFees_token0" : NumberDecimal("27.464269473110871371"),
+                            "collectedFees_token1" : NumberDecimal("1.388745951660998281"),
+                            "zeroBurnFees_token0" : NumberDecimal("0.0000"),
+                            "zeroBurnFees_token1" : NumberDecimal("0.0000")
+                        }
+
+        """
+        query = [
+            {
+                "$project": {
+                    "address": "$address",
+                    "block": "$blockNumber",
+                    "timestamp": "$timestamp",
+                    "deposits_token0": {
+                        "$cond": [
+                            {"$eq": ["$topic", "deposit"]},
+                            {"$toDecimal": "$qtty_token0"},
+                            0,
+                        ]
+                    },
+                    "deposits_token1": {
+                        "$cond": [
+                            {"$eq": ["$topic", "deposit"]},
+                            {"$toDecimal": "$qtty_token1"},
+                            0,
+                        ]
+                    },
+                    "withdraws_token0": {
+                        "$cond": [
+                            {"$eq": ["$topic", "withdraw"]},
+                            {"$toDecimal": "$qtty_token0"},
+                            0,
+                        ]
+                    },
+                    "withdraws_token1": {
+                        "$cond": [
+                            {"$eq": ["$topic", "withdraw"]},
+                            {"$toDecimal": "$qtty_token1"},
+                            0,
+                        ]
+                    },
+                    "collectedFees_token0": {
+                        "$cond": [
+                            {"$eq": ["$topic", "rebalance"]},
+                            {"$toDecimal": "$qtty_token0"},
+                            0,
+                        ]
+                    },
+                    "collectedFees_token1": {
+                        "$cond": [
+                            {"$eq": ["$topic", "rebalance"]},
+                            {"$toDecimal": "$qtty_token1"},
+                            0,
+                        ]
+                    },
+                    "zeroBurnFees_token0": {
+                        "$cond": [
+                            {"$eq": ["$topic", "zeroBurn"]},
+                            {"$toDecimal": "$qtty_token0"},
+                            0,
+                        ]
+                    },
+                    "zeroBurnFees_token1": {
+                        "$cond": [
+                            {"$eq": ["$topic", "zeroBurn"]},
+                            {"$toDecimal": "$qtty_token1"},
+                            0,
+                        ]
+                    },
+                    "decimals_token0": "$decimals_token0",
+                    "decimals_token1": "$decimals_token1",
+                }
+            },
+            {
+                "$group": {
+                    "_id": "$address",
+                    "address": {"$first": "$address"},
+                    "block_ini": {"$first": "$block"},
+                    "block_end": {"$last": "$block"},
+                    "timestamp_ini": {"$first": "$timestamp"},
+                    "timestamp_end": {"$last": "$timestamp"},
+                    "deposits_token0": {
+                        "$sum": {
+                            "$divide": [
+                                {"$toDecimal": "$deposits_token0"},
+                                {"$pow": [10, "$decimals_token0"]},
+                            ]
+                        }
+                    },
+                    "deposits_token1": {
+                        "$sum": {
+                            "$divide": [
+                                {"$toDecimal": "$deposits_token1"},
+                                {"$pow": [10, "$decimals_token1"]},
+                            ]
+                        }
+                    },
+                    "withdraws_token0": {
+                        "$sum": {
+                            "$divide": [
+                                {"$toDecimal": "$withdraws_token0"},
+                                {"$pow": [10, "$decimals_token0"]},
+                            ]
+                        }
+                    },
+                    "withdraws_token1": {
+                        "$sum": {
+                            "$divide": [
+                                {"$toDecimal": "$withdraws_token1"},
+                                {"$pow": [10, "$decimals_token1"]},
+                            ]
+                        }
+                    },
+                    "collectedFees_token0": {
+                        "$sum": {
+                            "$divide": [
+                                {"$toDecimal": "$collectedFees_token0"},
+                                {"$pow": [10, "$decimals_token0"]},
+                            ]
+                        }
+                    },
+                    "collectedFees_token1": {
+                        "$sum": {
+                            "$divide": [
+                                {"$toDecimal": "$collectedFees_token1"},
+                                {"$pow": [10, "$decimals_token1"]},
+                            ]
+                        }
+                    },
+                    "zeroBurnFees_token0": {
+                        "$sum": {
+                            "$divide": [
+                                {"$toDecimal": "$zeroBurnFees_token0"},
+                                {"$pow": [10, "$decimals_token0"]},
+                            ]
+                        }
+                    },
+                    "zeroBurnFees_token1": {
+                        "$sum": {
+                            "$divide": [
+                                {"$toDecimal": "$zeroBurnFees_token1"},
+                                {"$pow": [10, "$decimals_token1"]},
+                            ]
+                        }
+                    },
+                }
+            },
+            {"$unset": ["_id"]},
+        ]
+
+        # build match
+        _and = []
+        _match = {}
+
+        # add block or timestamp in query
+        if block_ini:
+            _and.append({"blockNumber": {"$gte": block_ini}})
+        elif timestamp_ini:
+            _and.append({"timestamp": {"$gte": timestamp_ini}})
+        if block_end:
+            _and.append({"blockNumber": {"$lte": block_end}})
+        elif timestamp_end:
+            _and.append({"timestamp": {"$lte": timestamp_end}})
+
+        # add hype address
+        if hypervisor_address:
+            _and.append({"address": {"$lte": hypervisor_address}})
+
+        # add to query
+        if _and:
+            _match["$and"] = _and
+            query.insert(0, {"$match": _match})
+        # debug_query = f"{query}"
+        return query
 
     @staticmethod
     def query_rewarders_by_rewardRegistry() -> list[dict]:
