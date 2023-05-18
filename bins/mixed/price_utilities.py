@@ -386,9 +386,8 @@ class price_scraper:
             dummy = erc20(
                 address="0x0000000000000000000000000000000000000000", network=network
             )
-            block_data = dummy._getBlockData(block=block)
-
-            return block_data["timestamp"]
+            if block_data := dummy._getBlockData(block=block):
+                return block_data["timestamp"]
 
         except Exception as e:
             logging.getLogger(LOG_NAME).exception(
