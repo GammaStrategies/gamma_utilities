@@ -272,6 +272,65 @@ def repair_prices_from_status(
                 progress_bar.update(1)
 
 
+def reScrape_database_prices(batch_size=100000, protocol="gamma"):
+    networks = (
+        CONFIGURATION["_custom_"]["cml_parameters"].networks
+        or CONFIGURATION["script"]["protocols"][protocol]["networks"]
+    )
+
+    for network in networks:
+        # get reversed list of prices and rescrape them
+        database_items = database_global(
+            mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"]
+        ).get_items_from_database(
+            collection_name="usd_prices",
+            find={"network": network},
+            sort=[("block", -1)],
+            batch_size=batch_size,
+        )
+        different = 0
+        with tqdm.tqdm(total=len(database_items)) as progress_bar:
+            for db_price_item in database_items:
+                # progress
+                progress_bar.set_description(
+                    f" {network} processing 0x..{db_price_item['address'][:-4]}. Total diff prices found: {different}"
+                )
+                progress_bar.update(0)
+
+                # get price
+                if price := get_price(
+                    network=network,
+                    token_address=db_price_item["address"],
+                    block=int(db_price_item["block"]),
+                ):
+                    if price != db_price_item["price"] and price != 0:
+                        different += 1
+
+                        logging.getLogger(__name__).debug(
+                            f" Different price found for {network}'s {db_price_item['address']} at block {db_price_item['block']}. Updating price {db_price_item['price']} to {price}"
+                        )
+                        # update price
+                        database_global(
+                            mongo_url=CONFIGURATION["sources"]["database"][
+                                "mongo_server_url"
+                            ]
+                        ).set_price_usd(
+                            network=network,
+                            token_address=db_price_item["address"],
+                            block=int(db_price_item["block"]),
+                            price_usd=price,
+                            source="auto",
+                        )
+
+                else:
+                    logging.getLogger(__name__).debug(
+                        f" No price found for {network}'s {db_price_item['address']} at block {db_price_item['block']}."
+                    )
+
+                # update progress
+                progress_bar.update(1)
+
+
 def repair_hypervisor_status():
     # from user_status debug log
     repair_hype_status_from_user()
@@ -1140,7 +1199,7 @@ def main(option: str, **kwargs):
         repair_all()
     if option == "special":
         # used to check for special cases
-        pass
+        reScrape_database_prices()
     # else:
     #     raise NotImplementedError(
     #         f" Can't find any action to be taken from {option} checks option"

@@ -259,7 +259,7 @@ def manual_reScrape_db_prices(network: str, batch_size: int = 100000):
                 token_address=db_price_item["address"],
                 block=int(db_price_item["block"]),
             ):
-                if price != db_price_item["price"]:
+                if price != db_price_item["price"] and price != 0:
                     different += 1
 
                     logging.getLogger(__name__).debug(
