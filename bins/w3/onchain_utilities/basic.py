@@ -563,7 +563,7 @@ class web3wrap:
         for rpcUrl in rpcUrls:
             try:
                 _w3 = self.setup_w3(network=self._network, web3Url=rpcUrl)
-                return _w3.eth.getTransactionReceipt(txHash)
+                return _w3.eth.get_transaction_receipt(txHash)
             except Exception as e:
                 logging.getLogger(__name__).debug(
                     f" error getting transaction receipt using {rpcUrl} rpc: {e}"
