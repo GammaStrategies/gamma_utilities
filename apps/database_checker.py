@@ -598,6 +598,7 @@ def replace_blocks_to_int():
                 block=price["block"],
                 token_address=price["address"],
                 price_usd=price["price"],
+                source=price["source"],
             )
             return price
 

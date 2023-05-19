@@ -307,7 +307,12 @@ class database_global(db_collections_common):
         )
 
     def set_price_usd(
-        self, network: str, block: int, token_address: str, price_usd: float
+        self,
+        network: str,
+        block: int,
+        token_address: str,
+        price_usd: float,
+        source: str,
     ):
         data = {
             "id": f"{network}_{block}_{token_address}",
@@ -315,6 +320,7 @@ class database_global(db_collections_common):
             "block": int(block),
             "address": token_address,
             "price": float(price_usd),
+            "source": source,
         }
 
         self.save_item_to_database(data=data, collection_name="usd_prices")

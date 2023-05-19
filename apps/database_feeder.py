@@ -321,6 +321,7 @@ def feed_prices(
     rewrite: bool = False,
     threaded: bool = True,
     coingecko: bool = True,  # TODO: create configuration var
+    set_source:str = "auto"
 ):
     """Feed database with prices of tokens and blocks specified in token_blocks
 
@@ -417,6 +418,7 @@ def feed_prices(
                                 block=block,
                                 token_address=token,
                                 price_usd=price_usd,
+                                source=set_source,
                             )
                         else:
                             # error found
@@ -439,6 +441,7 @@ def feed_prices(
                             block=block,
                             token_address=token,
                             price_usd=price_usd,
+                            source=set_source,
                         )
                     else:
                         # error found
@@ -731,7 +734,7 @@ def create_tokenBlocks_rewards(protocol: str, network: str) -> set:
     )
 
 
-def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool = True):
+def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool = True,set_source:str="sqrtPriceX96"):
     """Using global used known tokens like WETH, apply pools sqrtPriceX96 to
         get token pricess currently 0 or not found
 
@@ -848,6 +851,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
                                 block=item["block"],
                                 token_address=item["pool"]["token0"]["address"],
                                 price_usd=price_usd,
+                                source=set_source,
                             )
                         else:
                             # get sqrtPriceX96 from algebra or uniswap
@@ -888,6 +892,7 @@ def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool =
                             block=item["block"],
                             token_address=item["pool"]["token0"]["address"],
                             price_usd=price_usd,
+                            source=set_source,
                         )
                     else:
                         logging.getLogger(__name__).warning(
