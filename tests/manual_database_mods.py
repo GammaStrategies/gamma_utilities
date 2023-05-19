@@ -234,6 +234,59 @@ def manual_set_price_all():
                     progress_bar.update(1)
 
 
+def manual_reScrape_db_prices(network: str, batch_size: int = 100000):
+    # get reversed list of prices and rescrape them
+    database_items = database_global(
+        mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    ).get_items_from_database(
+        collection_name="usd_prices",
+        find={"network": network},
+        sort=[("block", -1)],
+        batch_size=batch_size,
+    )
+    different = 0
+    with tqdm.tqdm(total=len(database_items)) as progress_bar:
+        for db_price_item in database_items:
+            # progress
+            progress_bar.set_description(
+                f" {network} processing 0x..{db_price_item['address'][:-4]}. Total diff prices found: {different}"
+            )
+            progress_bar.update(0)
+
+            # get price
+            if price := get_price(
+                network=network,
+                token_address=db_price_item["address"],
+                block=int(db_price_item["block"]),
+            ):
+                if price != db_price_item["price"]:
+                    different += 1
+
+                    logging.getLogger(__name__).debug(
+                        f" Different price found for {network}'s {db_price_item['address']} at block {db_price_item['block']}. Updating price {db_price_item['price']} to {price}"
+                    )
+                    # update price
+                    database_global(
+                        mongo_url=CONFIGURATION["sources"]["database"][
+                            "mongo_server_url"
+                        ]
+                    ).set_price_usd(
+                        network=network,
+                        token_address=db_price_item["address"],
+                        block=int(db_price_item["block"]),
+                        price_usd=price,
+                        source="auto",
+                    )
+
+            else:
+                logging.getLogger(__name__).debug(
+                    f" No price found for {network}'s {db_price_item['address']} at block {db_price_item['block']}."
+                )
+
+            # update progress
+            progress_bar.update(1)
+
+
 @log_execution_time
 def manual_get_missing_prices():
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
@@ -654,10 +707,11 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    manual_set_lowercase_addresses_rewards_static(network="arbitrum")
-    manual_set_lowercase_addresses_rewards_static(network="binance")
-    manual_set_lowercase_addresses_rewards_status(network="arbitrum")
-    manual_set_lowercase_addresses_rewards_status(network="binance")
+    manual_reScrape_db_prices(network="arbitrum")
+    manual_reScrape_db_prices(network="binance")
+    manual_reScrape_db_prices(network="ethereum")
+    manual_reScrape_db_prices(network="optimism")
+    manual_reScrape_db_prices(network="polygon")
 
     # end time log
     _timelapse = datetime.now(timezone.utc) - _startime
