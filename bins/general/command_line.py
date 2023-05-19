@@ -2,6 +2,34 @@ import sys
 import argparse
 
 
+# validations
+class ValidateNetworks(argparse.Action):
+    def __call__(self, parser, args, networks, option_string=None):
+        # print '{n} {v} {o}'.format(n=args, v=values, o=option_string)
+        # TODO: get from enums
+        valid_subjects = (
+            "ethereum",
+            "polygon",
+            "optimism",
+            "arbitrum",
+            "binance",
+            "polygon_zkevm",
+            "celo",
+            "avalanche",
+            "fantom",
+            "moonbeam",
+        )
+
+        # modify only if not empty
+        if result := [
+            network
+            for item in networks
+            for network in item.split(" ")
+            if network in valid_subjects
+        ]:
+            setattr(args, self.dest, result)
+
+
 def parse_commandLine_args():
     # main parsers
     par_main = argparse.ArgumentParser(
@@ -118,15 +146,17 @@ def parse_commandLine_args():
     )
     par_main.add_argument(
         "--networks",
-        choices=[
-            "ethereum",
-            "optimism",
-            "polygon",
-            "polygon_zkevm",
-            "arbitrum",
-            "binance",
-        ],
+        # choices=[
+        #     "ethereum",
+        #     "optimism",
+        #     "polygon",
+        #     "polygon_zkevm",
+        #     "arbitrum",
+        #     "binance",
+        # ],
+        action=ValidateNetworks,
         nargs="+",
+        # type=str,
         help=" specify networks to be processed",
     )
     par_main.add_argument(
