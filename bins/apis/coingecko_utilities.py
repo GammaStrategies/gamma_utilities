@@ -4,7 +4,7 @@ from pycoingecko import CoinGeckoAPI
 import datetime as dt
 import logging
 
-from bins.general import net_utilities
+from bins.general import net_utilities, enums
 
 
 class coingecko_price_helper:
@@ -13,6 +13,12 @@ class coingecko_price_helper:
     def __init__(self, retries: int = 1, request_timeout=10):
         # todo: coded coingecko's network id conversion
         self.COINGECKO_netids = {
+            # enums.Chain.ETHEREUM: "ethereum",
+            # enums.Chain.OPTIMISM: "optimistic-ethereum",
+            # enums.Chain.ARBITRUM: "arbitrum-one",  # "arbitrum-nova" is targeted for gaming and donowhat ...
+            # enums.Chain.CELO: "celo",
+            # enums.Chain.BSC: "binance-smart-chain",
+            # enums.Chain.POLYGON: "polygon-pos",
             "polygon": "polygon-pos",
             "ethereum": "ethereum",
             "optimism": "optimistic-ethereum",

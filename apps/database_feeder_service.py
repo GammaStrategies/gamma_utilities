@@ -88,8 +88,8 @@ def price_sequence_loop(protocol: str, network: str):
     )
 
     # force feed prices from already known using conversion
-    logging.getLogger(__name__).info(f">   all token prices from already known/top")
-    feed_prices_force_sqrtPriceX96(protocol=protocol, network=network)
+    # logging.getLogger(__name__).info(f">   all token prices from already known/top")
+    # feed_prices_force_sqrtPriceX96(protocol=protocol, network=network)
 
     # feed all token prices left but weth
     logging.getLogger(__name__).info(f">   all token prices left but weth")

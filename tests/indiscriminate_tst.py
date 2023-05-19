@@ -597,100 +597,22 @@ def test_feed_rewards_static():
 
 def test_feed_rewards_status():
     network = "arbitrum"
-    zyberswap_masterchef = rewarders.zyberswap_masterchef_v1(
-        address="0x9BA666165867E916Ee7Ed3a3aE6C19415C2fBDDD",
-        network=network,
-        block=70464630,
-        timestamp=1674692152,
-    )
-    test = zyberswap_masterchef.poolInfo(pid=8)
+    hype_address = "0x3b3fec6029534e4e794f0cfb58cc64cdd66b90c7".lower()
+    pid = 15
 
-    feed_rewards_status(network="ethereum")
-
-
-from web3._utils.contracts import prepare_transaction
-
-
-def custom_batch_request():
-    hype = gamma_hypervisor(
-        address="0xa3ecb6e941e773c6568052a509a04cf455a752ae", network="ethereum"
-    )
-    function01 = hype._contract.functions.name().call()
-
-    po = ""
-
-
-def test_autoRpccalls(
-    network="ethereum", address="0x35abccd8e577607275647edab08c537fa32cc65e"
-):
-    print(" ")
-    print(f"  Testing {address} on {network}")
-
-    private_rpcUrls = [CONFIGURATION["sources"]["web3Providers"][network]]
-    hype = gamma_hypervisor(address=address.lower(), network=network)
-    rpckeys = ["public"]
-    # place first call
-    tmp_public = hype.call_function_autoRpc("getTotalAmounts", rpcKey_names=rpckeys)
-    # if tmp_public is not None:
-    #    result.append(tmp_public)
-    # save first var
-    first_block = hype.block
-    first_timestamp = hype._timestamp
-
-    for i in range(20):
-        # modify hypervisor block
-        hype.block = hype.block - 22500
-        block_data = hype._w3.eth.get_block(hype.block)
-        hype._timestamp = block_data.timestamp
-        # place subsequent calls
-        tmp_public = hype.call_function_autoRpc("getTotalAmounts", rpcKey_names=rpckeys)
-        if tmp_public is not None:
-            # compare with private call
-            tmp_private = hype.call_function("getTotalAmounts", rpcUrls=private_rpcUrls)
-            # result.append(tmp_public)
-            print(
-                f" {network} tested block:{hype.block}  timestamp:{hype._timestamp}  ({(first_timestamp-hype._timestamp)/(60*60)} hours back)"
-            )
-            if tmp_public != tmp_private:
-                print(" !!!!!!!!!!!!!!! MISMATCH  !!!!!!!!!!!!!!! ")
-                print(f"               public result: {tmp_public}")
-                print(f"              private result: {tmp_private}")
-                print(" ")
-        else:
-            print(f" no data found at block {hype.block}")
-            break
-    last_block = hype.block
-    last_timestamp = hype._timestamp
-    print(
-        f" {first_block-last_block} blocks back -> {(first_timestamp-last_timestamp)/(60*60)} hours back"
-    )
-    # fdata = hype.call_function_autoRpc(
-    #     "balanceOf",
-    #     None,
-    #     Web3.toChecksumAddress("0x450E5dd66c3c243bBf3b07379aF7E8B261579970"),
+    # zyberswap_masterchef = rewarders.zyberswap_masterchef_v1(
+    #     address="0x9BA666165867E916Ee7Ed3a3aE6C19415C2fBDDD".lower(),
+    #     network=network,
     # )
 
-    po = ""
+    # # get rewards status
+    # rewards_data = zyberswap_masterchef.get_rewards(
+    #     hypervisor_addresses=[hype_address],
+    #     pids=[pid],
+    #     convert_bint=True,
+    # )
 
-
-def test_price_geckterm():
-    price_helper = geckoterminal_price_helper()
-    price = price_helper.get_price_now(
-        network="binance",
-        token_address="0x3cd55356433c89e50dc51ab07ee0fa0a95623d53",
-    )
-    pp = ""
-
-
-def test_user_status2():
-    network = "polygon"
-    protocol = "gamma"
-    user_status_builder = user_status_hypervisor_builderV2(
-        network=network, protocol=protocol
-    )
-
-    network_user_status = user_status_builder.calculate_status(user_address="")
-    pp = ""
+    feed_rewards_status(network=network)
 
 
 def test_userOperations():
@@ -762,100 +684,7 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
-    test_userOperations()
-
-    kwargs_list = [
-        {
-            "network": "arbitrum",
-            "address": "0xD06E6a71121BfD6c1079Bd0b4B231a92022953c9".lower(),
-        },
-        {
-            "network": "optimism",
-            "address": "0x2d6B26f430F261B77D14C495585116aA579b7217".lower(),
-        },
-        {
-            "network": "polygon",
-            "address": "0xb81686295822B639b647D3B421cD5e09Af700AdA".lower(),
-        },
-        {
-            "network": "binance",
-            "address": "0x1C2Ac2Ea1063395c34D2B5066ebC7F6745196e92".lower(),
-        },
-        {
-            "network": "celo",
-            "address": "0x897D907680D4890B91f3698f6878Ba56D2BF605c".lower(),
-        },
-        {
-            "network": "ethereum",
-            "address": "0x35abccd8e577607275647edab08c537fa32cc65e",
-        },
-    ]
-    for kwargs in kwargs_list:
-        test_autoRpccalls(**kwargs)
-
-    test_feed_rewards_static()
-
-    replace_quickswap_pool_dex_to_algebra(network="polygon")
-    # test_prices()
-    # test_price_sequence()
-
-    test_w3_hypervisor_obj(
-        protocol="gamma",
-        network="polygon",
-        dex="uniswapv3",
-        hypervisor_address="0xFEa715aB7E1DE3640CD0662f6af0f9B25934E753".lower(),
-        block=40949649,
-    )
-
-    ########
-    #  vars
-    ########
-    protocol = "gamma"
-    # networks = ["ethereum", "polygon", "optimism", "arbitrum"]
-    networks = ["polygon"]
-    dex = "quickswap"  # None
-    months = 0
-    days = 30 * (months or 1)
-    end_date = datetime.now(timezone.utc)
-    ini_date = end_date - timedelta(days=days)
-
-    save_csv = False
-    print_it = True
-
-    for network in networks:
-        folder = f"tests/results/{months}month_{network}"
-
-        test_db_direct_info(
-            network=network,
-            protocol=protocol,
-            dex=dex,
-            ini_date=ini_date,
-            end_date=end_date,
-            folder=folder,
-            save_csv=save_csv,
-            print_it=print_it,
-        )
-
-    ########
-    ########
-    # hypervisor_address = "0x02203f2351e7ac6ab5051205172d3f772db7d814"
-    # block = 38525261
-
-    # test_w3_hypervisor_obj(
-    #     protocol=protocol,
-    #     network=network,
-    #     dex=dex,
-    #     hypervisor_address=hypervisor_address,
-    #     block=block,
-    # )
-
-    # test_db_direct_info(
-    #     network=network,
-    #     protocol=protocol,
-    #     ini_date=datetime(2022, 3, 30),
-    #     end_date=datetime(2022, 12, 31),
-    #     folder="tests/results/",
-    # )
+    test_feed_rewards_status()
 
     # end time log
     _timelapse = datetime.now(timezone.utc) - _startime
