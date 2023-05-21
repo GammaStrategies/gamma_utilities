@@ -222,9 +222,9 @@ def network_db_service(
         logging.getLogger(__name__).debug(
             f" {protocol}'s {network} database feeding loop stoped by user"
         )
-    except Exception:
+    except Exception as e:
         logging.getLogger(__name__).exception(
-            f" Unexpected error while loop-feeding {protocol}'s {network} database data. error {sys.exc_info()[0]}"
+            f" Unexpected error while loop-feeding {protocol}'s {network} database data. error {e}"
         )
 
     # telegram messaging
