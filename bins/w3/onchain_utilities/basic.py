@@ -5,6 +5,7 @@ import math
 import datetime as dt
 
 from decimal import Decimal
+import requests
 from web3 import Web3, exceptions, types
 from web3.contract import Contract
 from web3.middleware import geth_poa_middleware, simple_cache_middleware
@@ -369,7 +370,21 @@ class web3wrap:
         for _filter in self.create_eventFilter_chunks(
             eventfilter=eventfilter, max_blocks=max_blocks
         ):
-            entries = self._w3.eth.filter(_filter).get_all_entries()
+            # get a list of rpc urls
+            rpcUrls = self.get_rpcUrls()
+            # execute query till it works
+            for rpcUrl in rpcUrls:
+                # set rpc
+                self._w3 = self.setup_w3(rpcUrl=rpcUrl)
+                # get chunk entries
+                try:
+                    entries = self._w3.eth.filter(_filter).get_all_entries()
+                except requests.exceptions.HTTPError as e:
+                    logging.getLogger(__name__).debug(
+                        f" Could not get {self._network}'s events from filter  -> {e}"
+                    )
+                    # try changing the rpcURL and retry
+                    continue
 
             # progress if no data found
             if self._progress_callback and len(entries) == 0:
