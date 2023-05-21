@@ -370,15 +370,15 @@ class web3wrap:
         for _filter in self.create_eventFilter_chunks(
             eventfilter=eventfilter, max_blocks=max_blocks
         ):
-            # get a list of rpc urls
-            rpcUrls = self.get_rpcUrls()
+            entries = []
             # execute query till it works
-            for rpcUrl in rpcUrls:
+            for rpcUrl in self.get_rpcUrls():
                 # set rpc
                 self._w3 = self.setup_w3(network=self._network, web3Url=rpcUrl)
                 # get chunk entries
                 try:
-                    entries = self._w3.eth.filter(_filter).get_all_entries()
+                    if entries := self._w3.eth.filter(_filter).get_all_entries():
+                        break
                 except (requests.exceptions.HTTPError, ValueError) as e:
                     logging.getLogger(__name__).debug(
                         f" Could not get {self._network}'s events from filter  -> {e}"
