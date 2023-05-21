@@ -48,14 +48,14 @@ class web3wrap:
 
         # set block
         if block == 0:
-            _block_data = self._w3.eth.get_block("latest")
+            _block_data = self._getBlockData("latest")
             self._block = _block_data.number
             self._timestamp = _block_data.timestamp
         else:
             self._block = block
             if timestamp == 0:
                 # find timestamp
-                _block_data = self._w3.eth.get_block(self._block)
+                _block_data = self._getBlockData(self._block)
                 self._timestamp = _block_data.timestamp
             else:
                 self._timestamp = timestamp
