@@ -85,50 +85,61 @@ def feed_operations(
     # create a web3 protocol helper
     onchain_helper = onchain_data_helper2(protocol=protocol)
 
-    # set timeframe to scrape as dates (used as last option)
-    if not date_ini:
-        # get configured start date
-        date_ini = filters.get("force_timeframe", {}).get(
-            "start_time", "2021-03-24T00:00:00"
+    try:
+        # set timeframe to scrape as dates (used as last option)
+        if not date_ini:
+            # get configured start date
+            date_ini = filters.get("force_timeframe", {}).get(
+                "start_time", "2021-03-24T00:00:00"
+            )
+
+            date_ini = convert_string_datetime(date_ini)
+        if not date_end:
+            # get configured end date
+            date_end = filters.get("force_timeframe", {}).get("end_time", "now")
+            if date_end == "now":
+                # set block end to last block number
+                tmp_w3 = onchain_helper.create_web3_provider(network)
+                block_end = tmp_w3.eth.get_block("latest").number
+
+            date_end = convert_string_datetime(date_end)
+
+        # apply filters
+        hypes_not_included: list = [
+            x.lower()
+            for x in filters.get("hypervisors_not_included", {}).get(network, [])
+        ]
+        logging.getLogger(__name__).debug(
+            f"   excluding hypervisors: {hypes_not_included}"
         )
 
-        date_ini = convert_string_datetime(date_ini)
-    if not date_end:
-        # get configured end date
-        date_end = filters.get("force_timeframe", {}).get("end_time", "now")
-        if date_end == "now":
-            # set block end to last block number
-            tmp_w3 = onchain_helper.create_web3_provider(network)
-            block_end = tmp_w3.eth.get_block("latest").number
-
-        date_end = convert_string_datetime(date_end)
-
-    # apply filters
-    hypes_not_included: list = [
-        x.lower() for x in filters.get("hypervisors_not_included", {}).get(network, [])
-    ]
-    logging.getLogger(__name__).debug(f"   excluding hypervisors: {hypes_not_included}")
-
-    # get hypervisor addresses from static database collection and compare them to current operations distinct addresses
-    # to decide whether a full timeback query shall be made
-    logging.getLogger(__name__).debug(
-        f"   Retrieving {network} hypervisors addresses from database"
-    )
-    hypervisor_static_in_database = {
-        x["address"]: x
-        for x in local_db.get_items_from_database(
-            collection_name="static",
-            find={"address": {"$nin": hypes_not_included}},
-            projection={"address": 1, "block": 1, "timestamp": 1},
+        # get hypervisor addresses from static database collection and compare them to current operations distinct addresses
+        # to decide whether a full timeback query shall be made
+        logging.getLogger(__name__).debug(
+            f"   Retrieving {network} hypervisors addresses from database"
         )
-        if x["address"] not in hypes_not_included
-    }
-    hypervisor_addresses = hypervisor_static_in_database.keys()
-    hypervisor_addresses_in_operations = local_db.get_distinct_items_from_database(
-        collection_name="operations",
-        field="address",
-        condition={"address": {"$nin": hypes_not_included}},
-    )
+        hypervisor_static_in_database = {
+            x["address"]: x
+            for x in local_db.get_items_from_database(
+                collection_name="static",
+                find={"address": {"$nin": hypes_not_included}},
+                projection={"address": 1, "block": 1, "timestamp": 1},
+            )
+            if x["address"] not in hypes_not_included
+        }
+        hypervisor_addresses = hypervisor_static_in_database.keys()
+        hypervisor_addresses_in_operations = local_db.get_distinct_items_from_database(
+            collection_name="operations",
+            field="address",
+            condition={"address": {"$nin": hypes_not_included}},
+        )
+
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            f"   Unexpected error preparing operations feed for {network}. Can't continue. : {e}"
+        )
+        # close operations feed
+        return
 
     try:
         # try getting initial block as last found in database
@@ -223,7 +234,7 @@ def feed_operations(
 
     except Exception as e:
         logging.getLogger(__name__).exception(
-            f" Unexpected error while operations looping    .error: {e}"
+            f" Unexpected error while searching {network} for operations  .error: {e}"
         )
 
 
@@ -321,7 +332,7 @@ def feed_prices(
     rewrite: bool = False,
     threaded: bool = True,
     coingecko: bool = True,  # TODO: create configuration var
-    set_source:str = "auto"
+    set_source: str = "auto",
 ):
     """Feed database with prices of tokens and blocks specified in token_blocks
 
@@ -734,7 +745,9 @@ def create_tokenBlocks_rewards(protocol: str, network: str) -> set:
     )
 
 
-def feed_prices_force_sqrtPriceX96(protocol: str, network: str, threaded: bool = True,set_source:str="sqrtPriceX96"):
+def feed_prices_force_sqrtPriceX96(
+    protocol: str, network: str, threaded: bool = True, set_source: str = "sqrtPriceX96"
+):
     """Using global used known tokens like WETH, apply pools sqrtPriceX96 to
         get token pricess currently 0 or not found
 
