@@ -375,7 +375,7 @@ class web3wrap:
             # execute query till it works
             for rpcUrl in rpcUrls:
                 # set rpc
-                self._w3 = self.setup_w3(rpcUrl=rpcUrl)
+                self._w3 = self.setup_w3(network=self._network, web3Url=rpcUrl)
                 # get chunk entries
                 try:
                     entries = self._w3.eth.filter(_filter).get_all_entries()
