@@ -378,6 +378,7 @@ class web3wrap:
                 # get chunk entries
                 try:
                     if entries := self._w3.eth.filter(_filter).get_all_entries():
+                        # exit rpc loop
                         break
                 except (requests.exceptions.HTTPError, ValueError) as e:
                     logging.getLogger(__name__).debug(
