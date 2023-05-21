@@ -379,7 +379,7 @@ class web3wrap:
                 # get chunk entries
                 try:
                     entries = self._w3.eth.filter(_filter).get_all_entries()
-                except requests.exceptions.HTTPError as e:
+                except (requests.exceptions.HTTPError, ValueError) as e:
                     logging.getLogger(__name__).debug(
                         f" Could not get {self._network}'s events from filter  -> {e}"
                     )
