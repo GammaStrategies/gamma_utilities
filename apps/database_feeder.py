@@ -23,7 +23,7 @@ from bins.general.general_utilities import (
     differences,
     log_time_passed,
 )
-from bins.w3.onchain_data_helper import onchain_data_helper2
+from bins.w3.onchain_data_helper import onchain_data_helper
 from bins.w3.onchain_utilities.protocols import (
     gamma_hypervisor,
     gamma_hypervisor_cached,
@@ -83,7 +83,7 @@ def feed_operations(
     local_db = database_local(mongo_url=mongo_url, db_name=db_name)
 
     # create a web3 protocol helper
-    onchain_helper = onchain_data_helper2(protocol=protocol)
+    onchain_helper = onchain_data_helper(protocol=protocol)
 
     try:
         # set timeframe to scrape as dates (used as last option)
@@ -99,8 +99,12 @@ def feed_operations(
             date_end = filters.get("force_timeframe", {}).get("end_time", "now")
             if date_end == "now":
                 # set block end to last block number
-                tmp_w3 = onchain_helper.create_web3_provider(network)
-                block_end = tmp_w3.eth.get_block("latest").number
+                # tmp_w3 = onchain_helper.create_erc20_helper(network)
+                block_end = (
+                    onchain_helper.create_erc20_helper(network)
+                    ._getBlockData("latest")
+                    .number
+                )
 
             date_end = convert_string_datetime(date_end)
 
@@ -247,7 +251,7 @@ def feed_operations_hypervisors(
     local_db: database_local,
 ):
     # set global protocol helper
-    onchain_helper = onchain_data_helper2(protocol=protocol)
+    onchain_helper = onchain_data_helper(protocol=protocol)
 
     logging.getLogger(__name__).info(
         "   Feeding database with {}'s {} operations of {} hypervisors from blocks {} to {}".format(

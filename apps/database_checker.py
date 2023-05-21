@@ -21,7 +21,7 @@ from bins.general.general_utilities import (
     differences,
     log_time_passed,
 )
-from bins.w3.onchain_data_helper import onchain_data_helper2
+from bins.w3.onchain_data_helper import onchain_data_helper
 from bins.w3.onchain_utilities.protocols import (
     gamma_hypervisor,
     gamma_hypervisor_quickswap,

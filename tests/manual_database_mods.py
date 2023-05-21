@@ -27,7 +27,7 @@ from apps.database_feeder import feed_operations_hypervisors
 from bins.database.db_user_status import user_status_hypervisor_builder
 from bins.general.general_utilities import log_execution_time
 
-from bins.w3.onchain_data_helper import onchain_data_helper2
+from bins.w3.onchain_data_helper import onchain_data_helper
 
 
 def manual_set_prices_by_log(log_file: str | None = None):
