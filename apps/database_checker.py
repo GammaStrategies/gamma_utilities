@@ -273,6 +273,12 @@ def repair_prices_from_status(
 
 
 def reScrape_database_prices(batch_size=100000, protocol="gamma"):
+    """Rescrape all database prices with source not set to "auto"
+
+    Args:
+        batch_size (int, optional): . Defaults to 100000.
+        protocol (str, optional): . Defaults to "gamma".
+    """
     networks = (
         CONFIGURATION["_custom_"]["cml_parameters"].networks
         or CONFIGURATION["script"]["protocols"][protocol]["networks"]
