@@ -5,6 +5,8 @@ import logging
 import time
 from bins.cache import cache_utilities
 from bins.apis import thegraph_utilities, coingecko_utilities
+from bins.apis.geckoterminal_helper import geckoterminal_price_helper
+
 from bins.configuration import CONFIGURATION
 from bins.database.common.db_collections_common import database_global
 
@@ -60,10 +62,8 @@ class price_scraper:
             retries=1, request_timeout=5
         )
 
-        self.geckoterminal_price_connector = (
-            coingecko_utilities.geckoterminal_price_helper(
-                retries=2, request_timeout=10
-            )
+        self.geckoterminal_price_connector = geckoterminal_price_helper(
+            retries=2, request_timeout=10
         )
 
     ## PUBLIC ##

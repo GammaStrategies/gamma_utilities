@@ -46,3 +46,4 @@ bson
 pymongo
 croniter
 polars
+ratelimit
