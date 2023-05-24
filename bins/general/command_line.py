@@ -146,18 +146,10 @@ def parse_commandLine_args():
     )
     par_main.add_argument(
         "--networks",
-        # choices=[
-        #     "ethereum",
-        #     "optimism",
-        #     "polygon",
-        #     "polygon_zkevm",
-        #     "arbitrum",
-        #     "binance",
-        # ],
         action=ValidateNetworks,
         nargs="+",
         # type=str,
-        help=" specify networks to be processed",
+        help=" specify a list of networks to be processed. Enclose all networks within ' ' separator being an empty space ",
     )
     par_main.add_argument(
         "--min_loop_time",
