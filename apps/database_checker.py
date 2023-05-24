@@ -840,9 +840,9 @@ def get_price_of_token(network: str, token_address: str, block: int) -> float:
 
 
 def get_price(network: str, token_address: str, block: int) -> float:
-    price_helper = price_scraper(cache=False)
-
-    return price_helper.get_price(network=network, token_id=token_address, block=block)
+    return price_scraper(cache=False).get_price(
+        network=network, token_id=token_address, block=block
+    )
 
 
 def auto_get_prices():

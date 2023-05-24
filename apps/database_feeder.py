@@ -55,7 +55,7 @@ from bins.formulas.dex_formulas import (
 from bins.formulas.apr import calculate_rewards_apr
 
 from apps.feeds.static import feed_hypervisor_static, feed_rewards_static
-from apps.feeds.users import feed_user_status, feed_user_operations
+from apps.feeds.users import feed_user_operations
 from apps.feeds.status import feed_hypervisor_status
 
 

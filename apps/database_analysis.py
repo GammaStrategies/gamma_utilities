@@ -2,16 +2,12 @@ import contextlib
 import sys
 import os
 import logging
-import tqdm
-import concurrent.futures
-import uuid
 
-from web3 import Web3
-from pathlib import Path
+
 from datetime import datetime, timedelta
-from dataclasses import dataclass, field, asdict, InitVar
+
 from datetime import timezone
-from decimal import Decimal, getcontext
+from decimal import Decimal
 
 if __name__ == "__main__":
     # append parent directory pth

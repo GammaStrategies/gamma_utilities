@@ -2,14 +2,12 @@ import contextlib
 from datetime import datetime, timezone
 import logging
 import concurrent.futures
-import random
 import tqdm
-from web3 import Web3
+
 
 from bins.configuration import CONFIGURATION
 from bins.database.common.db_collections_common import database_global, database_local
 from bins.formulas.apr import calculate_rewards_apr
-from bins.general.general_utilities import differences
 from bins.w3.onchain_utilities import rewarders
 
 from bins.w3.builders import (
