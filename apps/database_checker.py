@@ -292,8 +292,8 @@ def reScrape_database_prices(batch_size=100000, protocol="gamma"):
             collection_name="usd_prices",
             find={
                 "network": network,
-                "source": {"$ne": "auto"},
-            },  # do not rescrape auto prices
+                # "source": {"$ne": "auto"},
+            },
             sort=[("block", -1)],
             batch_size=batch_size,
         )
