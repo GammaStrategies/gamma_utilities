@@ -155,3 +155,4 @@ tests/results
 
 TODO
 apps/fastAPI
+/test/*
