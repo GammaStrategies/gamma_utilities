@@ -250,7 +250,7 @@ class MongoDbManager:
                                 .sort(kwargs["sort"])
                                 .limit(kwargs["limit"])
                             )
-                            if "limit" in kwargs
+                            if "limit" in kwargs and kwargs["limit"]
                             else (
                                 self.database[coll_name]
                                 .find(
@@ -269,7 +269,7 @@ class MongoDbManager:
                                 .sort(kwargs["sort"])
                                 .limit(kwargs["limit"])
                             )
-                            if "limit" in kwargs
+                            if "limit" in kwargs and kwargs["limit"]
                             else (
                                 self.database[coll_name]
                                 .find(kwargs["find"], batch_size=kwargs["batch_size"])
@@ -290,7 +290,7 @@ class MongoDbManager:
                         )
                     )
             elif "sort" in kwargs:
-                if "limit" in kwargs:
+                if "limit" in kwargs and kwargs["limit"]:
                     return (
                         (
                             self.database[coll_name]
@@ -320,7 +320,7 @@ class MongoDbManager:
                             .sort(kwargs["sort"])
                         )
                     )
-            elif "limit" in kwargs:
+            elif "limit" in kwargs and kwargs["limit"]:
                 return (
                     self.database[coll_name]
                     .find(kwargs["find"], projection=kwargs["projection"])
