@@ -291,17 +291,31 @@ def log_execution_time(f):
         end_time = dt.datetime.now(dt.timezone.utc)
         _timelapse = end_time - start_time
         _passed = _timelapse.total_seconds()
-        if _passed < 60:
-            _timelapse_unit = "seconds"
-        elif _passed < 60 * 60:
-            _timelapse_unit = "minutes"
-            _passed /= 60
-        elif _passed < 60 * 60 * 24:
-            _timelapse_unit = "hours"
-            _passed /= 60 * 60
+
         logging.getLogger(__name__).debug(
-            f"{f.__name__} took {round(_passed,2)} {_timelapse_unit} to complete"
+            f"{f.__name__} took {seconds_to_time_passed(_passed)} to complete"
         )
         return result
 
     return wrapper
+
+
+def seconds_to_time_passed(seconds: float) -> str:
+    """_summary_
+
+    Args:
+        seconds (float): _description_
+
+    Returns:
+        str: _description_
+    """
+
+    if seconds < 60:
+        _timelapse_unit = "seconds"
+    elif seconds < 60 * 60:
+        _timelapse_unit = "minutes"
+        seconds /= 60
+    elif seconds < 60 * 60 * 24:
+        _timelapse_unit = "hours"
+        seconds /= 60 * 60
+    return f"{round(seconds,2)} {_timelapse_unit}"
