@@ -232,6 +232,18 @@ class univ3_pool(web3wrap):
         self.token0.block = value
         self.token1.block = value
 
+    @property
+    def custom_rpcType(self) -> str | None:
+        """ """
+        return self._custom_rpcType
+
+    @custom_rpcType.setter
+    def custom_rpcType(self, value: str | None):
+        """ """
+        self._custom_rpcType = value
+        self.token0.custom_rpcType = value
+        self.token1.custom_rpcType = value
+
     # CUSTOM FUNCTIONS
     def position(self, ownerAddress: str, tickLower: int, tickUpper: int) -> dict:
         """
@@ -1099,6 +1111,17 @@ class algebrav3_pool(web3wrap):
         self._block = value
         self.token0.block = value
         self.token1.block = value
+
+    @property
+    def custom_rpcType(self) -> str | None:
+        """ """
+        return self._custom_rpcType
+
+    @custom_rpcType.setter
+    def custom_rpcType(self, value: str | None):
+        self._custom_rpcType = value
+        self.token0.custom_rpcType = value
+        self.token1.custom_rpcType = value
 
     # CUSTOM FUNCTIONS
     def position(self, ownerAddress: str, tickLower: int, tickUpper: int) -> dict:

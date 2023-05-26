@@ -294,6 +294,19 @@ class gamma_hypervisor(erc20):
         self.token0.block = value
         self.token1.block = value
 
+    @property
+    def custom_rpcType(self) -> str | None:
+        """ """
+        return self._custom_rpcType
+
+    @custom_rpcType.setter
+    def custom_rpcType(self, value: str | None):
+        """ """
+        self._custom_rpcType = value
+        self.pool.custom_rpcType = value
+        self.token0.custom_rpcType = value
+        self.token1.custom_rpcType = value
+
     # CUSTOM FUNCTIONS
     def get_all_events(self):
         return NotImplementedError("get_all_events not implemented for v1 contracts")

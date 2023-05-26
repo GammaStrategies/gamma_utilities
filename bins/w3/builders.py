@@ -137,6 +137,7 @@ def build_db_hypervisor(
     custom_web3: Web3 | None = None,
     custom_web3Url: str | None = None,
     cached: bool = True,
+    force_rpcType: str | None = None,
 ) -> dict():
     try:
         hypervisor = build_hypervisor(
@@ -148,6 +149,10 @@ def build_db_hypervisor(
             custom_web3Url=custom_web3Url,
             cached=cached,
         )
+
+        # set custom rpc type if needed
+        if force_rpcType:
+            hypervisor.custom_rpcType = force_rpcType
 
         # return converted hypervisor
         return hypervisor.as_dict(convert_bint=True, static_mode=static_mode)

@@ -34,6 +34,9 @@ class web3wrap:
         # progress
         self._progress_callback = None
 
+        # force to use either a private or a public RPC service
+        self._custom_rpcType: str | None = None
+
         # set optionals
         self.setup_abi(abi_filename=abi_filename, abi_path=abi_path)
 
@@ -136,6 +139,15 @@ class web3wrap:
     @block.setter
     def block(self, value: int):
         self._block = value
+
+    @property
+    def custom_rpcType(self) -> str | None:
+        """ """
+        return self._custom_rpcType
+
+    @custom_rpcType.setter
+    def custom_rpcType(self, value: str | None):
+        self._custom_rpcType = value
 
     # HELPERS
     def average_blockTime(self, blocksaway: int = 500) -> dt.datetime.timestamp:
@@ -467,7 +479,9 @@ class web3wrap:
     def as_dict(self, convert_bint=False) -> dict:
         result = {
             "block": self.block,
-            "timestamp": self.timestampFromBlockNumber(block=self.block),
+            "timestamp": self._timestamp
+            if self._timestamp and self._timestamp > 0
+            else self.timestampFromBlockNumber(block=self.block),
         }
 
         # lower case address to be able to be directly compared
@@ -516,6 +530,9 @@ class web3wrap:
         Returns:
             Any or None: depending on the function called
         """
+
+        if not rpcKey_names and self._custom_rpcType:
+            rpcKey_names = [self._custom_rpcType]
 
         result = self.call_function(
             function_name,
