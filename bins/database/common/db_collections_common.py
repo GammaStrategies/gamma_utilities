@@ -705,6 +705,9 @@ class database_local(db_collections_common):
         Args:
             db_queue_item (dict):
         """
+        logging.getLogger(__name__).debug(
+                f" freeing {db_queue_item['type']}:  {db_queue_item['id']} from queue"
+            )
         db_queue_item["processing"] = 0
         self.replace_item_to_database(
             data=db_queue_item, collection_name="scraping_queue"
