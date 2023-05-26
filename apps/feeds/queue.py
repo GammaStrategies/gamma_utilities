@@ -208,7 +208,9 @@ def pull_from_queue(network: str, type: str | None = None):
                 local_db.replace_item_to_database(
                     data=queue_item.as_dict, collection_name="scraping_queue"
                 )
-                raise ValueError(f"Unknown queue item type {queue_item.type}")
+                raise ValueError(
+                    f" Unknown queue item type {queue_item.type} at network {network}"
+                )
         except Exception as e:
             # reset queue item
             queue_item.processing = 0
@@ -251,7 +253,7 @@ def pull_from_queue_hypervisor_status(network: str, queue_item: scraping_queue) 
                 # log total process
                 curr_time = time.time()
                 logging.getLogger(__name__).debug(
-                    f" Queue item {queue_item.type}:  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
+                    f" {network} queue item {queue_item.type}:  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
                 )
 
                 # set queue from hype status operation
@@ -266,7 +268,7 @@ def pull_from_queue_hypervisor_status(network: str, queue_item: scraping_queue) 
                 )
         else:
             logging.getLogger(__name__).error(
-                f"No hypervisor static found for {queue_item.address}. Can't continue scraping queue item {queue_item.id}"
+                f" {network} No hypervisor static found for {queue_item.address}. Can't continue scraping queue item {queue_item.id}"
             )
 
     except Exception as e:
@@ -299,7 +301,7 @@ def pull_from_queue_rewards_status(network: str, queue_item: scraping_queue) -> 
             # log total process
             curr_time = time.time()
             logging.getLogger(__name__).debug(
-                f" Queue item {queue_item.type}:  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
+                f" {network} queue item {queue_item.type}:  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
             )
 
             return True
@@ -348,7 +350,7 @@ def pull_from_queue_price(network: str, queue_item: scraping_queue) -> bool:
             # log total process
             curr_time = time.time()
             logging.getLogger(__name__).debug(
-                f" Queue item {queue_item.type}:  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
+                f" {network} queue item {queue_item.type}:  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
             )
 
             return True
@@ -391,7 +393,7 @@ def pull_from_queue_block(network: str, queue_item: scraping_queue) -> bool:
             # log total process
             curr_time = time.time()
             logging.getLogger(__name__).debug(
-                f" Queue item {queue_item.type}:  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
+                f" {network} queue item {queue_item.type}:  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
             )
 
             return True
