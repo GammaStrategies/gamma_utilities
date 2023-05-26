@@ -3,12 +3,16 @@ from datetime import datetime
 import sys
 import logging
 import time
+
+from ratelimit.exception import RateLimitException
 from bins.cache import cache_utilities
 from bins.apis import thegraph_utilities, coingecko_utilities
 from bins.apis.geckoterminal_helper import geckoterminal_price_helper
 
-from bins.configuration import CONFIGURATION
+from bins.configuration import CONFIGURATION, DEX_POOLS_PRICE_PATHS
 from bins.database.common.db_collections_common import database_global
+from bins.general.enums import Chain, Protocol
+from bins.w3.onchain_utilities.exchanges import univ3_pool
 
 LOG_NAME = "price"
 
@@ -69,13 +73,14 @@ class price_scraper:
     ## PUBLIC ##
     def get_price(
         self, network: str, token_id: str, block: int = 0, of: str = "USD"
-    ) -> float:
+    ) -> tuple[float, str]:
         """
-        return: price_usd_token
+        return: price_usd_token, source
         """
 
         # result var
         _price = None
+        _source = None
 
         # make address lower case
         token_id = token_id.lower()
@@ -85,6 +90,7 @@ class price_scraper:
             _price = self.cache.get_data(
                 chain_id=network, address=token_id, block=block, key=of
             )
+            _source = "cache"
         except Exception:
             _price = None
 
@@ -102,6 +108,7 @@ class price_scraper:
                 _price = self._get_price_from_geckoterminal(
                     network, token_id, block, of
                 )
+                _source = "geckoterminal"
             except Exception as e:
                 logging.getLogger(LOG_NAME).debug(
                     f" Could not get {network}'s token {token_id} price at block {block} from geckoterminal. error-> {e}"
@@ -127,6 +134,7 @@ class price_scraper:
 
                     if _price not in [None, 0]:
                         # exit for loop
+                        _source = "thegraph"
                         break
 
         # coingecko
@@ -142,6 +150,7 @@ class price_scraper:
 
             try:
                 _price = self._get_price_from_coingecko(network, token_id, block, of)
+                _source = "coingecko"
             except Exception as e:
                 logging.getLogger(LOG_NAME).debug(
                     f" Could not get {network}'s token {token_id} price at block {block} from coingecko. error-> {e}"
@@ -174,7 +183,7 @@ class price_scraper:
             )
 
         # return result
-        return _price
+        return _price, _source
 
     def _get_price_from_thegraph(
         self,
@@ -315,10 +324,17 @@ class price_scraper:
             if timestamp := self._convert_block_to_timestamp(
                 network=network, block=block
             ):
-                # get price at block
-                _price = self.geckoterminal_price_connector.get_price_historic(
-                    network=network, token_address=token_id, before_timestamp=timestamp
-                )
+                try:
+                    # get price at block
+                    _price = self.geckoterminal_price_connector.get_price_historic(
+                        network=network,
+                        token_address=token_id,
+                        before_timestamp=timestamp,
+                    )
+                except RateLimitException as err:
+                    logging.getLogger(__name__).debug(
+                        f" geckoterminal auto rate limit fired"
+                    )
 
                 # if no historical price was found but timestamp is 5 minute close to current time, get current price
                 if _price in [0, None] and (time.time() - timestamp) <= (5 * 60):
@@ -367,6 +383,10 @@ class price_scraper:
                     where=f""" number: "{block}" """,
                 )[0]
 
+                logging.getLogger(__name__).error(
+                    f"     --> {network}'s block {block} found in subgraph"
+                )
+
                 return block_data["timestamp"]
             else:
                 logging.getLogger(__name__).debug(
@@ -387,6 +407,9 @@ class price_scraper:
                 address="0x0000000000000000000000000000000000000000", network=network
             )
             if block_data := dummy._getBlockData(block=block):
+                logging.getLogger(__name__).error(
+                    f"     --> {network}'s block {block} found placing web3 calls"
+                )
                 return block_data["timestamp"]
 
         except Exception as e:
@@ -409,3 +432,21 @@ class price_scraper:
             for name, connector in self.thegraph_connectors.items()
             if network in connector.networks
         }
+
+
+class usdc_price_scraper:
+    def __init__(self):
+        pass
+
+    def get_price(chain: Chain, token_address: str, block: int) -> float:
+        if token_address in DEX_POOLS_PRICE_PATHS.get(chain, " "):
+            # follow the path to get USDC price
+            for dex_pool, i in DEX_POOLS_PRICE_PATHS[chain][token_address]:
+                # select the right protocol
+                if dex_pool["protocol"] == Protocol.UNISWAPV3:
+                    # construct helper
+                    dex_pool = univ3_pool(
+                        address=dex_pool["address"], network=chain.value
+                    )
+
+                dex_pool["address"].lower()
