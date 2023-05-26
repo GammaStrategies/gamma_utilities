@@ -1,4 +1,4 @@
-from pymongo import MongoClient
+from pymongo import DeleteOne, MongoClient
 from pymongo.errors import ConnectionFailure, BulkWriteError
 from pymongo import InsertOne, DeleteMany, ReplaceOne, UpdateOne
 
@@ -82,6 +82,17 @@ class MongoDbManager:
             )
         # add/ update to database (add or replace)
         self.database[coll_name].delete_one(filter=dbFilter)
+
+    def del_items_in_bulk(self, coll_name: str, data: list):
+        # check collection configuration exists
+        if coll_name not in self.collections_config.keys():
+            raise ValueError(
+                f" No configuration found for {coll_name} database collection."
+            )
+
+        self.database[coll_name].bulk_write(
+            [DeleteOne(filter=item["filter"]) for item in data]
+        )
 
     def add_item(self, coll_name: str, dbFilter: dict, data: dict, upsert=True):
         """Add or Update item
@@ -359,6 +370,21 @@ class MongoDbManager:
             return self.database[coll_name].distinct(field)
         else:
             return self.database[coll_name].distinct(field, condition)
+
+    def find_one_and_update(
+        self, coll_name: str, dbFilter: dict, update: dict
+    ) -> dict | None:
+        """
+        Returns the updated document or None if not found.
+
+        Args:
+            coll_name (str):
+            dbFilter (dict):  like  {"_id": "counter-id"}
+            update (dict):  like  {"$inc":{"sequence_value":1}}
+        """
+        return self.database[coll_name].find_one_and_update(
+            filter=dbFilter, update=update, return_document=True
+        )
 
     @staticmethod
     def create_database_name(network: str, protocol: str) -> str:
