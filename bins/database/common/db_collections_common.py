@@ -1,4 +1,5 @@
 import logging
+import time
 
 from bson.decimal128 import Decimal128, create_decimal128_context
 from decimal import Decimal, localcontext
@@ -29,6 +30,37 @@ class db_collections_common:
             collections=self._db_collections,
         ) as _db_manager:
             _db_manager.del_item(coll_name=collection_name, dbFilter={"id": item_id})
+
+    def delete_items(
+        self,
+        data: list[dict],
+        collection_name: str,
+    ):
+        """Delete multiple items at once ( in bulk)
+
+        Args:
+            data (list[dict]):
+            collection_name (str):
+        """
+        try:
+            # create bulk data object
+            bulk_data = [{"filter": {"id": item["id"]}, "data": item} for item in data]
+
+            with MongoDbManager(
+                url=self._db_mongo_url,
+                db_name=self._db_name,
+                collections=self._db_collections,
+            ) as _db_manager:
+                # add to mongodb
+                _db_manager.del_items_in_bulk(coll_name=collection_name, data=bulk_data)
+        except BulkWriteError as bwe:
+            logging.getLogger(__name__).error(
+                f"  Error while replacing multiple items in {collection_name} collection database. Items qtty: {len(data)}  error-> {bwe.details}"
+            )
+        except Exception as e:
+            logging.getLogger(__name__).error(
+                f" Unable to replace multiple items in mongo's {collection_name} collection.  Items qtty: {len(data)}    error-> {e}"
+            )
 
     # actual db saving
     def save_items_to_database(
@@ -186,6 +218,16 @@ class db_collections_common:
 
     def get_cursor(self, db_manager: MongoDbManager, collection_name: str, **kwargs):
         return db_manager.get_items(coll_name=collection_name, **kwargs)
+
+    def find_one_and_update(self, collection_name: str, find: dict, update: dict):
+        with MongoDbManager(
+            url=self._db_mongo_url,
+            db_name=self._db_name,
+            collections=self._db_collections,
+        ) as _db_manager:
+            return _db_manager.find_one_and_update(
+                coll_name=collection_name, dbFilter=find, update=update
+            )
 
     @staticmethod
     def convert_decimal_to_d128(item: dict) -> dict:
@@ -578,19 +620,19 @@ class database_local(db_collections_common):
                     },
                     "multi_indexes": [],
                 },
-                "user_status": {
-                    "mono_indexes": {
-                        "id": True,
-                        "block": False,
-                        "address": False,
-                        "hypervisor_address": False,
-                        "timestamp": False,
-                        "logIndex": False,
-                    },
-                    "multi_indexes": [
-                        [("block", DESCENDING), ("logIndex", DESCENDING)],
-                    ],
-                },
+                # "user_status": {
+                #     "mono_indexes": {
+                #         "id": True,
+                #         "block": False,
+                #         "address": False,
+                #         "hypervisor_address": False,
+                #         "timestamp": False,
+                #         "logIndex": False,
+                #     },
+                #     "multi_indexes": [
+                #         [("block", DESCENDING), ("logIndex", DESCENDING)],
+                #     ],
+                # },
                 "user_operations": {
                     "mono_indexes": {
                         "id": True,
@@ -623,10 +665,49 @@ class database_local(db_collections_common):
                     },
                     "multi_indexes": [],
                 },
+                "scraping_queue": {
+                    "mono_indexes": {
+                        "id": True,
+                    },
+                    "multi_indexes": [],
+                },
             }
 
         super().__init__(
             mongo_url=mongo_url, db_name=db_name, db_collections=db_collections
+        )
+
+    # scraping queue
+    def set_scraping_queue(self, data: dict):
+        # data should already have a unique id ( is an operation )
+        # save to db
+        self.replace_item_to_database(data=data, collection_name="scraping_queue")
+
+    def get_scraping_queue(self, type: str | None = None) -> dict | None:
+        find = {"processing": 0}
+        if type:
+            find["type"] = type
+        # get one item from queue
+
+        if db_queue_item := self.find_one_and_update(
+            collection_name="scraping_queue",
+            find=find,
+            update={"$set": {"processing": time.time()}},
+        ):
+            return db_queue_item
+
+    def del_scraping_queue(self, id: str):
+        self.delete_item(collection_name="scraping_queue", item_id=id)
+
+    def free_scraping_queue(self, db_queue_item: dict):
+        """set queue object free to be processed again
+
+        Args:
+            db_queue_item (dict):
+        """
+        db_queue_item["processing"] = 0
+        self.replace_item_to_database(
+            data=db_queue_item, collection_name="scraping_queue"
         )
 
     # static

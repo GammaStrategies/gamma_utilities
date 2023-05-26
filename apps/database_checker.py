@@ -2,6 +2,7 @@ import os
 import random
 import sys
 import logging
+import time
 import tqdm
 import concurrent.futures
 import contextlib
@@ -36,6 +37,11 @@ from bins.mixed.price_utilities import price_scraper
 
 from bins.w3.builders import build_db_hypervisor
 
+from apps.feeds.prices import (
+    create_tokenBlocks_all,
+    feed_prices,
+)
+
 
 # repair apps
 def repair_all():
@@ -55,9 +61,35 @@ def repair_prices(min_count: int = 1):
     repair_prices_from_logs(min_count=min_count)
 
     repair_prices_from_status(
-        max_repair_per_network=50
-        or CONFIGURATION["_custom_"]["cml_parameters"].max_repair
+        max_repair_per_network=CONFIGURATION["_custom_"]["cml_parameters"].max_repair
+        or 50
     )
+
+    repair_prices_from_database(
+        max_repair_per_network=CONFIGURATION["_custom_"]["cml_parameters"].max_repair
+        or 50
+    )
+
+
+def repair_prices_from_database(
+    batch_size: int = 100000, max_repair_per_network: int | None = None
+):
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+
+    for protocol in CONFIGURATION["script"]["protocols"]:
+        # override networks if specified in cml
+        networks = (
+            CONFIGURATION["_custom_"]["cml_parameters"].networks
+            or CONFIGURATION["script"]["protocols"][protocol]["networks"]
+        )
+        for network in networks:
+            logging.getLogger(__name__).info(
+                f" > Trying to repair {network}'s prices from database (old prices)"
+            )
+            feed_prices(
+                network=network,
+                price_ids=create_tokenBlocks_all(network=network),
+            )
 
 
 def repair_prices_from_logs(min_count: int = 1):
@@ -647,6 +679,36 @@ def repair_missing_blocks(protocol: str, network: str, batch_size: int = 100000)
     #         progress_bar.update(1)
 
 
+def repair_queue():
+    # get all operation blocks from database
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+
+    for protocol in CONFIGURATION["script"]["protocols"]:
+        # override networks if specified in cml
+        networks = (
+            CONFIGURATION["_custom_"]["cml_parameters"].networks
+            or CONFIGURATION["script"]["protocols"][protocol]["networks"]
+        )
+        for network in networks:
+            # get a list of queue items with processing >0
+            db_name = f"{network}_{protocol}"
+            for queue_item in database_local(
+                mongo_url=mongo_url, db_name=db_name
+            ).get_items_from_database(
+                collection_name="scraping_queue", find={"processing": {"$gt": 0}}
+            ):
+                # check seconds passed since processing
+                minutes_passed = (time.time() - queue_item["processing"]) / 60
+                if minutes_passed > 10:
+                    # free locked processing
+                    database_local(
+                        mongo_url=mongo_url, db_name=db_name
+                    ).free_scraping_queue(queue_item)
+                    logging.getLogger(__name__).debug(
+                        f" {network}'s queue item {queue_item['id']} processing probably halted and has been freed. ({minutes_passed} minutes processing)"
+                    )
+
+
 # one time utils
 def replace_blocks_to_int():
     logging.getLogger(__name__).debug("    Converting non int blocks to int")
@@ -839,7 +901,10 @@ def get_price_of_token(network: str, token_address: str, block: int) -> float:
         return 0.0
 
 
-def get_price(network: str, token_address: str, block: int) -> float:
+def get_price(network: str, token_address: str, block: int) -> tuple[float, str]:
+    """get price of token at block
+    Will return a tuple with price and source
+    """
     return price_scraper(cache=False).get_price(
         network=network, token_id=token_address, block=block
     )

@@ -10,25 +10,25 @@ import logging
 import multiprocessing as mp
 from datetime import datetime, timedelta, timezone
 import time
+from apps.feeds.queue import parallel_pull, pull_from_queue
+from apps.parallel_feed import process_all_queues
 
 from bins.configuration import CONFIGURATION
 
 from apps.database_feeder import (
     feed_operations,
-    feed_prices,
-    create_tokenBlocks_allTokens,
-    create_tokenBlocks_allTokensButWeth,
-    create_tokenBlocks_topTokens,
-    feed_prices_force_sqrtPriceX96,
     feed_timestamp_blocks,
     feed_blocks_timestamp,
-    create_tokenBlocks_rewards,
 )
 from apps.feeds.static import feed_hypervisor_static, feed_rewards_static
 from apps.feeds.users import feed_user_status, feed_user_operations
 from apps.feeds.status import (
     feed_rewards_status,
     feed_hypervisor_status,
+)
+from apps.feeds.prices import (
+    feed_prices,
+    create_tokenBlocks_all,
 )
 
 from apps.database_checker import repair_all
@@ -63,7 +63,7 @@ def network_sequence_loop(
 
     if do_prices:
         # feed network prices ( before user status to avoid price related errors)
-        price_sequence_loop(protocol=protocol, network=network)
+        price_sequence_loop(network=network)
 
     if do_userStatus:
         # feed user_status data
@@ -77,47 +77,50 @@ def network_sequence_loop(
     feed_rewards_status(protocol=protocol, network=network)
 
 
-def price_sequence_loop(protocol: str, network: str):
+def price_sequence_loop(network: str):
     # feed most used token proces
-    logging.getLogger(__name__).info(f">   top token prices")
+    limit_prices = 100
+
     feed_prices(
-        protocol=protocol,
         network=network,
-        price_ids=create_tokenBlocks_topTokens(protocol=protocol, network=network),
+        price_ids=create_tokenBlocks_all(network=network, limit=limit_prices),
         coingecko=True,
+        use_not_to_process_prices=True,
+        limit_not_to_process_prices=limit_prices * 2,
+        max_prices=limit_prices,
     )
 
     # force feed prices from already known using conversion
     # logging.getLogger(__name__).info(f">   all token prices from already known/top")
     # feed_prices_force_sqrtPriceX96(protocol=protocol, network=network)
 
-    # feed all token prices left but weth
-    logging.getLogger(__name__).info(f">   all token prices left but weth")
-    feed_prices(
-        protocol=protocol,
-        network=network,
-        price_ids=create_tokenBlocks_allTokensButWeth(
-            protocol=protocol, network=network
-        ),
-        coingecko=False,
-    )
-    # feed all token prices left
-    logging.getLogger(__name__).info(f">   all token prices left")
-    feed_prices(
-        protocol=protocol,
-        network=network,
-        price_ids=create_tokenBlocks_allTokens(protocol=protocol, network=network),
-        coingecko=True,
-    )
+    # # feed all token prices left but weth
+    # logging.getLogger(__name__).info(f">   all token prices left but weth")
+    # feed_prices(
+    #     protocol=protocol,
+    #     network=network,
+    #     price_ids=create_tokenBlocks_allTokensButWeth(
+    #         protocol=protocol, network=network
+    #     ),
+    #     coingecko=False,
+    # )
+    # # feed all token prices left
+    # logging.getLogger(__name__).info(f">   all token prices left")
+    # feed_prices(
+    #     protocol=protocol,
+    #     network=network,
+    #     price_ids=create_tokenBlocks_allTokens(protocol=protocol, network=network),
+    #     coingecko=True,
+    # )
 
-    # feed rewards token prices
-    logging.getLogger(__name__).info(f">   rewards token prices")
-    feed_prices(
-        protocol=protocol,
-        network=network,
-        price_ids=create_tokenBlocks_rewards(protocol=protocol, network=network),
-        coingecko=True,
-    )
+    # # feed rewards token prices
+    # logging.getLogger(__name__).info(f">   rewards token prices")
+    # feed_prices(
+    #     protocol=protocol,
+    #     network=network,
+    #     price_ids=create_tokenBlocks_rewards(protocol=protocol, network=network),
+    #     coingecko=True,
+    # )
 
 
 # services
@@ -169,7 +172,7 @@ def global_db_service():
                     or CONFIGURATION["script"]["protocols"][protocol]["networks"]
                 )
                 for network in networks:
-                    price_sequence_loop(protocol=protocol, network=network)
+                    price_sequence_loop(network=network)
 
     except KeyboardInterrupt:
         logging.getLogger(__name__).debug(
@@ -233,6 +236,55 @@ def network_db_service(
     )
 
 
+def queue_db_service():
+    """Process all database scraping queues in an infinite loop"""
+    # send eveyone service ON
+    logging.getLogger("telegram").info(
+        " Database scraping queue processing loop started"
+    )
+    logging.getLogger(__name__).info(" Database scraping queue processing loop started")
+    try:
+        process_all_queues(maximum_tasks=10)
+
+    except KeyboardInterrupt:
+        logging.getLogger(__name__).debug(
+            " Database scraping queue loop stoped by user"
+        )
+    except Exception:
+        logging.getLogger(__name__).exception(
+            f" Unexpected error while loop-processing database scraping queue. error {sys.exc_info()[0]}"
+        )
+    # send eveyone not updating anymore
+    logging.getLogger("telegram").info(" Database scraping queue loop stoped")
+
+
+def operations_db_service():
+    """feed all database collections with operations in an infinite loop"""
+    # send eveyone service ON
+    logging.getLogger("telegram").info(" Operations database feeding loop started")
+    try:
+        while True:
+            for protocol in CONFIGURATION["script"]["protocols"]:
+                # override networks if specified in cml
+                networks = (
+                    CONFIGURATION["_custom_"]["cml_parameters"].networks
+                    or CONFIGURATION["script"]["protocols"][protocol]["networks"]
+                )
+                for network in networks:
+                    feed_operations(protocol=protocol, network=network)
+
+    except KeyboardInterrupt:
+        logging.getLogger(__name__).debug(
+            " Operations database feeding loop stoped by user"
+        )
+    except Exception:
+        logging.getLogger(__name__).exception(
+            f" Unexpected error while loop-feeding database with operations. error {sys.exc_info()[0]}"
+        )
+    # send eveyone not updating anymore
+    logging.getLogger("telegram").info(" Operations database feeding loop stoped")
+
+
 def main(option: str, **kwargs):
     if option == "local":
         local_db_service()
@@ -247,6 +299,10 @@ def main(option: str, **kwargs):
             or False,
             do_repairs=CONFIGURATION["_custom_"]["cml_parameters"].do_repairs or False,
         )
+    elif option == "queue":
+        queue_db_service()
+    elif option == "operations":
+        operations_db_service()
     else:
         raise NotImplementedError(
             f" Can't find any action to be taken from {option} service option"

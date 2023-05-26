@@ -55,7 +55,7 @@ def parse_commandLine_args():
             "static",
             "prices",
             "user_status",
-            "impermanent_v1",
+            "queue",
         ],
         help="feed database",
     )
@@ -63,7 +63,7 @@ def parse_commandLine_args():
     # auto database feed service
     par_service = exGroup.add_argument(
         "--service",
-        choices=["local", "global"],
+        choices=["local", "global", "queue", "operations"],
         help=" execute an infinite loop service",
     )
     par_network_service = exGroup.add_argument(
@@ -167,6 +167,12 @@ def parse_commandLine_args():
         "--rewrite",
         action="store_true",
         help=" rewrite information in database",
+    )
+    # queue type
+    par_main.add_argument(
+        "--queue_type",
+        choices=["hypervisor_status", "price", "block", "reward_status"],
+        help=" Type of queue to process ",
     )
 
     # print helpwhen no command is passed
