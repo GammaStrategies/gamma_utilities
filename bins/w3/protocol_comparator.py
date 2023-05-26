@@ -246,10 +246,8 @@ def template(oftype: str) -> dict:
 
 
 class comparator_v1:
-
     # SETUP
     def __init__(self, protocol: str):
-
         # set init vars
         self.protocol = protocol
 
@@ -413,10 +411,10 @@ class comparator_v1:
         if not address_token1:
             address_token1 = web3_helper.token1.address
 
-        result["price_usd_token0"] = self.price_helper.get_price(
+        result["price_usd_token0"], source = self.price_helper.get_price(
             network=network, token_id=address_token0, block=block, of="USD"
         )
-        result["price_usd_token1"] = self.price_helper.get_price(
+        result["price_usd_token1"], source = self.price_helper.get_price(
             network=network, token_id=address_token1, block=block, of="USD"
         )
 
@@ -489,7 +487,6 @@ class comparator_v1:
     def create_status_autoblocks(
         self, address: str, network: str, progress_callback=None
     ) -> dict:
-
         # ease the var access name
         filters = CONFIGURATION["script"]["protocols"][self.protocol]["filters"]
         # defaults
@@ -583,7 +580,6 @@ class comparator_v1:
         )
 
     def populate_all_status(self, hypervisor: dict, progress_callback=None):
-
         # main check
         if not "status" in hypervisor:
             hypervisor["status"] = dict()
@@ -592,7 +588,6 @@ class comparator_v1:
             hypervisor["status"] = {int(k): v for k, v in hypervisor["status"].items()}
         # ["status"][<BLOCK>][<status data>]
         for block in hypervisor["status"].keys():
-
             if isinstance(block, str):
                 raise ValueError(
                     " Status dictionary has string keys that should be int. Check if they were loaded from a json file without conversion"
@@ -637,7 +632,6 @@ class comparator_v1:
                 for x in hypervisor["deposits"]:
                     # check if inside boundaries
                     if x["block"] <= block:
-
                         hypervisor["status"][block]["deposits"][
                             "aggregated_qtty_token0"
                         ] += x["qtty_token0"]
@@ -1015,7 +1009,6 @@ class comparator_v1:
         network = hypervisor["static"]["network"]
         rem_progress = tot_progress = len(hypervisor["status"].keys())
         for block, status in hypervisor["status"].items():
-
             # progress
             progress_callback(
                 text=" creating {} {}'s {} hypervisor chart at block {}".format(
@@ -1114,7 +1107,6 @@ class comparator_v1:
 
                 # check if not first time loop
                 if len(control_vars["last_status"].keys()) > 0:
-
                     # aggregated fees
                     # sometimes, uncollected fees do not prevail in aggregated fees bc are affected by a withdraw ( to check why, but happens)
                     # add aggregated fees uncollected fees
@@ -1390,7 +1382,6 @@ class comparator_v1:
     def convert_dtaCollector_item(
         self, address: str, data_item, network, progress_callback=None
     ):
-
         max_workers = 5
 
         result = dict()
@@ -1519,13 +1510,19 @@ class comparator_v1:
                             )
 
                         # get price
-                        result_item["price_usd_token0"] = self.price_helper.get_price(
+                        (
+                            result_item["price_usd_token0"],
+                            source,
+                        ) = self.price_helper.get_price(
                             network=network,
                             token_id=address_token0,
                             block=result_item["block"],
                             of="USD",
                         )
-                        result_item["price_usd_token1"] = self.price_helper.get_price(
+                        (
+                            result_item["price_usd_token1"],
+                            source,
+                        ) = self.price_helper.get_price(
                             network=network,
                             token_id=address_token1,
                             block=result_item["block"],
@@ -1679,7 +1676,6 @@ class comparator_v1:
     def get_blocklist_fromDates(
         self, date_ini: dt.datetime, date_end: dt.datetime, network: str
     ) -> list:
-
         # create a dummy helper ( use only web3wrap functions)
         dummy_helper = self.create_web3_helper(
             address="0x0000000000000000000000000000000000000000",
@@ -1726,7 +1722,6 @@ class comparator_v1:
     def get_custom_blockBounds(
         self, date_ini: dt.datetime, date_end: dt.datetime, network: str, step="week"
     ) -> tuple:
-
         if step == "week":
             # convert date_ini in that same week first day first hour
             year, week_num, day_of_week = date_ini.isocalendar()
