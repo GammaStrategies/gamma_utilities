@@ -88,6 +88,15 @@ handlers:
         backupCount: 0
         encoding: utf8
 
+    benchmark_file_handler:
+        class: logging.handlers.RotatingFileHandler
+        level: DEBUG
+        formatter: simple
+        filters: [duplicateFilter]
+        filename: benchmark.log
+        maxBytes: 10485760 # 10MB
+        backupCount: 0
+        encoding: utf8
 
 loggers:
     __main__:
@@ -109,6 +118,10 @@ loggers:
     price:
         level: INFO
         handlers: [price_file_handler]
+        propagate: False
+    benchmark:
+        level: INFO
+        handlers: [benchmark_file_handler]
         propagate: False
 
 root:

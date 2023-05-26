@@ -252,7 +252,7 @@ def pull_from_queue_hypervisor_status(network: str, queue_item: scraping_queue) 
 
                 # log total process
                 curr_time = time.time()
-                logging.getLogger(__name__).debug(
+                logging.getLogger("benchmark").debug(
                     f" {network} queue item {queue_item.type}:  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
                 )
 
@@ -300,7 +300,7 @@ def pull_from_queue_rewards_status(network: str, queue_item: scraping_queue) -> 
 
             # log total process
             curr_time = time.time()
-            logging.getLogger(__name__).debug(
+            logging.getLogger("benchmark").debug(
                 f" {network} queue item {queue_item.type}:  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
             )
 
@@ -349,7 +349,7 @@ def pull_from_queue_price(network: str, queue_item: scraping_queue) -> bool:
 
             # log total process
             curr_time = time.time()
-            logging.getLogger(__name__).debug(
+            logging.getLogger("benchmark").debug(
                 f" {network} queue item {queue_item.type}:  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
             )
 
@@ -392,7 +392,7 @@ def pull_from_queue_block(network: str, queue_item: scraping_queue) -> bool:
 
             # log total process
             curr_time = time.time()
-            logging.getLogger(__name__).debug(
+            logging.getLogger("benchmark").debug(
                 f" {network} queue item {queue_item.type}:  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
             )
 
