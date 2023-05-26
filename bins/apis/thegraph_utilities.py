@@ -8,9 +8,27 @@ from bins.general import net_utilities
 from bins.cache import cache_utilities
 
 
-RATE_LIMIT_THEGRAPH = net_utilities.rate_limit(
-    rate_max_sec=4
-)  # thegraph global rate limiter
+from ratelimit import RateLimitException, limits, sleep_and_retry
+
+
+@sleep_and_retry
+@limits(calls=1, period=1)
+def place_rate_limited_query(
+    url: str,
+    query: dict,
+    retry: int = 0,
+    max_retry: int = 2,
+    wait_secs: int = 5,
+    timeout_secs: int = 3,
+):
+    return net_utilities.post_request(
+        url=url,
+        query=query,
+        retry=retry,
+        max_retry=max_retry,
+        wait_secs=wait_secs,
+        timeout_secs=timeout_secs,
+    )
 
 
 ## GLOBAL ##
@@ -76,13 +94,10 @@ class thegraph_scraper_helper:
             # loop till no more results are retrieved
             while True:
                 try:
-                    # wait till sufficient time has been passed between queries
-                    RATE_LIMIT_THEGRAPH.continue_when_safe()
-
                     _query, path_to_data = self._query_constructor(
                         skip=_skip, name=query_name, filter=_filter
                     )
-                    _data = net_utilities.post_request(
+                    _data = place_rate_limited_query(
                         url=_url,
                         query=_query,
                         retry=0,

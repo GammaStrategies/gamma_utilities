@@ -3,7 +3,7 @@ import time
 
 from bins.general import net_utilities
 
-from ratelimit import limits, sleep_and_retry
+from ratelimit import RateLimitException, limits, sleep_and_retry
 
 
 CACHED_POOLS_TOKEN_DATA = {}
@@ -44,69 +44,90 @@ class geckoterminal_price_helper:
     def get_price_historic(
         self, network: str, token_address: str, before_timestamp: int
     ) -> float | None:
-        # find a pool in gecko terminal that has the same token address
-        if pools_data := self.get_pools_token_data(
-            network=network, token_address=token_address
-        ):
-            for pool_data in pools_data["data"]:
-                try:
-                    pool_address = pool_data["id"].split("_")[1]
-                    # check if token address is base or quote
-                    if base_or_quote := self.get_base_or_quote(
-                        token_address=token_address, pool_data=pool_data
-                    ):
-                        # get pool ohlv data
-                        if ohlcsv_data := self.get_ohlcvs(
-                            network=network,
-                            pool_address=pool_address,
-                            timeframe="minute",
-                            aggregate=1,
-                            before_timestamp=before_timestamp,
-                            limit=1,
-                            token=base_or_quote.replace("_token", ""),
+        try:
+            # find a pool in gecko terminal that has the same token address
+            if pools_data := self.get_pools_token_data(
+                network=network, token_address=token_address, use_cache=True
+            ):
+                for pool_data in pools_data["data"]:
+                    try:
+                        pool_address = pool_data["id"].split("_")[1]
+                        # check if token address is base or quote
+                        if base_or_quote := self.get_base_or_quote(
+                            token_address=token_address, pool_data=pool_data
                         ):
-                            if len(
-                                ohlcsv_data.get("data", {})
-                                .get("attributes", {})
-                                .get("ohlcv_list", None)
+                            # get pool ohlv data
+                            if ohlcsv_data := self.get_ohlcvs(
+                                network=network,
+                                pool_address=pool_address,
+                                timeframe="minute",
+                                aggregate=1,
+                                before_timestamp=before_timestamp,
+                                limit=1,
+                                token=base_or_quote.replace("_token", ""),
                             ):
-                                (
-                                    _timestamp,
-                                    _open,
-                                    _high,
-                                    _low,
-                                    _close,
-                                    _volume,
-                                ) = ohlcsv_data["data"]["attributes"]["ohlcv_list"][0]
-                                return _close
-                            else:
-                                logging.getLogger(__name__).debug(
-                                    f" no ohlcv data was returned by geckoterminal -> {ohlcsv_data} for pool {pool_data['id']}"
-                                )
-                                return None
+                                if len(
+                                    ohlcsv_data.get("data", {})
+                                    .get("attributes", {})
+                                    .get("ohlcv_list", None)
+                                ):
+                                    (
+                                        _timestamp,
+                                        _open,
+                                        _high,
+                                        _low,
+                                        _close,
+                                        _volume,
+                                    ) = ohlcsv_data["data"]["attributes"]["ohlcv_list"][
+                                        0
+                                    ]
+                                    return _close
+                                else:
+                                    logging.getLogger(__name__).debug(
+                                        f" no ohlcv data was returned by geckoterminal -> {ohlcsv_data} for pool {pool_data['id']}"
+                                    )
+                                    return None
 
-                except Exception as e:
-                    logging.getLogger(__name__).exception(
-                        f"Error while getting pool address from {pool_data['id']}: {e}"
-                    )
+                    except Exception as e:
+                        logging.getLogger(__name__).exception(
+                            f"Error while getting pool address from {pool_data['id']}: {e}"
+                        )
+        except RateLimitException as e:
+            logging.getLogger(__name__).debug(
+                f"Rate limit fired while getting price historic for {token_address}: {e}"
+            )
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f"Error while getting price historic for {token_address}: {e}"
+            )
         return None
 
-    def get_price_now(self, network: str, token_address: str) -> float:
-        # find price searching for pools
-        if price := self.get_price_from_pools(
-            network=network, token_address=token_address
-        ):
+    def get_price_now(self, network: str, token_address: str) -> float | None:
+        try:
+            # find price searching for pools
+            if price := self.get_price_from_pools(
+                network=network, token_address=token_address
+            ):
+                logging.getLogger(__name__).debug(
+                    f"Price found for {token_address} in pools: {price}"
+                )
+                return price
+        except RateLimitException as e:
             logging.getLogger(__name__).debug(
-                f"Price found for {token_address} in pools: {price}"
+                f"Rate limit fired while getting price now for {token_address}: {e}"
             )
-            return price
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f"Error while getting price now for {token_address}: {e}"
+            )
+        return None
 
     # find data
 
     def get_price_from_pools(self, network: str, token_address: str) -> float | None:
         # find price searching for pools
         if pools_token_data := self.get_pools_token_data(
-            network=network, token_address=token_address
+            network=network, token_address=token_address, use_cache=False
         ):
             # search for the token in the pools:  identify token as base or quote and retrieve its price usd from attributes
             try:
@@ -131,7 +152,7 @@ class geckoterminal_price_helper:
         result = []
         # find price searching for pools
         if pools_token_data := self.get_pools_token_data(
-            network=network, token_address=token0_address
+            network=network, token_address=token0_address, use_cache=False
         ):
             # search for the token in the pools:  identify token as base or quote and retrieve its price usd from attributes
             try:
@@ -159,7 +180,9 @@ class geckoterminal_price_helper:
 
     # get data from geckoterminal's endpoints
 
-    def get_pools_token_data(self, network: str, token_address: str) -> dict:
+    def get_pools_token_data(
+        self, network: str, token_address: str, use_cache: bool = False
+    ) -> dict:
         """get the top 20 pools data for a token
 
         Args:
@@ -193,7 +216,9 @@ class geckoterminal_price_helper:
         """
 
         # TODO: control the size of cache
-        if not CACHED_POOLS_TOKEN_DATA.get(network, {}).get(token_address, None):
+        if not use_cache or CACHED_POOLS_TOKEN_DATA.get(network, {}).get(
+            token_address, True
+        ):
             url = f"{self.build_networks_url(network)}/tokens/{token_address}/pools"
             data = request_data(url=url, timeout=self.request_timeout)
             # create network
@@ -296,8 +321,8 @@ class geckoterminal_price_helper:
             return None
 
 
-@sleep_and_retry
-@limits(calls=15, period=60)
+# @sleep_and_retry
+@limits(calls=1, period=3, raise_on_limit=False)
 def request_data(url, timeout):
     if data := net_utilities.get_request(url=url, timeout_secs=timeout):
         if "data" in data:
