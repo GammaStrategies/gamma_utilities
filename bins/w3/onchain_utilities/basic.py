@@ -509,7 +509,7 @@ class web3wrap:
             except Exception as e:
                 # not working rpc
                 logging.getLogger(__name__).debug(
-                    f"    can't call function {function_name} using {rpcUrl} rpc: {e}"
+                    f"  Error calling function {function_name} using {rpcUrl} rpc: {e}"
                 )
 
         # no rpcUrl worked

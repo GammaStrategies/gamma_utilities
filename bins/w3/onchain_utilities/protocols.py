@@ -640,9 +640,10 @@ class gamma_hypervisor_thena(gamma_hypervisor_algebra):
     def pool(self) -> algebrav3_pool:
         if self._pool is None:
             self._pool = algebrav3_pool(
-                address=self._contract.functions.pool().call(
-                    block_identifier=self.block
-                ),
+                address=self.call_function_autoRpc("pool"),
+                # address=self._contract.functions.pool().call(
+                #     block_identifier=self.block
+                # ),
                 network=self._network,
                 block=self.block,
                 abi_filename="albebrav3pool_thena",
@@ -680,9 +681,10 @@ class gamma_hypervisor_camelot(gamma_hypervisor_algebra):
     def pool(self) -> algebrav3_pool:
         if self._pool is None:
             self._pool = algebrav3_pool(
-                address=self._contract.functions.pool().call(
-                    block_identifier=self.block
-                ),
+                address=self.call_function_autoRpc("pool"),
+                # address=self._contract.functions.pool().call(
+                #     block_identifier=self.block
+                # ),
                 network=self._network,
                 block=self.block,
                 abi_filename="albebrav3pool_camelot",
@@ -1039,9 +1041,10 @@ class gamma_hypervisor_cached(gamma_hypervisor):
     def pool(self) -> str:
         if self._pool is None:
             self._pool = univ3_pool_cached(
-                address=self._contract.functions.pool().call(
-                    block_identifier=self.block
-                ),
+                address=self.call_function_autoRpc("pool"),
+                # address=self._contract.functions.pool().call(
+                #     block_identifier=self.block
+                # ),
                 network=self._network,
                 block=self.block,
             )
@@ -1072,9 +1075,10 @@ class gamma_hypervisor_cached(gamma_hypervisor):
     def token0(self) -> erc20:
         if self._token0 is None:
             self._token0 = erc20_cached(
-                address=self._contract.functions.token0().call(
-                    block_identifier=self.block
-                ),
+                address=self.call_function_autoRpc("token0"),
+                # address=self._contract.functions.token0().call(
+                #     block_identifier=self.block
+                # ),
                 network=self._network,
                 block=self.block,
             )
@@ -1084,9 +1088,10 @@ class gamma_hypervisor_cached(gamma_hypervisor):
     def token1(self) -> erc20:
         if self._token1 is None:
             self._token1 = erc20_cached(
-                address=self._contract.functions.token1().call(
-                    block_identifier=self.block
-                ),
+                address=self.call_function_autoRpc("token1"),
+                # address=self._contract.functions.token1().call(
+                #     block_identifier=self.block
+                # ),
                 network=self._network,
                 block=self.block,
             )
@@ -1460,9 +1465,10 @@ class gamma_hypervisor_algebra_cached(gamma_hypervisor_algebra):
     def pool(self) -> str:
         if self._pool is None:
             self._pool = algebrav3_pool_cached(
-                address=self._contract.functions.pool().call(
-                    block_identifier=self.block
-                ),
+                address=self.call_function_autoRpc("pool"),
+                # address=self._contract.functions.pool().call(
+                #     block_identifier=self.block
+                # ),
                 network=self._network,
                 block=self.block,
             )
@@ -1493,9 +1499,10 @@ class gamma_hypervisor_algebra_cached(gamma_hypervisor_algebra):
     def token0(self) -> erc20:
         if self._token0 is None:
             self._token0 = erc20_cached(
-                address=self._contract.functions.token0().call(
-                    block_identifier=self.block
-                ),
+                address=self.call_function_autoRpc("token0"),
+                # address=self._contract.functions.token0().call(
+                #     block_identifier=self.block
+                # ),
                 network=self._network,
                 block=self.block,
             )
@@ -1505,9 +1512,10 @@ class gamma_hypervisor_algebra_cached(gamma_hypervisor_algebra):
     def token1(self) -> erc20:
         if self._token1 is None:
             self._token1 = erc20_cached(
-                address=self._contract.functions.token1().call(
-                    block_identifier=self.block
-                ),
+                address=self.call_function_autoRpc("token1"),
+                # address=self._contract.functions.token1().call(
+                #     block_identifier=self.block
+                # ),
                 network=self._network,
                 block=self.block,
             )
@@ -1550,9 +1558,10 @@ class gamma_hypervisor_thena_cached(gamma_hypervisor_algebra_cached):
     def pool(self) -> str:
         if self._pool is None:
             self._pool = algebrav3_pool_cached(
-                address=self._contract.functions.pool().call(
-                    block_identifier=self.block
-                ),
+                address=self.call_function_autoRpc("pool"),
+                # address=self._contract.functions.pool().call(
+                #     block_identifier=self.block
+                # ),
                 network=self._network,
                 block=self.block,
                 abi_filename="albebrav3pool_thena",

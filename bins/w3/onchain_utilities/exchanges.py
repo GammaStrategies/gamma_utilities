@@ -109,14 +109,16 @@ class univ3_pool(web3wrap):
         position_key = (
             HexBytes(position_key) if type(position_key) == str else position_key
         )
-        result = self.call_function_autoRpc("positions", None, position_key)
-        return {
-            "liquidity": result[0],
-            "feeGrowthInside0LastX128": result[1],
-            "feeGrowthInside1LastX128": result[2],
-            "tokensOwed0": result[3],
-            "tokensOwed1": result[4],
-        }
+        if result := self.call_function_autoRpc("positions", None, position_key):
+            return {
+                "liquidity": result[0],
+                "feeGrowthInside0LastX128": result[1],
+                "feeGrowthInside1LastX128": result[2],
+                "tokensOwed0": result[3],
+                "tokensOwed1": result[4],
+            }
+        else:
+            raise ValueError(f" positions function call returned None")
 
     @property
     def protocolFees(self) -> list[int]:
@@ -140,16 +142,18 @@ class univ3_pool(web3wrap):
                    feeProtocol   uint8 :  0
                    unlocked   bool :  true
         """
-        tmp = self.call_function_autoRpc("slot0")
-        return {
-            "sqrtPriceX96": tmp[0],
-            "tick": tmp[1],
-            "observationIndex": tmp[2],
-            "observationCardinality": tmp[3],
-            "observationCardinalityNext": tmp[4],
-            "feeProtocol": tmp[5],
-            "unlocked": tmp[6],
-        }
+        if tmp := self.call_function_autoRpc("slot0"):
+            return {
+                "sqrtPriceX96": tmp[0],
+                "tick": tmp[1],
+                "observationIndex": tmp[2],
+                "observationCardinality": tmp[3],
+                "observationCardinalityNext": tmp[4],
+                "feeProtocol": tmp[5],
+                "unlocked": tmp[6],
+            }
+        else:
+            raise ValueError(f" slot0 function call returned None")
 
     def snapshotCumulativeInside(self, tickLower: int, tickUpper: int):
         return self.call_function_autoRpc(
@@ -179,17 +183,19 @@ class univ3_pool(web3wrap):
                        secondsOutside   uint32 :  0
                        initialized   bool :  false
         """
-        result = self.call_function_autoRpc("ticks", None, tick)
-        return {
-            "liquidityGross": result[0],
-            "liquidityNet": result[1],
-            "feeGrowthOutside0X128": result[2],
-            "feeGrowthOutside1X128": result[3],
-            "tickCumulativeOutside": result[4],
-            "secondsPerLiquidityOutsideX128": result[5],
-            "secondsOutside": result[6],
-            "initialized": result[7],
-        }
+        if result := self.call_function_autoRpc("ticks", None, tick):
+            return {
+                "liquidityGross": result[0],
+                "liquidityNet": result[1],
+                "feeGrowthOutside0X128": result[2],
+                "feeGrowthOutside1X128": result[3],
+                "tickCumulativeOutside": result[4],
+                "secondsPerLiquidityOutsideX128": result[5],
+                "secondsOutside": result[6],
+                "initialized": result[7],
+            }
+        else:
+            raise ValueError(f" ticks function call returned None")
 
     @property
     def token0(self) -> erc20:
@@ -729,9 +735,10 @@ class univ3_pool_cached(univ3_pool):
         """
         if self._token0 is None:
             self._token0 = erc20_cached(
-                address=self._contract.functions.token0().call(
-                    block_identifier=self.block
-                ),
+                address=self.call_function_autoRpc("token0"),
+                # address=self._contract.functions.token0().call(
+                #     block_identifier=self.block
+                # ),
                 network=self._network,
                 block=self.block,
             )
@@ -746,9 +753,10 @@ class univ3_pool_cached(univ3_pool):
         """
         if self._token1 is None:
             self._token1 = erc20_cached(
-                address=self._contract.functions.token1().call(
-                    block_identifier=self.block
-                ),
+                address=self.call_function_autoRpc("token1"),
+                # address=self._contract.functions.token1().call(
+                #     block_identifier=self.block
+                # ),
                 network=self._network,
                 block=self.block,
             )
@@ -949,16 +957,18 @@ class algebrav3_pool(web3wrap):
                    communityFeeToken1   uint8 :  0
                    unlocked   bool :  true
         """
-        tmp = self.call_function_autoRpc("globalState")
-        return {
-            "sqrtPriceX96": tmp[0],
-            "tick": tmp[1],
-            "fee": tmp[2],
-            "timepointIndex": tmp[3],
-            "communityFeeToken0": tmp[4],
-            "communityFeeToken1": tmp[5],
-            "unlocked": tmp[6],
-        }
+        if tmp := self.call_function_autoRpc("globalState"):
+            return {
+                "sqrtPriceX96": tmp[0],
+                "tick": tmp[1],
+                "fee": tmp[2],
+                "timepointIndex": tmp[3],
+                "communityFeeToken0": tmp[4],
+                "communityFeeToken1": tmp[5],
+                "unlocked": tmp[6],
+            }
+        else:
+            raise ValueError(f" globalState function call returned None")
 
     @property
     def liquidity(self) -> int:
@@ -1005,15 +1015,17 @@ class algebrav3_pool(web3wrap):
         position_key = (
             HexBytes(position_key) if type(position_key) == str else position_key
         )
-        result = self.call_function_autoRpc("positions", None, position_key)
-        return {
-            "liquidity": result[0],
-            "lastLiquidityAddTimestamp": result[1],
-            "feeGrowthInside0LastX128": result[2],
-            "feeGrowthInside1LastX128": result[3],
-            "tokensOwed0": result[4],
-            "tokensOwed1": result[5],
-        }
+        if result := self.call_function_autoRpc("positions", None, position_key):
+            return {
+                "liquidity": result[0],
+                "lastLiquidityAddTimestamp": result[1],
+                "feeGrowthInside0LastX128": result[2],
+                "feeGrowthInside1LastX128": result[3],
+                "tokensOwed0": result[4],
+                "tokensOwed1": result[5],
+            }
+        else:
+            raise ValueError(f" positions function call returned None using")
 
     @property
     def tickSpacing(self) -> int:
@@ -1043,17 +1055,19 @@ class algebrav3_pool(web3wrap):
                        secondsOutside   uint32 :  0         outerSecondsSpent
                        initialized   bool :  false          initialized
         """
-        result = self.call_function_autoRpc("ticks", None, tick)
-        return {
-            "liquidityGross": result[0],
-            "liquidityNet": result[1],
-            "feeGrowthOutside0X128": result[2],
-            "feeGrowthOutside1X128": result[3],
-            "tickCumulativeOutside": result[4],
-            "secondsPerLiquidityOutsideX128": result[5],
-            "secondsOutside": result[6],
-            "initialized": result[7],
-        }
+        if result := self.call_function_autoRpc("ticks", None, tick):
+            return {
+                "liquidityGross": result[0],
+                "liquidityNet": result[1],
+                "feeGrowthOutside0X128": result[2],
+                "feeGrowthOutside1X128": result[3],
+                "tickCumulativeOutside": result[4],
+                "secondsPerLiquidityOutsideX128": result[5],
+                "secondsOutside": result[6],
+                "initialized": result[7],
+            }
+        else:
+            raise ValueError(f" ticks function call returned None")
 
     def timepoints(self, index: int) -> dict:
         #   initialized bool, blockTimestamp uint32, tickCumulative int56, secondsPerLiquidityCumulative uint160, volatilityCumulative uint88, averageTick int24, volumePerLiquidityCumulative uint144
@@ -1410,9 +1424,10 @@ class algebrav3_pool_cached(algebrav3_pool):
         """ """
         if self._dataStorage is None:
             self._dataStorage = algebrav3_dataStorageOperator_cached(
-                address=self._contract.functions.dataStorageOperator().call(
-                    block_identifier=self.block
-                ),
+                address=self.call_function_autoRpc("dataStorageOperator"),
+                # address=self._contract.functions.dataStorageOperator().call(
+                #     block_identifier=self.block
+                # ),
                 network=self._network,
                 block=self.block,
             )
@@ -1553,9 +1568,10 @@ class algebrav3_pool_cached(algebrav3_pool):
         """
         if self._token0 is None:
             self._token0 = erc20_cached(
-                address=self._contract.functions.token0().call(
-                    block_identifier=self.block
-                ),
+                address=self.call_function_autoRpc("token0"),
+                # address=self._contract.functions.token0().call(
+                #     block_identifier=self.block
+                # ),
                 network=self._network,
                 block=self.block,
             )
@@ -1565,9 +1581,10 @@ class algebrav3_pool_cached(algebrav3_pool):
     def token1(self) -> erc20_cached:
         if self._token1 is None:
             self._token1 = erc20_cached(
-                address=self._contract.functions.token1().call(
-                    block_identifier=self.block
-                ),
+                address=self.call_function_autoRpc("token1"),
+                # address=self._contract.functions.token1().call(
+                #     block_identifier=self.block
+                # ),
                 network=self._network,
                 block=self.block,
             )
@@ -1662,16 +1679,18 @@ class algebraCamelot_pool(algebrav3_pool):
                     uint8 communityFee; // The community fee represented as a percent of all collected fee in thousandths (1e-3)
                     bool unlocked; // True if the contract is unlocked, otherwise - false
         """
-        tmp = self.call_function_autoRpc("globalState")
-        return {
-            "sqrtPriceX96": tmp[0],
-            "tick": tmp[1],
-            "fee": tmp[2],
-            "timepointIndex": tmp[4],
-            "communityFeeToken0": tmp[5],
-            "communityFeeToken1": tmp[5],
-            "unlocked": tmp[6],
-            # special
-            "feeZtO": tmp[2],
-            "feeOtZ": tmp[3],
-        }
+        if tmp := self.call_function_autoRpc("globalState"):
+            return {
+                "sqrtPriceX96": tmp[0],
+                "tick": tmp[1],
+                "fee": tmp[2],
+                "timepointIndex": tmp[4],
+                "communityFeeToken0": tmp[5],
+                "communityFeeToken1": tmp[5],
+                "unlocked": tmp[6],
+                # special
+                "feeZtO": tmp[2],
+                "feeOtZ": tmp[3],
+            }
+        else:
+            raise ValueError(f" globalState function call returned None")
