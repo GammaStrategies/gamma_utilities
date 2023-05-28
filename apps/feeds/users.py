@@ -41,7 +41,7 @@ def feed_user_status(network: str, protocol: str):
 
 
 ### user operations ###################
-def feed_user_operations(network: str, protocol: str):
+def feed_user_operations(network: str, protocol: str, rewrite: bool = False):
     # get hypervisor addresses from database
     hypervisor_addresses = get_hypervisor_addresses_from_database(
         network=network, protocol=protocol

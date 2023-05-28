@@ -1018,10 +1018,10 @@ class user_status_hypervisor_builder:
         return sorted(result, key=lambda x: (x["blockNumber"], x["logIndex"]))
 
     @log_execution_time
-    def _create_operations_to_process(self) -> list[dict]:
+    def _create_operations_to_process(self, rewrite: bool | None = None) -> list[dict]:
         # get hypes operations from the last block processed
 
-        if initial_block := self._get_initial_block_to_process():
+        if initial_block := self._get_initial_block_to_process(rewrite=rewrite):
             if result := self.get_hypervisor_operations(initial_block=initial_block):
                 logging.getLogger(__name__).info(
                     f" Found {len(result)} operations to process for {self.network}'s {self.address} starting from block {initial_block or '-'}"
@@ -1033,29 +1033,32 @@ class user_status_hypervisor_builder:
         )
         return []
 
-    def _get_initial_block_to_process(self) -> int | None:
+    def _get_initial_block_to_process(self, rewrite: bool | None = None) -> int | None:
         # at least all operation blocks shall be processed. One operation block missing will cause a gap in the user status
 
         try:
-            # get all blocks from user status ( what has already been done [ careful because last  =  block + logIndex ] )
-            user_status_blocks_processed = sorted(
-                self.local_db_manager.get_distinct_items_from_database(
-                    collection_name="user_status",
-                    field="block",
-                    condition={"hypervisor_address": self.address},
-                )
-            )
-            # substract 1 block to make sure db data has not been left between the same block and different logIndexes
-            if len(user_status_blocks_processed) > 1:
-                try:
-                    user_status_blocks_processed = user_status_blocks_processed[:-1]
-                except Exception:
-                    logging.getLogger(__name__).error(
-                        f" Unexpected error slicing block array while creating operations to process. array length: {len(user_status_blocks_processed)}"
-                    )
-            else:
-                # reset and do it all from zero
+            if rewrite:
                 user_status_blocks_processed = []
+            else:
+                # get all blocks from user status ( what has already been done [ careful because last  =  block + logIndex ] )
+                user_status_blocks_processed = sorted(
+                    self.local_db_manager.get_distinct_items_from_database(
+                        collection_name="user_status",
+                        field="block",
+                        condition={"hypervisor_address": self.address},
+                    )
+                )
+                # substract 1 block to make sure db data has not been left between the same block and different logIndexes
+                if len(user_status_blocks_processed) > 1:
+                    try:
+                        user_status_blocks_processed = user_status_blocks_processed[:-1]
+                    except Exception:
+                        logging.getLogger(__name__).error(
+                            f" Unexpected error slicing block array while creating operations to process. array length: {len(user_status_blocks_processed)}"
+                        )
+                else:
+                    # reset and do it all from zero
+                    user_status_blocks_processed = []
 
             # get all operation blocks not already processed and not empty ( fee and transfer related operations)
             if operation_blocks := sorted(
@@ -1091,11 +1094,11 @@ class user_status_hypervisor_builder:
 
         return None
 
-    def _process_operations(self):
+    def _process_operations(self, rewrite: bool = False):
         """process all operations"""
 
         # mix operations with status blocks ( status different than operation's)
-        operations_to_process = self._create_operations_to_process()
+        operations_to_process = self._create_operations_to_process(rewrite=rewrite)
 
         _errors = 0
         with tqdm.tqdm(total=len(operations_to_process), leave=False) as progress_bar:

@@ -699,7 +699,11 @@ def main(option="operations"):
 
             elif option == "user_status":
                 # feed database with user status
-                feed_user_operations(protocol=protocol, network=network)
+                feed_user_operations(
+                    protocol=protocol,
+                    network=network,
+                    rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
+                )
 
             elif option == "prices":
                 # feed database with prices from all status

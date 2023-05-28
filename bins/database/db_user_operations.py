@@ -210,12 +210,12 @@ class user_operations_hypervisor_builder:
 
     # action loop
 
-    def _process_operations(self):
+    def _process_operations(self, rewrite: bool | None = None):
         """process all operations"""
 
         # get operations
         operations = self.get_hypervisor_operations(
-            initial_block=self.get_starting_block()
+            initial_block=self.get_starting_block() if not rewrite else None
         )
 
         _errors = 0

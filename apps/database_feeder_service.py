@@ -67,7 +67,11 @@ def network_sequence_loop(
 
     if do_userStatus:
         # feed user_status data
-        feed_user_operations(protocol=protocol, network=network)
+        feed_user_operations(
+            protocol=protocol,
+            network=network,
+            rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
+        )
 
     if do_repairs:
         # try to repair all errors found in logs
