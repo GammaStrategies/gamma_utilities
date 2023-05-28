@@ -158,7 +158,7 @@ def build_db_hypervisor(
         return hypervisor.as_dict(convert_bint=True, static_mode=static_mode)
 
     except Exception as e:
-        logging.getLogger(__name__).exception(
+        logging.getLogger(__name__).error(
             f" Unexpected error while converting {network}'s hypervisor {address} [dex: {dex}] at block {block}] to dictionary ->    error:{e}"
         )
 

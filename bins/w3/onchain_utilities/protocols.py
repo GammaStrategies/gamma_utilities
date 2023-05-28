@@ -185,12 +185,14 @@ class gamma_hypervisor(erc20):
                amount1     565062023318300677907 uint256
                }
         """
-        tmp = self.call_function_autoRpc("getLimitPosition")
-        return {
-            "liquidity": tmp[0],
-            "amount0": tmp[1],
-            "amount1": tmp[2],
-        }
+        if tmp := self.call_function_autoRpc("getLimitPosition"):
+            return {
+                "liquidity": tmp[0],
+                "amount0": tmp[1],
+                "amount1": tmp[2],
+            }
+        else:
+            raise ValueError(f" getTotalAmounts function call returned None")
 
     @property
     def getTotalAmounts(self) -> dict:
@@ -200,11 +202,13 @@ class gamma_hypervisor(erc20):
            _type_: total0   2902086313 uint256
                    total1  565062023318300678136 uint256
         """
-        tmp = self.call_function_autoRpc("getTotalAmounts")
-        return {
-            "total0": tmp[0],
-            "total1": tmp[1],
-        }
+        if tmp := self.call_function_autoRpc("getTotalAmounts"):
+            return {
+                "total0": tmp[0],
+                "total1": tmp[1],
+            }
+        else:
+            raise ValueError(f" getTotalAmounts function call returned None")
 
     @property
     def limitLower(self) -> int:
