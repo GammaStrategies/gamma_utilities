@@ -41,7 +41,7 @@ def feed_user_status(network: str, protocol: str):
 
 
 ### user operations ###################
-def feed_user_operations(network: str, protocol: str, rewrite: bool = False):
+def feed_user_operations(network: str, protocol: str, rewrite: bool | None = None):
     # get hypervisor addresses from database
     hypervisor_addresses = get_hypervisor_addresses_from_database(
         network=network, protocol=protocol
@@ -61,7 +61,7 @@ def feed_user_operations(network: str, protocol: str, rewrite: bool = False):
         )
 
         try:
-            hype_new._process_operations()
+            hype_new._process_operations(rewrite=rewrite)
         except ValueError as e:
             logging.getLogger(__name__).error(
                 f" Unexpected error while feeding user status of {network}'s  {address} -> error {e}"
