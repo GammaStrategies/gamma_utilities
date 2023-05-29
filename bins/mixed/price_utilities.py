@@ -457,33 +457,39 @@ class usdc_price_scraper:
     def get_price(
         self, chain: Chain, token_address: str, block: int | None = None
     ) -> float | None:
-        if token_address in DEX_POOLS_PRICE_PATHS.get(chain, " "):
-            price = 1
-            # follow the path to get USDC price of token address
-            for dex_pool_config, i in DEX_POOLS_PRICE_PATHS[chain][token_address]:
-                # select the right protocol
-                dex_pool = self.build_protocol_pool(
-                    chain=chain,
-                    protocol=dex_pool_config["protocol"],
-                    pool_address=dex_pool_config["address"].lower(),
-                    block=block,
+        try:
+            if token_address in DEX_POOLS_PRICE_PATHS.get(chain, " "):
+                price = 1
+                # follow the path to get USDC price of token address
+                for dex_pool_config, i in DEX_POOLS_PRICE_PATHS[chain][token_address]:
+                    # select the right protocol
+                    dex_pool = self.build_protocol_pool(
+                        chain=chain,
+                        protocol=dex_pool_config["protocol"],
+                        pool_address=dex_pool_config["address"].lower(),
+                        block=block,
+                    )
+
+                    # get price
+                    token_in_base = sqrtPriceX96_to_price_float(
+                        sqrtPriceX96=dex_pool.sqrtPriceX96,
+                        token0_decimals=dex_pool.token0.decimals,
+                        token1_decimals=dex_pool.token1.decimals,
+                    )
+                    if i == 0:
+                        token_in_base = 1 / token_in_base
+
+                    price *= token_in_base
+
+                return price
+            else:
+                logging.getLogger(__name__).debug(
+                    f" token {token_address} not found in DEX_POOLS_PRICE_PATHS. Cant get onchain price"
                 )
-
-                # get price
-                token_in_base = sqrtPriceX96_to_price_float(
-                    sqrtPriceX96=dex_pool.sqrtPriceX96,
-                    token0_decimals=dex_pool.token0.decimals,
-                    token1_decimals=dex_pool.token1.decimals,
-                )
-                if i == 0:
-                    token_in_base = 1 / token_in_base
-
-                price *= token_in_base
-
-            return price
-        else:
-            logging.getLogger(__name__).debug(
-                f" token {token_address} not found in DEX_POOLS_PRICE_PATHS. Cant get onchain price"
+                return None
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f"Error while getting onchain price for token {token_address} on chain {chain}. Error: {e}"
             )
             return None
 
