@@ -250,7 +250,13 @@ class univ3_pool(web3wrap):
         self.token0.custom_rpcType = value
         self.token1.custom_rpcType = value
 
+    @property
+    def sqrtPriceX96(self) -> int:
+        """get the sqrtPriceX96 value"""
+        return self.slot0["sqrtPriceX96"]
+
     # CUSTOM FUNCTIONS
+
     def position(self, ownerAddress: str, tickLower: int, tickUpper: int) -> dict:
         """
 
@@ -1136,6 +1142,11 @@ class algebrav3_pool(web3wrap):
         self._custom_rpcType = value
         self.token0.custom_rpcType = value
         self.token1.custom_rpcType = value
+
+    @property
+    def sqrtPriceX96(self) -> int:
+        """get the sqrtPriceX96 value"""
+        return self.globalState["sqrtPriceX96"]
 
     # CUSTOM FUNCTIONS
     def position(self, ownerAddress: str, tickLower: int, tickUpper: int) -> dict:

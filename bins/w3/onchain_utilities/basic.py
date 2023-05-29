@@ -51,7 +51,7 @@ class web3wrap:
         self.setup_cache()
 
         # set block
-        if block == 0:
+        if not block:
             _block_data = self._getBlockData("latest")
             self._block = _block_data.number
             self._timestamp = _block_data.timestamp

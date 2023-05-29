@@ -1,7 +1,4 @@
-import contextlib
 import logging
-import sys
-import math
 
 from decimal import Decimal
 from web3 import Web3
@@ -645,9 +642,6 @@ class gamma_hypervisor_thena(gamma_hypervisor_algebra):
         if self._pool is None:
             self._pool = algebrav3_pool(
                 address=self.call_function_autoRpc("pool"),
-                # address=self._contract.functions.pool().call(
-                #     block_identifier=self.block
-                # ),
                 network=self._network,
                 block=self.block,
                 abi_filename="albebrav3pool_thena",
@@ -686,9 +680,6 @@ class gamma_hypervisor_camelot(gamma_hypervisor_algebra):
         if self._pool is None:
             self._pool = algebrav3_pool(
                 address=self.call_function_autoRpc("pool"),
-                # address=self._contract.functions.pool().call(
-                #     block_identifier=self.block
-                # ),
                 network=self._network,
                 block=self.block,
                 abi_filename="albebrav3pool_camelot",
