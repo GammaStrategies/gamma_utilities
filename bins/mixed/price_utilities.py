@@ -11,8 +11,9 @@ from bins.apis.geckoterminal_helper import geckoterminal_price_helper
 
 from bins.configuration import CONFIGURATION, DEX_POOLS_PRICE_PATHS
 from bins.database.common.db_collections_common import database_global
+from bins.formulas.dex_formulas import sqrtPriceX96_to_price_float
 from bins.general.enums import Chain, Protocol
-from bins.w3.onchain_utilities.exchanges import univ3_pool
+from bins.w3.onchain_utilities.exchanges import algebrav3_pool, univ3_pool
 
 LOG_NAME = "price"
 
@@ -113,6 +114,21 @@ class price_scraper:
                 logging.getLogger(LOG_NAME).debug(
                     f" Could not get {network}'s token {token_id} price at block {block} from geckoterminal. error-> {e}"
                 )
+
+        if _price in [None, 0]:
+            # GET FROM ONCHAIN USDC = 1 USD
+
+            # convert network string in chain enum
+            chain = None
+            for chain_obj in Chain:
+                if chain_obj.database_name == network:
+                    chain = chain_obj
+            # get price from onchain
+            onchain_price_helper = usdc_price_scraper()
+            _price = onchain_price_helper.get_price(
+                chain=chain, token_address=token_id, block=block
+            )
+            _source = "onchain"
 
         if _price in [None, 0]:
             # get a list of thegraph_connectors
@@ -438,15 +454,56 @@ class usdc_price_scraper:
     def __init__(self):
         pass
 
-    def get_price(chain: Chain, token_address: str, block: int) -> float:
+    def get_price(
+        self, chain: Chain, token_address: str, block: int | None = None
+    ) -> float | None:
         if token_address in DEX_POOLS_PRICE_PATHS.get(chain, " "):
-            # follow the path to get USDC price
-            for dex_pool, i in DEX_POOLS_PRICE_PATHS[chain][token_address]:
+            price = 1
+            # follow the path to get USDC price of token address
+            for dex_pool_config, i in DEX_POOLS_PRICE_PATHS[chain][token_address]:
                 # select the right protocol
-                if dex_pool["protocol"] == Protocol.UNISWAPV3:
-                    # construct helper
-                    dex_pool = univ3_pool(
-                        address=dex_pool["address"], network=chain.value
-                    )
+                dex_pool = self.build_protocol_pool(
+                    chain=chain,
+                    protocol=dex_pool_config["protocol"],
+                    pool_address=dex_pool_config["address"].lower(),
+                    block=block,
+                )
 
-                dex_pool["address"].lower()
+                # get price
+                token_in_base = sqrtPriceX96_to_price_float(
+                    sqrtPriceX96=dex_pool.sqrtPriceX96,
+                    token0_decimals=dex_pool.token0.decimals,
+                    token1_decimals=dex_pool.token1.decimals,
+                )
+                if i == 0:
+                    token_in_base = 1 / token_in_base
+
+                price *= token_in_base
+
+            return price
+        else:
+            logging.getLogger(__name__).debug(
+                f" token {token_address} not found in DEX_POOLS_PRICE_PATHS. Cant get onchain price"
+            )
+            return None
+
+    def build_protocol_pool(
+        self,
+        chain: Chain,
+        protocol: Protocol,
+        pool_address: str,
+        block: int | None = None,
+    ):
+        # select the right protocol
+        if protocol == Protocol.UNISWAPv3:
+            # construct helper
+            return univ3_pool(
+                address=pool_address, network=chain.database_name, block=block
+            )
+        elif protocol == Protocol.ALGEBRAv3:
+            # construct helper
+            return algebrav3_pool(
+                address=pool_address, network=chain.database_name, block=block
+            )
+        else:
+            raise NotImplementedError(f"Protocol {protocol} not implemented")
