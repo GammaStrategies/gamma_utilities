@@ -530,27 +530,42 @@ class user_operations_hypervisor_builder:
             block=operation["blockNumber"], logIndex=operation["logIndex"]
         )
 
-        fees_collected_token0 = Decimal(operation["qtty_token0"]) / (
+        # total fees collected ( gross fees )
+        total_fees_collected_token0 = Decimal(operation["qtty_token0"]) / (
             Decimal(10) ** Decimal(operation["decimals_token0"])
         )
-        fees_collected_token1 = Decimal(operation["qtty_token1"]) / (
+        total_fees_collected_token1 = Decimal(operation["qtty_token1"]) / (
             Decimal(10) ** Decimal(operation["decimals_token1"])
+        )
+        # Gamma as protocol fees takes the hypervisor fee from each collection and the rest is distributed to the LPs
+        protocol_revenue_fee = Decimal(
+            1 / self._static["fee"] if self._static["fee"] < 100 else 1 / 10
+        )
+        gamma_fees_collected_token0 = total_fees_collected_token0 * protocol_revenue_fee
+        gamma_fees_collected_token1 = total_fees_collected_token1 * protocol_revenue_fee
+
+        # User fees are the rest of the fees collected
+        user_fees_collected_token0 = (
+            total_fees_collected_token0 - gamma_fees_collected_token0
+        )
+        user_fees_collected_token1 = (
+            total_fees_collected_token1 - gamma_fees_collected_token1
         )
 
         # check if any fees have actually been collected to proceed ...
         if total_shares == Decimal("0"):
             # there is no deposits yet... hypervisor is in testing or seting up mode
-            if fees_collected_token0 == fees_collected_token1 == Decimal("0"):
+            if user_fees_collected_token0 == user_fees_collected_token1 == Decimal("0"):
                 logging.getLogger(__name__).debug(
                     f" Not processing 0x..{self.address[-4:]} fee collection as it has no deposits yet and collected fees are zero"
                 )
             else:
                 logging.getLogger(__name__).warning(
-                    f" Not processing 0x..{self.address[-4:]} fee collection as it has no deposits yet but fees collected fees are NON zero --> token0: {fees_collected_token0}  token1: {fees_collected_token1}"
+                    f" Not processing 0x..{self.address[-4:]} fee collection as it has no deposits yet but fees collected fees are NON zero --> token0: {user_fees_collected_token0}  token1: {user_fees_collected_token1}"
                 )
             # exit
             return
-        if fees_collected_token0 == fees_collected_token1 == Decimal("0"):
+        if user_fees_collected_token0 == user_fees_collected_token1 == Decimal("0"):
             # there is no collection made ... but hypervisor changed tick boundaries
             logging.getLogger(__name__).debug(
                 f" Not processing 0x..{self.address[-4:]} fee collection as it has not collected any fees."
@@ -580,16 +595,19 @@ class user_operations_hypervisor_builder:
             + total_underlying_token1 * price_usd_t1
         ) / total_shares
 
+        # create a gamma as user operation adding up fees collected
+        gamma_db_operation = self.create_gamma_protocol_fees_db_operation(
+            operation=operation,
+            price_usd_token0=price_usd_t0,
+            price_usd_token1=price_usd_t1,
+            price_usd_share=price_usd_share,
+            fees_collected_token0=gamma_fees_collected_token0,
+            fees_collected_token1=gamma_fees_collected_token1,
+        )
+
         # get all users in current block
         users_addresses = self.get_hypervisor_users(
             block=operation["blockNumber"], logIndex=operation["logIndex"]
-        )
-
-        fees_collected_token0 = Decimal(operation["qtty_token0"]) / (
-            10 ** Decimal(operation["decimals_token0"])
-        )
-        fees_collected_token1 = Decimal(operation["qtty_token1"]) / (
-            10 ** Decimal(operation["decimals_token1"])
         )
 
         # control var to keep track of total percentage applied
@@ -618,8 +636,12 @@ class user_operations_hypervisor_builder:
                 new_user_operation.price_usd_share = price_usd_share
                 percentage = user_shares / total_shares
 
-                new_user_operation.fees_token0_in = percentage * fees_collected_token0
-                new_user_operation.fees_token1_in = percentage * fees_collected_token1
+                new_user_operation.fees_token0_in = (
+                    percentage * user_fees_collected_token0
+                )
+                new_user_operation.fees_token1_in = (
+                    percentage * user_fees_collected_token1
+                )
 
                 # return
                 return (
@@ -631,7 +653,7 @@ class user_operations_hypervisor_builder:
                 return 0, 0, None
 
         # create list to store results
-        user_status_list = []
+        user_status_list = [gamma_db_operation]
 
         # go thread all: Get all user status with shares to share fees with
         with concurrent.futures.ThreadPoolExecutor() as ex:
@@ -655,10 +677,10 @@ class user_operations_hypervisor_builder:
         if ctrl_total_percentage_applied != Decimal("1"):
             fee0_remainder = (
                 Decimal("1") - ctrl_total_percentage_applied
-            ) * fees_collected_token0
+            ) * user_fees_collected_token0
             fee1_remainder = (
                 Decimal("1") - ctrl_total_percentage_applied
-            ) * fees_collected_token1
+            ) * user_fees_collected_token1
             feeUsd_remainder = (fee0_remainder * price_usd_t0) + (
                 fee1_remainder * price_usd_t1
             )
@@ -732,6 +754,39 @@ class user_operations_hypervisor_builder:
         """
         # add status to database
         self.local_db_manager.set_user_operations_bulk(operations)
+
+    # Special
+    def create_gamma_protocol_fees_db_operation(
+        self,
+        operation: dict,
+        price_usd_token0: float,
+        price_usd_token1: float,
+        price_usd_share: float,
+        fees_collected_token0: float,
+        fees_collected_token1: float,
+    ) -> dict:
+        """add gamma protocol fees to database"""
+
+        # define an address for Gamma
+        user_address = "gamma"
+
+        new_user_operation = user_operation()
+        new_user_operation.operation_id = operation["id"]
+        new_user_operation.topic = operation["topic"]
+        new_user_operation.user_address = user_address
+        new_user_operation.hypervisor_address = self.address
+        new_user_operation.block = operation["blockNumber"]
+        new_user_operation.logIndex = operation["logIndex"]
+        new_user_operation.timestamp = operation["timestamp"]
+
+        new_user_operation.price_usd_token0 = price_usd_token0
+        new_user_operation.price_usd_token1 = price_usd_token1
+        new_user_operation.price_usd_share = price_usd_share
+
+        new_user_operation.fees_token0_in = fees_collected_token0
+        new_user_operation.fees_token1_in = fees_collected_token1
+
+        return self.convert_user_operation_toDb(new_user_operation)
 
     # General helpers
 
