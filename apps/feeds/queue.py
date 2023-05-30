@@ -10,7 +10,7 @@ from apps.feeds.status import (
 )
 from bins.configuration import CONFIGURATION
 from bins.database.common.db_collections_common import database_global, database_local
-from bins.general.enums import Chain
+from bins.general.enums import Chain, queueItemType
 from bins.general.general_utilities import seconds_to_time_passed
 from bins.w3.builders import build_db_hypervisor
 from bins.mixed.price_utilities import price_scraper
@@ -18,8 +18,8 @@ from bins.w3.onchain_utilities.basic import erc20
 
 
 @dataclass
-class scraping_queue:
-    type: str
+class QueueItem:
+    type: queueItemType
     block: int
     address: str
     data: dict
@@ -71,9 +71,9 @@ def build_and_save_queue_from_operation(operation: dict, network: str):
     # 1) create new hypervisor status at block and block -1 if operation["topic"] in ["deposit", "withdraw", "rebalance", "zeroBurn"]
     for block in blocks:
         # hype status
-        local_db.set_scraping_queue(
-            data=scraping_queue(
-                type="hypervisor_status",
+        local_db.set_queue_item(
+            data=QueueItem(
+                type=queueItemType.HYPERVISOR_STATUS,
                 block=block,
                 address=operation["address"],
                 data=operation,
@@ -88,9 +88,9 @@ def build_and_save_queue_from_operation(operation: dict, network: str):
             )
         else:
             # block-1
-            local_db.set_scraping_queue(
-                data=scraping_queue(
-                    type="block",
+            local_db.set_queue_item(
+                data=QueueItem(
+                    type=queueItemType.BLOCK,
                     block=block,
                     address=operation["address"],
                     data=operation,
@@ -107,58 +107,100 @@ def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network
         db_name=db_name,
     )
 
+    # build items to update
     # token 0 price
-    local_db.save_item_to_database(
-        collection_name="scraping_queue",
-        data=scraping_queue(
-            type="price",
+    items = [
+        QueueItem(
+            type=queueItemType.PRICE,
             block=hypervisor_status["block"],
             address=hypervisor_status["pool"]["token0"]["address"],
             data=hypervisor_status,
-        ).as_dict,
-    )
-
+        ).as_dict
+    ]
     # token 1 price
-    local_db.save_item_to_database(
-        collection_name="scraping_queue",
-        data=scraping_queue(
-            type="price",
+    items.append(
+        QueueItem(
+            type=queueItemType.PRICE,
             block=hypervisor_status["block"],
             address=hypervisor_status["pool"]["token1"]["address"],
             data=hypervisor_status,
-        ).as_dict,
+        ).as_dict
     )
 
+    # # token 0 price
+    # local_db.save_item_to_database(
+    #     collection_name="queue",
+    #     data=QueueItem(
+    #         type=queueItemType.PRICE,
+    #         block=hypervisor_status["block"],
+    #         address=hypervisor_status["pool"]["token0"]["address"],
+    #         data=hypervisor_status,
+    #     ).as_dict,
+    # )
+
+    # token 1 price
+    # local_db.save_item_to_database(
+    #     collection_name="queue",
+    #     data=QueueItem(
+    #         type=queueItemType.PRICE,
+    #         block=hypervisor_status["block"],
+    #         address=hypervisor_status["pool"]["token1"]["address"],
+    #         data=hypervisor_status,
+    #     ).as_dict,
+    # )
+
     # Rewards
-    # get a list of reward_static rewardToken linked with hypervisor_address
+    # get a list of rewards_static rewardToken linked with hypervisor_address
     for reward_static in local_db.get_items_from_database(
-        collection_name="reward_static",
+        collection_name="rewards_static",
         find={"hypervisor_address": hypervisor_status["address"]},
     ):
         # add price
-        local_db.save_item_to_database(
-            collection_name="scraping_queue",
-            data=scraping_queue(
-                type="price",
+        items.append(
+            QueueItem(
+                type=queueItemType.PRICE,
                 block=hypervisor_status["block"],
                 address=reward_static["rewardToken"],
                 data=reward_static,
-            ).as_dict,
+            ).as_dict
         )
+        # local_db.save_item_to_database(
+        #     collection_name="queue",
+        #     data=QueueItem(
+        #         type=queueItemType.PRICE,
+        #         block=hypervisor_status["block"],
+        #         address=reward_static["rewardToken"],
+        #         data=reward_static,
+        #     ).as_dict,
+        # )
 
         # add reward_status
-        local_db.save_item_to_database(
-            collection_name="scraping_queue",
-            data=scraping_queue(
-                type="reward_status",
+        items.append(
+            QueueItem(
+                type=queueItemType.REWARD_STATUS,
                 block=hypervisor_status["block"],
                 address=reward_static["rewarder_address"],
                 data={
                     "reward_static": reward_static,
                     "hypervisor_status": hypervisor_status,
                 },
-            ).as_dict,
+            ).as_dict
         )
+        # local_db.save_item_to_database(
+        #     collection_name="queue",
+        #     data=QueueItem(
+        #         type=queueItemType.REWARD_STATUS,
+        #         block=hypervisor_status["block"],
+        #         address=reward_static["rewarder_address"],
+        #         data={
+        #             "reward_static": reward_static,
+        #             "hypervisor_status": hypervisor_status,
+        #         },
+        #     ).as_dict,
+        # )
+
+    # add all items to database at once
+    local_db.replace_items_to_database(data=items, collection_name="queue")
 
 
 # PULL DATA
@@ -167,18 +209,18 @@ def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network
 def parallel_pull(network: str):
     # TEST funcion: use parallel_feed.py instead
     args = [
-        (network, "hypervisor_status"),
-        (network, "block"),
-        (network, "price"),
-        (network, "reward_status"),
+        (network, queueItemType.HYPERVISOR_STATUS),
+        (network, queueItemType.BLOCK),
+        (network, queueItemType.PRICE),
+        (network, queueItemType.REWARD_STATUS),
     ] * 5
     with concurrent.futures.ThreadPoolExecutor() as ex:
         for n in ex.map(lambda p: pull_from_queue(*p), args):
             pass
 
 
-def pull_from_queue(network: str, type: str | None = None):
-    # logging.getLogger(__name__).info(f">Processing {network}'s scraping queue")
+def pull_from_queue(network: str, type: queueItemType | None = None):
+    # logging.getLogger(__name__).info(f">Processing {network}'s queue items")
 
     # debug variables
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
@@ -186,28 +228,28 @@ def pull_from_queue(network: str, type: str | None = None):
     local_db = database_local(mongo_url=mongo_url, db_name=f"{network}_gamma")
 
     # get first item from queue
-    if db_queue_item := local_db.get_scraping_queue(type=type):
+    if db_queue_item := local_db.get_queue_item(type=type):
         try:
             # convert database queue item to class
-            queue_item = scraping_queue(**db_queue_item)
+            queue_item = QueueItem(**db_queue_item)
 
-            if queue_item.type == "hypervisor_status":
+            if queue_item.type == queueItemType.HYPERVISOR_STATUS:
                 return pull_from_queue_hypervisor_status(
                     network=network, queue_item=queue_item
                 )
-            elif queue_item.type == "rewards_status":
-                return pull_from_queue_rewards_status(
+            elif queue_item.type == queueItemType.REWARD_STATUS:
+                return pull_from_queue_reward_status(
                     network=network, queue_item=queue_item
                 )
-            elif queue_item.type == "price":
+            elif queue_item.type == queueItemType.PRICE:
                 return pull_from_queue_price(network=network, queue_item=queue_item)
-            elif queue_item.type == "block":
+            elif queue_item.type == queueItemType.BLOCK:
                 return pull_from_queue_block(network=network, queue_item=queue_item)
             else:
                 # reset queue item
                 queue_item.processing = 0
                 local_db.replace_item_to_database(
-                    data=queue_item.as_dict, collection_name="scraping_queue"
+                    data=queue_item.as_dict, collection_name="queue"
                 )
                 raise ValueError(
                     f" Unknown queue item type {queue_item.type} at network {network}"
@@ -216,7 +258,7 @@ def pull_from_queue(network: str, type: str | None = None):
             # reset queue item
             queue_item.processing = 0
             local_db.replace_item_to_database(
-                data=queue_item.as_dict, collection_name="scraping_queue"
+                data=queue_item.as_dict, collection_name="queue"
             )
             raise e
     # else:
@@ -224,7 +266,7 @@ def pull_from_queue(network: str, type: str | None = None):
     return True
 
 
-def pull_from_queue_hypervisor_status(network: str, queue_item: scraping_queue) -> bool:
+def pull_from_queue_hypervisor_status(network: str, queue_item: QueueItem) -> bool:
     # debug variables
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     # set local database name and create manager
@@ -249,7 +291,7 @@ def pull_from_queue_hypervisor_status(network: str, queue_item: scraping_queue) 
                 local_db.set_status(data=hypervisor)
 
                 # remove item from queue
-                local_db.del_scraping_queue(queue_item.id)
+                local_db.del_queue_item(queue_item.id)
 
                 # log total process
                 curr_time = time.time()
@@ -265,24 +307,24 @@ def pull_from_queue_hypervisor_status(network: str, queue_item: scraping_queue) 
                 return True
             else:
                 logging.getLogger(__name__).error(
-                    f"Error building {network}'s hypervisor status for {queue_item.address}. Can't continue scraping queue item {queue_item.id}"
+                    f"Error building {network}'s hypervisor status for {queue_item.address}. Can't continue queue item {queue_item.id}"
                 )
         else:
             logging.getLogger(__name__).error(
-                f" {network} No hypervisor static found for {queue_item.address}. Can't continue scraping queue item {queue_item.id}"
+                f" {network} No hypervisor static found for {queue_item.address}. Can't continue queue item {queue_item.id}"
             )
 
     except Exception as e:
         logging.getLogger(__name__).error(
-            f"Error processing {network}'s hypervisor status scraping queue: {e}"
+            f"Error processing {network}'s hypervisor status queue item: {e}"
         )
 
     # free item from processing
-    local_db.free_scraping_queue(data=queue_item.as_dict)
+    local_db.free_queue_item(data=queue_item.as_dict)
     return False
 
 
-def pull_from_queue_rewards_status(network: str, queue_item: scraping_queue) -> bool:
+def pull_from_queue_reward_status(network: str, queue_item: QueueItem) -> bool:
     # debug variables
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     # set local database name and create manager
@@ -297,7 +339,7 @@ def pull_from_queue_rewards_status(network: str, queue_item: scraping_queue) -> 
                 local_db.set_rewards_status(data=reward_status)
 
             # remove item from queue
-            local_db.del_scraping_queue(queue_item.id)
+            local_db.del_queue_item(queue_item.id)
 
             # log total process
             curr_time = time.time()
@@ -313,16 +355,16 @@ def pull_from_queue_rewards_status(network: str, queue_item: scraping_queue) -> 
             )
     except Exception as e:
         logging.getLogger(__name__).error(
-            f"Error processing {network}'s rewards status scraping queue: {e}"
+            f"Error processing {network}'s rewards status queue item: {e}"
         )
 
     # free item from processing
-    local_db.free_scraping_queue(data=queue_item.as_dict)
+    local_db.free_queue_item(data=queue_item.as_dict)
 
     return False
 
 
-def pull_from_queue_price(network: str, queue_item: scraping_queue) -> bool:
+def pull_from_queue_price(network: str, queue_item: QueueItem) -> bool:
     # debug variables
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     # set local database name and create manager
@@ -346,7 +388,7 @@ def pull_from_queue_price(network: str, queue_item: scraping_queue) -> bool:
             )
 
             # remove item from queue
-            local_db.del_scraping_queue(queue_item.id)
+            local_db.del_queue_item(queue_item.id)
 
             # log total process
             curr_time = time.time()
@@ -362,16 +404,16 @@ def pull_from_queue_price(network: str, queue_item: scraping_queue) -> bool:
 
     except Exception as e:
         logging.getLogger(__name__).error(
-            f"Error processing {network}'s price scraping queue: {e}"
+            f"Error processing {network}'s price queue item: {e}"
         )
 
     # free item from processing
-    local_db.free_scraping_queue(data=queue_item.as_dict)
+    local_db.free_queue_item(data=queue_item.as_dict)
 
     return False
 
 
-def pull_from_queue_block(network: str, queue_item: scraping_queue) -> bool:
+def pull_from_queue_block(network: str, queue_item: QueueItem) -> bool:
     # debug variables
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     # set local database name and create manager
@@ -389,7 +431,7 @@ def pull_from_queue_block(network: str, queue_item: scraping_queue) -> bool:
             )
 
             # remove item from queue
-            local_db.del_scraping_queue(queue_item.id)
+            local_db.del_queue_item(queue_item.id)
 
             # log total process
             curr_time = time.time()
@@ -405,10 +447,10 @@ def pull_from_queue_block(network: str, queue_item: scraping_queue) -> bool:
 
     except Exception as e:
         logging.getLogger(__name__).error(
-            f"Error processing {network}'s block scraping queue: {e}"
+            f"Error processing {network}'s block queue item: {e}"
         )
 
     # free item from processing
-    local_db.free_scraping_queue(data=queue_item.as_dict)
+    local_db.free_queue_item(data=queue_item.as_dict)
 
     return False

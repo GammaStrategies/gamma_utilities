@@ -1,4 +1,4 @@
-from enum import Enum, unique
+from enum import Enum
 
 
 class Chain(str, Enum):
@@ -99,6 +99,8 @@ class Protocol(str, Enum):
 
 
 class databaseSource(str, Enum):
+    """Data source for the prices saved in database"""
+
     THEGRAPH = "thegraph"
     COINGECKO = "coingecko"
     GECKOTERMINAL = "geckoterminal"
@@ -106,3 +108,18 @@ class databaseSource(str, Enum):
     CACHE = "cache"
     MANUAL = "manual"
     AVERAGE = "average"
+
+    # TODO: implement database_name and ...
+
+
+class queueItemType(str, Enum):
+    """Type of the queue database item"""
+
+    REWARD_STATUS = "reward_status"  # database collection is called "rewards_status"
+    REWARD_STATIC = "reward_static"  # database collection is called "rewards_static"
+    HYPERVISOR_STATUS = "hypervisor_status"
+    HYPERVISOR_STATIC = "hypervisor_static"
+    PRICE = "price"
+    BLOCK = "block"
+
+    # TODO: implement database_name and ...

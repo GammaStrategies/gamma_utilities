@@ -7,6 +7,7 @@ from datetime import datetime
 from pymongo.errors import ConnectionFailure, BulkWriteError
 from pymongo import DESCENDING, ASCENDING
 from bins.database.common.db_managers import MongoDbManager
+from bins.general.enums import queueItemType
 
 
 class db_collections_common:
@@ -665,7 +666,7 @@ class database_local(db_collections_common):
                     },
                     "multi_indexes": [],
                 },
-                "scraping_queue": {
+                "queue": {
                     "mono_indexes": {
                         "id": True,
                     },
@@ -677,41 +678,39 @@ class database_local(db_collections_common):
             mongo_url=mongo_url, db_name=db_name, db_collections=db_collections
         )
 
-    # scraping queue
-    def set_scraping_queue(self, data: dict):
+    # queue
+    def set_queue_item(self, data: dict):
         # data should already have a unique id ( is an operation )
         # save to db
-        self.replace_item_to_database(data=data, collection_name="scraping_queue")
+        self.replace_item_to_database(data=data, collection_name="queue")
 
-    def get_scraping_queue(self, type: str | None = None) -> dict | None:
+    def get_queue_item(self, type: queueItemType | None = None) -> dict | None:
         find = {"processing": 0}
         if type:
             find["type"] = type
         # get one item from queue
 
         if db_queue_item := self.find_one_and_update(
-            collection_name="scraping_queue",
+            collection_name="queue",
             find=find,
             update={"$set": {"processing": time.time()}},
         ):
             return db_queue_item
 
-    def del_scraping_queue(self, id: str):
-        self.delete_item(collection_name="scraping_queue", item_id=id)
+    def del_queue_item(self, id: str):
+        self.delete_item(collection_name="queue", item_id=id)
 
-    def free_scraping_queue(self, db_queue_item: dict):
+    def free_queue_item(self, db_queue_item: dict):
         """set queue object free to be processed again
 
         Args:
             db_queue_item (dict):
         """
         logging.getLogger(__name__).debug(
-                f" freeing {db_queue_item['type']}:  {db_queue_item['id']} from queue"
-            )
-        db_queue_item["processing"] = 0
-        self.replace_item_to_database(
-            data=db_queue_item, collection_name="scraping_queue"
+            f" freeing {db_queue_item['type']}:  {db_queue_item['id']} from queue"
         )
+        db_queue_item["processing"] = 0
+        self.replace_item_to_database(data=db_queue_item, collection_name="queue")
 
     # static
 

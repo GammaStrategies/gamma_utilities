@@ -606,8 +606,6 @@ def repair_missing_hype_status():
 
 
 def repair_blocks():
-
-
     for protocol in CONFIGURATION["script"]["protocols"]:
         # override networks if specified in cml
         networks = (
@@ -619,11 +617,8 @@ def repair_blocks():
 
 
 def repair_missing_blocks(protocol: str, network: str, batch_size: int = 100000):
-    
-    logging.getLogger(__name__).info(
-        f">Repair blocks for {network} {protocol}..."
-    )
-        
+    logging.getLogger(__name__).info(f">Repair blocks for {network} {protocol}...")
+
     # get a list of blocks from global database
     database_blocks = [
         x["block"]
@@ -731,7 +726,7 @@ def repair_queue():
             for queue_item in database_local(
                 mongo_url=mongo_url, db_name=db_name
             ).get_items_from_database(
-                collection_name="scraping_queue", find={"processing": {"$gt": 0}}
+                collection_name="queue", find={"processing": {"$gt": 0}}
             ):
                 # check seconds passed since processing
                 minutes_passed = (time.time() - queue_item["processing"]) / 60
@@ -739,7 +734,7 @@ def repair_queue():
                     # free locked processing
                     database_local(
                         mongo_url=mongo_url, db_name=db_name
-                    ).free_scraping_queue(queue_item)
+                    ).free_queue_item(queue_item)
                     logging.getLogger(__name__).debug(
                         f" {network}'s queue item {queue_item['id']} has been in the processing state for {minutes_passed} minutes. It probably halted. Freeing it..."
                     )

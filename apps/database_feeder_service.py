@@ -241,25 +241,21 @@ def network_db_service(
 
 
 def queue_db_service():
-    """Process all database scraping queues in an infinite loop"""
+    """Process all database queue in an infinite loop"""
     # send eveyone service ON
-    logging.getLogger("telegram").info(
-        " Database scraping queue processing loop started"
-    )
-    logging.getLogger(__name__).info(" Database scraping queue processing loop started")
+    logging.getLogger("telegram").info(" Database queue processing loop started")
+    logging.getLogger(__name__).info(" Database queue processing loop started")
     try:
         process_all_queues(maximum_tasks=10)
 
     except KeyboardInterrupt:
-        logging.getLogger(__name__).debug(
-            " Database scraping queue loop stoped by user"
-        )
+        logging.getLogger(__name__).debug(" Database queue loop stoped by user")
     except Exception:
         logging.getLogger(__name__).exception(
-            f" Unexpected error while loop-processing database scraping queue. error {sys.exc_info()[0]}"
+            f" Unexpected error while loop-processing database queue. error {sys.exc_info()[0]}"
         )
     # send eveyone not updating anymore
-    logging.getLogger("telegram").info(" Database scraping queue loop stoped")
+    logging.getLogger("telegram").info(" Database queue loop stoped")
 
 
 def operations_db_service():
