@@ -12,7 +12,7 @@ from bins.apis.geckoterminal_helper import geckoterminal_price_helper
 from bins.configuration import CONFIGURATION, DEX_POOLS_PRICE_PATHS
 from bins.database.common.db_collections_common import database_global
 from bins.formulas.dex_formulas import sqrtPriceX96_to_price_float
-from bins.general.enums import Chain, Protocol
+from bins.general.enums import Chain, Protocol, databaseSource
 from bins.w3.onchain_utilities.exchanges import algebrav3_pool, univ3_pool
 
 LOG_NAME = "price"
@@ -74,7 +74,7 @@ class price_scraper:
     ## PUBLIC ##
     def get_price(
         self, network: str, token_id: str, block: int = 0, of: str = "USD"
-    ) -> tuple[float, str]:
+    ) -> tuple[float, databaseSource]:
         """
         return: price_usd_token, source
         """
@@ -91,7 +91,7 @@ class price_scraper:
             _price = self.cache.get_data(
                 chain_id=network, address=token_id, block=block, key=of
             )
-            _source = "cache"
+            _source = databaseSource.CACHE
         except Exception:
             _price = None
 
@@ -109,7 +109,7 @@ class price_scraper:
                 _price = self._get_price_from_geckoterminal(
                     network, token_id, block, of
                 )
-                _source = "geckoterminal"
+                _source = databaseSource.GECKOTERMINAL
             except Exception as e:
                 logging.getLogger(LOG_NAME).debug(
                     f" Could not get {network}'s token {token_id} price at block {block} from geckoterminal. error-> {e}"
@@ -128,7 +128,7 @@ class price_scraper:
             _price = onchain_price_helper.get_price(
                 chain=chain, token_address=token_id, block=block
             )
-            _source = "onchain"
+            _source = databaseSource.ONCHAIN
 
         if _price in [None, 0]:
             # get a list of thegraph_connectors
@@ -150,7 +150,7 @@ class price_scraper:
 
                     if _price not in [None, 0]:
                         # exit for loop
-                        _source = "thegraph"
+                        _source = databaseSource.THEGRAPH
                         break
 
         # coingecko
@@ -166,7 +166,7 @@ class price_scraper:
 
             try:
                 _price = self._get_price_from_coingecko(network, token_id, block, of)
-                _source = "coingecko"
+                _source = databaseSource.COINGECKO
             except Exception as e:
                 logging.getLogger(LOG_NAME).debug(
                     f" Could not get {network}'s token {token_id} price at block {block} from coingecko. error-> {e}"

@@ -96,3 +96,13 @@ class Protocol(str, Enum):
         obj.database_name = database_name or value.lower()
         obj.fantasy_name = fantasy_name or value.lower()
         return obj
+
+
+class databaseSource(str, Enum):
+    THEGRAPH = "thegraph"
+    COINGECKO = "coingecko"
+    GECKOTERMINAL = "geckoterminal"
+    ONCHAIN = "onchain"
+    CACHE = "cache"
+    MANUAL = "manual"
+    AVERAGE = "average"

@@ -17,6 +17,7 @@ from web3.exceptions import ContractLogicError
 
 from bins.configuration import CONFIGURATION
 from bins.database.db_user_status import user_status_hypervisor_builder
+from bins.general.enums import databaseSource
 from bins.general.general_utilities import (
     convert_string_datetime,
     differences,
@@ -46,6 +47,9 @@ from apps.feeds.prices import (
 # repair apps
 def repair_all():
     """Repair all errors found in logs"""
+
+    # repair queue
+    repair_queue()
 
     # repair blocks
     repair_blocks()
@@ -94,6 +98,10 @@ def repair_prices_from_database(
 
 def repair_prices_from_logs(min_count: int = 1):
     """Check price errors from debug and price logs and try to scrape again"""
+
+    logging.getLogger(__name__).info(
+        f">Check all errors found in debug and price logs and try to scrape 'em again"
+    )
     try:
         network_token_blocks = {}
         for log_file in get_all_logfiles():
@@ -128,17 +136,19 @@ def repair_prices_from_logs(min_count: int = 1):
 
                         # counter = number of times found in logs
                         if counter >= min_count:
-                            if price := get_price(
+                            price, source = get_price(
                                 network=network, token_address=address, block=block
-                            ):
+                            )
+                            if price:
                                 logging.getLogger(__name__).debug(
-                                    f" Added {price} as price for {network}'s {address} at block {block}  (found {counter} times in log)"
+                                    f" Added {price} as price for {network}'s {address} at block {block}  (found {counter} times in log) source: {source}"
                                 )
                                 add_price_to_token(
                                     network=network,
                                     token_address=address,
                                     block=block,
                                     price=price,
+                                    source=source,
                                 )
                             else:
                                 logging.getLogger(__name__).debug(
@@ -162,6 +172,10 @@ def repair_prices_from_status(
     batch_size: int = 100000, max_repair_per_network: int | None = None
 ):
     """Check prices not present in database but present in hypervisors and rewards status and try to scrape again"""
+
+    logging.getLogger(__name__).info(
+        f">Check {protocol}'s {network} prices not present in database but present in hypervisors and rewards status and try to scrape again"
+    )
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
 
     for protocol in CONFIGURATION["script"]["protocols"]:
@@ -274,17 +288,20 @@ def repair_prices_from_status(
                         logging.getLogger(__name__).debug(
                             f" Getting price for {network}'s {address} at block {block}"
                         )
-                        if price := get_price(
+
+                        price, source = get_price(
                             network=network, token_address=address, block=block
-                        ):
+                        )
+                        if price:
                             logging.getLogger(__name__).debug(
-                                f" Added {price} as price for {network}'s {address} at block {block}"
+                                f" Added {price} as price for {network}'s {address} at block {block} source {source}"
                             )
                             add_price_to_token(
                                 network=network,
                                 token_address=address,
                                 block=block,
                                 price=price,
+                                source=source,
                             )
                         else:
                             logging.getLogger(__name__).debug(
@@ -305,12 +322,15 @@ def repair_prices_from_status(
 
 
 def reScrape_database_prices(batch_size=100000, protocol="gamma"):
-    """Rescrape all database prices with source not set to "auto"
+    """Rescrape all database prices
 
     Args:
         batch_size (int, optional): . Defaults to 100000.
         protocol (str, optional): . Defaults to "gamma".
     """
+    logging.getLogger(__name__).info(
+        f">Re scrape {protocol}'s {network} prices, in reverse order "
+    )
     networks = (
         CONFIGURATION["_custom_"]["cml_parameters"].networks
         or CONFIGURATION["script"]["protocols"][protocol]["networks"]
@@ -339,12 +359,13 @@ def reScrape_database_prices(batch_size=100000, protocol="gamma"):
                     )
                     progress_bar.update(0)
 
-                    # get price
-                    if price := get_price(
+                    price, source = get_price(
                         network=network,
                         token_address=db_price_item["address"],
                         block=int(db_price_item["block"]),
-                    ):
+                    )
+                    # get price
+                    if price:
                         if price != db_price_item["price"] and price != 0:
                             different += 1
 
@@ -361,7 +382,7 @@ def reScrape_database_prices(batch_size=100000, protocol="gamma"):
                                 token_address=db_price_item["address"],
                                 block=int(db_price_item["block"]),
                                 price_usd=price,
-                                source="auto",
+                                source=source,
                             )
 
                     else:
@@ -585,6 +606,8 @@ def repair_missing_hype_status():
 
 
 def repair_blocks():
+
+
     for protocol in CONFIGURATION["script"]["protocols"]:
         # override networks if specified in cml
         networks = (
@@ -596,6 +619,11 @@ def repair_blocks():
 
 
 def repair_missing_blocks(protocol: str, network: str, batch_size: int = 100000):
+    
+    logging.getLogger(__name__).info(
+        f">Repair blocks for {network} {protocol}..."
+    )
+        
     # get a list of blocks from global database
     database_blocks = [
         x["block"]
@@ -680,6 +708,14 @@ def repair_missing_blocks(protocol: str, network: str, batch_size: int = 100000)
 
 
 def repair_queue():
+    """
+    Reset queue items that are locked for more than 10 minutes
+    No queue item should be running for more than 2 minutes
+    """
+
+    logging.getLogger(__name__).info(
+        f">Repair queue items that are locked for more than 10 minutes..."
+    )
     # get all operation blocks from database
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
 
@@ -705,7 +741,7 @@ def repair_queue():
                         mongo_url=mongo_url, db_name=db_name
                     ).free_scraping_queue(queue_item)
                     logging.getLogger(__name__).debug(
-                        f" {network}'s queue item {queue_item['id']} processing probably halted and has been freed. ({minutes_passed} minutes processing)"
+                        f" {network}'s queue item {queue_item['id']} has been in the processing state for {minutes_passed} minutes. It probably halted. Freeing it..."
                     )
 
 
@@ -847,7 +883,9 @@ def add_timestamps_to_status(network: str, protocol: str = "gamma"):
 
 
 # helpers
-def add_price_to_token(network: str, token_address: str, block: int, price: float):
+def add_price_to_token(
+    network: str, token_address: str, block: int, price: float, source: databaseSource
+):
     """force special price add to database:
      will create a field called "origin" with "manual" as value to be ableto identify at db
 
@@ -859,19 +897,17 @@ def add_price_to_token(network: str, token_address: str, block: int, price: floa
     """
 
     # setup database managers
-    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-    global_db_manager = database_global(mongo_url=mongo_url)
+    global_db_manager = database_global(
+        mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    )
 
-    data = {
-        "id": f"{network}_{block}_{token_address}",
-        "network": network,
-        "block": int(block),
-        "address": token_address,
-        "price": float(price),
-        "origin": "manual",
-    }
-
-    global_db_manager.save_item_to_database(data=data, collection_name="usd_prices")
+    global_db_manager.set_price_usd(
+        network=network,
+        block=block,
+        token_address=token_address,
+        price_usd=price,
+        source=source,
+    )
 
 
 def get_price_of_token(network: str, token_address: str, block: int) -> float:
@@ -901,7 +937,9 @@ def get_price_of_token(network: str, token_address: str, block: int) -> float:
         return 0.0
 
 
-def get_price(network: str, token_address: str, block: int) -> tuple[float, str]:
+def get_price(
+    network: str, token_address: str, block: int
+) -> tuple[float, databaseSource]:
     """get price of token at block
     Will return a tuple with price and source
     """
@@ -960,10 +998,12 @@ def auto_get_prices():
     for network, data in address_block_list.items():
         for address, blocks in data.items():
             for block in blocks:
-                price = get_price(network=network, token_address=address, block=block)
+                price, source = get_price(
+                    network=network, token_address=address, block=block
+                )
                 if price != 0:
                     logging.getLogger(__name__).debug(
-                        f" Added price for {network}'s {address} at block {block}"
+                        f" Added price for {network}'s {address} at block {block} from source: {source}"
                     )
                     add_price_to_token(
                         network=network, token_address=address, block=block, price=price
