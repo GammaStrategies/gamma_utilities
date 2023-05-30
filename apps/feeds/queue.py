@@ -165,6 +165,7 @@ def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network
 
 
 def parallel_pull(network: str):
+    # TEST funcion: use parallel_feed.py instead
     args = [
         (network, "hypervisor_status"),
         (network, "block"),
