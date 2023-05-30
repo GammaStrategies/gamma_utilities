@@ -417,7 +417,7 @@ def repair_missing_hypervisor_status(
         rewrite (bool): rewrite all status
         threaded: (bool):
     """
-
+    batch_size = 100000
     logging.getLogger(__name__).info(
         f">Feeding {protocol}'s {network} hypervisors status information using the difference between operations and status blocks"
     )
@@ -430,28 +430,50 @@ def repair_missing_hypervisor_status(
         mongo_url=mongo_url, db_name=db_name
     ).get_items_from_database(collection_name="static", find={}):
         # get all status blocks
-        hype_status_blocks = database_local(
-            mongo_url=mongo_url, db_name=db_name
-        ).get_distinct_items_from_database(
-            collection_name="status",
-            field="block",
-            condition={"address": hype["address"]},
-        )
+        hype_status_blocks = [
+            x["block"]
+            for x in database_local(
+                mongo_url=mongo_url, db_name=db_name
+            ).get_items_from_database(
+                collection_name="status",
+                find={"address": hype["address"]},
+                projection={"block": 1},
+                batch_size=batch_size,
+            )
+        ]
+        # hype_status_blocks = database_local(
+        #     mongo_url=mongo_url, db_name=db_name
+        # ).get_distinct_items_from_database(
+        #     collection_name="status",
+        #     field="block",
+        #     condition={"address": hype["address"]},
+        # )
 
         # get all operations blocks with the topics=["deposit", "withdraw", "zeroBurn", "rebalance"]
         operation_blocks = []
-        for block in database_local(
+        # for block in database_local(
+        #     mongo_url=mongo_url, db_name=db_name
+        # ).get_distinct_items_from_database(
+        #     collection_name="operations",
+        #     field="blockNumber",
+        #     condition={
+        #         "address": hype["address"],
+        #         "topics": {"$in": ["deposit", "withdraw", "zeroBurn", "rebalance"]},
+        #     },
+        # ):
+        for operation in database_local(
             mongo_url=mongo_url, db_name=db_name
-        ).get_distinct_items_from_database(
+        ).get_items_from_database(
             collection_name="operations",
-            field="blockNumber",
-            condition={
+            find={
                 "address": hype["address"],
                 "topics": {"$in": ["deposit", "withdraw", "zeroBurn", "rebalance"]},
             },
+            batch_size=batch_size,
+            sort=[("blockNumber", 1)],
         ):
-            operation_blocks.append(int(block))
-            operation_blocks.append(int(block - 1))
+            operation_blocks.append(int(operation["blockNumber"]))
+            operation_blocks.append(int(operation["blockNumber"]) - 1)
 
         # get differences
         if difference_blocks := differences(operation_blocks, hype_status_blocks):

@@ -333,7 +333,7 @@ def pull_from_queue_reward_status(network: str, queue_item: QueueItem) -> bool:
     try:
         if reward_status_list := create_reward_status_from_hype_status(
             hypervisor_status=queue_item.data["hypervisor_status"],
-            rewarder_static=queue_item.data["rewarder_static"],
+            rewarder_static=queue_item.data["reward_static"],
         ):
             for reward_status in reward_status_list:
                 local_db.set_rewards_status(data=reward_status)
