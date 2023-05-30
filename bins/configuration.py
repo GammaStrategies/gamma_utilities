@@ -255,7 +255,12 @@ DEX_POOLS = {
     },
     Chain.BSC: {},
     Chain.AVALANCHE: {},
-    Chain.ARBITRUM: {},
+    Chain.ARBITRUM: {
+        "DAI_USDC": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0xf0428617433652c9dc6d1093a42adfbf30d29f74",
+        },
+    },
     Chain.MOONBEAM: {},
 }
 
@@ -265,12 +270,21 @@ DEX_POOLS_PRICE_PATHS = {
         # GAMMA
         "0x6bea7cfef803d1e3d5f7c0103f7ded065644e197": [
             (DEX_POOLS[Chain.ETHEREUM]["GAMMA_WETH"], 1),
-            (DEX_POOLS[Chain.ETHEREUM]["USDC_WETH"], 0),
+            (
+                DEX_POOLS[Chain.ETHEREUM]["USDC_WETH"],
+                0,
+            ),
         ],
         # RPL
         "0xd33526068d116ce69f19a9ee46f0bd304f21a51f": [
-            (DEX_POOLS[Chain.ETHEREUM]["WETH_RPL"], 0),
-            (DEX_POOLS[Chain.ETHEREUM]["USDC_WETH"], 0),
+            (
+                DEX_POOLS[Chain.ETHEREUM]["WETH_RPL"],
+                0,
+            ),
+            (
+                DEX_POOLS[Chain.ETHEREUM]["USDC_WETH"],
+                0,
+            ),
         ],
         # AXL
         "0x467719ad09025fcc6cf6f8311755809d45a5e5f3": [
@@ -364,6 +378,11 @@ DEX_POOLS_PRICE_PATHS = {
     },
     Chain.BSC: {},
     Chain.AVALANCHE: {},
-    Chain.ARBITRUM: {},
+    Chain.ARBITRUM: {
+        # DAI
+        "0xda10009cbd5d07dd0cecc66161fc93d7c9000da1": [
+            (DEX_POOLS[Chain.ARBITRUM]["DAI_USDC"], 1),
+        ]
+    },
     Chain.MOONBEAM: {},
 }
