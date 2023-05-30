@@ -449,7 +449,7 @@ def repair_missing_hypervisor_status(
         #     condition={"address": hype["address"]},
         # )
 
-        # get all operations blocks with the topics=["deposit", "withdraw", "zeroBurn", "rebalance"]
+        # get all operations blocks with the topic=["deposit", "withdraw", "zeroBurn", "rebalance"]
         operation_blocks = []
         # for block in database_local(
         #     mongo_url=mongo_url, db_name=db_name
@@ -458,7 +458,7 @@ def repair_missing_hypervisor_status(
         #     field="blockNumber",
         #     condition={
         #         "address": hype["address"],
-        #         "topics": {"$in": ["deposit", "withdraw", "zeroBurn", "rebalance"]},
+        #         "topic": {"$in": ["deposit", "withdraw", "zeroBurn", "rebalance"]},
         #     },
         # ):
         for operation in database_local(
@@ -467,7 +467,7 @@ def repair_missing_hypervisor_status(
             collection_name="operations",
             find={
                 "address": hype["address"],
-                "topics": {"$in": ["deposit", "withdraw", "zeroBurn", "rebalance"]},
+                "topic": {"$in": ["deposit", "withdraw", "zeroBurn", "rebalance"]},
             },
             batch_size=batch_size,
             sort=[("blockNumber", 1)],

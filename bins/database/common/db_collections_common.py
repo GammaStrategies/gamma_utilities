@@ -826,7 +826,7 @@ class database_local(db_collections_common):
         """
         query = []
         if topics:
-            query.append({"$match": {"topics": {"$in": topics}}})
+            query.append({"$match": {"topic": {"$in": topics}}})
 
         query.extend(
             (
