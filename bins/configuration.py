@@ -253,7 +253,12 @@ DEX_POOLS = {
             "address": "0xb73abfb5a2c89f4038baa476ff3a7942a021c196",
         },
     },
-    Chain.BSC: {},
+    Chain.BSC: {
+        "THE_WBNB": {
+            "protocol": Protocol.ALGEBRAv3,
+            "address": "0x51bd5e6d3da9064d59bcaa5a76776560ab42ceb8",
+        }
+    },
     Chain.AVALANCHE: {},
     Chain.ARBITRUM: {
         "DAI_USDC": {
@@ -376,7 +381,12 @@ DEX_POOLS_PRICE_PATHS = {
             (DEX_POOLS[Chain.POLYGON_ZKEVM]["QUICK_USDC"], 1),
         ],
     },
-    Chain.BSC: {},
+    Chain.BSC: {
+        # # THE
+        # "0xf4c8e32eadec4bfe97e0f595add0f4450a863a11":
+        # [
+        # ],
+    },
     Chain.AVALANCHE: {},
     Chain.ARBITRUM: {
         # DAI

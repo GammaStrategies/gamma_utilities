@@ -579,7 +579,7 @@ def repair_missing_hypervisor_status(
 
             # add hype status queueItems to the database queue collection to be processed
             logging.getLogger(__name__).info(
-                f"  Add {len(difference_blocks)} blocks for {network}'s {hype['address']} to the queue"
+                f"  Adding {len(difference_blocks)} blocks for {network}'s {hype['address']} to the queue"
             )
             for block in difference_blocks:
                 # insert queue only if not exists
