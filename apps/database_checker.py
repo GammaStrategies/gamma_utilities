@@ -577,23 +577,38 @@ def repair_missing_hypervisor_status(
                 )
                 difference_blocks = random.sample(difference_blocks, max_repair)
 
+            # define added counter
+            total_added_counter = 0
+
+            for block in difference_blocks:
+                # create queue item
+                queue_item = QueueItem(
+                    type=queueItemType.HYPERVISOR_STATUS,
+                    block=block,
+                    address=operation["address"],
+                    data=operation,
+                )
+
+                # check if id is already in queue
+                if not database_local(
+                    mongo_url=mongo_url, db_name=db_name
+                ).get_items_from_database(
+                    collection_name="queue", find={"id": queue_item.id}
+                ):
+                    # insert
+                    database_local(
+                        mongo_url=mongo_url, db_name=db_name
+                    ).insert_if_not_exists(
+                        data=queue_item.as_dict,
+                        collection_name="queue",
+                    )
+                    # add counter
+                    total_added_counter += 1
+
             # add hype status queueItems to the database queue collection to be processed
             logging.getLogger(__name__).info(
-                f"  Adding {len(difference_blocks)} blocks for {network}'s {hype['address']} to the queue ( may already be there: not rewriting)"
+                f"  Added {total_added_counter} blocks for {network}'s {hype['address']} to the queue"
             )
-            for block in difference_blocks:
-                # insert queue only if not exists
-                database_local(
-                    mongo_url=mongo_url, db_name=db_name
-                ).insert_if_not_exists(
-                    data=QueueItem(
-                        type=queueItemType.HYPERVISOR_STATUS,
-                        block=block,
-                        address=operation["address"],
-                        data=operation,
-                    ).as_dict,
-                    collection_name="queue",
-                )
 
 
 def repair_hype_status_from_user(min_count: int = 1):
