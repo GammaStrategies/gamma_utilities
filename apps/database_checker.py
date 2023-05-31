@@ -606,9 +606,14 @@ def repair_missing_hypervisor_status(
                     total_added_counter += 1
 
             # add hype status queueItems to the database queue collection to be processed
-            logging.getLogger(__name__).info(
-                f"  Added {total_added_counter} blocks for {network}'s {hype['address']} to the queue"
-            )
+            if total_added_counter:
+                logging.getLogger(__name__).info(
+                    f"  Added {total_added_counter} blocks for {network}'s {hype['address']} to the queue"
+                )
+            else:
+                logging.getLogger(__name__).info(
+                    f"  No blocks for {network}'s {hype['address']} have been added to the queue as they were already present"
+                )
 
 
 def repair_hype_status_from_user(min_count: int = 1):
