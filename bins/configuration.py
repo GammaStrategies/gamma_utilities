@@ -257,7 +257,7 @@ DEX_POOLS = {
         "THE_WBNB": {
             "protocol": Protocol.ALGEBRAv3,
             "address": "0x51bd5e6d3da9064d59bcaa5a76776560ab42ceb8",
-        }
+        },
     },
     Chain.AVALANCHE: {},
     Chain.ARBITRUM: {
