@@ -641,19 +641,6 @@ class database_local(db_collections_common):
                     },
                     "multi_indexes": [],
                 },
-                # "user_status": {
-                #     "mono_indexes": {
-                #         "id": True,
-                #         "block": False,
-                #         "address": False,
-                #         "hypervisor_address": False,
-                #         "timestamp": False,
-                #         "logIndex": False,
-                #     },
-                #     "multi_indexes": [
-                #         [("block", DESCENDING), ("logIndex", DESCENDING)],
-                #     ],
-                # },
                 "user_operations": {
                     "mono_indexes": {
                         "id": True,
