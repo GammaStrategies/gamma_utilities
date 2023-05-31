@@ -205,7 +205,7 @@ def network_db_service(
     # get minimum time between loops ( defaults to 5 minutes)
     min_loop_time = 60 * (
         CONFIGURATION["_custom_"]["cml_parameters"].min_loop_time
-        or CONFIGURATION["script"].get("min_loop_time", 5)
+        or CONFIGURATION["script"].get("min_loop_time", 1)
     )
     try:
         while True:
@@ -246,7 +246,9 @@ def queue_db_service():
     logging.getLogger("telegram").info(" Database queue processing loop started")
     logging.getLogger(__name__).info(" Database queue processing loop started")
     try:
-        process_all_queues(maximum_tasks=10)
+        process_all_queues(
+            maximum_tasks=CONFIGURATION["script"].get("queue_maximum_tasks", 10)
+        )
 
     except KeyboardInterrupt:
         logging.getLogger(__name__).debug(" Database queue loop stoped by user")
@@ -262,8 +264,16 @@ def operations_db_service():
     """feed all database collections with operations in an infinite loop"""
     # send eveyone service ON
     logging.getLogger("telegram").info(" Operations database feeding loop started")
+
+    # get minimum time between loops ( defaults to 5 minutes)
+    min_loop_time = 60 * (
+        CONFIGURATION["_custom_"]["cml_parameters"].min_loop_time
+        or CONFIGURATION["script"].get("min_loop_time", 1)
+    )
+
     try:
         while True:
+            _startime = datetime.now(timezone.utc)
             for protocol in CONFIGURATION["script"]["protocols"]:
                 # override networks if specified in cml
                 networks = (
@@ -272,6 +282,15 @@ def operations_db_service():
                 )
                 for network in networks:
                     feed_operations(protocol=protocol, network=network)
+
+            # nforce a min time between loops
+            _endtime = datetime.now(timezone.utc)
+            if (_endtime - _startime).total_seconds() < min_loop_time:
+                sleep_time = min_loop_time - (_endtime - _startime).total_seconds()
+                logging.getLogger(__name__).debug(
+                    f" Operations database feeding service is sleeping for {sleep_time} seconds to loop again"
+                )
+                time.sleep(sleep_time)
 
     except KeyboardInterrupt:
         logging.getLogger(__name__).debug(

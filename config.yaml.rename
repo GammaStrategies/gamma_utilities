@@ -32,6 +32,7 @@ sources:
 
 script:
   min_loop_time: 5 # minimum cost for the loop process in number of minutes to wait for ( loop at min. every 5 minutes) usefull to reduce web3 calls
+  queue_maximum_tasks: 10 # maximum number of parallel queue tasks to run at once
   protocols:
     gamma:
       networks:
