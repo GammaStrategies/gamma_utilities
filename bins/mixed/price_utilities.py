@@ -9,7 +9,11 @@ from bins.cache import cache_utilities
 from bins.apis import thegraph_utilities, coingecko_utilities
 from bins.apis.geckoterminal_helper import geckoterminal_price_helper
 
-from bins.configuration import CONFIGURATION, DEX_POOLS_PRICE_PATHS
+from bins.configuration import (
+    CONFIGURATION,
+    DEX_POOLS_PRICE_PATHS,
+    USDC_TOKEN_ADDRESSES,
+)
 from bins.database.common.db_collections_common import database_global
 from bins.formulas.dex_formulas import sqrtPriceX96_to_price_float
 from bins.general.enums import Chain, Protocol, databaseSource
@@ -463,6 +467,11 @@ class usdc_price_scraper:
         self, chain: Chain, token_address: str, block: int | None = None
     ) -> float | None:
         try:
+            # check if token is USDC
+            if token_address.lower() in USDC_TOKEN_ADDRESSES.get(chain, []):
+                return 1
+
+            # check if path to token is known
             if token_address in DEX_POOLS_PRICE_PATHS.get(chain, " "):
                 price = 1
                 # follow the path to get USDC price of token address
