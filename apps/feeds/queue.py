@@ -54,6 +54,17 @@ class QueueItem:
 
 
 def build_and_save_queue_from_operation(operation: dict, network: str):
+    """-> approval operations are discarded
+
+    Args:
+        operation (dict): _description_
+        network (str): _description_
+    """
+    # discard approval operations ( they are >10% of all operations)
+    if operation["topic"] == "approval":
+        # approval operations do not need a hype status nor prices, etc..
+        return
+
     # create local database manager
     db_name = f"{network}_gamma"
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
