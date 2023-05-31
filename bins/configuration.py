@@ -380,6 +380,10 @@ DEX_POOLS_PRICE_PATHS = {
         "0x68286607a1d43602d880d349187c3c48c0fd05e6": [
             (DEX_POOLS[Chain.POLYGON_ZKEVM]["QUICK_USDC"], 1),
         ],
+        # WETH
+        "0x4f9a0e7fd2bf6067db6994cf12e4495df938e6e9": [
+            (DEX_POOLS[Chain.POLYGON_ZKEVM]["WETH_USDC"], 1),
+        ],
     },
     Chain.BSC: {
         # # THE
