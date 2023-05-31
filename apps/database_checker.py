@@ -79,7 +79,7 @@ def repair_prices(min_count: int = 1):
 def repair_prices_from_database(
     batch_size: int = 100000, max_repair_per_network: int | None = None
 ):
-    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    # mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
 
     for protocol in CONFIGURATION["script"]["protocols"]:
         # override networks if specified in cml
@@ -175,7 +175,7 @@ def repair_prices_from_status(
     """Check prices not present in database but present in hypervisors and rewards status and try to scrape again"""
 
     logging.getLogger(__name__).info(
-        f">Check {protocol}'s {network} prices not present in database but present in hypervisors and rewards status and try to scrape again"
+        f">Check prices not present in database but present in hypervisors and rewards status and try to scrape again"
     )
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
 
