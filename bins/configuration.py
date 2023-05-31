@@ -400,3 +400,15 @@ DEX_POOLS_PRICE_PATHS = {
     },
     Chain.MOONBEAM: {},
 }
+
+
+USDC_TOKEN_ADDRESSES = {
+    Chain.ETHEREUM: ["0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48".lower()],
+    Chain.OPTIMISM: ["0x7f5c764cbc14f9669b88837ca1490cca17c31607".lower()],
+    Chain.POLYGON: ["0x2791bca1f2de4661ed88a30c99a7a9449aa84174".lower()],
+    Chain.POLYGON_ZKEVM: ["0xa8ce8aee21bc2a48a5ef670afcc9274c7bbbc035".lower()],
+    Chain.BSC: ["0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d".lower()],
+    Chain.AVALANCHE: ["0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e".lower()],
+    Chain.ARBITRUM: ["0xff970a61a04b1ca14834a43f5de4533ebddb5cc8".lower()],
+    Chain.MOONBEAM: ["0x931715fee2d06333043d11f658c8ce934ac61d0c".lower()],
+}
