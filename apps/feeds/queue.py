@@ -127,28 +127,6 @@ def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network
         ).as_dict
     )
 
-    # # token 0 price
-    # local_db.save_item_to_database(
-    #     collection_name="queue",
-    #     data=QueueItem(
-    #         type=queueItemType.PRICE,
-    #         block=hypervisor_status["block"],
-    #         address=hypervisor_status["pool"]["token0"]["address"],
-    #         data=hypervisor_status,
-    #     ).as_dict,
-    # )
-
-    # token 1 price
-    # local_db.save_item_to_database(
-    #     collection_name="queue",
-    #     data=QueueItem(
-    #         type=queueItemType.PRICE,
-    #         block=hypervisor_status["block"],
-    #         address=hypervisor_status["pool"]["token1"]["address"],
-    #         data=hypervisor_status,
-    #     ).as_dict,
-    # )
-
     # Rewards
     # get a list of rewards_static rewardToken linked with hypervisor_address
     for reward_static in local_db.get_items_from_database(
@@ -164,15 +142,6 @@ def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network
                 data=reward_static,
             ).as_dict
         )
-        # local_db.save_item_to_database(
-        #     collection_name="queue",
-        #     data=QueueItem(
-        #         type=queueItemType.PRICE,
-        #         block=hypervisor_status["block"],
-        #         address=reward_static["rewardToken"],
-        #         data=reward_static,
-        #     ).as_dict,
-        # )
 
         # add reward_status
         items.append(
@@ -186,18 +155,6 @@ def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network
                 },
             ).as_dict
         )
-        # local_db.save_item_to_database(
-        #     collection_name="queue",
-        #     data=QueueItem(
-        #         type=queueItemType.REWARD_STATUS,
-        #         block=hypervisor_status["block"],
-        #         address=reward_static["rewarder_address"],
-        #         data={
-        #             "reward_static": reward_static,
-        #             "hypervisor_status": hypervisor_status,
-        #         },
-        #     ).as_dict,
-        # )
 
     # add all items to database at once
     local_db.replace_items_to_database(data=items, collection_name="queue")

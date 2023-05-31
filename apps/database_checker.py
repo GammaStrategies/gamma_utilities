@@ -13,11 +13,12 @@ import polars as pl
 from datetime import datetime
 from pathlib import Path
 from web3.exceptions import ContractLogicError
+from apps.feeds.queue import QueueItem
 
 
 from bins.configuration import CONFIGURATION
 from bins.database.db_user_status import user_status_hypervisor_builder
-from bins.general.enums import databaseSource
+from bins.general.enums import databaseSource, queueItemType
 from bins.general.general_utilities import (
     convert_string_datetime,
     differences,
@@ -405,6 +406,112 @@ def repair_hypervisor_status():
     repair_missing_hype_status()
 
 
+def repair_missing_hypervisor_status_OLD(
+    protocol: str, network: str, cache: bool = True, max_repair: int = None
+):
+    """Creates hypervisor status at all operations block and block-1 not already present in database,
+        using the difference between operations and status blocks
+
+    Args:
+        protocol (str):
+        network (str):
+        rewrite (bool): rewrite all status
+        threaded: (bool):
+    """
+    batch_size = 100000
+    logging.getLogger(__name__).info(
+        f">Feeding {protocol}'s {network} hypervisors status information using the difference between operations and status blocks"
+    )
+    # get all operation blocks from database
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_name = f"{network}_{protocol}"
+
+    # loop thru all hypervisors in database
+    for hype in database_local(
+        mongo_url=mongo_url, db_name=db_name
+    ).get_items_from_database(collection_name="static", find={}):
+        # get all status blocks
+        hype_status_blocks = [
+            x["block"]
+            for x in database_local(
+                mongo_url=mongo_url, db_name=db_name
+            ).get_items_from_database(
+                collection_name="status",
+                find={"address": hype["address"]},
+                projection={"block": 1},
+                batch_size=batch_size,
+            )
+        ]
+
+        # get all operations blocks with the topic=["deposit", "withdraw", "zeroBurn", "rebalance"]
+        operation_blocks = []
+
+        for operation in database_local(
+            mongo_url=mongo_url, db_name=db_name
+        ).get_items_from_database(
+            collection_name="operations",
+            find={
+                "address": hype["address"],
+                "topic": {"$in": ["deposit", "withdraw", "zeroBurn", "rebalance"]},
+            },
+            batch_size=batch_size,
+            sort=[("blockNumber", 1)],
+        ):
+            operation_blocks.append(int(operation["blockNumber"]))
+            operation_blocks.append(int(operation["blockNumber"]) - 1)
+
+        # get differences
+        if difference_blocks := differences(operation_blocks, hype_status_blocks):
+            logging.getLogger(__name__).info(
+                f" Found {len(difference_blocks)} missing status blocks for {network}'s {hype['address']}"
+            )
+            if max_repair and len(difference_blocks) > max_repair:
+                logging.getLogger(__name__).info(
+                    f"  Selecting a random sample of {max_repair} hypervisor status missing due to max_repair limit set."
+                )
+                difference_blocks = random.sample(difference_blocks, max_repair)
+
+            logging.getLogger(__name__).info(
+                f"  Feeding hypervisor status collection with {len(difference_blocks)} blocks for {network}'s {hype['address']}"
+            )
+
+            # prepare arguments for paralel scraping
+            args = (
+                (
+                    hype["address"],
+                    network,
+                    block,
+                    hype["dex"],
+                    False,
+                    None,
+                    None,
+                    cache,
+                    "private",
+                )
+                for block in difference_blocks
+            )
+            # scrape missing status
+            _errors = 0
+            with tqdm.tqdm(total=len(difference_blocks)) as progress_bar:
+                with concurrent.futures.ThreadPoolExecutor() as ex:
+                    for result in ex.map(lambda p: build_db_hypervisor(*p), args):
+                        if result is None:
+                            # error found
+                            _errors += 1
+
+                        else:
+                            # add hypervisor status to database
+                            database_local(
+                                mongo_url=mongo_url, db_name=db_name
+                            ).set_status(data=result)
+
+                        progress_bar.set_description(
+                            f" Found {_errors} errors while snapshooting hypervisor status"
+                        )
+                        # update progress
+                        progress_bar.update(1)
+
+
 def repair_missing_hypervisor_status(
     protocol: str, network: str, cache: bool = True, max_repair: int = None
 ):
@@ -441,26 +548,10 @@ def repair_missing_hypervisor_status(
                 batch_size=batch_size,
             )
         ]
-        # hype_status_blocks = database_local(
-        #     mongo_url=mongo_url, db_name=db_name
-        # ).get_distinct_items_from_database(
-        #     collection_name="status",
-        #     field="block",
-        #     condition={"address": hype["address"]},
-        # )
 
         # get all operations blocks with the topic=["deposit", "withdraw", "zeroBurn", "rebalance"]
         operation_blocks = []
-        # for block in database_local(
-        #     mongo_url=mongo_url, db_name=db_name
-        # ).get_distinct_items_from_database(
-        #     collection_name="operations",
-        #     field="blockNumber",
-        #     condition={
-        #         "address": hype["address"],
-        #         "topic": {"$in": ["deposit", "withdraw", "zeroBurn", "rebalance"]},
-        #     },
-        # ):
+
         for operation in database_local(
             mongo_url=mongo_url, db_name=db_name
         ).get_items_from_database(
@@ -486,35 +577,23 @@ def repair_missing_hypervisor_status(
                 )
                 difference_blocks = random.sample(difference_blocks, max_repair)
 
+            # add hype status queueItems to the database queue collection to be processed
             logging.getLogger(__name__).info(
-                f"  Feeding hypervisor status collection with {len(difference_blocks)} blocks for {network}'s {hype['address']}"
+                f"  Add {len(difference_blocks)} blocks for {network}'s {hype['address']} to the queue"
             )
-
-            # prepare arguments for paralel scraping
-            args = (
-                (hype["address"], network, block, hype["dex"], False, None, None, cache)
-                for block in difference_blocks
-            )
-            # scrape missing status
-            _errors = 0
-            with tqdm.tqdm(total=len(difference_blocks)) as progress_bar:
-                with concurrent.futures.ThreadPoolExecutor() as ex:
-                    for result in ex.map(lambda p: build_db_hypervisor(*p), args):
-                        if result is None:
-                            # error found
-                            _errors += 1
-
-                        else:
-                            # add hypervisor status to database
-                            database_local(
-                                mongo_url=mongo_url, db_name=db_name
-                            ).set_status(data=result)
-                            # progress
-                            progress_bar.set_description(
-                                f' {result.get("address", "")}  {result.get("block", " ")} processed'
-                            )
-                        # update progress
-                        progress_bar.update(1)
+            for block in difference_blocks:
+                # insert queue only if not exists
+                database_local(
+                    mongo_url=mongo_url, db_name=db_name
+                ).insert_if_not_exists(
+                    data=QueueItem(
+                        type=queueItemType.HYPERVISOR_STATUS,
+                        block=block,
+                        address=operation["address"],
+                        data=operation,
+                    ).as_dict,
+                    collection_name="queue",
+                )
 
 
 def repair_hype_status_from_user(min_count: int = 1):
