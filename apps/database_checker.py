@@ -1130,7 +1130,7 @@ def auto_get_prices():
                     )
 
 
-def get_all_logfiles() -> list:
+def get_all_logfiles(log_names: list = ["debug", "price"]) -> list:
     """get all logfiles from config or default"""
 
     logfiles = []
@@ -1150,20 +1150,12 @@ def get_all_logfiles() -> list:
                 ):
                     for file in files:
                         if file.endswith(".log") and (
-                            "debug" in file.lower() or "price" in file.lower()
+                            any([x.lower() in file.lower() for x in log_names])
+                            or len(log_names) == 0
                         ):
+                            #     "debug" in file.lower() or "price" in file.lower()
+                            # ):
                             logfiles.append(os.path.join(root, file))
-
-        # # get loaded price log
-        # logfiles.append(logging.getLogger("price").handlers[0].baseFilename)
-        # # get loaded debug log
-        # logfiles.append(
-        #     [
-        #         x.baseFilename
-        #         for x in logging.getLoggerClass().root.handlers
-        #         if "debug" in x.name
-        #     ][0]
-        # )
 
     return logfiles
 

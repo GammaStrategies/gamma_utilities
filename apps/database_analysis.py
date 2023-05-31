@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 
 from datetime import timezone
 from decimal import Decimal
+from apps.database_checker import get_all_logfiles
 
 if __name__ == "__main__":
     # append parent directory pth
@@ -503,6 +504,15 @@ def sumary_user(network, protocol, user_address, ini_date=None, end_date=None):
             )
         except Exception:
             logging.getLogger(__name__).exception(" error ")
+
+
+# queue analysis
+def queue_analysis():
+    # get number of items in queues, per network
+
+    # read benchmark logs to sumarize queue statistics per network ( average processing time, average waiting time, etc )
+    for log_file in get_all_logfiles(log_names=["benchmark"]):
+        pass
 
 
 def main(option: str, **kwargs):
