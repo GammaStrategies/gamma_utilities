@@ -172,6 +172,26 @@ class db_collections_common:
                 f" Unable to replace multiple items in mongo's {collection_name} collection.  Items qtty: {len(data)}    error-> {e}"
             )
 
+    def insert_if_not_exists(
+        self,
+        data: dict,
+        collection_name: str,
+    ):
+        try:
+            with MongoDbManager(
+                url=self._db_mongo_url,
+                db_name=self._db_name,
+                collections=self._db_collections,
+            ) as _db_manager:
+                # add to mongodb
+                _db_manager.insert_if_not_exists(
+                    coll_name=collection_name, dbFilter={"id": data["id"]}, data=data
+                )
+        except Exception as e:
+            logging.getLogger(__name__).error(
+                f" Unable to insert if not exists data in mongo's {collection_name} collection.  Item: {data}    error-> {e}"
+            )
+
     def query_items_from_database(
         self,
         query: list[dict],

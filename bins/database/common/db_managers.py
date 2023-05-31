@@ -386,6 +386,16 @@ class MongoDbManager:
             filter=dbFilter, update=update, return_document=True
         )
 
+    def insert_if_not_exists(self, coll_name: str, dbFilter: dict, data: dict) -> None:
+        """Add a document to a collection only if it does not already exist.
+        Args:
+            coll_name (str):
+            dbFilter (dict):  like  {"_id": "counter-id"}
+            data (dict):
+        """
+        update = {"$setOnInsert": data}
+        self.database[coll_name].update_one(filter=dbFilter, update=update, upsert=True)
+
     @staticmethod
     def create_database_name(network: str, protocol: str) -> str:
         return f"{protocol}_{network}"
