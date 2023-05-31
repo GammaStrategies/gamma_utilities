@@ -19,6 +19,8 @@ LOG_NAME = "price"
 
 
 class price_scraper:
+    token_addresses_not_thegraph = ["0xf4c8e32eadec4bfe97e0f595add0f4450a863a11"]
+
     def __init__(
         self,
         cache: bool = True,
@@ -130,7 +132,10 @@ class price_scraper:
             )
             _source = databaseSource.ONCHAIN
 
-        if _price in [None, 0]:
+        if (
+            _price in [None, 0]
+            and token_id.lower() not in self.token_addresses_not_thegraph
+        ):
             # get a list of thegraph_connectors
             thegraph_connectors = self._get_connector_candidates(network=network)
 
