@@ -676,6 +676,7 @@ class database_local(db_collections_common):
                 "queue": {
                     "mono_indexes": {
                         "id": True,
+                        "type": False,
                     },
                     "multi_indexes": [],
                 },
