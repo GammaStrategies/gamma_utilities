@@ -38,9 +38,10 @@ class QueueItem:
         # add creation time when object is created for the first time (not when it is loaded from database)
         if self.creation == 0:
             self.creation = time.time()
-
-        # add a counter to avoid infinite info gathering loops on errors
-        self.count += 1
+            # self.count = 0 # not needed because it is set to 0 by default
+        else:
+            # add a counter to avoid infinite info gathering loops on errors
+            self.count += 1
 
     @property
     def as_dict(self) -> dict:
