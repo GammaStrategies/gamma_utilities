@@ -38,7 +38,7 @@ def process_all_queues(maximum_tasks: int = 10):
                                     network,
                                     CONFIGURATION["_custom_"][
                                         "cml_parameters"
-                                    ].queue_type,
+                                    ].queue_types,
                                 ),
                             )
                         )

@@ -1,24 +1,25 @@
 import sys
 import argparse
 
+from bins.general.enums import Chain, queueItemType
+
 
 # validations
 class ValidateNetworks(argparse.Action):
     def __call__(self, parser, args, networks, option_string=None):
-        # print '{n} {v} {o}'.format(n=args, v=values, o=option_string)
-        # TODO: get from enums
-        valid_subjects = (
-            "ethereum",
-            "polygon",
-            "optimism",
-            "arbitrum",
-            "binance",
-            "polygon_zkevm",
-            "celo",
-            "avalanche",
-            "fantom",
-            "moonbeam",
-        )
+        valid_subjects = [x.database_name for x in Chain]
+        # valid_subjects = (
+        #     "ethereum",
+        #     "polygon",
+        #     "optimism",
+        #     "arbitrum",
+        #     "binance",
+        #     "polygon_zkevm",
+        #     "celo",
+        #     "avalanche",
+        #     "fantom",
+        #     "moonbeam",
+        # )
 
         # modify only if not empty
         if result := [
@@ -26,6 +27,20 @@ class ValidateNetworks(argparse.Action):
             for item in networks
             for network in item.split(" ")
             if network in valid_subjects
+        ]:
+            setattr(args, self.dest, result)
+
+
+class ValidateQueueTypes(argparse.Action):
+    def __call__(self, parser, args, queue_types, option_string=None):
+        valid_subjects = [x.value for x in queueItemType]
+
+        # modify only if not empty
+        if result := [
+            queueItemType[queue_type.upper()]
+            for item in queue_types
+            for queue_type in item.split(" ")
+            if queue_type.lower() in valid_subjects
         ]:
             setattr(args, self.dest, result)
 
@@ -170,9 +185,10 @@ def parse_commandLine_args():
     )
     # queue type
     par_main.add_argument(
-        "--queue_type",
-        choices=["hypervisor_status", "price", "block", "reward_status"],
-        help=" Type of queue to process ",
+        "--queue_types",
+        action=ValidateQueueTypes,
+        nargs="+",
+        help=" Types of queue to process ",
     )
 
     # print helpwhen no command is passed

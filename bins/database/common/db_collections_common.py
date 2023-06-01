@@ -692,10 +692,10 @@ class database_local(db_collections_common):
         # save to db
         self.replace_item_to_database(data=data, collection_name="queue")
 
-    def get_queue_item(self, type: queueItemType | None = None) -> dict | None:
+    def get_queue_item(self, types: list[queueItemType] | None = None) -> dict | None:
         find = {"processing": 0}
-        if type:
-            find["type"] = type
+        if types:
+            find["type"] = {"$in": types}
         # get one item from queue
 
         if db_queue_item := self.find_one_and_update(

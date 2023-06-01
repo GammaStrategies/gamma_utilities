@@ -184,61 +184,30 @@ def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network
 def parallel_pull(network: str):
     # TEST funcion: use parallel_feed.py instead
     args = [
-        (network, queueItemType.HYPERVISOR_STATUS),
-        (network, queueItemType.BLOCK),
-        (network, queueItemType.PRICE),
-        (network, queueItemType.REWARD_STATUS),
+        (network, [queueItemType.HYPERVISOR_STATUS, queueItemType.PRICE]),
+        (network, [queueItemType.BLOCK]),
+        (network, [queueItemType.REWARD_STATUS]),
     ] * 5
     with concurrent.futures.ThreadPoolExecutor() as ex:
         for n in ex.map(lambda p: pull_from_queue(*p), args):
             pass
 
 
-def pull_from_queue(network: str, type: queueItemType | None = None):
-    # logging.getLogger(__name__).info(f">Processing {network}'s queue items")
-
-    # debug variables
+def pull_from_queue(network: str, types: list[queueItemType] | None = None):
+    # variables
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     # set local database name and create manager
     local_db = database_local(mongo_url=mongo_url, db_name=f"{network}_gamma")
 
     # get first item from queue
-    if db_queue_item := local_db.get_queue_item(type=type):
+    if db_queue_item := local_db.get_queue_item(types=types):
         try:
             # convert database queue item to class
             queue_item = QueueItem(**db_queue_item)
 
-            if queue_item.count > 10:
-                logging.getLogger(__name__).error(
-                    f" {network}'s queue item {queue_item.id} has been processed more than 10 times unsuccessfully. Skipping ( check it manually)"
-                )
-                return False
+            # process queue item
+            return process_queue_item_type(network=network, queue_item=queue_item)
 
-            logging.getLogger(__name__).debug(
-                f"Processing {network}'s {queue_item.type} queue item {queue_item.address} at block {queue_item.block}"
-            )
-
-            if queue_item.type == queueItemType.HYPERVISOR_STATUS:
-                return pull_from_queue_hypervisor_status(
-                    network=network, queue_item=queue_item
-                )
-            elif queue_item.type == queueItemType.REWARD_STATUS:
-                return pull_from_queue_reward_status(
-                    network=network, queue_item=queue_item
-                )
-            elif queue_item.type == queueItemType.PRICE:
-                return pull_from_queue_price(network=network, queue_item=queue_item)
-            elif queue_item.type == queueItemType.BLOCK:
-                return pull_from_queue_block(network=network, queue_item=queue_item)
-            else:
-                # reset queue item
-                queue_item.processing = 0
-                local_db.replace_item_to_database(
-                    data=queue_item.as_dict, collection_name="queue"
-                )
-                raise ValueError(
-                    f" Unknown queue item type {queue_item.type} at network {network}"
-                )
         except Exception as e:
             # reset queue item
             queue_item.processing = 0
@@ -249,6 +218,48 @@ def pull_from_queue(network: str, type: queueItemType | None = None):
     # else:
     # no item found
     return True
+
+
+# classifier
+def process_queue_item_type(network: str, queue_item: QueueItem) -> bool:
+    # check if queue item has been processed more than 10 times, and return if so
+    if queue_item.count > 10:
+        logging.getLogger(__name__).error(
+            f" {network}'s queue item {queue_item.id} has been processed more than 10 times unsuccessfully. Skipping ( check it manually)"
+        )
+        return False
+
+    logging.getLogger(__name__).debug(
+        f"Processing {network}'s {queue_item.type} queue item {queue_item.address} at block {queue_item.block}"
+    )
+
+    if queue_item.type == queueItemType.HYPERVISOR_STATUS:
+        return pull_from_queue_hypervisor_status(network=network, queue_item=queue_item)
+    elif queue_item.type == queueItemType.REWARD_STATUS:
+        return pull_from_queue_reward_status(network=network, queue_item=queue_item)
+    elif queue_item.type == queueItemType.PRICE:
+        return pull_from_queue_price(network=network, queue_item=queue_item)
+    elif queue_item.type == queueItemType.BLOCK:
+        return pull_from_queue_block(network=network, queue_item=queue_item)
+    else:
+        # reset queue item
+
+        # variables
+        mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+        # set local database name and create manager
+        local_db = database_local(mongo_url=mongo_url, db_name=f"{network}_gamma")
+        # set queue item as not being processed
+        queue_item.processing = 0
+        local_db.replace_item_to_database(
+            data=queue_item.as_dict, collection_name="queue"
+        )
+        # raise error
+        raise ValueError(
+            f" Unknown queue item type {queue_item.type} at network {network}"
+        )
+
+
+# processing types
 
 
 def pull_from_queue_hypervisor_status(network: str, queue_item: QueueItem) -> bool:
@@ -322,7 +333,13 @@ def pull_from_queue_reward_status(network: str, queue_item: QueueItem) -> bool:
             network=network,
         ):
             for reward_status in reward_status_list:
-                local_db.set_rewards_status(data=reward_status)
+                # only save status if rewards per second are greater than 0
+                if int(reward_status["rewards_perSecond"]) > 0:
+                    local_db.set_rewards_status(data=reward_status)
+                else:
+                    logging.getLogger(__name__).debug(
+                        f" {queue_item.id} has 0 rewards per second. Not saving it to database"
+                    )
 
             # remove item from queue
             local_db.del_queue_item(queue_item.id)
