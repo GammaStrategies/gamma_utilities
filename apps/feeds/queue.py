@@ -281,7 +281,7 @@ def pull_from_queue_hypervisor_status(network: str, queue_item: QueueItem) -> bo
                 # log total process
                 curr_time = time.time()
                 logging.getLogger("benchmark").info(
-                    f" {network} queue item {queue_item.type}:  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
+                    f" {network} queue item {queue_item.type}  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
                 )
 
                 # set queue from hype status operation
@@ -330,7 +330,7 @@ def pull_from_queue_reward_status(network: str, queue_item: QueueItem) -> bool:
             # log total process
             curr_time = time.time()
             logging.getLogger("benchmark").info(
-                f" {network} queue item {queue_item.type}:  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
+                f" {network} queue item {queue_item.type}  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
             )
 
             return True
@@ -379,7 +379,7 @@ def pull_from_queue_price(network: str, queue_item: QueueItem) -> bool:
             # log total process
             curr_time = time.time()
             logging.getLogger("benchmark").info(
-                f" {network} queue item {queue_item.type}:  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
+                f" {network} queue item {queue_item.type}  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
             )
 
             return True
@@ -422,7 +422,7 @@ def pull_from_queue_block(network: str, queue_item: QueueItem) -> bool:
             # log total process
             curr_time = time.time()
             logging.getLogger("benchmark").info(
-                f" {network} queue item {queue_item.type}:  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
+                f" {network} queue item {queue_item.type}  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
             )
 
             return True
