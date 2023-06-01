@@ -1157,28 +1157,28 @@ class zyberswap_masterchef_v1(gamma_rewarder):
                         poolRewardsPerSec[2],
                         poolRewardsPerSec[3],
                     ):
-                        if rewardsPerSec:
-                            result.append(
-                                {
-                                    "network": self._network,
-                                    "block": self.block,
-                                    "timestamp": self._timestamp,
-                                    "hypervisor_address": pinfo[0].lower(),
-                                    "rewarder_address": self.address.lower(),
-                                    "rewarder_type": "zyberswap_masterchef_v1",
-                                    "rewarder_refIds": [pid],
-                                    "rewarder_registry": self.address.lower(),
-                                    "rewardToken": address.lower(),
-                                    "rewardToken_symbol": symbol,
-                                    "rewardToken_decimals": decimals,
-                                    "rewards_perSecond": str(rewardsPerSec)
-                                    if convert_bint
-                                    else rewardsPerSec,
-                                    "total_hypervisorToken_qtty": str(pinfo[6])
-                                    if convert_bint
-                                    else pinfo[6],
-                                }
-                            )
+                        # if rewardsPerSec: # do not uncomment bc it leads to unknown result ( error or no result)
+                        result.append(
+                            {
+                                "network": self._network,
+                                "block": self.block,
+                                "timestamp": self._timestamp,
+                                "hypervisor_address": pinfo[0].lower(),
+                                "rewarder_address": self.address.lower(),
+                                "rewarder_type": "zyberswap_masterchef_v1",
+                                "rewarder_refIds": [pid],
+                                "rewarder_registry": self.address.lower(),
+                                "rewardToken": address.lower(),
+                                "rewardToken_symbol": symbol,
+                                "rewardToken_decimals": decimals,
+                                "rewards_perSecond": str(rewardsPerSec)
+                                if convert_bint
+                                else rewardsPerSec,
+                                "total_hypervisorToken_qtty": str(pinfo[6])
+                                if convert_bint
+                                else pinfo[6],
+                            }
+                        )
 
         return result
 
@@ -2168,7 +2168,6 @@ class thena_gauge_v2(gamma_rewarder):
         Returns:
             list[dict]:
         """
-        result = []
 
         rewardRate = self.rewardRate
         rewardToken = self.rewardToken

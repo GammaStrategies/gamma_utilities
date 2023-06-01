@@ -286,9 +286,15 @@ def feed_rewards_status(
     ) as progress_bar:
         for rewarder_static in to_be_processed_reward_static:
             for reward in feed_rewards_status_loop(rewarder_static):
+                # only save rewards with positive rewards per second
                 if reward:
-                    # add to database
-                    local_db.set_rewards_status(data=reward)
+                    if int(reward["rewards_perSecond"]) > 0:
+                        # add to database
+                        local_db.set_rewards_status(data=reward)
+                    else:
+                        logging.getLogger(__name__).debug(
+                            f" {network}'s {reward['rewarder_address']} {reward['block']} not saved due to 0 rewards per second"
+                        )
                 # else:
                 # no rewards found to be scraped
 
