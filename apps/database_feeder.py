@@ -263,9 +263,24 @@ def feed_operations_hypervisors(
             operation["address"] = operation["address"].lower()
             local_db.set_operation(data=operation)
 
-            # fire scrape event on block of hypervisor status, prices, rewarder status
-            # build queue events from operation
-            build_and_save_queue_from_operation(operation=operation, network=network)
+            # make sure hype is not in status collection already
+            if not local_db.get_items_from_database(
+                collection_name="status",
+                find={
+                    "id": f"{operation['address'].lower()}_{operation['blockNumber']}"
+                },
+                limit=1,
+                projection={"id": 1},
+            ):
+                # fire scrape event on block of hypervisor status, prices, rewarder status
+                # build queue events from operation
+                build_and_save_queue_from_operation(
+                    operation=operation, network=network
+                )
+            else:
+                logging.getLogger(__name__).debug(
+                    f"  Not pushing {operation['address']} hypervisor status queue item bcause its already in the database"
+                )
 
 
 def get_db_last_operation_block(protocol: str, network: str) -> int:
