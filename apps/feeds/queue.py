@@ -26,7 +26,7 @@ class QueueItem:
     processing: float = 0  # timestamp
     id: str | None = None
     creation: float = 0
-    _id: str | None = None
+    _id: str | None = None  # db only
     count: int = 0
 
     def __post_init__(self):
