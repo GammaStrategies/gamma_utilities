@@ -1,6 +1,14 @@
 from pymongo import DeleteOne, MongoClient
 from pymongo.errors import ConnectionFailure, BulkWriteError
 from pymongo import InsertOne, DeleteMany, ReplaceOne, UpdateOne
+from pymongo.cursor import Cursor
+from pymongo.results import (
+    BulkWriteResult,
+    DeleteResult,
+    InsertManyResult,
+    InsertOneResult,
+    UpdateResult,
+)
 
 
 class MongoDbManager:
@@ -74,27 +82,29 @@ class MongoDbManager:
             # refresh database collection names
             self.database_collections = self.database.list_collection_names()
 
-    def del_item(self, coll_name: str, dbFilter: dict):
+    def del_item(self, coll_name: str, dbFilter: dict) -> DeleteResult:
         # check collection configuration exists
         if coll_name not in self.collections_config.keys():
             raise ValueError(
                 f" No configuration found for {coll_name} database collection."
             )
         # add/ update to database (add or replace)
-        self.database[coll_name].delete_one(filter=dbFilter)
+        return self.database[coll_name].delete_one(filter=dbFilter)
 
-    def del_items_in_bulk(self, coll_name: str, data: list):
+    def del_items_in_bulk(self, coll_name: str, data: list) -> BulkWriteResult:
         # check collection configuration exists
         if coll_name not in self.collections_config.keys():
             raise ValueError(
                 f" No configuration found for {coll_name} database collection."
             )
 
-        self.database[coll_name].bulk_write(
+        return self.database[coll_name].bulk_write(
             [DeleteOne(filter=item["filter"]) for item in data]
         )
 
-    def add_item(self, coll_name: str, dbFilter: dict, data: dict, upsert=True):
+    def add_item(
+        self, coll_name: str, dbFilter: dict, data: dict, upsert=True
+    ) -> UpdateResult:
         """Add or Update item
 
         Args:
@@ -118,11 +128,13 @@ class MongoDbManager:
         )
 
         # add/ update to database (add or replace)
-        self.database[coll_name].update_one(
+        return self.database[coll_name].update_one(
             filter=dbFilter, update={"$set": data}, upsert=True
         )
 
-    def add_items_bulk(self, coll_name: str, data: list, upsert=True):
+    def add_items_bulk(
+        self, coll_name: str, data: list, upsert=True
+    ) -> BulkWriteResult:
         """Add or Update item
 
         Args:
@@ -146,14 +158,16 @@ class MongoDbManager:
         )
 
         # add/ update to database (add or replace)
-        self.database[coll_name].bulk_write(
+        return self.database[coll_name].bulk_write(
             [
                 UpdateOne(filter=item["filter"], update=item["data"], upsert=upsert)
                 for item in data
             ]
         )
 
-    def replace_item(self, coll_name: str, dbFilter: dict, data: dict, upsert=True):
+    def replace_item(
+        self, coll_name: str, dbFilter: dict, data: dict, upsert=True
+    ) -> UpdateResult:
         """Add or Update item
 
         Args:
@@ -177,11 +191,13 @@ class MongoDbManager:
         )
 
         # add/ update to database (add or replace)
-        self.database[coll_name].replace_one(
+        return self.database[coll_name].replace_one(
             filter=dbFilter, replacement=data, upsert=True
         )
 
-    def replace_items_bulk(self, coll_name: str, data: list, upsert=True):
+    def replace_items_bulk(
+        self, coll_name: str, data: list, upsert=True
+    ) -> BulkWriteResult:
         """Add or Update items
 
         Args:
@@ -204,14 +220,14 @@ class MongoDbManager:
         )
 
         # add/ update to database (add or replace)
-        self.database[coll_name].bulk_write(
+        return self.database[coll_name].bulk_write(
             [
                 ReplaceOne(filter=item["filter"], replacement=item["data"], upsert=True)
                 for item in data
             ]
         )
 
-    def get_items(self, coll_name: str, **kwargs):
+    def get_items(self, coll_name: str, **kwargs) -> Cursor:
         """get items cursor from database
 
         Args:
@@ -356,7 +372,7 @@ class MongoDbManager:
             else:
                 return self.database[coll_name].aggregate(kwargs["aggregate"])
 
-    def get_distinct(self, coll_name: str, field: str, condition: dict = None):
+    def get_distinct(self, coll_name: str, field: str, condition: dict = None) -> list:
         """get distinct items of a database field
 
         Args:
@@ -386,7 +402,9 @@ class MongoDbManager:
             filter=dbFilter, update=update, return_document=True
         )
 
-    def insert_if_not_exists(self, coll_name: str, dbFilter: dict, data: dict) -> None:
+    def insert_if_not_exists(
+        self, coll_name: str, dbFilter: dict, data: dict
+    ) -> UpdateResult:
         """Add a document to a collection only if it does not already exist.
         Args:
             coll_name (str):
@@ -394,7 +412,9 @@ class MongoDbManager:
             data (dict):
         """
         update = {"$setOnInsert": data}
-        self.database[coll_name].update_one(filter=dbFilter, update=update, upsert=True)
+        return self.database[coll_name].update_one(
+            filter=dbFilter, update=update, upsert=True
+        )
 
     @staticmethod
     def create_database_name(network: str, protocol: str) -> str:
