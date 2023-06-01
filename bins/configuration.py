@@ -258,6 +258,10 @@ DEX_POOLS = {
             "protocol": Protocol.ALGEBRAv3,
             "address": "0x51bd5e6d3da9064d59bcaa5a76776560ab42ceb8",
         },
+        "THE_USDT": {
+            "protocol": Protocol.ALGEBRAv3,
+            "address": "0x98a0004b8e9fe161369528a2e07de56c15a27d76",
+        },
     },
     Chain.AVALANCHE: {},
     Chain.ARBITRUM: {
@@ -386,10 +390,10 @@ DEX_POOLS_PRICE_PATHS = {
         ],
     },
     Chain.BSC: {
-        # # THE
-        # "0xf4c8e32eadec4bfe97e0f595add0f4450a863a11":
-        # [
-        # ],
+        # THE
+        "0xf4c8e32eadec4bfe97e0f595add0f4450a863a11": [
+            (DEX_POOLS[Chain.BSC]["THE_USDT"], 0),
+        ],
     },
     Chain.AVALANCHE: {},
     Chain.ARBITRUM: {
