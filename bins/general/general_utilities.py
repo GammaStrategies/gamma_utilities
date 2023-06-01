@@ -264,6 +264,10 @@ class log_time_passed:
         elif _passed < 60 * 60 * 24:
             _timelapse_unit = "hours"
             _passed /= 60 * 60
+        else:
+            _timelapse_unit = "days"
+            _passed /= 60 * 60 * 24
+
         return "{:,.2f} {}".format(_passed, _timelapse_unit)
 
     def stop(self):
@@ -318,4 +322,7 @@ def seconds_to_time_passed(seconds: float) -> str:
     elif seconds < 60 * 60 * 24:
         _timelapse_unit = "hours"
         seconds /= 60 * 60
+    else:
+        _timelapse_unit = "days"
+        seconds /= 60 * 60 * 24
     return f"{round(seconds,2)} {_timelapse_unit}"
