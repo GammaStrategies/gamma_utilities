@@ -50,7 +50,7 @@ def network_sequence_loop(
     """
 
     # feed database with all operations from static hypervisor addresses
-    feed_operations(protocol=protocol, network=network)
+    feed_operations(protocol=protocol, network=network, force_back_time=True)
 
     # feed database with status
     feed_hypervisor_status(protocol=protocol, network=network, threaded=True)

@@ -43,6 +43,7 @@ def feed_operations(
     block_end: int | None = None,
     date_ini: datetime | None = None,
     date_end: datetime | None = None,
+    force_back_time: bool = False,
 ):
     logging.getLogger(__name__).info(
         f">Feeding {protocol}'s {network} hypervisors operations information"
@@ -128,8 +129,10 @@ def feed_operations(
             )
 
             # check if hypervisors in static collection are diff from operation's
-            if hypervisor_addresses_in_operations and len(hypervisor_addresses) > len(
-                hypervisor_addresses_in_operations
+            if (
+                force_back_time
+                and hypervisor_addresses_in_operations
+                and len(hypervisor_addresses) > len(hypervisor_addresses_in_operations)
             ):
                 # get different addresses
                 diffs = differences(
@@ -694,6 +697,7 @@ def main(option="operations"):
                     feed_hypervisor_static(protocol=protocol, network=network, dex=dex)
 
                 # feed database with all operations from static hyprervisor addresses
+                # TODO: create a force_back_time cml parameter
                 feed_operations(
                     protocol=protocol,
                     network=network,
@@ -701,6 +705,7 @@ def main(option="operations"):
                     date_end=CONFIGURATION["_custom_"]["cml_parameters"].end_datetime,
                     block_ini=CONFIGURATION["_custom_"]["cml_parameters"].ini_block,
                     block_end=CONFIGURATION["_custom_"]["cml_parameters"].end_block,
+                    force_back_time=False,
                 )
 
             elif option == "status":
