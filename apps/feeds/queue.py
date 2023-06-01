@@ -27,6 +27,7 @@ class QueueItem:
     id: str | None = None
     creation: float = 0
     _id: str | None = None
+    count: int = 0
 
     def __post_init__(self):
         if type == "reward_status":
@@ -34,8 +35,12 @@ class QueueItem:
         else:
             self.id = f"{self.type}_{self.block}_{self.address}"
 
+        # add creation time when object is created for the first time (not when it is loaded from database)
         if self.creation == 0:
             self.creation = time.time()
+
+        # add a counter to avoid infinite info gathering loops on errors
+        self.count += 1
 
     @property
     def as_dict(self) -> dict:
@@ -47,6 +52,7 @@ class QueueItem:
             "data": self.data,
             "id": self.id,
             "creation": self.creation,
+            "count": self.count,
         }
 
 
@@ -200,6 +206,16 @@ def pull_from_queue(network: str, type: queueItemType | None = None):
         try:
             # convert database queue item to class
             queue_item = QueueItem(**db_queue_item)
+
+            if queue_item.count > 10:
+                logging.getLogger(__name__).error(
+                    f" {network}'s queue item {queue_item.id} has been processed more than 10 times unsuccessfully. Skipping ( check it manually)"
+                )
+                return False
+
+            logging.getLogger(__name__).debug(
+                f"Processing {network}'s {queue_item.type} queue item {queue_item.address} at block {queue_item.block}"
+            )
 
             if queue_item.type == queueItemType.HYPERVISOR_STATUS:
                 return pull_from_queue_hypervisor_status(
