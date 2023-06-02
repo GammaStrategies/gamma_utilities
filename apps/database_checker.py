@@ -519,7 +519,7 @@ def repair_prices_from_status(
                                 block=block,
                                 address=address,
                                 data={},
-                            )
+                            ).as_dict
                         )
 
                         # progress
