@@ -174,7 +174,10 @@ def build_db_hypervisor(
 
 
 def check_erc20_fields(
-    hypervisor: gamma_hypervisor, hype: dict, convert_bint: bool = True
+    hypervisor: gamma_hypervisor,
+    hype: dict,
+    convert_bint: bool = True,
+    wrong_values: list | None = None,
 ) -> bool:
     """Check only the erc20 part correctness and repair
 
@@ -185,10 +188,12 @@ def check_erc20_fields(
     Returns:
         bool:  has been modified or not?
     """
+    if not wrong_values:
+        wrong_values = [None, "None", "none", "null"]
     # control var
     has_been_modified = False
 
-    if not hype["totalSupply"]:
+    if hype["totalSupply"] in wrong_values:
         logging.getLogger(__name__).error(
             f" {hypervisor._network}'s hype {hypervisor.address} at block {hypervisor.block} has no totalSupply. Will try again"
         )
@@ -198,7 +203,7 @@ def check_erc20_fields(
         )
         has_been_modified = True
 
-    if not hype["decimals"]:
+    if hype["decimals"] in wrong_values:
         logging.getLogger(__name__).error(
             f" {hypervisor._network}'s hype {hypervisor.address} at block {hypervisor.block} has no decimals. Will try again"
         )
@@ -206,7 +211,7 @@ def check_erc20_fields(
         hype["decimals"] = int(hypervisor.decimals)
         has_been_modified = True
 
-    if not hype["symbol"]:
+    if hype["symbol"] in wrong_values:
         logging.getLogger(__name__).error(
             f" {hypervisor._network}'s hype {hypervisor.address} at block {hypervisor.block} has no symbol. Will try again"
         )
@@ -214,7 +219,7 @@ def check_erc20_fields(
         hype["symbol"] = str(hypervisor.symbol)
         has_been_modified = True
 
-    if not hype["pool"]["token0"]["decimals"]:
+    if hype["pool"]["token0"]["decimals"] in wrong_values:
         logging.getLogger(__name__).error(
             f" {hypervisor._network}'s hype {hypervisor.address} at block {hypervisor.block} has no token0 decimals. Will try again"
         )
@@ -222,7 +227,7 @@ def check_erc20_fields(
         hype["pool"]["token0"]["decimals"] = int(hypervisor.pool.token0.decimals)
         has_been_modified = True
 
-    if not hype["pool"]["token1"]["decimals"]:
+    if hype["pool"]["token1"]["decimals"] in wrong_values:
         logging.getLogger(__name__).error(
             f" {hypervisor._network}'s hype {hypervisor.address} at block {hypervisor.block} has no token1 decimals. Will try again"
         )
@@ -230,7 +235,7 @@ def check_erc20_fields(
         hype["pool"]["token1"]["decimals"] = int(hypervisor.pool.token1.decimals)
         has_been_modified = True
 
-    if not hype["pool"]["token0"]["symbol"]:
+    if hype["pool"]["token0"]["symbol"] in wrong_values:
         logging.getLogger(__name__).error(
             f" {hypervisor._network}'s hype {hypervisor.address} at block {hypervisor.block} has no token0 symbol. Will try again"
         )
@@ -238,7 +243,7 @@ def check_erc20_fields(
         hype["pool"]["token0"]["symbol"] = str(hypervisor.pool.token0.symbol)
         has_been_modified = True
 
-    if not hype["pool"]["token1"]["symbol"]:
+    if hype["pool"]["token1"]["symbol"] in wrong_values:
         logging.getLogger(__name__).error(
             f" {hypervisor._network}'s hype {hypervisor.address} at block {hypervisor.block} has no token1 symbol. Will try again"
         )
@@ -246,7 +251,7 @@ def check_erc20_fields(
         hype["pool"]["token1"]["symbol"] = str(hypervisor.pool.token1.symbol)
         has_been_modified = True
 
-    if not hype["pool"]["token0"]["totalSupply"]:
+    if hype["pool"]["token0"]["totalSupply"] in wrong_values:
         logging.getLogger(__name__).error(
             f" {hypervisor._network}'s hype {hypervisor.address} at block {hypervisor.block} has no token0 totalSupply. Will try again"
         )
@@ -258,7 +263,7 @@ def check_erc20_fields(
         )
         has_been_modified = True
 
-    if not hype["pool"]["token1"]["totalSupply"]:
+    if hype["pool"]["token1"]["totalSupply"] in wrong_values:
         logging.getLogger(__name__).error(
             f" {hypervisor._network}'s hype {hypervisor.address} at block {hypervisor.block} has no token1 totalSupply. Will try again"
         )
