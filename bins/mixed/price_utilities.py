@@ -121,6 +121,7 @@ class price_scraper:
                     f" Could not get {network}'s token {token_id} price at block {block} from geckoterminal. error-> {e}"
                 )
 
+        # chain
         if _price in [None, 0]:
             # GET FROM ONCHAIN USDC = 1 USD
 
@@ -136,6 +137,7 @@ class price_scraper:
             )
             _source = databaseSource.ONCHAIN
 
+        # thegraph
         if (
             _price in [None, 0]
             and token_id.lower() not in self.token_addresses_not_thegraph

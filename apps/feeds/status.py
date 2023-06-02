@@ -7,9 +7,11 @@ import tqdm
 
 from bins.configuration import CONFIGURATION
 from bins.database.common.db_collections_common import database_global, database_local
+from bins.database.helpers import get_price_from_db
 from bins.formulas.apr import calculate_rewards_apr
 from bins.general.enums import Chain, Protocol
 from bins.w3.onchain_utilities import rewarders
+
 
 from bins.w3.builders import (
     build_db_hypervisor,
@@ -603,22 +605,3 @@ def create_reward_status_from_hype_status(
     )
 
     return result
-
-
-def get_price_from_db(
-    network: str,
-    block: int,
-    token_address: str,
-) -> float:
-    # try get the prices from database
-    global_db = database_global(
-        mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"]
-    )
-    if token_price := global_db.get_price_usd(
-        network=network, block=block, address=token_address
-    ):
-        return token_price[0]["price"]
-
-    raise ValueError(
-        f" No price for {token_address} on {network} at block {block} in database."
-    )

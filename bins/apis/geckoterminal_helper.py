@@ -272,7 +272,8 @@ class geckoterminal_price_helper:
 
     def get_base_or_quote(self, token_address: str, pool_data: dict) -> str | None:
         """return if token_address is base or quote token in pool_data
-
+                quote_token = token0
+                base_token = token1
         Args:
             token_address (str):
             pool_data (dict):   {

@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from bins.configuration import CONFIGURATION
 from bins.general.general_utilities import log_execution_time
 from bins.database.common.db_collections_common import database_local, database_global
+from bins.database.helpers import get_price_from_db
 
 from bins.converters.onchain import convert_hypervisor_fromDict
 from datetime import timezone
@@ -1112,14 +1113,11 @@ class user_operations_hypervisor_builder:
             pass
 
         # Try to get it from global db
-        global_db_manager = database_global(
-            mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"]
-        )
         try:
             return Decimal(
-                global_db_manager.get_price_usd(
-                    network=self.network, block=block, address=address
-                )[0]["price"]
+                get_price_from_db(
+                    network=self.network, token_address=address, block=block
+                )
             )
         except Exception:
             logging.getLogger(__name__).error(
