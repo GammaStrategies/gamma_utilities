@@ -72,9 +72,11 @@ def get_request(
         # thegraph blocking us?
         # wait and try one last time
         logging.getLogger(__name__).warning(f"Connection error to {url}...")
-    except Exception:
+    except req_exceptions.ReadTimeout as err:
+        logging.getLogger(__name__).warning(f"Connection to {url} has timed out...")
+    except Exception as e:
         logging.getLogger(__name__).exception(
-            f"Unexpected error while retrieving json from {url}     .error: {sys.exc_info()[0]}"
+            f"Unexpected error while retrieving json from {url}     .error: {e}"
         )
 
     if retry < max_retry:
