@@ -143,7 +143,7 @@ class db_collections_common:
                     coll_name=collection_name, dbFilter={"id": data["id"]}, data=data
                 )
         except Exception as e:
-            logging.getLogger(__name__).error(
+            logging.getLogger(__name__).exception(
                 f" Unable to replace data in mongo's {collection_name} collection.  Item: {data}    error-> {e}"
             )
 
@@ -368,8 +368,12 @@ class database_global(db_collections_common):
                     "multi_indexes": [],
                 },
                 "usd_prices": {
-                    "mono_indexes": {"id": True, "address": False},
-                    "multi_indexes": [],
+                    "mono_indexes": {"id": True, "address": False, "block": False},
+                    "multi_indexes": [
+                        ("address", ASCENDING),
+                        ("block", ASCENDING),
+                        ("network", ASCENDING),
+                    ],
                 },
             }
         super().__init__(
