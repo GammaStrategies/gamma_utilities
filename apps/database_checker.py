@@ -507,24 +507,47 @@ def repair_prices_from_status(
                             price_ids_diffs, max_repair_per_network
                         )
 
-                    progress_bar.total += len(price_ids_diffs)
-                    # add prices to QUEUE
-                    for price_id in price_ids_diffs:
-                        network, block, address = price_id.split("_")
+                    # progress_bar.total += len(price_ids_diffs)
 
-                        # add to queue
-                        _db().set_queue_item(
-                            data=QueueItem(
-                                type=queueItemType.PRICE,
-                                block=block,
-                                address=address,
-                                data={},
-                            ).as_dict
+                    def create_queue_item(price_id):
+                        network, block, address = price_id.split("_")
+                        return QueueItem(
+                            type=queueItemType.PRICE,
+                            block=block,
+                            address=address,
+                            data={},
+                        ).as_dict
+
+                    # create a list of queue items tobe added to database
+                    to_queue_items = [
+                        create_queue_item(price_id) for price_id in price_ids_diffs
+                    ]
+
+                    # add to queue
+                    if result := _db().save_items_to_database(
+                        data=to_queue_items, collection_name="queue"
+                    ):
+                        logging.getLogger(__name__).debug(
+                            f" Added {len(to_queue_items)} prices to queue collection for {network}. result: {result.bulk_api_result}"
                         )
 
+                        # # add prices to QUEUE
+                        # for price_id in price_ids_diffs:
+                        #     network, block, address = price_id.split("_")
+
+                        #     # add to queue
+                        #     _db().set_queue_item(
+                        #         data=QueueItem(
+                        #             type=queueItemType.PRICE,
+                        #             block=block,
+                        #             address=address,
+                        #             data={},
+                        #         ).as_dict
+                        #     )
+
                         # progress
-                        progress_bar.set_description(f" {network} {address} {block}")
-                        progress_bar.update(1)
+                        # progress_bar.set_description(f" {network} {address} {block}")
+                    progress_bar.update(1)
 
                 else:
                     logging.getLogger(__name__).info(
@@ -657,7 +680,9 @@ def repair_binance_hypervisor_status():
             hypervisor_address=hype_status["address"],
         )
         # check fields
-        if check_erc20_fields(hypervisor=hypervisor, hype=hype_status, convert_bint=True):
+        if check_erc20_fields(
+            hypervisor=hypervisor, hype=hype_status, convert_bint=True
+        ):
             # save it to database
             if save_result := database_local(
                 mongo_url=mongo_url, db_name=db_name
@@ -701,7 +726,9 @@ def repair_binance_queue_hype_status():
         )
         # check fields
         if check_erc20_fields(
-            hypervisor=hypervisor, hype=queue_item["data"]["hypervisor_status"], convert_bint=True
+            hypervisor=hypervisor,
+            hype=queue_item["data"]["hypervisor_status"],
+            convert_bint=True,
         ):
             # reset count
             queue_item["count"] = 0
