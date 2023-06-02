@@ -252,6 +252,12 @@ DEX_POOLS = {
             "protocol": Protocol.ALGEBRAv3,
             "address": "0xb73abfb5a2c89f4038baa476ff3a7942a021c196",
         },
+        "WETH_WBTC": {
+            "protocol": Protocol.ALGEBRAv3,
+            "address": "0xfc4a3a7dc6b62bd2ea595b106392f5e006083b83",
+            "token0": "0x4f9a0e7fd2bf6067db6994cf12e4495df938e6e9",
+            "token1": "0xea034fb02eb1808c2cc3adbc15f447b93cbe08e1",
+        },
     },
     Chain.BSC: {
         "THE_WBNB": {
@@ -268,6 +274,12 @@ DEX_POOLS = {
         "DAI_USDC": {
             "protocol": Protocol.UNISWAPv3,
             "address": "0xf0428617433652c9dc6d1093a42adfbf30d29f74",
+        },
+        "USDT_USDC": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0x8c9d230d45d6cfee39a6680fb7cb7e8de7ea8e71",
+            "token0": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
+            "token1": "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
         },
     },
     Chain.MOONBEAM: {},
@@ -376,7 +388,7 @@ DEX_POOLS_PRICE_PATHS = {
     },
     Chain.POLYGON_ZKEVM: {
         # WMATIC
-        "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270": [
+        "0xa2036f0538221a77a3937f1379699f44945018d0": [
             (DEX_POOLS[Chain.POLYGON_ZKEVM]["WETH_MATIC"], 0),
             (DEX_POOLS[Chain.POLYGON_ZKEVM]["WETH_USDC"], 1),
         ],
@@ -386,6 +398,11 @@ DEX_POOLS_PRICE_PATHS = {
         ],
         # WETH
         "0x4f9a0e7fd2bf6067db6994cf12e4495df938e6e9": [
+            (DEX_POOLS[Chain.POLYGON_ZKEVM]["WETH_USDC"], 1),
+        ],
+        # WBTC
+        "0xea034fb02eb1808c2cc3adbc15f447b93cbe08e1": [
+            (DEX_POOLS[Chain.POLYGON_ZKEVM]["WETH_WBTC"], 0),
             (DEX_POOLS[Chain.POLYGON_ZKEVM]["WETH_USDC"], 1),
         ],
     },
@@ -400,7 +417,11 @@ DEX_POOLS_PRICE_PATHS = {
         # DAI
         "0xda10009cbd5d07dd0cecc66161fc93d7c9000da1": [
             (DEX_POOLS[Chain.ARBITRUM]["DAI_USDC"], 1),
-        ]
+        ],
+        # USDT
+        "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": [
+            (DEX_POOLS[Chain.ARBITRUM]["USDT_USDC"], 1),
+        ],
     },
     Chain.MOONBEAM: {},
 }
