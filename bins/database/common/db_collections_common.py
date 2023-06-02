@@ -8,6 +8,13 @@ from pymongo.errors import ConnectionFailure, BulkWriteError
 from pymongo import DESCENDING, ASCENDING
 from bins.database.common.db_managers import MongoDbManager
 from bins.general.enums import queueItemType
+from pymongo.results import (
+    BulkWriteResult,
+    DeleteResult,
+    InsertManyResult,
+    InsertOneResult,
+    UpdateResult,
+)
 
 
 class db_collections_common:
@@ -68,7 +75,7 @@ class db_collections_common:
         self,
         data: list[dict],
         collection_name: str,
-    ):
+    ) -> BulkWriteResult:
         """Save multiple items in a collection at once ( in bulk)
 
         Args:
@@ -87,7 +94,7 @@ class db_collections_common:
                 collections=self._db_collections,
             ) as _db_manager:
                 # add to mongodb
-                _db_manager.add_items_bulk(
+                return _db_manager.add_items_bulk(
                     coll_name=collection_name, data=bulk_data, upsert=True
                 )
         except BulkWriteError as bwe:
@@ -103,7 +110,7 @@ class db_collections_common:
         self,
         data: dict,
         collection_name: str,
-    ):
+    ) -> UpdateResult:
         try:
             with MongoDbManager(
                 url=self._db_mongo_url,
@@ -111,9 +118,10 @@ class db_collections_common:
                 collections=self._db_collections,
             ) as _db_manager:
                 # add to mongodb
-                _db_manager.add_item(
+                return _db_manager.add_item(
                     coll_name=collection_name, dbFilter={"id": data["id"]}, data=data
                 )
+
         except Exception as e:
             logging.getLogger(__name__).error(
                 f" Unable to save data to mongo's {collection_name} collection.  Item: {data}    error-> {e}"
@@ -123,7 +131,7 @@ class db_collections_common:
         self,
         data: dict,
         collection_name: str,
-    ):
+    ) -> UpdateResult:
         try:
             with MongoDbManager(
                 url=self._db_mongo_url,
@@ -131,7 +139,7 @@ class db_collections_common:
                 collections=self._db_collections,
             ) as _db_manager:
                 # add to mongodb
-                _db_manager.replace_item(
+                return _db_manager.replace_item(
                     coll_name=collection_name, dbFilter={"id": data["id"]}, data=data
                 )
         except Exception as e:
@@ -143,7 +151,7 @@ class db_collections_common:
         self,
         data: list[dict],
         collection_name: str,
-    ):
+    ) -> BulkWriteResult:
         """Replace multiple items in a collection at once ( in bulk)
 
         Args:
@@ -160,7 +168,7 @@ class db_collections_common:
                 collections=self._db_collections,
             ) as _db_manager:
                 # add to mongodb
-                _db_manager.replace_items_bulk(
+                return _db_manager.replace_items_bulk(
                     coll_name=collection_name, data=bulk_data, upsert=True
                 )
         except BulkWriteError as bwe:
@@ -176,7 +184,7 @@ class db_collections_common:
         self,
         data: dict,
         collection_name: str,
-    ):
+    ) -> UpdateResult:
         try:
             with MongoDbManager(
                 url=self._db_mongo_url,
@@ -184,7 +192,7 @@ class db_collections_common:
                 collections=self._db_collections,
             ) as _db_manager:
                 # add to mongodb
-                _db_manager.insert_if_not_exists(
+                return _db_manager.insert_if_not_exists(
                     coll_name=collection_name, dbFilter={"id": data["id"]}, data=data
                 )
         except Exception as e:
@@ -222,7 +230,7 @@ class db_collections_common:
 
     def get_distinct_items_from_database(
         self, collection_name: str, field: str, condition: dict = None
-    ):
+    ) -> list:
         if condition is None:
             condition = {}
         with MongoDbManager(
@@ -230,11 +238,10 @@ class db_collections_common:
             db_name=self._db_name,
             collections=self._db_collections,
         ) as _db_manager:
-            result = list(
-                _db_manager.get_distinct(
-                    coll_name=collection_name, field=field, condition=condition
-                )
+            result = _db_manager.get_distinct(
+                coll_name=collection_name, field=field, condition=condition
             )
+
         return result
 
     def get_cursor(self, db_manager: MongoDbManager, collection_name: str, **kwargs):
@@ -906,7 +913,7 @@ class database_local(db_collections_common):
     def set_status(self, data: dict):
         # define database id
         data["id"] = f"{data['address']}_{data['block']}"
-        self.save_item_to_database(data=data, collection_name="status")
+        return self.save_item_to_database(data=data, collection_name="status")
 
     def get_all_status(self, hypervisor_address: str) -> list:
         """find all hypervisor status from db
