@@ -68,7 +68,13 @@ def build_and_save_queue_from_operation(operation: dict, network: str):
         network (str): _description_
     """
     # discard approval operations ( they are >10% of all operations)
-    if operation["topic"] == "approval":
+    if operation["topic"] not in [
+        "deposit",
+        "withdraw",
+        "rebalance",
+        "zeroBurn",
+        "transfer",
+    ]:
         # approval operations do not need a hype status nor prices, etc..
         return
 
