@@ -657,7 +657,7 @@ def repair_binance_hypervisor_status():
             hypervisor_address=hype_status["address"],
         )
         # check fields
-        if check_erc20_fields(hypervisor=hypervisor, hype=hype_status):
+        if check_erc20_fields(hypervisor=hypervisor, hype=hype_status, convert_bint=True):
             # save it to database
             if save_result := database_local(
                 mongo_url=mongo_url, db_name=db_name
@@ -701,7 +701,7 @@ def repair_binance_queue_hype_status():
         )
         # check fields
         if check_erc20_fields(
-            hypervisor=hypervisor, hype=queue_item["data"]["hypervisor_status"]
+            hypervisor=hypervisor, hype=queue_item["data"]["hypervisor_status"], convert_bint=True
         ):
             # reset count
             queue_item["count"] = 0

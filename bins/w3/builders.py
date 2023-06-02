@@ -158,7 +158,9 @@ def build_db_hypervisor(
 
         if network == "binance":
             # BEP20 is not ERC20-> TODO: change
-            check_erc20_fields(hypervisor=hypervisor, hype=hype_as_dict)
+            check_erc20_fields(
+                hypervisor=hypervisor, hype=hype_as_dict, convert_bint=True
+            )
 
         # return converted hypervisor
         return hype_as_dict
@@ -171,7 +173,9 @@ def build_db_hypervisor(
     return None
 
 
-def check_erc20_fields(hypervisor: gamma_hypervisor, hype: dict) -> bool:
+def check_erc20_fields(
+    hypervisor: gamma_hypervisor, hype: dict, convert_bint: bool = True
+) -> bool:
     """Check only the erc20 part correctness and repair
 
     Args:
@@ -189,7 +193,9 @@ def check_erc20_fields(hypervisor: gamma_hypervisor, hype: dict) -> bool:
             f" {hypervisor._network}'s hype {hypervisor.address} at block {hypervisor.block} has no totalSupply. Will try again"
         )
         # get info from chain
-        hype["totalSupply"] = int(hypervisor.totalSupply)
+        hype["totalSupply"] = (
+            str(hypervisor.totalSupply) if convert_bint else int(hypervisor.totalSupply)
+        )
         has_been_modified = True
 
     if not hype["decimals"]:
@@ -245,7 +251,11 @@ def check_erc20_fields(hypervisor: gamma_hypervisor, hype: dict) -> bool:
             f" {hypervisor._network}'s hype {hypervisor.address} at block {hypervisor.block} has no token0 totalSupply. Will try again"
         )
         # get info from chain
-        hype["pool"]["token0"]["totalSupply"] = int(hypervisor.pool.token0.totalSupply)
+        hype["pool"]["token0"]["totalSupply"] = (
+            str(hypervisor.pool.token0.totalSupply)
+            if convert_bint
+            else int(hypervisor.pool.token0.totalSupply)
+        )
         has_been_modified = True
 
     if not hype["pool"]["token1"]["totalSupply"]:
@@ -253,7 +263,11 @@ def check_erc20_fields(hypervisor: gamma_hypervisor, hype: dict) -> bool:
             f" {hypervisor._network}'s hype {hypervisor.address} at block {hypervisor.block} has no token1 totalSupply. Will try again"
         )
         # get info from chain
-        hype["pool"]["token1"]["totalSupply"] = int(hypervisor.pool.token1.totalSupply)
+        hype["pool"]["token1"]["totalSupply"] = (
+            str(hypervisor.pool.token1.totalSupply)
+            if convert_bint
+            else int(hypervisor.pool.token1.totalSupply)
+        )
         has_been_modified = True
 
     return has_been_modified
