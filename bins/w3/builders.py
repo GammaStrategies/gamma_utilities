@@ -154,8 +154,14 @@ def build_db_hypervisor(
         if force_rpcType:
             hypervisor.custom_rpcType = force_rpcType
 
+        hype_as_dict = hypervisor.as_dict(convert_bint=True, static_mode=static_mode)
+
+        if network == "binance":
+            # BEP20 is not ERC20-> TODO: change
+            check_erc20_fields(hypervisor=hypervisor, hype=hype_as_dict)
+
         # return converted hypervisor
-        return hypervisor.as_dict(convert_bint=True, static_mode=static_mode)
+        return hype_as_dict
 
     except Exception as e:
         logging.getLogger(__name__).error(
@@ -163,3 +169,91 @@ def build_db_hypervisor(
         )
 
     return None
+
+
+def check_erc20_fields(hypervisor: gamma_hypervisor, hype: dict) -> bool:
+    """Check only the erc20 part correctness and repair
+
+    Args:
+        hypervisor (gamma_hypervisor): hype
+        hype (dict): hyperivisor as a dict
+
+    Returns:
+        bool:  has been modified or not?
+    """
+    # control var
+    has_been_modified = False
+
+    if not hype["totalSupply"]:
+        logging.getLogger(__name__).error(
+            f" {hypervisor._network}'s hype {hypervisor.address} at block {hypervisor.block} has no totalSupply. Will try again"
+        )
+        # get info from chain
+        hype["totalSupply"] = int(hypervisor.totalSupply)
+        has_been_modified = True
+
+    if not hype["decimals"]:
+        logging.getLogger(__name__).error(
+            f" {hypervisor._network}'s hype {hypervisor.address} at block {hypervisor.block} has no decimals. Will try again"
+        )
+        # get info from chain
+        hype["decimals"] = int(hypervisor.decimals)
+        has_been_modified = True
+
+    if not hype["symbol"]:
+        logging.getLogger(__name__).error(
+            f" {hypervisor._network}'s hype {hypervisor.address} at block {hypervisor.block} has no symbol. Will try again"
+        )
+        # get info from chain
+        hype["symbol"] = str(hypervisor.symbol)
+        has_been_modified = True
+
+    if not hype["pool"]["token0"]["decimals"]:
+        logging.getLogger(__name__).error(
+            f" {hypervisor._network}'s hype {hypervisor.address} at block {hypervisor.block} has no token0 decimals. Will try again"
+        )
+        # get info from chain
+        hype["pool"]["token0"]["decimals"] = int(hypervisor.pool.token0.decimals)
+        has_been_modified = True
+
+    if not hype["pool"]["token1"]["decimals"]:
+        logging.getLogger(__name__).error(
+            f" {hypervisor._network}'s hype {hypervisor.address} at block {hypervisor.block} has no token1 decimals. Will try again"
+        )
+        # get info from chain
+        hype["pool"]["token1"]["decimals"] = int(hypervisor.pool.token1.decimals)
+        has_been_modified = True
+
+    if not hype["pool"]["token0"]["symbol"]:
+        logging.getLogger(__name__).error(
+            f" {hypervisor._network}'s hype {hypervisor.address} at block {hypervisor.block} has no token0 symbol. Will try again"
+        )
+        # get info from chain
+        hype["pool"]["token0"]["symbol"] = str(hypervisor.pool.token0.symbol)
+        has_been_modified = True
+
+    if not hype["pool"]["token1"]["symbol"]:
+        logging.getLogger(__name__).error(
+            f" {hypervisor._network}'s hype {hypervisor.address} at block {hypervisor.block} has no token1 symbol. Will try again"
+        )
+        # get info from chain
+        hype["pool"]["token1"]["symbol"] = str(hypervisor.pool.token1.symbol)
+        has_been_modified = True
+
+    if not hype["pool"]["token0"]["totalSupply"]:
+        logging.getLogger(__name__).error(
+            f" {hypervisor._network}'s hype {hypervisor.address} at block {hypervisor.block} has no token0 totalSupply. Will try again"
+        )
+        # get info from chain
+        hype["pool"]["token0"]["totalSupply"] = int(hypervisor.pool.token0.totalSupply)
+        has_been_modified = True
+
+    if not hype["pool"]["token1"]["totalSupply"]:
+        logging.getLogger(__name__).error(
+            f" {hypervisor._network}'s hype {hypervisor.address} at block {hypervisor.block} has no token1 totalSupply. Will try again"
+        )
+        # get info from chain
+        hype["pool"]["token1"]["totalSupply"] = int(hypervisor.pool.token1.totalSupply)
+        has_been_modified = True
+
+    return has_been_modified

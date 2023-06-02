@@ -37,7 +37,7 @@ from bins.w3.onchain_utilities.basic import erc20_cached
 from bins.database.common.db_collections_common import database_local, database_global
 from bins.mixed.price_utilities import price_scraper
 
-from bins.w3.builders import build_db_hypervisor
+from bins.w3.builders import build_db_hypervisor, build_hypervisor, check_erc20_fields
 
 from apps.feeds.prices import (
     create_tokenBlocks_all,
@@ -617,6 +617,100 @@ def repair_hypervisor_status():
 
     # missing hypes
     repair_missing_hype_status()
+
+    # binance
+    repair_binance_hypervisor_status()
+    repair_binance_queue_hype_status()
+
+
+def repair_binance_hypervisor_status():
+    batch_size = 100000
+    network = "binance"
+    dex = "thena"
+    logging.getLogger(__name__).info(f">Repairing {network} hypervisors status ")
+    # get all operation blocks from database
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_name = f"{network}_gamma"
+
+    # get all wrong erc20 values from status
+    for hype_status in tqdm.tqdm(
+        database_local(mongo_url=mongo_url, db_name=db_name).get_items_from_database(
+            collection_name="status",
+            find={
+                "$or": [
+                    {"decimals": None},
+                    {"totalSupply": None},
+                    {"symbol": None},
+                    {"pool.token0.symbol": None},
+                    {"pool.token1.symbol": None},
+                    {"pool.token0.decimals": None},
+                    {"pool.token1.decimals": None},
+                ],
+            },
+        )
+    ):
+        # build hypervisor
+        hypervisor = build_hypervisor(
+            network=network,
+            dex=dex,
+            block=hype_status["block"],
+            hypervisor_address=hype_status["address"],
+        )
+        # check fields
+        if check_erc20_fields(hypervisor=hypervisor, hype=hype_status):
+            # save it to database
+            if save_result := database_local(
+                mongo_url=mongo_url, db_name=db_name
+            ).set_status(data=hype_status):
+                logging.getLogger(__name__).debug(f" {save_result['raw_result']} ")
+
+
+def repair_binance_queue_hype_status():
+    batch_size = 100000
+    network = "binance"
+    dex = "thena"
+    logging.getLogger(__name__).info(f">Repairing {network} queue (hype status) ")
+    # get all operation blocks from database
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_name = f"{network}_gamma"
+
+    # get all wrong erc20 values from status
+    for queue_item in tqdm.tqdm(
+        database_local(mongo_url=mongo_url, db_name=db_name).get_items_from_database(
+            collection_name="queue",
+            find={
+                "data.hypervisor_status": {"$exists": True},
+                "$or": [
+                    {"data.hypervisor_status.decimals": None},
+                    {"data.hypervisor_status.totalSupply": None},
+                    {"data.hypervisor_status.symbol": None},
+                    {"data.hypervisor_status.pool.token0.symbol": None},
+                    {"data.hypervisor_status.pool.token1.symbol": None},
+                    {"data.hypervisor_status.pool.token0.decimals": None},
+                    {"data.hypervisor_status.pool.token1.decimals": None},
+                ],
+            },
+        )
+    ):
+        # build hypervisor
+        hypervisor = build_hypervisor(
+            network=network,
+            dex=dex,
+            block=queue_item["data"]["hypervisor_status"]["block"],
+            hypervisor_address=queue_item["data"]["hypervisor_status"]["address"],
+        )
+        # check fields
+        if check_erc20_fields(
+            hypervisor=hypervisor, hype=queue_item["data"]["hypervisor_status"]
+        ):
+            # reset count
+            queue_item["count"] = 0
+
+            # save it to database
+            if save_result := database_local(
+                mongo_url=mongo_url, db_name=db_name
+            ).set_queue_item(data=queue_item):
+                logging.getLogger(__name__).debug(f" {save_result['raw_result']} ")
 
 
 def repair_missing_hypervisor_status_OLD(
