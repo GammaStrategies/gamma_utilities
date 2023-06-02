@@ -524,7 +524,7 @@ def repair_prices_from_status(
                     ]
 
                     # add to queue
-                    if result := _db().save_items_to_database(
+                    if result := _db().replace_items_to_database(
                         data=to_queue_items, collection_name="queue"
                     ):
                         logging.getLogger(__name__).debug(
