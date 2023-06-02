@@ -370,9 +370,11 @@ class database_global(db_collections_common):
                 "usd_prices": {
                     "mono_indexes": {"id": True, "address": False, "block": False},
                     "multi_indexes": [
-                        ("address", ASCENDING),
-                        ("block", ASCENDING),
-                        ("network", ASCENDING),
+                        [
+                            ("address", ASCENDING),
+                            ("block", ASCENDING),
+                            ("network", ASCENDING),
+                        ],
                     ],
                 },
             }
