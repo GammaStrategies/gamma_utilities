@@ -316,7 +316,7 @@ def pull_from_queue_hypervisor_status(network: str, queue_item: QueueItem) -> bo
         )
 
     # free item from processing
-    local_db.free_queue_item(data=queue_item.as_dict)
+    local_db.free_queue_item(db_queue_item=queue_item.as_dict)
     return False
 
 
@@ -362,7 +362,7 @@ def pull_from_queue_reward_status(network: str, queue_item: QueueItem) -> bool:
         )
 
     # free item from processing
-    local_db.free_queue_item(data=queue_item.as_dict)
+    local_db.free_queue_item(db_queue_item=queue_item.as_dict)
 
     return False
 
@@ -411,7 +411,7 @@ def pull_from_queue_price(network: str, queue_item: QueueItem) -> bool:
         )
 
     # free item from processing
-    local_db.free_queue_item(data=queue_item.as_dict)
+    local_db.free_queue_item(db_queue_item=queue_item.as_dict)
 
     return False
 
@@ -454,6 +454,6 @@ def pull_from_queue_block(network: str, queue_item: QueueItem) -> bool:
         )
 
     # free item from processing
-    local_db.free_queue_item(data=queue_item.as_dict)
+    local_db.free_queue_item(db_queue_item=queue_item.as_dict)
 
     return False
