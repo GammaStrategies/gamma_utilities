@@ -1,3 +1,4 @@
+import logging
 import time
 import threading
 from multiprocessing import Pool
@@ -20,6 +21,10 @@ def poll_results():
 def process_all_queues(maximum_tasks: int = 10):
     poller_thread = threading.Thread(target=poll_results)
     poller_thread.start()
+
+    logging.getLogger(__name__).info(
+        f"Starting parallel feed with {maximum_tasks} tasks"
+    )
 
     with Pool() as p:
         while True:
