@@ -302,11 +302,18 @@ def get_db_last_operation_block(protocol: str, network: str) -> int:
         mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
         db_name = f"{network}_{protocol}"
         local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
+        batch_size = 100000
 
         block_list = sorted(
-            local_db_manager.get_distinct_items_from_database(
-                collection_name="operations", field="blockNumber"
-            ),
+            [
+                int(operation["blockNumber"])
+                for operation in local_db_manager.get_items_from_database(
+                    collection_name="operations",
+                    find={},
+                    projection={"blockNumber": 1},
+                    batch_size=batch_size,
+                )
+            ],
             reverse=False,
         )
 
@@ -316,9 +323,9 @@ def get_db_last_operation_block(protocol: str, network: str) -> int:
             f" Unable to get last operation block bc no operations have been found for {network}'s {protocol} in db"
         )
 
-    except Exception:
+    except Exception as e:
         logging.getLogger(__name__).exception(
-            f" Unexpected error while quering db operations for latest block  error:{sys.exc_info()[0]}"
+            f" Unexpected error while quering db operations for latest block  error:{e}"
         )
 
     return None
