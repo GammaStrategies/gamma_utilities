@@ -885,6 +885,7 @@ def repair_missing_hypervisor_status(
 ):
     """Creates hypervisor status at all operations block and block-1 not already present in database,
         using the difference between operations and status blocks
+        Important -> transfer operations will not be accounted for repair.
 
     Args:
         protocol (str):
@@ -901,9 +902,11 @@ def repair_missing_hypervisor_status(
     db_name = f"{network}_{protocol}"
 
     # loop thru all hypervisors in database
-    for hype in database_local(
-        mongo_url=mongo_url, db_name=db_name
-    ).get_items_from_database(collection_name="static", find={}):
+    for hype in tqdm.tqdm(
+        database_local(mongo_url=mongo_url, db_name=db_name).get_items_from_database(
+            collection_name="static", find={}
+        )
+    ):
         # get all status blocks
         hype_status_blocks = [
             x["block"]
@@ -920,16 +923,18 @@ def repair_missing_hypervisor_status(
         # get all operations blocks with the topic=["deposit", "withdraw", "zeroBurn", "rebalance"]
         operation_blocks = []
 
-        for operation in database_local(
-            mongo_url=mongo_url, db_name=db_name
-        ).get_items_from_database(
-            collection_name="operations",
-            find={
-                "address": hype["address"],
-                "topic": {"$in": ["deposit", "withdraw", "zeroBurn", "rebalance"]},
-            },
-            batch_size=batch_size,
-            sort=[("blockNumber", 1)],
+        for operation in tqdm.tqdm(
+            database_local(
+                mongo_url=mongo_url, db_name=db_name
+            ).get_items_from_database(
+                collection_name="operations",
+                find={
+                    "address": hype["address"],
+                    "topic": {"$in": ["deposit", "withdraw", "zeroBurn", "rebalance"]},
+                },
+                batch_size=batch_size,
+                sort=[("blockNumber", 1)],
+            )
         ):
             operation_blocks.append(int(operation["blockNumber"]))
             operation_blocks.append(int(operation["blockNumber"]) - 1)
