@@ -483,7 +483,7 @@ class usdc_price_scraper:
                         chain=chain,
                         protocol=dex_pool_config["protocol"],
                         pool_address=dex_pool_config["address"].lower(),
-                        block=block,
+                        block=int(block),
                     )
 
                     # get price

@@ -267,6 +267,12 @@ DEX_POOLS = {
             "protocol": Protocol.ALGEBRAv3,
             "address": "0xe7e0eb9f6bcccfe847fdf62a3628319a092f11a2".lower(),
         },
+        "USDC_axlPEPE": {
+            "protocol": Protocol.ALGEBRAv3,
+            "address": "0x27c30be7bf776e31e2cbbb9fe6db18d86f09da01".lower(),
+            "token0": "0x2791bca1f2de4661ed88a30c99a7a9449aa84174".lower(),
+            "token1": "0x8bae3f5eb10f39663e57be19741fd9ccef0e113a".lower(),
+        },
     },
     Chain.POLYGON_ZKEVM: {
         "WETH_USDC": {
@@ -443,6 +449,10 @@ DEX_POOLS_PRICE_PATHS = {
         # DAI
         "0x8f3cf7ad23cd3cadbd9735aff958023239c6a063".lower(): [
             (DEX_POOLS[Chain.POLYGON]["USDC_DAI"], 0),
+        ],
+        # axlPEPE
+        "0x8bae3f5eb10f39663e57be19741fd9ccef0e113a".lower(): [
+            (DEX_POOLS[Chain.POLYGON]["USDC_axlPEPE"], 0),
         ],
     },
     Chain.POLYGON_ZKEVM: {
