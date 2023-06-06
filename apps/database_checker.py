@@ -1195,6 +1195,7 @@ def repair_queue():
     """
     Reset queue items that are locked for more than 10 minutes
     No queue item should be running for more than 2 minutes
+    items with the field count =>10 will not be unlocked
     """
 
     logging.getLogger(__name__).info(
@@ -1212,10 +1213,13 @@ def repair_queue():
         for network in networks:
             # get a list of queue items with processing >0
             db_name = f"{network}_{protocol}"
-            for queue_item in database_local(
-                mongo_url=mongo_url, db_name=db_name
-            ).get_items_from_database(
-                collection_name="queue", find={"processing": {"$gt": 0}}
+            for queue_item in tqdm.tqdm(
+                database_local(
+                    mongo_url=mongo_url, db_name=db_name
+                ).get_items_from_database(
+                    collection_name="queue",
+                    find={"processing": {"$gt": 0}, "count": {"$lt": 10}},
+                )
             ):
                 # check seconds passed since processing
                 minutes_passed = (time.time() - queue_item["processing"]) / 60
