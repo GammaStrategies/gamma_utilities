@@ -183,126 +183,162 @@ DEX_POOLS = {
     Chain.ETHEREUM: {
         "USDC_WETH": {
             "protocol": Protocol.UNISWAPv3,
-            "address": "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640",
+            "address": "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640".lower(),
         },
         "WETH_RPL": {
             "protocol": Protocol.UNISWAPv3,
-            "address": "0xe42318ea3b998e8355a3da364eb9d48ec725eb45",
+            "address": "0xe42318ea3b998e8355a3da364eb9d48ec725eb45".lower(),
         },
         "GAMMA_WETH": {
             "protocol": Protocol.UNISWAPv3,
-            "address": "0x4006bed7bf103d70a1c6b7f1cef4ad059193dc25",
+            "address": "0x4006bed7bf103d70a1c6b7f1cef4ad059193dc25".lower(),
         },
         "AXL_USDC": {
             "protocol": Protocol.UNISWAPv3,
-            "address": "0x5b0d2536f0c970b8d9cbf3959460fb97ce808ade",
+            "address": "0x5b0d2536f0c970b8d9cbf3959460fb97ce808ade".lower(),
+        },
+        "RAW_WETH": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0xcde473286561d9b876bead3ac7cc38040f738d3f".lower(),
+            "token0": "0xb41f289d699c5e79a51cb29595c203cfae85f32a".lower(),
+            "token1": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2".lower(),
         },
     },
     Chain.OPTIMISM: {
         "WETH_USDC": {
             "protocol": Protocol.UNISWAPv3,
-            "address": "0x85149247691df622eaf1a8bd0cafd40bc45154a9",
+            "address": "0x85149247691df622eaf1a8bd0cafd40bc45154a9".lower(),
         },
         "WETH_OP": {
             "protocol": Protocol.UNISWAPv3,
-            "address": "0x68f5c0a2de713a54991e01858fd27a3832401849",
+            "address": "0x68f5c0a2de713a54991e01858fd27a3832401849".lower(),
         },
     },
     Chain.POLYGON: {
         "WMATIC_USDC": {
             "protocol": Protocol.ALGEBRAv3,
-            "address": "0xae81fac689a1b4b1e06e7ef4a2ab4cd8ac0a087d",
+            "address": "0xae81fac689a1b4b1e06e7ef4a2ab4cd8ac0a087d".lower(),
         },
         "WMATIC_QI": {
             "protocol": Protocol.ALGEBRAv3,
-            "address": "0x5cd94ead61fea43886feec3c95b1e9d7284fdef3",
+            "address": "0x5cd94ead61fea43886feec3c95b1e9d7284fdef3".lower(),
         },
         "WMATIC_QUICK": {
             "protocol": Protocol.ALGEBRAv3,
-            "address": "0x9f1a8caf3c8e94e43aa64922d67dff4dc3e88a42",
+            "address": "0x9f1a8caf3c8e94e43aa64922d67dff4dc3e88a42".lower(),
         },
         "WMATIC_DQUICK": {
             "protocol": Protocol.ALGEBRAv3,
-            "address": "0xb8d00c66accdc01e78fd7957bf24050162916ae2",
+            "address": "0xb8d00c66accdc01e78fd7957bf24050162916ae2".lower(),
         },
         "WMATIC_GHST": {
             "protocol": Protocol.ALGEBRAv3,
-            "address": "0x80deece4befd9f27d2df88064cf75f080d3ce1b2",
+            "address": "0x80deece4befd9f27d2df88064cf75f080d3ce1b2".lower(),
         },
         "WMATIC_ANKR": {
             "protocol": Protocol.ALGEBRAv3,
-            "address": "0x2f2dd65339226df7441097a710aba0f493879579",
+            "address": "0x2f2dd65339226df7441097a710aba0f493879579".lower(),
         },
         "USDC_DAVOS": {
             "protocol": Protocol.ALGEBRAv3,
-            "address": "0xfb0bc232cd11dbe804b489860c470b7f9cc80d9f",
+            "address": "0xfb0bc232cd11dbe804b489860c470b7f9cc80d9f".lower(),
         },
         "USDC_GIDDY": {
             "protocol": Protocol.ALGEBRAv3,
-            "address": "0x65c30f39b880bdd9616280450c4b41cc74b438b7",
+            "address": "0x65c30f39b880bdd9616280450c4b41cc74b438b7".lower(),
         },
         "WMATIC_LCD": {
             "protocol": Protocol.ALGEBRAv3,
-            "address": "0xd9c2c978915b907df04972cb3f577126fe55143c",
+            "address": "0xd9c2c978915b907df04972cb3f577126fe55143c".lower(),
         },
         "WOMBAT_USDC": {
             "protocol": Protocol.ALGEBRAv3,
-            "address": "0xaf835698673655e9910de8398df6c5238f5d3aeb",
+            "address": "0xaf835698673655e9910de8398df6c5238f5d3aeb".lower(),
         },
         "USDC_FIS": {
             "protocol": Protocol.ALGEBRAv3,
-            "address": "0x2877703a3ba3e712d684d22bd6d60cc0031d84e8",
+            "address": "0x2877703a3ba3e712d684d22bd6d60cc0031d84e8".lower(),
         },
         "SD_USDC": {
             "protocol": Protocol.ALGEBRAv3,
-            "address": "0x5d0acfa39a0fca603147f1c14e53f46be76984bc",
+            "address": "0x5d0acfa39a0fca603147f1c14e53f46be76984bc".lower(),
         },
         "USDC_DAI": {
             "protocol": Protocol.ALGEBRAv3,
-            "address": "0xe7e0eb9f6bcccfe847fdf62a3628319a092f11a2",
+            "address": "0xe7e0eb9f6bcccfe847fdf62a3628319a092f11a2".lower(),
         },
     },
     Chain.POLYGON_ZKEVM: {
         "WETH_USDC": {
             "protocol": Protocol.ALGEBRAv3,
-            "address": "0xc44ad482f24fd750caeba387d2726d8653f8c4bb",
+            "address": "0xc44ad482f24fd750caeba387d2726d8653f8c4bb".lower(),
         },
         "QUICK_USDC": {
             "protocol": Protocol.ALGEBRAv3,
-            "address": "0x1247b70c4b41890e8c1836e88dd0c8e3b23dd60e",
+            "address": "0x1247b70c4b41890e8c1836e88dd0c8e3b23dd60e".lower(),
         },
         "WETH_MATIC": {
             "protocol": Protocol.ALGEBRAv3,
-            "address": "0xb73abfb5a2c89f4038baa476ff3a7942a021c196",
+            "address": "0xb73abfb5a2c89f4038baa476ff3a7942a021c196".lower(),
         },
         "WETH_WBTC": {
             "protocol": Protocol.ALGEBRAv3,
-            "address": "0xfc4a3a7dc6b62bd2ea595b106392f5e006083b83",
-            "token0": "0x4f9a0e7fd2bf6067db6994cf12e4495df938e6e9",
-            "token1": "0xea034fb02eb1808c2cc3adbc15f447b93cbe08e1",
+            "address": "0xfc4a3a7dc6b62bd2ea595b106392f5e006083b83".lower(),
+            "token0": "0x4f9a0e7fd2bf6067db6994cf12e4495df938e6e9".lower(),
+            "token1": "0xea034fb02eb1808c2cc3adbc15f447b93cbe08e1".lower(),
+        },
+        "USDC_DAI": {
+            "protocol": Protocol.ALGEBRAv3,
+            "address": "0x68cc0516162b423930cd8448a2a00310e841e7f5".lower(),
+            "token0": "0xa8ce8aee21bc2a48a5ef670afcc9274c7bbbc035".lower(),  # USDC
+            "token1": "0xc5015b9d9161dca7e18e32f6f25c4ad850731fd4".lower(),  # DAI
+        },
+        "USDT_USDC": {
+            "protocol": Protocol.ALGEBRAv3,
+            "address": "0x9591b8a30c3a52256ea93e98da49ee43afa136a8".lower(),
+            "token0": "0x1e4a5963abfd975d8c9021ce480b42188849d41d".lower(),  # USDT
+            "token1": "0xa8ce8aee21bc2a48a5ef670afcc9274c7bbbc035".lower(),  # USDC
         },
     },
     Chain.BSC: {
         "THE_WBNB": {
             "protocol": Protocol.ALGEBRAv3,
-            "address": "0x51bd5e6d3da9064d59bcaa5a76776560ab42ceb8",
+            "address": "0x51bd5e6d3da9064d59bcaa5a76776560ab42ceb8".lower(),
         },
         "THE_USDT": {
             "protocol": Protocol.ALGEBRAv3,
-            "address": "0x98a0004b8e9fe161369528a2e07de56c15a27d76",
+            "address": "0x98a0004b8e9fe161369528a2e07de56c15a27d76".lower(),
+        },
+        "USDT_WBNB": {
+            "protocol": Protocol.UNISWAPv3,  # pancakev3
+            "address": "0x36696169c63e42cd08ce11f5deebbcebae652050".lower(),
+            "token0": "0x55d398326f99059ff775485246999027b3197955".lower(),
+            "token1": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c".lower(),
+        },
+        "USDT_USDC": {
+            "protocol": Protocol.UNISWAPv3,  # pancakev3
+            "address": "0x92b7807bf19b7dddf89b706143896d05228f3121".lower(),
+            "token0": "0x55d398326f99059ff775485246999027b3197955".lower(),
+            "token1": "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d".lower(),
         },
     },
     Chain.AVALANCHE: {},
     Chain.ARBITRUM: {
         "DAI_USDC": {
             "protocol": Protocol.UNISWAPv3,
-            "address": "0xf0428617433652c9dc6d1093a42adfbf30d29f74",
+            "address": "0xf0428617433652c9dc6d1093a42adfbf30d29f74".lower(),
         },
         "USDT_USDC": {
             "protocol": Protocol.UNISWAPv3,
-            "address": "0x8c9d230d45d6cfee39a6680fb7cb7e8de7ea8e71",
-            "token0": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
-            "token1": "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
+            "address": "0x8c9d230d45d6cfee39a6680fb7cb7e8de7ea8e71".lower(),
+            "token0": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9".lower(),
+            "token1": "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8".lower(),
+        },
+        "WETH_USDT": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0x641c00a822e8b671738d32a431a4fb6074e5c79d".lower(),
+            "token0": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1".lower(),
+            "token1": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9".lower(),
         },
     },
     Chain.MOONBEAM: {},
@@ -312,7 +348,7 @@ DEX_POOLS = {
 DEX_POOLS_PRICE_PATHS = {
     Chain.ETHEREUM: {
         # GAMMA
-        "0x6bea7cfef803d1e3d5f7c0103f7ded065644e197": [
+        "0x6bea7cfef803d1e3d5f7c0103f7ded065644e197".lower(): [
             (DEX_POOLS[Chain.ETHEREUM]["GAMMA_WETH"], 1),
             (
                 DEX_POOLS[Chain.ETHEREUM]["USDC_WETH"],
@@ -320,7 +356,7 @@ DEX_POOLS_PRICE_PATHS = {
             ),
         ],
         # RPL
-        "0xd33526068d116ce69f19a9ee46f0bd304f21a51f": [
+        "0xd33526068d116ce69f19a9ee46f0bd304f21a51f".lower(): [
             (
                 DEX_POOLS[Chain.ETHEREUM]["WETH_RPL"],
                 0,
@@ -331,118 +367,131 @@ DEX_POOLS_PRICE_PATHS = {
             ),
         ],
         # AXL
-        "0x467719ad09025fcc6cf6f8311755809d45a5e5f3": [
+        "0x467719ad09025fcc6cf6f8311755809d45a5e5f3".lower(): [
             (DEX_POOLS[Chain.ETHEREUM]["AXL_USDC"], 1)
         ],
     },
     Chain.OPTIMISM: {
         # OP
-        "0x4200000000000000000000000000000000000042": [
+        "0x4200000000000000000000000000000000000042".lower(): [
             (DEX_POOLS[Chain.OPTIMISM]["WETH_OP"], 0),
             (DEX_POOLS[Chain.OPTIMISM]["WETH_USDC"], 1),
         ],
         # MOCK-OPT
-        "0x601e471de750cdce1d5a2b8e6e671409c8eb2367": [
+        "0x601e471de750cdce1d5a2b8e6e671409c8eb2367".lower(): [
             (DEX_POOLS[Chain.OPTIMISM]["WETH_OP"], 0),
             (DEX_POOLS[Chain.OPTIMISM]["WETH_USDC"], 1),
         ],
     },
     Chain.POLYGON: {
         # USDC
-        "0x2791bca1f2de4661ed88a30c99a7a9449aa84174": [],
+        "0x2791bca1f2de4661ed88a30c99a7a9449aa84174".lower(): [],
         # WMATIC
-        "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270": [
+        "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270".lower(): [
             (DEX_POOLS[Chain.POLYGON]["WMATIC_USDC"], 1)
         ],
         # QI
-        "0x580a84c73811e1839f75d86d75d88cca0c241ff4": [
+        "0x580a84c73811e1839f75d86d75d88cca0c241ff4".lower(): [
             (DEX_POOLS[Chain.POLYGON]["WMATIC_QI"], 0),
             (DEX_POOLS[Chain.POLYGON]["WMATIC_USDC"], 1),
         ],
         # QUICK
-        "0xb5c064f955d8e7f38fe0460c556a72987494ee17": [
+        "0xb5c064f955d8e7f38fe0460c556a72987494ee17".lower(): [
             (DEX_POOLS[Chain.POLYGON]["WMATIC_QUICK"], 0),
             (DEX_POOLS[Chain.POLYGON]["WMATIC_USDC"], 1),
         ],
         # dQUICK
-        "0x958d208cdf087843e9ad98d23823d32e17d723a1": [
+        "0x958d208cdf087843e9ad98d23823d32e17d723a1".lower(): [
             (DEX_POOLS[Chain.POLYGON]["WMATIC_DQUICK"], 0),
             (DEX_POOLS[Chain.POLYGON]["WMATIC_USDC"], 1),
         ],
         # GHST
-        "0x385eeac5cb85a38a9a07a70c73e0a3271cfb54a7": [
+        "0x385eeac5cb85a38a9a07a70c73e0a3271cfb54a7".lower(): [
             (DEX_POOLS[Chain.POLYGON]["WMATIC_GHST"], 0),
             (DEX_POOLS[Chain.POLYGON]["WMATIC_USDC"], 1),
         ],
         # ANKR
-        "0x101a023270368c0d50bffb62780f4afd4ea79c35": [
+        "0x101a023270368c0d50bffb62780f4afd4ea79c35".lower(): [
             (DEX_POOLS[Chain.POLYGON]["WMATIC_ANKR"], 0),
             (DEX_POOLS[Chain.POLYGON]["WMATIC_USDC"], 1),
         ],
         # DAVOS
-        "0xec38621e72d86775a89c7422746de1f52bba5320": [
+        "0xec38621e72d86775a89c7422746de1f52bba5320".lower(): [
             (DEX_POOLS[Chain.POLYGON]["USDC_DAVOS"], 0)
         ],
         # GIDDY
-        "0x67eb41a14c0fe5cd701fc9d5a3d6597a72f641a6": [
+        "0x67eb41a14c0fe5cd701fc9d5a3d6597a72f641a6".lower(): [
             (DEX_POOLS[Chain.POLYGON]["USDC_GIDDY"], 0)
         ],
         # LCD
-        "0xc2a45fe7d40bcac8369371b08419ddafd3131b4a": [
+        "0xc2a45fe7d40bcac8369371b08419ddafd3131b4a".lower(): [
             (DEX_POOLS[Chain.POLYGON]["WMATIC_LCD"], 0),
             (DEX_POOLS[Chain.POLYGON]["WMATIC_USDC"], 1),
         ],
         # WOMBAT
-        "0x0c9c7712c83b3c70e7c5e11100d33d9401bdf9dd": [
+        "0x0c9c7712c83b3c70e7c5e11100d33d9401bdf9dd".lower(): [
             (DEX_POOLS[Chain.POLYGON]["WOMBAT_USDC"], 1),
         ],
         # FIS
-        "0x7a7b94f18ef6ad056cda648588181cda84800f94": [
+        "0x7a7b94f18ef6ad056cda648588181cda84800f94".lower(): [
             (DEX_POOLS[Chain.POLYGON]["USDC_FIS"], 0),
         ],
         # SD
-        "0x1d734a02ef1e1f5886e66b0673b71af5b53ffa94": [
+        "0x1d734a02ef1e1f5886e66b0673b71af5b53ffa94".lower(): [
             (DEX_POOLS[Chain.POLYGON]["SD_USDC"], 1),
         ],
         # DAI
-        "0x8f3cf7ad23cd3cadbd9735aff958023239c6a063": [
+        "0x8f3cf7ad23cd3cadbd9735aff958023239c6a063".lower(): [
             (DEX_POOLS[Chain.POLYGON]["USDC_DAI"], 0),
         ],
     },
     Chain.POLYGON_ZKEVM: {
         # WMATIC
-        "0xa2036f0538221a77a3937f1379699f44945018d0": [
+        "0xa2036f0538221a77a3937f1379699f44945018d0".lower(): [
             (DEX_POOLS[Chain.POLYGON_ZKEVM]["WETH_MATIC"], 0),
             (DEX_POOLS[Chain.POLYGON_ZKEVM]["WETH_USDC"], 1),
         ],
         # QUICK
-        "0x68286607a1d43602d880d349187c3c48c0fd05e6": [
+        "0x68286607a1d43602d880d349187c3c48c0fd05e6".lower(): [
             (DEX_POOLS[Chain.POLYGON_ZKEVM]["QUICK_USDC"], 1),
         ],
         # WETH
-        "0x4f9a0e7fd2bf6067db6994cf12e4495df938e6e9": [
+        "0x4f9a0e7fd2bf6067db6994cf12e4495df938e6e9".lower(): [
             (DEX_POOLS[Chain.POLYGON_ZKEVM]["WETH_USDC"], 1),
         ],
         # WBTC
-        "0xea034fb02eb1808c2cc3adbc15f447b93cbe08e1": [
+        "0xea034fb02eb1808c2cc3adbc15f447b93cbe08e1".lower(): [
             (DEX_POOLS[Chain.POLYGON_ZKEVM]["WETH_WBTC"], 0),
             (DEX_POOLS[Chain.POLYGON_ZKEVM]["WETH_USDC"], 1),
+        ],
+        # DAI
+        "0xc5015b9d9161dca7e18e32f6f25c4ad850731fd4".lower(): [
+            (DEX_POOLS[Chain.POLYGON_ZKEVM]["USDC_DAI"], 0),
+        ],
+        # USDT
+        "0x1e4a5963abfd975d8c9021ce480b42188849d41d".lower(): [
+            (DEX_POOLS[Chain.POLYGON_ZKEVM]["USDT_USDC"], 1),
         ],
     },
     Chain.BSC: {
         # THE
-        "0xf4c8e32eadec4bfe97e0f595add0f4450a863a11": [
+        "0xf4c8e32eadec4bfe97e0f595add0f4450a863a11".lower(): [
             (DEX_POOLS[Chain.BSC]["THE_USDT"], 0),
+        ],
+        # WBNB
+        "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c".lower(): [
+            (DEX_POOLS[Chain.BSC]["USDT_WBNB"], 0),
+            (DEX_POOLS[Chain.BSC]["USDT_USDC"], 0),
         ],
     },
     Chain.AVALANCHE: {},
     Chain.ARBITRUM: {
         # DAI
-        "0xda10009cbd5d07dd0cecc66161fc93d7c9000da1": [
+        "0xda10009cbd5d07dd0cecc66161fc93d7c9000da1".lower(): [
             (DEX_POOLS[Chain.ARBITRUM]["DAI_USDC"], 1),
         ],
         # USDT
-        "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": [
+        "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9".lower(): [
             (DEX_POOLS[Chain.ARBITRUM]["USDT_USDC"], 1),
         ],
     },
