@@ -113,7 +113,10 @@ def repair_prices_from_logs(min_count: int = 1):
                 logging.getLogger(__name__).info(
                     f" > Trying to repair {len(addresses)} tokens price from {network}"
                 )
+                progress_bar.total += len(addresses)
+
                 for address, blocks_data in addresses.items():
+                    progress_bar.total += len(addresses)
                     for block, counter in blocks_data.items():
                         # block is string
                         block = int(block)
@@ -160,10 +163,16 @@ def repair_prices_from_logs(min_count: int = 1):
                                 f" Not procesing price for {network}'s {address} at block {block} bc it has been found only {counter} times in log."
                             )
 
+                        # update progress
+                        progress_bar.update(1)
+
+                    # update progress
+                    progress_bar.update(1)
+
                 # update progress
                 progress_bar.update(1)
 
-    except Exception:
+    except Exception as e:
         logging.getLogger(__name__).exception(
             " unexpected error checking prices from log"
         )
@@ -1504,8 +1513,10 @@ def get_all_logfiles(log_names: list = ["debug", "price"]) -> list:
             for root, dirs, files in os.walk(logPath):
                 # avoid to load "check" related logs ( current app log)
                 if (
-                    CONFIGURATION["_custom_"]["cml_parameters"].log_subfolder
-                    or "check" not in root.lower()
+                    # CONFIGURATION["_custom_"]["cml_parameters"].log_subfolder
+                    # or
+                    "check"
+                    not in root.lower()
                 ):
                     for file in files:
                         if file.endswith(".log") and (
@@ -1710,6 +1721,7 @@ def get_failed_prices_from_log(log_file: str) -> dict:
     pricelog_regx = "\-\s\s(?P<network>.*)'s\stoken\s(?P<address>.*)\sprice\sat\sblock\s(?P<block>\d*)\snot\sfound"
     debug_regx = "No\sprice\sfor\s(?P<address>.*)\sat\sblock\s(?P<block>\d*).*\[(?P<network>.*)\s(?P<dex>.*)\]"
     debug_regx2 = "No\sprice\sfor\s(?P<network>.*)'s\s(?P<symbol>.*)\s\((?P<address>.*)\).*at\sblock\s(?P<block>\d*)"
+    debug_regx3 = "No\sprice\sfor\s(?P<address>.*)\son\s(?P<network>.*)\sat\sblocks\s(?P<block>\d*)"
     user_status_regx = "Can't\sfind\s(?P<network>.*?)'s\s(?P<hype_address>.*?)\susd\sprice\sfor\s(?P<address>.*?)\sat\sblock\s(?P<block>\d*?)\.\sReturn\sZero"
     # groups->  network, symbol, address, block
 
@@ -1719,7 +1731,13 @@ def get_failed_prices_from_log(log_file: str) -> dict:
     # set a var
     network_token_blocks = {}
 
-    for regx_txt in [debug_regx, pricelog_regx, debug_regx2, user_status_regx]:
+    for regx_txt in [
+        debug_regx,
+        pricelog_regx,
+        debug_regx2,
+        debug_regx3,
+        user_status_regx,
+    ]:
         if matches := re.finditer(regx_txt, log_file_content):
             for match in matches:
                 network = match.group("network")
