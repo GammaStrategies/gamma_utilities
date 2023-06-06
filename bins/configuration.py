@@ -316,13 +316,13 @@ DEX_POOLS = {
             "address": "0x98a0004b8e9fe161369528a2e07de56c15a27d76".lower(),
         },
         "USDT_WBNB": {
-            "protocol": Protocol.UNISWAPv3,  # pancakev3
+            "protocol": Protocol.PANCAKEv3,
             "address": "0x36696169c63e42cd08ce11f5deebbcebae652050".lower(),
             "token0": "0x55d398326f99059ff775485246999027b3197955".lower(),
             "token1": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c".lower(),
         },
         "USDT_USDC": {
-            "protocol": Protocol.UNISWAPv3,  # pancakev3
+            "protocol": Protocol.PANCAKEv3,
             "address": "0x92b7807bf19b7dddf89b706143896d05228f3121".lower(),
             "token0": "0x55d398326f99059ff775485246999027b3197955".lower(),
             "token1": "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d".lower(),

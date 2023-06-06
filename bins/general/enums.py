@@ -57,6 +57,7 @@ class Protocol(str, Enum):
 
     ALGEBRAv3 = ("algebrav3", "UniswapV3")
     UNISWAPv3 = ("uniswapv3", "AlgebraV3")
+    PANCAKEv3 = ("pancakev3", "PancakeV3")
 
     QUICKSWAP = ("quickswap", "QuickSwap")
     UNISWAP = ("uniswap", "Uniswap")

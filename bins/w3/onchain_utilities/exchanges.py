@@ -1705,3 +1705,36 @@ class algebraCamelot_pool(algebrav3_pool):
             }
         else:
             raise ValueError(f" globalState function call returned None")
+
+
+# pancacke univ3clone
+class pancakev3_pool(univ3_pool):
+    
+    # SETUP
+    def __init__(
+        self,
+        address: str,
+        network: str,
+        abi_filename: str = "",
+        abi_path: str = "",
+        block: int = 0,
+        timestamp: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
+    ):
+        self._abi_filename = abi_filename or "pancakev3_pool"
+        self._abi_path = abi_path or "data/abi/pancake/binance"
+
+        self._token0: erc20 = None
+        self._token1: erc20 = None
+
+        super().__init__(
+            address=address,
+            network=network,
+            abi_filename=self._abi_filename,
+            abi_path=self._abi_path,
+            block=block,
+            timestamp=timestamp,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
+        )

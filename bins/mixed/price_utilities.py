@@ -17,7 +17,11 @@ from bins.configuration import (
 from bins.database.common.db_collections_common import database_global
 from bins.formulas.dex_formulas import sqrtPriceX96_to_price_float
 from bins.general.enums import Chain, Protocol, databaseSource
-from bins.w3.onchain_utilities.exchanges import algebrav3_pool, univ3_pool
+from bins.w3.onchain_utilities.exchanges import (
+    algebrav3_pool,
+    univ3_pool,
+    pancakev3_pool,
+)
 
 LOG_NAME = "price"
 
@@ -483,7 +487,7 @@ class usdc_price_scraper:
                         chain=chain,
                         protocol=dex_pool_config["protocol"],
                         pool_address=dex_pool_config["address"].lower(),
-                        block=int(block),
+                        block=block,
                     )
 
                     # get price
@@ -525,6 +529,10 @@ class usdc_price_scraper:
         elif protocol == Protocol.ALGEBRAv3:
             # construct helper
             return algebrav3_pool(
+                address=pool_address, network=chain.database_name, block=block
+            )
+        elif protocol == Protocol.PANCAKEv3:
+            return pancakev3_pool(
                 address=pool_address, network=chain.database_name, block=block
             )
         else:
