@@ -1,131 +1,27 @@
-import random
 import logging
 
 from web3 import Web3
-from bins.configuration import STATIC_REGISTRY_ADDRESSES
-from bins.w3.onchain_utilities.basic import erc20
-from bins.w3.onchain_utilities.protocols import (
-    gamma_hypervisor,
-    gamma_hypervisor_cached,
-    gamma_hypervisor_quickswap,
-    gamma_hypervisor_quickswap_cached,
-    gamma_hypervisor_registry,
-    gamma_hypervisor_thena,
-    gamma_hypervisor_thena_cached,
-    gamma_hypervisor_zyberswap,
-    gamma_hypervisor_zyberswap_cached,
-    gamma_hypervisor_camelot,
-    gamma_hypervisor_camelot_cached,
-)
-from bins.w3.onchain_utilities import rewarders
+from bins.general.enums import Chain, Protocol
+
+from bins.w3 import protocols
+
 
 # build instances of classes
 
 
-def build_hypervisor(
-    network: str,
-    dex: str,
-    block: int,
-    hypervisor_address: str,
-    custom_web3: Web3 | None = None,
-    custom_web3Url: str | None = None,
-    cached: bool = False,
-) -> gamma_hypervisor:
-    # choose type based on dex
-    if dex == "uniswapv3":
-        hypervisor = (
-            gamma_hypervisor(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not cached
-            else gamma_hypervisor_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-        )
-    elif dex == "zyberswap":
-        hypervisor = (
-            gamma_hypervisor_zyberswap(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not cached
-            else gamma_hypervisor_zyberswap_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-        )
-    elif dex == "quickswap":
-        hypervisor = (
-            gamma_hypervisor_quickswap(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not cached
-            else gamma_hypervisor_quickswap_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-        )
-    elif dex == "thena":
-        hypervisor = (
-            gamma_hypervisor_thena(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not cached
-            else gamma_hypervisor_thena_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-        )
-    elif dex == "camelot":
-        hypervisor = (
-            gamma_hypervisor_camelot(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not cached
-            else gamma_hypervisor_camelot_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-        )
-    else:
-        raise NotImplementedError(f" {dex} exchange has not been implemented yet")
+# temporary database comm conversion
+def convert_dex_protocol(dex: str) -> Protocol:
+    for protocol in Protocol:
+        if protocol.database_name == dex:
+            return protocol
+    raise ValueError(f"{dex} is not a valid DEX name")
 
-    return hypervisor
+
+def convert_network_chain(network: str) -> Chain:
+    for chain in Chain:
+        if chain.database_name == network:
+            return chain
+    raise ValueError(f"{network} is not a valid network name")
 
 
 def build_db_hypervisor(
@@ -142,7 +38,7 @@ def build_db_hypervisor(
     try:
         hypervisor = build_hypervisor(
             network=network,
-            dex=dex,
+            protocol=convert_dex_protocol(dex=dex),
             block=block,
             hypervisor_address=address,
             custom_web3=custom_web3,
@@ -174,7 +70,7 @@ def build_db_hypervisor(
 
 
 def check_erc20_fields(
-    hypervisor: gamma_hypervisor,
+    hypervisor: protocols.uniswap.hypervisor.gamma_hypervisor,
     hype: dict,
     convert_bint: bool = True,
     wrong_values: list | None = None,
@@ -276,3 +172,237 @@ def check_erc20_fields(
         has_been_modified = True
 
     return has_been_modified
+
+
+def build_hypervisor(
+    network: str,
+    protocol: Protocol,
+    block: int,
+    hypervisor_address: str,
+    custom_web3: Web3 | None = None,
+    custom_web3Url: str | None = None,
+    cached: bool = False,
+) -> protocols.uniswap.hypervisor.gamma_hypervisor:
+    # choose type based on dex
+    if protocol == Protocol.UNISWAPv3:
+        hypervisor = (
+            protocols.uniswap.hypervisor.gamma_hypervisor(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not cached
+            else protocols.uniswap.hypervisor.gamma_hypervisor_cached(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+        )
+    elif protocol == Protocol.ZYBERSWAP:
+        hypervisor = (
+            protocols.zyberswap.hypervisor.gamma_hypervisor(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not cached
+            else protocols.zyberswap.hypervisor.gamma_hypervisor_cached(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+        )
+    elif protocol == Protocol.QUICKSWAP:
+        hypervisor = (
+            protocols.quickswap.hypervisor.gamma_hypervisor(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not cached
+            else protocols.quickswap.hypervisor.gamma_hypervisor_cached(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+        )
+    elif protocol == Protocol.THENA:
+        hypervisor = (
+            protocols.thena.hypervisor.gamma_hypervisor(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not cached
+            else protocols.thena.hypervisor.gamma_hypervisor_cached(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+        )
+    elif protocol == Protocol.CAMELOT:
+        hypervisor = (
+            protocols.camelot.hypervisor.gamma_hypervisor(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not cached
+            else protocols.camelot.hypervisor.gamma_hypervisor_cached(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+        )
+    elif protocol == Protocol.BEAMSWAP:
+        hypervisor = (
+            protocols.beamswap.hypervisor.gamma_hypervisor(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not cached
+            else protocols.beamswap.hypervisor.gamma_hypervisor_cached(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+        )
+    elif protocol == Protocol.RETRO:
+        hypervisor = (
+            protocols.retro.hypervisor.gamma_hypervisor(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not cached
+            else protocols.retro.hypervisor.gamma_hypervisor_cached(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+        )
+    elif protocol == Protocol.SUSHISWAP:
+        hypervisor = (
+            protocols.sushiswap.hypervisor.gamma_hypervisor(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not cached
+            else protocols.sushiswap.hypervisor.gamma_hypervisor_cached(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+        )
+    else:
+        raise NotImplementedError(f" {protocol} has not been implemented yet")
+
+    return hypervisor
+
+
+def build_protocol_pool(
+    chain: Chain,
+    protocol: Protocol,
+    pool_address: str,
+    block: int | None = None,
+    cached: bool = False,
+):
+    # select the right protocol
+    if protocol == Protocol.UNISWAPv3:
+        # construct helper
+        return (
+            protocols.uniswap.pool.poolv3(
+                address=pool_address, network=chain.database_name, block=block
+            )
+            if not cached
+            else protocols.uniswap.pool.poolv3_cached(
+                address=pool_address, network=chain.database_name, block=block
+            )
+        )
+    elif protocol == Protocol.ALGEBRAv3:
+        # construct helper
+        return (
+            protocols.algebra.pool.poolv3(
+                address=pool_address, network=chain.database_name, block=block
+            )
+            if not cached
+            else protocols.algebra.pool.poolv3_cached(
+                address=pool_address, network=chain.database_name, block=block
+            )
+        )
+    elif protocol == Protocol.PANCAKESWAP:
+        return (
+            protocols.pancakeswap.pool.pool(
+                address=pool_address, network=chain.database_name, block=block
+            )
+            if not cached
+            else protocols.pancakeswap.pool.pool_cached(
+                address=pool_address, network=chain.database_name, block=block
+            )
+        )
+    elif protocol == Protocol.BEAMSWAP:
+        return (
+            protocols.beamswap.pool.pool(
+                address=pool_address, network=chain.database_name, block=block
+            )
+            if not cached
+            else protocols.beamswap.pool.pool_cached(
+                address=pool_address, network=chain.database_name, block=block
+            )
+        )
+    elif protocol == Protocol.THENA:
+        return (
+            protocols.thena.pool.pool(
+                address=pool_address, network=chain.database_name, block=block
+            )
+            if not cached
+            else protocols.thena.pool.pool_cached(
+                address=pool_address, network=chain.database_name, block=block
+            )
+        )
+    elif protocol == Protocol.CAMELOT:
+        return (
+            protocols.camelot.pool.pool(
+                address=pool_address, network=chain.database_name, block=block
+            )
+            if not cached
+            else protocols.camelot.pool.pool_cached(
+                address=pool_address, network=chain.database_name, block=block
+            )
+        )
+    else:
+        raise NotImplementedError(f"Protocol {protocol} not implemented")

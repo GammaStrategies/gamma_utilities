@@ -8,26 +8,19 @@ from apps.feeds.queue import build_and_save_queue_from_operation, pull_from_queu
 
 # from croniter import croniter
 
-from bins.configuration import (
-    CONFIGURATION,
-    STATIC_REGISTRY_ADDRESSES,
-    add_to_memory,
-    get_from_memory,
-)
+from bins.configuration import CONFIGURATION
 from bins.general.general_utilities import (
     convert_string_datetime,
     differences,
-    log_time_passed,
 )
 from bins.w3.onchain_data_helper import onchain_data_helper
 
-from bins.w3.onchain_utilities.basic import erc20_cached
+from bins.w3.protocols.general import erc20_cached
 
 from bins.database.common.db_collections_common import (
     database_local,
     database_global,
 )
-
 
 from apps.feeds.static import feed_hypervisor_static, feed_rewards_static
 from apps.feeds.users import feed_user_operations
@@ -173,17 +166,26 @@ def feed_operations(
                 step="day",
             )
         elif not block_ini:
-            logging.getLogger(__name__).info(
-                "   Calculating {} initial block from date {:%Y-%m-%d %H:%M:%S}".format(
-                    network, date_ini
+            # if static data exists pick the minimum block from it
+            if hypervisor_static_in_database:
+                logging.getLogger(__name__).info(
+                    f"   Getting {network} initial block from the minimum static hype's collection block found"
                 )
-            )
-            block_ini, block_end_notused = onchain_helper.get_custom_blockBounds(
-                date_ini=date_ini,
-                date_end=date_end,
-                network=network,
-                step="day",
-            )
+                block_ini = min(
+                    [v["block"] for k, v in hypervisor_static_in_database.items()]
+                )
+            else:
+                logging.getLogger(__name__).info(
+                    "   Calculating {} initial block from date {:%Y-%m-%d %H:%M:%S}".format(
+                        network, date_ini
+                    )
+                )
+                block_ini, block_end_notused = onchain_helper.get_custom_blockBounds(
+                    date_ini=date_ini,
+                    date_end=date_end,
+                    network=network,
+                    step="day",
+                )
         elif not block_end:
             logging.getLogger(__name__).info(
                 "   Calculating {} end block from date {:%Y-%m-%d %H:%M:%S}".format(

@@ -8,18 +8,6 @@ from bins.general.enums import Chain, queueItemType
 class ValidateNetworks(argparse.Action):
     def __call__(self, parser, args, networks, option_string=None):
         valid_subjects = [x.database_name for x in Chain]
-        # valid_subjects = (
-        #     "ethereum",
-        #     "polygon",
-        #     "optimism",
-        #     "arbitrum",
-        #     "binance",
-        #     "polygon_zkevm",
-        #     "celo",
-        #     "avalanche",
-        #     "fantom",
-        #     "moonbeam",
-        # )
 
         # modify only if not empty
         if result := [

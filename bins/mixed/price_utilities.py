@@ -17,11 +17,8 @@ from bins.configuration import (
 from bins.database.common.db_collections_common import database_global
 from bins.formulas.dex_formulas import sqrtPriceX96_to_price_float
 from bins.general.enums import Chain, Protocol, databaseSource
-from bins.w3.onchain_utilities.exchanges import (
-    algebrav3_pool,
-    univ3_pool,
-    pancakev3_pool,
-)
+from bins.w3.builders import build_protocol_pool
+
 
 LOG_NAME = "price"
 
@@ -432,7 +429,7 @@ class price_scraper:
         # try web3
         try:
             # create an erc20 dummy token
-            from bins.w3.onchain_utilities.basic import erc20
+            from bins.w3.protocols.general import erc20
 
             dummy = erc20(
                 address="0x0000000000000000000000000000000000000000", network=network
@@ -483,7 +480,7 @@ class usdc_price_scraper:
                 # follow the path to get USDC price of token address
                 for dex_pool_config, i in DEX_POOLS_PRICE_PATHS[chain][token_address]:
                     # select the right protocol
-                    dex_pool = self.build_protocol_pool(
+                    dex_pool = build_protocol_pool(
                         chain=chain,
                         protocol=dex_pool_config["protocol"],
                         pool_address=dex_pool_config["address"].lower(),
@@ -512,28 +509,3 @@ class usdc_price_scraper:
                 f"Error while getting onchain price for token {token_address} on chain {chain}. Error: {e}"
             )
             return None
-
-    def build_protocol_pool(
-        self,
-        chain: Chain,
-        protocol: Protocol,
-        pool_address: str,
-        block: int | None = None,
-    ):
-        # select the right protocol
-        if protocol == Protocol.UNISWAPv3:
-            # construct helper
-            return univ3_pool(
-                address=pool_address, network=chain.database_name, block=block
-            )
-        elif protocol == Protocol.ALGEBRAv3:
-            # construct helper
-            return algebrav3_pool(
-                address=pool_address, network=chain.database_name, block=block
-            )
-        elif protocol == Protocol.PANCAKEv3:
-            return pancakev3_pool(
-                address=pool_address, network=chain.database_name, block=block
-            )
-        else:
-            raise NotImplementedError(f"Protocol {protocol} not implemented")

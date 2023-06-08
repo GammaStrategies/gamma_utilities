@@ -6,10 +6,19 @@ import tqdm
 
 from bins.configuration import CONFIGURATION, STATIC_REGISTRY_ADDRESSES
 from bins.database.common.db_collections_common import database_local
-from bins.w3.builders import build_hypervisor
-from bins.w3.onchain_utilities import rewarders
-from bins.w3.onchain_utilities.basic import erc20
-from bins.w3.onchain_utilities.protocols import gamma_hypervisor_registry
+from bins.w3.builders import build_hypervisor, convert_dex_protocol
+
+from bins.w3.protocols.general import erc20, bep20
+
+from bins.w3.protocols.gamma.registry import gamma_hypervisor_registry
+from bins.w3.protocols.gamma.rewarder import (
+    gamma_rewarder,
+    gamma_masterchef_registry,
+    gamma_masterchef_v1,
+)
+from bins.w3.protocols.thena.rewarder import thena_voter_v3
+from bins.w3.protocols.zyberswap.rewarder import zyberswap_masterchef_v1
+
 
 from bins.apis.etherscan_utilities import etherscan_helper
 
@@ -123,7 +132,7 @@ def _create_hypervisor_static_dbObject(
     # create hypervisor object
     hypervisor = build_hypervisor(
         network=network,
-        dex=dex,
+        protocol=convert_dex_protocol(dex),
         block=0,
         hypervisor_address=address,
         cached=False,
@@ -189,7 +198,7 @@ def feed_rewards_static(
         for masterchef_address, contract_data in to_process_contract_addresses.items():
             if contract_data["type"] == "zyberswap_masterchef_v1":
                 # create masterchef object
-                zyberswap_masterchef = rewarders.zyberswap_masterchef_v1(
+                zyberswap_masterchef = zyberswap_masterchef_v1(
                     address=masterchef_address, network=network
                 )
                 rewards_data = zyberswap_masterchef.get_rewards(
@@ -221,9 +230,7 @@ def feed_rewards_static(
         }
         for thenaVoter_address, contract_data in to_process_contract_addresses.items():
             # create thena voter object
-            thena_voter = rewarders.thena_voter_v3(
-                address=thenaVoter_address, network=network
-            )
+            thena_voter = thena_voter_v3(address=thenaVoter_address, network=network)
             rewards_data = thena_voter.get_rewards(
                 hypervisor_addresses=hypervisor_addresses, convert_bint=True
             )
@@ -288,14 +295,14 @@ def feed_rewards_static(
 #             address = STATIC_REGISTRY_ADDRESSES[network]["MasterChefV2Registry"][dex]
 
 #             # create masterchef registry
-#             registry = rewarders.gamma_masterchef_registry(address, network)
+#             registry = gamma_masterchef_registry(address, network)
 
 #             # get masterchef addresses from masterchef registry
 #             reward_registry_addresses = registry.get_masterchef_addresses()
 
 #             for registry_address in reward_registry_addresses:
 #                 # create reward registry
-#                 reward_registry = rewarders.gamma_masterchef_v1(
+#                 reward_registry = gamma_masterchef_v1(
 #                     address=registry_address, network=network
 #                 )
 
@@ -313,7 +320,7 @@ def feed_rewards_static(
 #                             )
 
 #                             # get rewarder
-#                             rewarder = rewarders.gamma_masterchef_rewarder(
+#                             rewarder = gamma_masterchef_rewarder(
 #                                 address=rewarder_address, network=network
 #                             )
 
@@ -462,10 +469,18 @@ def _get_contract_creation_block(network: str, contract_address: str) -> dict:
                     # this is the contract creation transaction
 
                     # create dummy web3 object
-                    dummyw3 = erc20(
-                        address="0x0000000000000000000000000000000000000000",
-                        network=network,
-                        block=0,
+                    dummyw3 = (
+                        bep20(
+                            address="0x0000000000000000000000000000000000000000",
+                            network=network,
+                            block=0,
+                        )
+                        if network == "binance"
+                        else erc20(
+                            address="0x0000000000000000000000000000000000000000",
+                            network=network,
+                            block=0,
+                        )
                     )
                     # retrieve block data
                     creation_tx = dummyw3._getTransactionReceipt(txHash=item["txHash"])
