@@ -181,85 +181,112 @@ def feed_rewards_static(
         logging.getLogger(__name__).warning(f" Could not get rewards static data : {e}")
         already_processed = []
 
+    # get hypervisors addresses to process
+    hypervisor_addresses = local_db.get_distinct_items_from_database(
+        collection_name="static", field="address", condition={"dex": dex}
+    )
+
     # zyberswap masterchef
     if dex == "zyberswap":
-        # get hypervisor addresses from database
-        hypervisor_addresses = local_db.get_distinct_items_from_database(
-            collection_name="static", field="address", condition={"dex": dex}
-        )
-
-        # TODO: zyberswap masterchef duo -> 0x72E4CcEe48fB8FEf18D99aF2965Ce6d06D55C8ba  creation_block: 80073186
-        to_process_contract_addresses = {
-            "0x9BA666165867E916Ee7Ed3a3aE6C19415C2fBDDD".lower(): {
-                "creation_block": 54769965,
-                "type": "zyberswap_masterchef_v1",
-            }
-        }
-        for masterchef_address, contract_data in to_process_contract_addresses.items():
-            if contract_data["type"] == "zyberswap_masterchef_v1":
-                # create masterchef object
-                zyberswap_masterchef = zyberswap_masterchef_v1(
-                    address=masterchef_address, network=network
-                )
-                rewards_data = zyberswap_masterchef.get_rewards(
-                    hypervisor_addresses=hypervisor_addresses, convert_bint=True
-                )
-
-            for reward_data in rewards_data:
-                # add block creation data
-                if creation_data := _get_contract_creation_block(
-                    network=network, contract_address=reward_data["rewarder_address"]
-                ):
-                    reward_data["block"] = creation_data["block"]
-                else:
-                    # modify block number manually -> block num. is later used to update rewards_status from
-                    reward_data["block"] = contract_data["creation_block"]
-                if (
-                    rewrite
-                    or f"{reward_data['hypervisor_address']}_{reward_data['rewarder_address']}"
-                    not in already_processed
-                ):
-                    # save to database
-                    local_db.set_rewards_static(data=reward_data)
+        for rewards_static in create_rewards_static_zyberswap(
+            network=network,
+            hypervisor_addresses=hypervisor_addresses,
+            already_processed=already_processed,
+            rewrite=rewrite,
+        ):
+            # save to database
+            local_db.set_rewards_static(data=rewards_static)
 
     elif dex == "thena":
         # thena gauges
-        hypervisor_addresses = local_db.get_distinct_items_from_database(
-            collection_name="static", field="address", condition={"dex": dex}
-        )
-
-        to_process_contract_addresses = {
-            "0x3a1d0952809f4948d15ebce8d345962a282c4fcb".lower(): {
-                "creation_block": 27114632,
-                "type": "thena_voter_v3",
-            }
-        }
-        for thenaVoter_address, contract_data in to_process_contract_addresses.items():
-            # create thena voter object
-            thena_voter = thena_voter_v3(address=thenaVoter_address, network=network)
-            rewards_data = thena_voter.get_rewards(
-                hypervisor_addresses=hypervisor_addresses, convert_bint=True
-            )
-            for reward_data in rewards_data:
-                # add block creation data
-                if creation_data := _get_contract_creation_block(
-                    network=network, contract_address=reward_data["rewarder_address"]
-                ):
-                    reward_data["block"] = creation_data["block"]
-                else:
-                    # modify block number manually -> block num. is later used to update rewards_status from
-                    reward_data["block"] = contract_data["creation_block"]
-                if (
-                    rewrite
-                    or f"{reward_data['hypervisor_address']}_{reward_data['rewarder_address']}"
-                    not in already_processed
-                ):
-                    # save to database
-                    local_db.set_rewards_static(data=reward_data)
+        for rewards_static in create_rewards_static_thena(
+            network=network,
+            hypervisor_addresses=hypervisor_addresses,
+            already_processed=already_processed,
+            rewrite=rewrite,
+        ):
+            # save to database
+            local_db.set_rewards_static(data=rewards_static)
 
     else:
         # raise NotImplementedError(f"{network} {dex} not implemented")
         pass
+
+
+def create_rewards_static_zyberswap(
+    network: str,
+    hypervisor_addresses: list,
+    already_processed: list,
+    rewrite: bool = False,
+):
+    # TODO: zyberswap masterchef duo -> 0x72E4CcEe48fB8FEf18D99aF2965Ce6d06D55C8ba  creation_block: 80073186
+    to_process_contract_addresses = {
+        "0x9BA666165867E916Ee7Ed3a3aE6C19415C2fBDDD".lower(): {
+            "creation_block": 54769965,
+            "type": "zyberswap_masterchef_v1",
+        }
+    }
+    for masterchef_address, contract_data in to_process_contract_addresses.items():
+        if contract_data["type"] == "zyberswap_masterchef_v1":
+            # create masterchef object
+            zyberswap_masterchef = zyberswap_masterchef_v1(
+                address=masterchef_address, network=network
+            )
+            rewards_data = zyberswap_masterchef.get_rewards(
+                hypervisor_addresses=hypervisor_addresses, convert_bint=True
+            )
+
+        for reward_data in rewards_data:
+            # add block creation data
+            if creation_data := _get_contract_creation_block(
+                network=network, contract_address=reward_data["rewarder_address"]
+            ):
+                reward_data["block"] = creation_data["block"]
+            else:
+                # modify block number manually -> block num. is later used to update rewards_status from
+                reward_data["block"] = contract_data["creation_block"]
+            if (
+                rewrite
+                or f"{reward_data['hypervisor_address']}_{reward_data['rewarder_address']}"
+                not in already_processed
+            ):
+                # save to database
+                yield reward_data
+
+
+def create_rewards_static_thena(
+    network: str,
+    hypervisor_addresses: list,
+    already_processed: list,
+    rewrite: bool = False,
+):
+    to_process_contract_addresses = {
+        "0x3a1d0952809f4948d15ebce8d345962a282c4fcb".lower(): {
+            "creation_block": 27114632,
+            "type": "thena_voter_v3",
+        }
+    }
+    for thenaVoter_address, contract_data in to_process_contract_addresses.items():
+        # create thena voter object
+        thena_voter = thena_voter_v3(address=thenaVoter_address, network=network)
+        rewards_data = thena_voter.get_rewards(
+            hypervisor_addresses=hypervisor_addresses, convert_bint=True
+        )
+        for reward_data in rewards_data:
+            # add block creation data
+            if creation_data := _get_contract_creation_block(
+                network=network, contract_address=reward_data["rewarder_address"]
+            ):
+                reward_data["block"] = creation_data["block"]
+            else:
+                # modify block number manually -> block num. is later used to update rewards_status from
+                reward_data["block"] = contract_data["creation_block"]
+            if (
+                rewrite
+                or f"{reward_data['hypervisor_address']}_{reward_data['rewarder_address']}"
+                not in already_processed
+            ):
+                yield reward_data
 
 
 # def feed_gamma_masterchef_static(
