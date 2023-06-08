@@ -1,6 +1,5 @@
 import os
 import random
-import sys
 import logging
 import time
 import tqdm
@@ -8,36 +7,23 @@ import concurrent.futures
 import contextlib
 import re
 
-import polars as pl
-
-from datetime import datetime
-from pathlib import Path
-from web3.exceptions import ContractLogicError
 from apps.feeds.queue import QueueItem
 
-
 from bins.configuration import CONFIGURATION
-from bins.database.db_user_status import user_status_hypervisor_builder
 from bins.general.enums import databaseSource, queueItemType
-from bins.general.general_utilities import (
-    convert_string_datetime,
-    differences,
-    log_time_passed,
-)
-from bins.w3.onchain_data_helper import onchain_data_helper
-from bins.w3.onchain_utilities.protocols import (
-    gamma_hypervisor,
-    gamma_hypervisor_quickswap,
-    gamma_hypervisor_cached,
-    gamma_hypervisor_quickswap_cached,
-    gamma_hypervisor_registry,
-)
-from bins.w3.onchain_utilities.basic import erc20_cached
+from bins.general.general_utilities import differences
+
+from bins.w3.protocols.general import erc20_cached
 
 from bins.database.common.db_collections_common import database_local, database_global
 from bins.mixed.price_utilities import price_scraper
 
-from bins.w3.builders import build_db_hypervisor, build_hypervisor, check_erc20_fields
+from bins.w3.builders import (
+    build_db_hypervisor,
+    build_hypervisor,
+    check_erc20_fields,
+    convert_dex_protocol,
+)
 
 from apps.feeds.prices import (
     create_tokenBlocks_all,
@@ -686,7 +672,7 @@ def repair_binance_hypervisor_status():
         # build hypervisor
         hypervisor = build_hypervisor(
             network=network,
-            dex=dex,
+            protocol=convert_dex_protocol(dex),
             block=hype_status["block"],
             hypervisor_address=hype_status["address"],
         )
@@ -753,7 +739,7 @@ def repair_binance_queue_hype_status():
         # build hypervisor
         hypervisor = build_hypervisor(
             network=network,
-            dex=dex,
+            protocol=convert_dex_protocol(dex),
             block=queue_item["data"]["hypervisor_status"]["block"],
             hypervisor_address=queue_item["data"]["hypervisor_status"]["address"],
         )

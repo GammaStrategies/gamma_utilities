@@ -1,16 +1,15 @@
 #
 #  periodic data action
 #
-import os
+
 import sys
-from pathlib import Path
 import logging
 
 # import signal
 import multiprocessing as mp
 from datetime import datetime, timedelta, timezone
 import time
-from apps.feeds.queue import parallel_pull, pull_from_queue
+
 from apps.parallel_feed import process_all_queues
 
 from bins.configuration import CONFIGURATION
@@ -20,8 +19,8 @@ from apps.database_feeder import (
     feed_timestamp_blocks,
     feed_blocks_timestamp,
 )
-from apps.feeds.static import feed_hypervisor_static, feed_rewards_static
-from apps.feeds.users import feed_user_status, feed_user_operations
+
+from apps.feeds.users import feed_user_operations
 from apps.feeds.status import (
     feed_rewards_status,
     feed_hypervisor_status,

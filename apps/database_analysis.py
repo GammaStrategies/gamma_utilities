@@ -25,12 +25,6 @@ from bins.database.db_user_status import (
 )
 from bins.general import general_utilities, file_utilities
 from bins.apis.thegraph_utilities import gamma_scraper
-from bins.w3.onchain_utilities.protocols import (
-    gamma_hypervisor,
-    gamma_hypervisor_quickswap,
-    gamma_hypervisor_cached,
-    gamma_hypervisor_quickswap_cached,
-)
 
 
 def print_status(status: user_status, symbol: str = "", network: str = ""):
