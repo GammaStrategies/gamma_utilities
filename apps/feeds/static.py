@@ -206,8 +206,14 @@ def feed_rewards_static(
                 )
 
             for reward_data in rewards_data:
-                # modify block number manually -> block num. is later used to update rewards_status from
-                reward_data["block"] = contract_data["creation_block"]
+                # add block creation data
+                if creation_data := _get_contract_creation_block(
+                    network=network, contract_address=reward_data["rewarder_address"]
+                ):
+                    reward_data["block"] = creation_data["block"]
+                else:
+                    # modify block number manually -> block num. is later used to update rewards_status from
+                    reward_data["block"] = contract_data["creation_block"]
                 if (
                     rewrite
                     or f"{reward_data['hypervisor_address']}_{reward_data['rewarder_address']}"
@@ -235,8 +241,14 @@ def feed_rewards_static(
                 hypervisor_addresses=hypervisor_addresses, convert_bint=True
             )
             for reward_data in rewards_data:
-                # modify block number manually -> block num. is later used to update rewards_status from
-                reward_data["block"] = contract_data["creation_block"]
+                # add block creation data
+                if creation_data := _get_contract_creation_block(
+                    network=network, contract_address=reward_data["rewarder_address"]
+                ):
+                    reward_data["block"] = creation_data["block"]
+                else:
+                    # modify block number manually -> block num. is later used to update rewards_status from
+                    reward_data["block"] = contract_data["creation_block"]
                 if (
                     rewrite
                     or f"{reward_data['hypervisor_address']}_{reward_data['rewarder_address']}"
