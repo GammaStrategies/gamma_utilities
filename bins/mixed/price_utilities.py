@@ -16,6 +16,7 @@ from bins.configuration import (
 )
 from bins.database.common.db_collections_common import database_global
 from bins.formulas.dex_formulas import sqrtPriceX96_to_price_float
+from bins.general import file_utilities
 from bins.general.enums import Chain, Protocol, databaseSource
 from bins.w3.builders import build_protocol_pool
 
@@ -474,6 +475,32 @@ class usdc_price_scraper:
             if token_address.lower() in USDC_TOKEN_ADDRESSES.get(chain, []):
                 return 1
 
+            # try get path from file
+            price = self._get_price_using_file_paths(
+                chain=chain, token_address=token_address
+            )
+            if price is None:
+                # try get price from var
+                price = self._get_price_using_var_paths(
+                    chain=chain, token_address=token_address
+                )
+
+            return price
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f"Error while getting onchain price for token {token_address} on chain {chain}. Error: {e}"
+            )
+            return None
+
+    def _get_price_using_var_paths(
+        self, chain: Chain, token_address: str, block: int | None = None
+    ) -> float | None:
+        """get price of token_address in USDC using the paths defined in DEX_POOLS_PRICE_PATHS"""
+        try:
+            # check if token is USDC
+            if token_address.lower() in USDC_TOKEN_ADDRESSES.get(chain, []):
+                return 1
+
             # check if path to token is known
             if token_address in DEX_POOLS_PRICE_PATHS.get(chain, " "):
                 price = 1
@@ -502,6 +529,74 @@ class usdc_price_scraper:
             else:
                 logging.getLogger(__name__).debug(
                     f" token {token_address} not found in DEX_POOLS_PRICE_PATHS. Cant get onchain price"
+                )
+                return None
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f"Error while getting onchain price for token {token_address} on chain {chain}. Error: {e}"
+            )
+            return None
+
+    def _get_price_using_file_paths(
+        self, chain: Chain, token_address: str, block: int | None = None
+    ) -> float | None:
+        """Try get price using the precomputed json file with paths to tokens"""
+        try:
+            # check if token is USDC
+            if token_address.lower() in USDC_TOKEN_ADDRESSES.get(chain, []):
+                return 1
+
+            # check if path to token is known
+            # load json file
+            if price_paths := file_utilities.load_json(
+                filename="token_paths", folder_path="data"
+            ):
+                if token_address in price_paths.get(chain, " "):
+                    price = 1
+                    # follow the path to get USDC price of token address
+                    for operation in price_paths[chain][token_address]:
+                        # select the right protocol
+                        dex_pool = build_protocol_pool(
+                            chain=chain,
+                            protocol=operation["protocol"],
+                            pool_address=operation["address"],
+                            block=block,
+                        )
+
+                        if sqrtPriceX96 := dex_pool.sqrtPriceX96:
+                            # get price
+                            token_in_base = sqrtPriceX96_to_price_float(
+                                sqrtPriceX96=sqrtPriceX96,
+                                token0_decimals=dex_pool.token0.decimals,
+                                token1_decimals=dex_pool.token1.decimals,
+                            )
+                            # token0, token1 = whois_token(
+                            #     token_addressA=operation["token_from"],
+                            #     token_addressB=operation["token_to"],
+                            # )
+                            if (
+                                dex_pool.token1.address.lower()
+                                != operation["token_to"].lower()
+                            ):
+                                # reverse price
+                                token_in_base = 1 / token_in_base
+
+                            price *= token_in_base
+                        else:
+                            logging.getLogger(__name__).debug(
+                                f" token {token_address} in pool {operation['address']} has sqrtPriceX96 to {sqrtPriceX96} at block {block}. Price is really zero."
+                            )
+                            return 0
+
+                    return price
+                else:
+                    logging.getLogger(__name__).debug(
+                        f" token {token_address} not found in price paths file. Cant get onchain price"
+                    )
+                    return None
+            else:
+                logging.getLogger(__name__).debug(
+                    f" price paths file not found. Cant get onchain price"
                 )
                 return None
         except Exception as e:
