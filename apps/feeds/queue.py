@@ -14,7 +14,7 @@ from bins.general.enums import Chain, queueItemType
 from bins.general.general_utilities import seconds_to_time_passed
 from bins.w3.builders import build_db_hypervisor
 from bins.mixed.price_utilities import price_scraper
-from bins.w3.onchain_utilities.basic import erc20
+from bins.w3.protocols.general import erc20, bep20
 
 
 @dataclass
@@ -482,8 +482,12 @@ def pull_from_queue_block(network: str, queue_item: QueueItem) -> bool:
     local_db = database_local(mongo_url=mongo_url, db_name=f"{network}_gamma")
 
     try:
-        dummy = erc20(
-            address=queue_item.address, network=network, block=queue_item.block
+        dummy = (
+            bep20(address=queue_item.address, network=network, block=queue_item.block)
+            if network == "binance"
+            else erc20(
+                address=queue_item.address, network=network, block=queue_item.block
+            )
         )
 
         if dummy._timestamp:
