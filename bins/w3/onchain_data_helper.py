@@ -7,16 +7,8 @@ from web3.middleware import async_geth_poa_middleware, geth_poa_middleware
 from pathlib import Path
 import math
 
-from bins.w3.protocol_comparator import template
-
-from bins.w3.onchain_utilities.collectors import data_collector
-from bins.w3.onchain_utilities.protocols import (
-    gamma_hypervisor_cached,
-    gamma_hypervisor_quickswap_cached,
-    gamma_hypervisor,
-    gamma_hypervisor_quickswap,
-    erc20,
-)
+from bins.w3.protocols.gamma.collectors import data_collector
+from bins.w3.protocols.general import erc20, bep20
 
 from bins.general import general_utilities
 from bins.mixed import price_utilities
@@ -62,10 +54,14 @@ class onchain_data_helper:
         # return result
         return w3
 
-    def create_erc20_helper(self, network: str) -> erc20:
+    def create_erc20_helper(self, network: str) -> erc20 | bep20:
         # define helper
-        return erc20(
-            address="0x0000000000000000000000000000000000000000", network=network
+        return (
+            bep20(address="0x0000000000000000000000000000000000000000", network=network)
+            if network == "binance"
+            else erc20(
+                address="0x0000000000000000000000000000000000000000", network=network
+            )
         )
 
     def create_data_collector(self, network: str) -> data_collector:
