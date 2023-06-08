@@ -1,5 +1,4 @@
 import logging
-import sys
 from bins.general import net_utilities
 
 
@@ -12,6 +11,8 @@ class etherscan_helper:
         "celo": "https://api.celoscan.io",
         "polygon_zkevm": "https://api-zkevm.polygonscan.com/",
         "binance": "https://api.bscscan.com",
+        "moonbeam": "https://api-moonbeam.moonscan.io",
+        "fantomscan": "https://api.ftmscan.com",
     }
     _key_network_matches = {
         "etherscan": "ethereum",
@@ -20,6 +21,8 @@ class etherscan_helper:
         "optimisticetherscan": "optimism",
         "bscscan": "binance",
         "zkevmpolygonscan": "polygon_zkevm",
+        "moonbeam": "moonbeam",
+        "fantomscan": "fantomscan",
     }
 
     def __init__(self, api_keys: dict):
@@ -47,21 +50,6 @@ class etherscan_helper:
         for k, v in apiKeys.items():
             if k.lower() in self._key_network_matches.keys():
                 result[self._key_network_matches[k.lower()]] = v
-
-        # if "etherscan" in apiKeys:
-        #     # needs to be processed
-        #     result = {}
-        #     for k, v in apiKeys.items():
-        #         if k.lower() == "etherscan":
-        #             result["ethereum"] = v
-        #             result["optimism"] = v
-        #             result["arbitrum"] = v
-        #             result["celo"] = v
-        #         elif k.lower() == "polygonscan":
-        #             result["polygon"] = v
-        # else:
-        #     # no need to process
-        #     result = apiKeys
 
         return result
 

@@ -1,4 +1,3 @@
-import sys
 import os
 from bins.general.enums import Chain, Protocol
 
@@ -63,16 +62,7 @@ def get_from_memory(key) -> list:
 
 #### ADD STATIC CONFIG HERE ####
 
-WEB3_CHAIN_IDS = {
-    "ethereum": 1,
-    "polygon": 137,
-    "optimism": 10,
-    "arbitrum": 42161,
-    "celo": 42220,
-    "binance": 56,
-    "polygon_zkevm": 1101,
-    "avalanche": 43114,
-}
+WEB3_CHAIN_IDS = {chain.database_name: chain.id for chain in Chain}
 
 
 STATIC_REGISTRY_ADDRESSES = {
@@ -91,12 +81,14 @@ STATIC_REGISTRY_ADDRESSES = {
             "uniswapv3": "0x0Ac4C7b794f3D7e7bF1093A4f179bA792CF15055".lower(),
             "quickswap": "0xAeC731F69Fa39aD84c7749E913e3bC227427Adfd".lower(),
             "retro": "0xcac19d43c9558753d7535978a370055614ce832e".lower(),
+            "sushiswap": "0x97686103b3e7238ca6c2c439146b30adbd84a593".lower(),
         },
         "MasterChefRegistry": "0x135B02F8b110Fe2Dd8B6a5e2892Ee781264c2fbe".lower(),
         "MasterChefV2Registry": {
             "uniswapv3": "0x02C8D3FCE5f072688e156F503Bd5C7396328613A".lower(),
             "quickswap": "0x62cD3612233B2F918BBf0d17B9Eda3005b84e16f".lower(),
             "retro": "0x838f6c0189cd8fd831355b31d71b03373480ab83".lower(),
+            "sushiswap": "0x73cb7b82e43759b637e1eb833b6c2711f3e45dca".lower(),
         },
     },
     "optimism": {
@@ -316,13 +308,13 @@ DEX_POOLS = {
             "address": "0x98a0004b8e9fe161369528a2e07de56c15a27d76".lower(),
         },
         "USDT_WBNB": {
-            "protocol": Protocol.PANCAKEv3,
+            "protocol": Protocol.PANCAKESWAP,
             "address": "0x36696169c63e42cd08ce11f5deebbcebae652050".lower(),
             "token0": "0x55d398326f99059ff775485246999027b3197955".lower(),
             "token1": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c".lower(),
         },
         "USDT_USDC": {
-            "protocol": Protocol.PANCAKEv3,
+            "protocol": Protocol.PANCAKESWAP,
             "address": "0x92b7807bf19b7dddf89b706143896d05228f3121".lower(),
             "token0": "0x55d398326f99059ff775485246999027b3197955".lower(),
             "token1": "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d".lower(),

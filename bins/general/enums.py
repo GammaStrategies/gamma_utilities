@@ -2,7 +2,7 @@ from enum import Enum
 
 
 class Chain(str, Enum):
-    #      ( value , id , API url, API name, subgraph name, database name, fantasy_name )
+    #      ( value , id , database_name, fantasy_name )
     ARBITRUM = ("arbitrum", 42161, "arbitrum", "Arbitrum")
     CELO = ("celo", 42220, "celo", "Celo")
     ETHEREUM = ("ethereum", 1, "ethereum", "Ethereum")
@@ -52,25 +52,30 @@ class Chain(str, Enum):
 
 
 class Protocol(str, Enum):
-    #            ( value , url, fantasy_name )
-    GAMMA = ("gamma", "Gamma Strategies")
+    #  ( value , database_name, fantasy_name )
+    GAMMA = ("gamma", "gamma", "Gamma Strategies")
 
-    ALGEBRAv3 = ("algebrav3", "UniswapV3")
-    UNISWAPv3 = ("uniswapv3", "AlgebraV3")
-    PANCAKEv3 = ("pancakev3", "PancakeV3")
+    ALGEBRAv3 = ("algebrav3", "algebrav3", "AlgebraV3")
+    UNISWAPv3 = ("uniswapv3", "uniswapv3", "UniswapV3")
 
-    QUICKSWAP = ("quickswap", "QuickSwap")
-    UNISWAP = ("uniswap", "Uniswap")
-    ZYBERSWAP = ("zyberswap", "Zyberswap")
-    THENA = ("thena", "Thena")
-    GLACIER = ("glacier", "Glacier")
-    SPIRITSWAP = ("spiritswap", "SpiritSwap")
-    CAMELOT = ("camelot", "Camelot")
-    RETRO = ("retro", "Retro")
-    STELLASWAP = ("stellaswap", "Stellaswap")
-    BEAMSWAP = ("beamswap", "Beamswap")
-    RAMSES = ("ramses", "Ramses")
-    VEZARD = ("vezard", "veZard")
+    PANCAKESWAP = ("pancakeswap", "pancakeswap", "Pancakeswap")  # univ3 mod
+    BEAMSWAP = ("beamswap", "beamswap", "Beamswap")  # univ3 mod
+    CAMELOT = ("camelot", "camelot", "Camelot")  # algebra mods
+
+    QUICKSWAP = ("quickswap", "quickswap", "QuickSwap")
+    ZYBERSWAP = ("zyberswap", "zyberswap", "Zyberswap")
+    THENA = ("thena", "thena", "Thena")
+    GLACIER = ("glacier", "glacier", "Glacier")
+    SPIRITSWAP = ("spiritswap", "spiritswap", "SpiritSwap")
+    SUSHISWAP = ("sushiswap", "sushiswap", "Sushiswap")
+
+    RETRO = ("retro", "retro", "Retro")
+    STELLASWAP = ("stellaswap", "stellaswap", "Stellaswap")
+
+    RAMSES = ("ramses", "ramses", "Ramses")
+    VEZARD = ("vezard", "vezard", "veZard")
+
+    EQUILIBRE = ("equilibre", "equilibre", "Equilibre")
 
     # extra properties
     database_name: str

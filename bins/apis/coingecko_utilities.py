@@ -27,6 +27,10 @@ class coingecko_price_helper:
             "arbitrum": "arbitrum-one",  # "arbitrum-nova" is targeted for gaming and donowhat ...
             "celo": "celo",
             "binance": "binance-smart-chain",
+            "moonbeam": "moonbeam",
+            "fantom": "fantom",
+            "polygon_zkevm": "polygon-zkevm",
+            "avalanche": "avalanche",
         }
 
         self.retries = retries

@@ -25,6 +25,8 @@ class geckoterminal_price_helper:
             "binance": "bsc",
             "avalanche": "avax",
             "polygon_zkevm": "polygon-zkevm",
+            "moonbeam": "moonbeam",
+            "fantom": "fantom",
         }
 
         self.retries = retries
