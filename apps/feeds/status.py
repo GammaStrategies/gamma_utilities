@@ -9,7 +9,8 @@ from bins.configuration import CONFIGURATION
 from bins.database.common.db_collections_common import database_global, database_local
 from bins.database.helpers import get_price_from_db
 from bins.formulas.apr import calculate_rewards_apr
-from bins.general.enums import Chain, Protocol
+from bins.general.enums import Chain, Protocol, rewarderType
+from bins.w3.protocols.beamswap.rewarder import beamswap_masterchef_v2
 
 from bins.w3.protocols.thena.rewarder import thena_gauge_v2
 from bins.w3.protocols.zyberswap.rewarder import zyberswap_masterchef_v1
@@ -281,7 +282,7 @@ def feed_rewards_status(
 
     # get a list of static rewarders linked to hypes
     to_be_processed_reward_static = local_db.get_items_from_database(
-        collection_name="rewards_static"
+        collection_name="rewards_static", find={}
     )
 
     with tqdm.tqdm(
@@ -365,8 +366,9 @@ def feed_rewards_status_loop(rewarder_static: dict):
         for result_item in ex.map(
             lambda p: create_reward_status_from_hype_status(*p), args
         ):
-            # for result_item in ex.map(loop, to_process_hypervisor_status):
-            result.append(result_item)
+            # append only if not empty-> will be empty when processing static masterchef s
+            if result:
+                result.append(result_item)
 
     return result
 
@@ -377,10 +379,17 @@ def create_reward_status_from_hype_status(
     result = []
     rewards_data = []
     try:
-        if rewarder_static["rewarder_type"] == "zyberswap_masterchef_v1":
-            # create masterchef object
+        if rewarder_static["rewarder_type"] in [
+            rewarderType.ZYBERSWAP_masterchef_v1,
+            rewarderType.ZYBERSWAP_masterchef_v1_rewarder,
+        ]:
+            if rewarder_static["rewarder_type"] == rewarderType.ZYBERSWAP_masterchef_v1:
+                # do nothing because this is the reward given by the masterchef and will be processed once we get to the rewarder ( thru the masterchef itself..)
+                return None
+
+            # create masterchef object:  USE address == rewarder_registry on masterchef for this type of rewarder
             zyberswap_masterchef = zyberswap_masterchef_v1(
-                address=rewarder_static["rewarder_address"],
+                address=rewarder_static["rewarder_registry"],
                 network=network,
                 block=hypervisor_status["block"],
                 timestamp=hypervisor_status["timestamp"],
@@ -392,7 +401,7 @@ def create_reward_status_from_hype_status(
                 convert_bint=True,
             )
 
-        elif rewarder_static["rewarder_type"] == "thena_gauge_v2":
+        elif rewarder_static["rewarder_type"] == rewarderType.THENA_gauge_v2:
             thena_gauge = thena_gauge_v2(
                 address=rewarder_static["rewarder_address"],
                 network=network,
@@ -408,6 +417,27 @@ def create_reward_status_from_hype_status(
 
                 # add to returnable data
                 rewards_data += rewards_from_gauge
+        elif rewarder_static["rewarder_type"] in [
+            rewarderType.BEAMSWAP_masterchef_v2,
+            rewarderType.BEAMSWAP_masterchef_v2_rewarder,
+        ]:
+            if rewarder_static["rewarder_type"] == rewarderType.BEAMSWAP_masterchef_v2:
+                # do nothing because this is the reward given by the masterchef and will be processed once we get to the rewarder ( thru the masterchef itself..)
+                return None
+
+            # create masterchef object:   USE address == rewarder_registry on masterchef for this type of rewarder
+            masterchef = beamswap_masterchef_v2(
+                address=rewarder_static["rewarder_registry"],
+                network=network,
+                block=hypervisor_status["block"],
+                timestamp=hypervisor_status["timestamp"],
+            )
+            # get rewards status
+            rewards_data = masterchef.get_rewards(
+                hypervisor_addresses=[rewarder_static["hypervisor_address"]],
+                pids=rewarder_static["rewarder_refIds"],
+                convert_bint=True,
+            )
     except Exception as e:
         logging.getLogger(__name__).exception(
             f" Unexpected error constructing {network}'s {rewarder_static['rewarder_address']} rewarder data. error-> {e}"
@@ -423,7 +453,7 @@ def create_reward_status_from_hype_status(
             rewardToken_price = get_price_from_db(
                 network=network,
                 block=hypervisor_status["block"],
-                token_address=rewarder_static["rewardToken"],
+                token_address=reward_data["rewardToken"],
             )
             hype_token0_price = get_price_from_db(
                 network=network,

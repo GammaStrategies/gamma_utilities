@@ -184,7 +184,7 @@ def build_hypervisor(
     cached: bool = False,
 ) -> protocols.uniswap.hypervisor.gamma_hypervisor:
     # choose type based on dex
-    if protocol == Protocol.UNISWAPv3:
+    if protocol == Protocol.UNISWAPv3 or protocol == Protocol.GAMMA:
         hypervisor = (
             protocols.uniswap.hypervisor.gamma_hypervisor(
                 address=hypervisor_address,

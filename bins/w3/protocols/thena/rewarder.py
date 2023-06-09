@@ -1,4 +1,5 @@
 from web3 import Web3
+from bins.general.enums import rewarderType
 from bins.w3.protocols.general import erc20_cached, web3wrap
 from bins.w3.protocols.gamma.rewarder import gamma_rewarder
 
@@ -836,7 +837,7 @@ class thena_gauge_v2(gamma_rewarder):
                 "timestamp": self._timestamp,
                 "hypervisor_address": self.token.lower(),
                 "rewarder_address": self.address.lower(),
-                "rewarder_type": "thena_gauge_v2",
+                "rewarder_type": rewarderType.THENA_gauge_v2,
                 "rewarder_refIds": [],
                 "rewardToken": rewardToken.lower(),
                 "rewardToken_symbol": rewardToken_symbol,

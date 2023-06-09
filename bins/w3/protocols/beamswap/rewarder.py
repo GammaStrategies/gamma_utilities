@@ -1,11 +1,11 @@
 import logging
 from web3 import Web3
-from bins.general.enums import rewarderType
+from bins.general.enums import Protocol, rewarderType
 
 from bins.w3.protocols.gamma.rewarder import gamma_rewarder
 
 
-class zyberswap_masterchef_rewarder(gamma_rewarder):
+class beamswap_masterchef_v2_rewarder(gamma_rewarder):
     def __init__(
         self,
         address: str,
@@ -197,7 +197,7 @@ class zyberswap_masterchef_rewarder(gamma_rewarder):
                         "timestamp": self._timestamp,
                         # "hypervisor_address": pinfo[0].lower(), # there is no hype address in this contract
                         "rewarder_address": self.address.lower(),
-                        "rewarder_type": rewarderType.ZYBERSWAP_masterchef_v1_rewarder,
+                        "rewarder_type": rewarderType.BEAMSWAP_masterchef_v2_rewarder,
                         "rewarder_refIds": [pid],
                         "rewarder_registry": self.address.lower(),
                         "rewardToken": self.rewardToken.lower(),
@@ -213,14 +213,14 @@ class zyberswap_masterchef_rewarder(gamma_rewarder):
                 )
             except Exception as e:
                 logging.getLogger(__name__).exception(
-                    f" Error encountered while constructing zyberswap rewards -> {e}"
+                    f" Error encountered while constructing beamswap rewards -> {e}"
                 )
 
         return result
 
 
-class zyberswap_masterchef_v1(gamma_rewarder):
-    # https://arbiscan.io/address/0x9ba666165867e916ee7ed3a3ae6c19415c2fbddd#readContract
+class beamswap_masterchef_v2(gamma_rewarder):
+    # https://moonscan.io/address/0x9d48141b234bb9528090e915085e0e6af5aad42c#code
     def __init__(
         self,
         address: str,
@@ -232,8 +232,8 @@ class zyberswap_masterchef_v1(gamma_rewarder):
         custom_web3: Web3 | None = None,
         custom_web3Url: str | None = None,
     ):
-        self._abi_filename = abi_filename or "zyberchef_v1"
-        self._abi_path = abi_path or "data/abi/zyberswap/masterchef"
+        self._abi_filename = abi_filename or "BeamChefV2"
+        self._abi_path = abi_path or "data/abi/beamswap/masterchef"
 
         super().__init__(
             address=address,
@@ -246,249 +246,132 @@ class zyberswap_masterchef_v1(gamma_rewarder):
             custom_web3Url=custom_web3Url,
         )
 
-    @property
-    def maximum_deposit_fee_rate(self) -> int:
-        """maximum deposit fee rate
-
-        Returns:
-            int: unit16
-        """
-        return self.call_function_autoRpc("MAXIMUM_DEPOSIT_FEE_RATE")
+    # TODO: MAXIMUM_DEPOSIT_FEE_RATE
+    #       MAXIMUM_HARVEST_INTERVAL
+    #
 
     @property
-    def maximum_harvest_interval(self) -> int:
-        """maximum harvest interval
+    def beam(self) -> str:
+        return self.call_function_autoRpc("beam")
 
-        Returns:
-            int: unit256
-        """
-        return self.call_function_autoRpc("MAXIMUM_HARVEST_INTERVAL")
+    @property
+    def beamPerSec(self) -> int:
+        return self.call_function_autoRpc("beamPerSec")
 
-    def canHarvest(self, pid: int, user: str) -> bool:
-        """can harvest
+    @property
+    def beamShareAddress(self) -> str:
+        return self.call_function_autoRpc("beamShareAddress")
 
-        Args:
-            pid (int): pool id
-            user (str): user address
+    @property
+    def beamSharePercent(self) -> int:
+        return self.call_function_autoRpc("beamSharePercent")
 
-        Returns:
-            bool: _description_
-        """
+    def canHarvest(self, pid: int, user: str) -> tuple[int, int]:
         return self.call_function_autoRpc("canHarvest", None, pid, user)
 
     @property
     def feeAddress(self) -> str:
-        """fee address
-
-        Returns:
-            str: address
-        """
         return self.call_function_autoRpc("feeAddress")
 
     @property
-    def getZyberPerSec(self) -> int:
-        """zyber per sec
-
-        Returns:
-            int: unit256
-        """
-        return self.call_function_autoRpc("getZyberPerSec")
-
-    @property
-    def marketingAddress(self) -> str:
-        """marketing address
-
-        Returns:
-            str: address
-        """
-        return self.call_function_autoRpc("marketingAddress")
-
-    @property
-    def marketingPercent(self) -> int:
-        """marketing percent
-
-        Returns:
-            int: unit256
-        """
-        return self.call_function_autoRpc("marketingPercent")
-
-    @property
     def owner(self) -> str:
-        """owner
-
-        Returns:
-            str: address
-        """
         return self.call_function_autoRpc("owner")
 
-    def pendingTokens(
-        self, pid: int, user: str
-    ) -> tuple[list[str], list[str], list[int], list[int]]:
-        """pending tokens
-
-        Args:
-            pid (int): pool id
-            user (str): user address
-
-        Returns:
-            tuple: addresses address[], symbols string[], decimals uint256[], amounts uint256[]
-        """
+    def pendingTokens(self, pid: int, user: str) -> tuple[int, int]:
         return self.call_function_autoRpc("pendingTokens", None, pid, user)
 
-    def poolInfo(self, pid: int) -> tuple[str, int, int, int, int, int, int, int]:
-        """pool info
+    def poolInfo(self, pid: int) -> tuple[str, int, int, int, int, int, int]:
+        """
 
         Args:
-            pid (int): pool id
+            pid (int): pool index
 
         Returns:
-            tuple:
-                lpToken address,
-                allocPoint uint256,
-                lastRewardTimestamp uint256,
-                accZyberPerShare uint256,
-                depositFeeBP uint16,
-                harvestInterval uint256,
-                totalLp uint256
+            tuple[str, int, int, int, int, int, int]:
+                lpToken   address :  0x99588867e817023162F4d4829995299054a5fC57
+                allocPoint   uint256 :  1060
+                lastRewardTimestamp   uint256 :  1686252702
+                accBeamPerShare   uint256 :  25726015220264
+                depositFeeBP   uint16 :  0
+                harvestInterval   uint256 :  0
+                totalLp   uint256 :  281163683193369998486959
         """
         return self.call_function_autoRpc("poolInfo", None, pid)
 
     @property
     def poolLength(self) -> int:
-        """pool length
-
-        Returns:
-            int: unit256
-        """
         return self.call_function_autoRpc("poolLength")
 
     def poolRewarders(self, pid: int) -> list[str]:
-        """pool rewarders
-
-        Args:
-            pid (int): pool id
-
-        Returns:
-            list[str]: address[]
-        """
         return self.call_function_autoRpc("poolRewarders", None, pid)
 
     def poolRewardsPerSec(
         self, pid: int
     ) -> tuple[list[str], list[str], list[int], list[int]]:
-        """pool rewards per sec
-             first item is always ZYB ( without pool rewarder bc it is directly rewarded by the masterchef)
+        """first item is always GLINT ( without pool rewarder bc it is directly rewarded by the masterchef)
              subsequent items have pool rewarder ( when calling poolRewarders(pid))
 
         Args:
             pid (int): pool id
 
         Returns:
-            tuple: addresses address[],
-            symbols string[],
-            decimals uint256[],
-            rewardsPerSec uint256[]
+            tuple         addresses   address[] : [[0xcd3B51D98478D53F4515A306bE565c6EebeF1D58]]
+                            symbols   string[] :  GLINT
+                            decimals   uint256[] :  18
+                            rewardsPerSec   uint256[] :  225475475475475475
         """
         return self.call_function_autoRpc("poolRewardsPerSec", None, pid)
 
     def poolTotalLp(self, pid: int) -> int:
-        """pool total lp
-
-        Args:
-            pid (int): pool id
-
-        Returns:
-            int: unit256
-        """
         return self.call_function_autoRpc("poolTotalLp", None, pid)
 
     @property
-    def startTimestamp(self) -> int:
-        """start timestamp
+    def stGlint(self) -> str:
+        return self.call_function_autoRpc("stGlint")
 
-        Returns:
-            int: unit256
-        """
+    @property
+    def stGlintRatio(self) -> int:
+        return self.call_function_autoRpc("stGlintRatio")
+
+    @property
+    def startTimestamp(self) -> int:
         return self.call_function_autoRpc("startTimestamp")
 
     @property
-    def teamAddress(self) -> str:
-        """team address
-
-        Returns:
-            str: address
-        """
-        return self.call_function_autoRpc("teamAddress")
-
-    @property
-    def teamPercent(self) -> int:
-        """team percent
-
-        Returns:
-            int: unit256
-        """
-        return self.call_function_autoRpc("teamPercent")
-
-    @property
     def totalAllocPoint(self) -> int:
-        """total alloc point
+        """Sum of the allocation points of all pools
 
         Returns:
-            int: unit256
+            int: totalAllocPoint
         """
         return self.call_function_autoRpc("totalAllocPoint")
 
     @property
-    def totalLockedUpRewards(self) -> int:
-        """total locked up rewards
-
-        Returns:
-            int: unit256
-        """
-        return self.call_function_autoRpc("totalLockedUpRewards")
+    def totalBeamInPools(self) -> int:
+        return self.call_function_autoRpc("totalBeamInPools")
 
     @property
-    def totalZyberInPools(self) -> int:
-        """total zyber in pools
-
-        Returns:
-            int: unit256
-        """
-        return self.call_function_autoRpc("totalZyberInPools")
+    def totalLockedUpRewards(self) -> int:
+        return self.call_function_autoRpc("totalLockedUpRewards")
 
     def userInfo(self, pid: int, user: str) -> tuple[int, int, int, int]:
-        """user info
+        """
 
         Args:
-            pid (int): pool id
+            pid (int): pool index
             user (str): user address
 
         Returns:
-            tuple:
-                amount uint256,
-                rewardDebt uint256,
-                rewardLockedUp uint256,
-                nextHarvestUntil uint256
+            tuple[int, int]: amount uint256, rewardDebt uint256, rewardLockedUp uint256, nextHarvestUntil uint256
+                    amount — how many Liquid Provider (LP) tokens the user has supplied
+                    rewardDebt — the amount of SUSHI entitled to the user
+                    rewardLockedUp — the amount of SUSHI locked in the MasterChef for the user
+                    nextHarvestUntil — when can the user harvest again
+
         """
         return self.call_function_autoRpc("userInfo", None, pid, user)
 
-    @property
-    def zyber(self) -> str:
-        """zyber
-
-        Returns:
-            str: address
-        """
-        return self.call_function_autoRpc("zyber")
-
-    @property
-    def zyberPerSec(self) -> int:
-        """zyber per sec
-
-        Returns:
-            int: unit256
-        """
-        return self.call_function_autoRpc("zyberPerSec")
+    # CUSTOM
 
     # get all rewards
     def get_rewards(
@@ -520,7 +403,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
         result = []
 
         for pid in pids or range(self.poolLength):
-            # lpToken address, allocPoint uint256, lastRewardTimestamp uint256, accZyberPerShare uint256, depositFeeBP uint16, harvestInterval uint256, totalLp uint256
+            # lpToken address, allocPoint uint256, lastRewardTimestamp uint256, accBeamPerShare uint256, depositFeeBP uint16, harvestInterval uint256, totalLp uint256
             if pinfo := self.poolInfo(pid):
                 if not hypervisor_addresses or pinfo[0].lower() in hypervisor_addresses:
                     # addresses address[], symbols string[], decimals uint256[], rewardsPerSec uint256[]
@@ -536,14 +419,14 @@ class zyberswap_masterchef_v1(gamma_rewarder):
                         poolRewardsPerSec[2],
                         poolRewardsPerSec[3],
                     ):
-                        rewarder_type = rewarderType.ZYBERSWAP_masterchef_v1_rewarder
+                        rewarder_type = rewarderType.BEAMSWAP_masterchef_v2_rewarder
                         rewarder_address = self.address.lower()
                         if first_time:
-                            # first item is always ZYB ( without pool rewarder bc it is directly rewarded by the masterchef)
+                            # first item is always GLINT ( without pool rewarder bc it is directly rewarded by the masterchef)
                             # subsequent items have pool rewarder
                             rewarder_address = self.address.lower()
+                            rewarder_type = rewarderType.BEAMSWAP_masterchef_v2
                             first_time = False
-                            rewarder_type = rewarderType.ZYBERSWAP_masterchef_v1
                         else:
                             rewarder_address = poolRewarders.pop(0).lower()
 
