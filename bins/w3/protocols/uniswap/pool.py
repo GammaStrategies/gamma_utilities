@@ -451,7 +451,7 @@ class poolv3(web3wrap):
 
         # protocolFees
         result["protocolFees"] = self.protocolFees
-        if convert_bint:
+        if convert_bint and result["protocolFees"]:
             result["protocolFees"] = [str(i) for i in result["protocolFees"]]
 
         if not static_mode:
