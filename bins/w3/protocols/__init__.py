@@ -11,4 +11,5 @@ from bins.w3.protocols import (
     zyberswap,
     retro,
     sushiswap,
+    stellaswap,
 )
