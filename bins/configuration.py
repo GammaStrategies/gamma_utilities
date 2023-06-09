@@ -81,14 +81,14 @@ STATIC_REGISTRY_ADDRESSES = {
             "uniswapv3": "0x0Ac4C7b794f3D7e7bF1093A4f179bA792CF15055".lower(),
             "quickswap": "0xAeC731F69Fa39aD84c7749E913e3bC227427Adfd".lower(),
             "retro": "0xcac19d43c9558753d7535978a370055614ce832e".lower(),
-            "sushiswap": "0x97686103b3e7238ca6c2c439146b30adbd84a593".lower(),
+            "sushi": "0x97686103b3e7238ca6c2c439146b30adbd84a593".lower(),
         },
         "MasterChefRegistry": "0x135B02F8b110Fe2Dd8B6a5e2892Ee781264c2fbe".lower(),
         "MasterChefV2Registry": {
             "uniswapv3": "0x02C8D3FCE5f072688e156F503Bd5C7396328613A".lower(),
             "quickswap": "0x62cD3612233B2F918BBf0d17B9Eda3005b84e16f".lower(),
             "retro": "0x838f6c0189cd8fd831355b31d71b03373480ab83".lower(),
-            "sushiswap": "0x73cb7b82e43759b637e1eb833b6c2711f3e45dca".lower(),
+            "sushi": "0x73cb7b82e43759b637e1eb833b6c2711f3e45dca".lower(),
         },
     },
     "optimism": {
