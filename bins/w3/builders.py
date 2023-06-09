@@ -310,7 +310,7 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
         )
-    elif protocol == Protocol.SUSHISWAP:
+    elif protocol == Protocol.SUSHI:
         hypervisor = (
             protocols.sushiswap.hypervisor.gamma_hypervisor(
                 address=hypervisor_address,

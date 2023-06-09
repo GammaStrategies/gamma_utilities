@@ -59,22 +59,20 @@ class Protocol(str, Enum):
     UNISWAPv3 = ("uniswapv3", "uniswapv3", "UniswapV3")
 
     PANCAKESWAP = ("pancakeswap", "pancakeswap", "Pancakeswap")  # univ3 mod
+
     BEAMSWAP = ("beamswap", "beamswap", "Beamswap")  # univ3 mod
     CAMELOT = ("camelot", "camelot", "Camelot")  # algebra mods
-
     QUICKSWAP = ("quickswap", "quickswap", "QuickSwap")
     ZYBERSWAP = ("zyberswap", "zyberswap", "Zyberswap")
     THENA = ("thena", "thena", "Thena")
     GLACIER = ("glacier", "glacier", "Glacier")
     SPIRITSWAP = ("spiritswap", "spiritswap", "SpiritSwap")
-    SUSHISWAP = ("sushiswap", "sushiswap", "Sushiswap")
-
+    SUSHI = ("sushi", "sushi", "Sushi")
     RETRO = ("retro", "retro", "Retro")
     STELLASWAP = ("stellaswap", "stellaswap", "Stellaswap")
 
     RAMSES = ("ramses", "ramses", "Ramses")
     VEZARD = ("vezard", "vezard", "veZard")
-
     EQUILIBRE = ("equilibre", "equilibre", "Equilibre")
 
     # extra properties
