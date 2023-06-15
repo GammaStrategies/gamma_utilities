@@ -12,4 +12,5 @@ from bins.w3.protocols import (
     retro,
     sushiswap,
     stellaswap,
+    angle,
 )

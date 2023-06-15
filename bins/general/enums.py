@@ -139,3 +139,5 @@ class rewarderType(str, Enum):
     THENA_voter_v3 = "thena_voter_v3"
     BEAMSWAP_masterchef_v2 = "beamswap_masterchef_v2"
     BEAMSWAP_masterchef_v2_rewarder = "beamswap_masterchef_v2_rewarder"
+
+    ANGLE_MERKLE = "angle_merkle"

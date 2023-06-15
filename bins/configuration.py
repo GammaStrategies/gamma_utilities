@@ -75,6 +75,11 @@ STATIC_REGISTRY_ADDRESSES = {
             "0x07432C021f0A65857a3Ab608600B9FEABF568EA0".lower(),
             "0x8451122f06616baff7feb10afc2c4f4132fc4709".lower(),
         ],
+        "angle_merkl": {
+            "distributor": "0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae".lower(),
+            "distributionCreator": "0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd".lower(),
+            "coreMerkl": "0x0E632a15EbCBa463151B5367B4fCF91313e389a6".lower(),
+        },
     },
     "polygon": {
         "hypervisors": {
@@ -90,6 +95,11 @@ STATIC_REGISTRY_ADDRESSES = {
             "retro": "0x838f6c0189cd8fd831355b31d71b03373480ab83".lower(),
             "sushi": "0x73cb7b82e43759b637e1eb833b6c2711f3e45dca".lower(),
         },
+        "angle_merkl": {
+            "distributor": "0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae".lower(),
+            "distributionCreator": "0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd".lower(),
+            "coreMerkl": "0x9418D0aa02fCE40804aBF77bb81a1CcBeB91eaFC".lower(),
+        },
     },
     "optimism": {
         "hypervisors": {
@@ -97,6 +107,11 @@ STATIC_REGISTRY_ADDRESSES = {
         },
         "MasterChefV2Registry": {
             "uniswapv3": "0x81d9bF667205662bfa729C790F67D97D54EA391C".lower(),
+        },
+        "angle_merkl": {
+            "distributor": "0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae".lower(),
+            "distributionCreator": "0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd".lower(),
+            "coreMerkl": "0xc2c7a0d9a9e0467090281c3a4f28D40504d08FB4".lower(),
         },
     },
     "arbitrum": {
@@ -111,6 +126,11 @@ STATIC_REGISTRY_ADDRESSES = {
         "zyberswap_v1_masterchefs": [
             "0x9ba666165867e916ee7ed3a3ae6c19415c2fbddd".lower(),
         ],
+        "angle_merkl": {
+            "distributor": "0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae".lower(),
+            "distributionCreator": "0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd".lower(),
+            "coreMerkl": "0xA86CC1ae2D94C6ED2aB3bF68fB128c2825673267".lower(),
+        },
     },
     "celo": {
         "hypervisors": {
@@ -510,4 +530,34 @@ USDC_TOKEN_ADDRESSES = {
     Chain.AVALANCHE: ["0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e".lower()],
     Chain.ARBITRUM: ["0xff970a61a04b1ca14834a43f5de4533ebddb5cc8".lower()],
     Chain.MOONBEAM: ["0x931715fee2d06333043d11f658c8ce934ac61d0c".lower()],
+}
+
+
+ANGLE_MERKL_REWARDS = {
+    Chain.POLYGON: {
+        "0x21988C9CFD08db3b5793c2C6782271dC94749251".lower(): {
+            "protocol": Protocol.SUSHI,
+            "hypervisor": "0xCC65Ab3bA6E625F84de1C0129eC2476d0bf54dc3".lower(),
+        },
+        "0xff5713fdbad797b81539b5f9766859d4e050a6cc".lower(): {
+            "protocol": Protocol.SUSHI,
+            "hypervisor": "0x566bfD3aD5F6Ac8445411dCaE5730253D9feDe51".lower(),
+        },
+        "0xf1a12338d39fc085d8631e1a745b5116bc9b2a32".lower(): {
+            "protocol": Protocol.SUSHI,
+            "hypervisor": "0x9D8D8b587a73B90171FA961972BB4C028a39D967".lower(),
+        },
+        "0x1b0585fc8195fc04a46a365e670024dfb63a960c".lower(): {
+            "protocol": Protocol.SUSHI,
+            "hypervisor": "0xc0c7cc649A41e8aBdf59945c6ebfd19deE8067b6".lower(),
+        },
+        "0xf0a9c0f829602e05936fa5ef2fb6f19c82bfc94d".lower(): {
+            "protocol": Protocol.SUSHI,
+            "hypervisor": "0xE84E1F78D0Feb63Ba712060441E6305f9A16622c".lower(),
+        },
+        "0x3fa147d6309abeb5c1316f7d8a7d8bd023e0cd80".lower(): {
+            "protocol": Protocol.UNISWAPv3,
+            "hypervisor": "0xa29193Af0816D43cF44A3745755BF5f5e2f4F170".lower(),
+        },
+    },
 }
