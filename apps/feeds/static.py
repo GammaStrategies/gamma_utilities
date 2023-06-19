@@ -4,9 +4,13 @@ import logging
 import concurrent.futures
 import tqdm
 
-from bins.configuration import CONFIGURATION, STATIC_REGISTRY_ADDRESSES
+from bins.configuration import (
+    ANGLE_MERKL_REWARDS,
+    CONFIGURATION,
+    STATIC_REGISTRY_ADDRESSES,
+)
 from bins.database.common.db_collections_common import database_local
-from bins.general.enums import Protocol, rewarderType
+from bins.general.enums import Chain, Protocol, rewarderType
 from bins.w3.builders import build_hypervisor, convert_dex_protocol
 
 from bins.w3.protocols.general import erc20, bep20
@@ -20,7 +24,7 @@ from bins.w3.protocols.gamma.rewarder import (
 from bins.w3.protocols.thena.rewarder import thena_voter_v3
 from bins.w3.protocols.zyberswap.rewarder import zyberswap_masterchef_v1
 from bins.w3.protocols.beamswap.rewarder import beamswap_masterchef_v2
-
+from bins.w3.protocols.angle.rewarder import angle_merkle_distributor_creator
 
 from bins.apis.etherscan_utilities import etherscan_helper
 
@@ -165,6 +169,8 @@ def feed_rewards_static(
     protocol: str = "gamma",
     rewrite: bool = False,
 ):
+    batch_size = 100000
+
     logging.getLogger(__name__).info(
         f">Feeding {protocol}'s {network} {dex} rewards static information"
     )
@@ -183,10 +189,13 @@ def feed_rewards_static(
         logging.getLogger(__name__).warning(f" Could not get rewards static data : {e}")
         already_processed = []
 
-    # get hypervisors addresses to process
-    hypervisor_addresses = local_db.get_distinct_items_from_database(
-        collection_name="static", field="address", condition={"dex": dex}
+    # get hypervisors process
+    hypervisors = local_db.get_items_from_database(
+        collection_name="static", find={"dex": dex}, batch_size=batch_size
     )
+
+    # get hypervisors addresses to process
+    hypervisor_addresses = [x["address"] for x in hypervisors]
 
     # zyberswap masterchef
     if dex == Protocol.ZYBERSWAP.database_name:
@@ -214,6 +223,16 @@ def feed_rewards_static(
         for rewards_static in create_rewards_static_beamswap(
             network=network,
             hypervisor_addresses=hypervisor_addresses,
+            already_processed=already_processed,
+            rewrite=rewrite,
+        ):
+            # save to database
+            local_db.set_rewards_static(data=rewards_static)
+
+    elif dex == Protocol.SUSHI.database_name:
+        for rewards_static in create_rewards_static_merkl(
+            network=network,
+            hypervisors=hypervisors,
             already_processed=already_processed,
             rewrite=rewrite,
         ):
@@ -338,6 +357,83 @@ def create_rewards_static_thena(
                 not in already_processed
             ):
                 yield reward_data
+
+
+def create_rewards_static_merkl(
+    chain: Chain,
+    hypervisors: list[dict],
+    already_processed: list,
+    rewrite: bool = False,
+):
+    if (
+        distributor_creator_address := STATIC_REGISTRY_ADDRESSES.get(chain, {})
+        .get("angle_merkl", {})
+        .get("distributionCreator", None)
+    ):
+        # create merkl helper
+        distributor_creator = angle_merkle_distributor_creator(
+            address=distributor_creator_address, network=chain.database_name
+        )
+
+        # create list of hypervisor pools:
+        #       multiple hypes can have 1 pool, so this var will act as secondary option, behind ANGLE_MERKLE_REWARDS in config
+        hype_pools = {x["pool"]["address"]: x["address"] for x in hypervisors}
+
+        # get distributor address
+        # distributor_address = distributor_creator.distributor.lower()
+
+        # get all distributions from distribution list that match configured hype addresses
+        for index, distribution in enumerate(distributor_creator.getAllDistributions):
+            if distribution["pool"] in hype_pools:
+                # get hypervisor from fixed merkl rewards
+                hype_address = None
+                if (
+                    hype_address := ANGLE_MERKL_REWARDS[chain]
+                    .get(distribution["pool"], {})
+                    .get("hypervisor", None)
+                ):
+                    logging.getLogger(__name__).debug(
+                        f" Found hypervisor {hype_address} for pool {distribution['pool']} in ANGLE MERKL configuration"
+                    )
+                else:
+                    hype_address = hype_pools[distribution["pool"]].lower()
+                    logging.getLogger(__name__).error(
+                        f"Could not find hypervisor for pool {distribution['pool']} in ANGLE MERKL configuration. Using {hype_address}"
+                    )
+
+                # build static reward data object
+                reward_data = {
+                    "block": distributor_creator.block,
+                    "timestamp": distributor_creator._timestamp,
+                    "hypervisor_address": hype_address.lower(),
+                    "rewarder_address": distribution[
+                        "rewardId"
+                    ].lower(),  # modify so its unique for hype
+                    "rewarder_type": rewarderType.ANGLE_MERKLE,
+                    "rewarder_refIds": [index],
+                    "rewarder_registry": distributor_creator_address.lower(),
+                    "rewardToken": distribution["token"].lower(),
+                    "rewardToken_symbol": distribution["token_symbol"],
+                    "rewardToken_decimals": distribution["token_decimals"],
+                    "rewards_perSecond": -1,  # TODO: remove this field from all static rewards
+                    "total_hypervisorToken_qtty": 0,  # TODO: remove this field from all static rewards
+                }
+
+                # save later to database
+                if (
+                    rewrite
+                    or f"{reward_data['hypervisor_address']}_{reward_data['rewarder_address']}"
+                    not in already_processed
+                ):
+                    # add block creation data
+                    if creation_data := _get_contract_creation_block(
+                        network=chain.database_name,
+                        contract_address=reward_data["rewarder_registry"],
+                    ):
+                        reward_data["block"] = creation_data["block"]
+
+                    # save to database
+                    yield reward_data
 
 
 # def feed_gamma_masterchef_static(

@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import logging
 import concurrent.futures
 import tqdm
+from bins.apis.angle_merkle import angle_merkle_wraper
 
 
 from bins.configuration import CONFIGURATION
@@ -10,6 +11,7 @@ from bins.database.common.db_collections_common import database_global, database
 from bins.database.helpers import get_price_from_db
 from bins.formulas.apr import calculate_rewards_apr
 from bins.general.enums import Chain, Protocol, rewarderType
+from bins.w3.protocols.angle.rewarder import angle_merkle_distributor_creator
 from bins.w3.protocols.beamswap.rewarder import beamswap_masterchef_v2
 
 from bins.w3.protocols.thena.rewarder import thena_gauge_v2
@@ -383,61 +385,39 @@ def create_reward_status_from_hype_status(
             rewarderType.ZYBERSWAP_masterchef_v1,
             rewarderType.ZYBERSWAP_masterchef_v1_rewarder,
         ]:
-            if rewarder_static["rewarder_type"] == rewarderType.ZYBERSWAP_masterchef_v1:
-                # do nothing because this is the reward given by the masterchef and will be processed once we get to the rewarder ( thru the masterchef itself..)
-                return None
-
-            # create masterchef object:  USE address == rewarder_registry on masterchef for this type of rewarder
-            zyberswap_masterchef = zyberswap_masterchef_v1(
-                address=rewarder_static["rewarder_registry"],
-                network=network,
-                block=hypervisor_status["block"],
-                timestamp=hypervisor_status["timestamp"],
-            )
             # get rewards status
-            rewards_data = zyberswap_masterchef.get_rewards(
-                hypervisor_addresses=[rewarder_static["hypervisor_address"]],
-                pids=rewarder_static["rewarder_refIds"],
-                convert_bint=True,
+            rewards_data = create_rewards_status_zyberswap(
+                network=network,
+                rewarder_static=rewarder_static,
+                hypervisor_status=hypervisor_status,
             )
 
         elif rewarder_static["rewarder_type"] == rewarderType.THENA_gauge_v2:
-            thena_gauge = thena_gauge_v2(
-                address=rewarder_static["rewarder_address"],
+            rewards_data = create_rewards_status_thena(
                 network=network,
-                block=hypervisor_status["block"],
-                timestamp=hypervisor_status["timestamp"],
+                rewarder_static=rewarder_static,
+                hypervisor_status=hypervisor_status,
             )
 
-            # get rewards directly from gauge ( rewarder ).  Warning-> will not contain rewarder_registry field!!
-            if rewards_from_gauge := thena_gauge.get_rewards(convert_bint=True):
-                # add rewarder registry address
-                for reward in rewards_from_gauge:
-                    reward["rewarder_registry"] = rewarder_static["rewarder_registry"]
-
-                # add to returnable data
-                rewards_data += rewards_from_gauge
         elif rewarder_static["rewarder_type"] in [
             rewarderType.BEAMSWAP_masterchef_v2,
             rewarderType.BEAMSWAP_masterchef_v2_rewarder,
         ]:
-            if rewarder_static["rewarder_type"] == rewarderType.BEAMSWAP_masterchef_v2:
-                # do nothing because this is the reward given by the masterchef and will be processed once we get to the rewarder ( thru the masterchef itself..)
-                return None
-
-            # create masterchef object:   USE address == rewarder_registry on masterchef for this type of rewarder
-            masterchef = beamswap_masterchef_v2(
-                address=rewarder_static["rewarder_registry"],
+            rewards_data = create_rewards_status_beamswap(
                 network=network,
-                block=hypervisor_status["block"],
-                timestamp=hypervisor_status["timestamp"],
+                rewarder_static=rewarder_static,
+                hypervisor_status=hypervisor_status,
             )
-            # get rewards status
-            rewards_data = masterchef.get_rewards(
-                hypervisor_addresses=[rewarder_static["hypervisor_address"]],
-                pids=rewarder_static["rewarder_refIds"],
-                convert_bint=True,
+
+        elif rewarder_static["rewarder_type"] in [
+            rewarderType.ANGLE_MERKLE,
+        ]:
+            rewards_data = create_rewards_status_angle_merkle(
+                network=network,
+                rewarder_static=rewarder_static,
+                hypervisor_status=hypervisor_status,
             )
+
     except Exception as e:
         logging.getLogger(__name__).exception(
             f" Unexpected error constructing {network}'s {rewarder_static['rewarder_address']} rewarder data. error-> {e}"
@@ -518,3 +498,139 @@ def create_reward_status_from_hype_status(
     )
 
     return result
+
+
+def create_rewards_status_zyberswap(
+    network: str, rewarder_static: dict, hypervisor_status: dict
+) -> dict:
+    if rewarder_static["rewarder_type"] == rewarderType.ZYBERSWAP_masterchef_v1:
+        # do nothing because this is the reward given by the masterchef and will be processed once we get to the rewarder ( thru the masterchef itself..)
+        pass
+        # return None
+
+    # create masterchef object:  USE address == rewarder_registry on masterchef for this type of rewarder
+    zyberswap_masterchef = zyberswap_masterchef_v1(
+        address=rewarder_static["rewarder_registry"],
+        network=network,
+        block=hypervisor_status["block"],
+        timestamp=hypervisor_status["timestamp"],
+    )
+    # get rewards status
+    return zyberswap_masterchef.get_rewards(
+        hypervisor_addresses=[rewarder_static["hypervisor_address"]],
+        pids=rewarder_static["rewarder_refIds"],
+        convert_bint=True,
+    )
+
+
+def create_rewards_status_thena(
+    network: str, rewarder_static: dict, hypervisor_status: dict
+) -> dict:
+    result = []
+
+    thena_gauge = thena_gauge_v2(
+        address=rewarder_static["rewarder_address"],
+        network=network,
+        block=hypervisor_status["block"],
+        timestamp=hypervisor_status["timestamp"],
+    )
+
+    # get rewards directly from gauge ( rewarder ).  Warning-> will not contain rewarder_registry field!!
+    if rewards_from_gauge := thena_gauge.get_rewards(convert_bint=True):
+        # add rewarder registry address
+        for reward in rewards_from_gauge:
+            reward["rewarder_registry"] = rewarder_static["rewarder_registry"]
+
+        # add to returnable data
+        result += rewards_from_gauge
+
+    return result
+
+
+def create_rewards_status_beamswap(
+    network: str, rewarder_static: dict, hypervisor_status: dict
+) -> dict:
+    if rewarder_static["rewarder_type"] == rewarderType.BEAMSWAP_masterchef_v2:
+        # do nothing because this is the reward given by the masterchef and will be processed once we get to the rewarder ( thru the masterchef itself..)
+        pass
+        # return None
+
+    # create masterchef object:   USE address == rewarder_registry on masterchef for this type of rewarder
+    masterchef = beamswap_masterchef_v2(
+        address=rewarder_static["rewarder_registry"],
+        network=network,
+        block=hypervisor_status["block"],
+        timestamp=hypervisor_status["timestamp"],
+    )
+
+    # get rewards status
+    return masterchef.get_rewards(
+        hypervisor_addresses=[rewarder_static["hypervisor_address"]],
+        pids=rewarder_static["rewarder_refIds"],
+        convert_bint=True,
+    )
+
+
+def create_rewards_status_angle_merkle(
+    network: str, rewarder_static: dict, hypervisor_status: dict
+) -> dict:
+    result = []
+
+    # create merkl helper at status block
+    distributor_creator = angle_merkle_distributor_creator(
+        address=rewarder_static["rewarder_registry"],
+        network=network,
+        block=hypervisor_status["block"],
+    )
+    # save for later use
+    _epoch_duration = distributor_creator.EPOCH_DURATION
+
+    for data in distributor_creator.getActivePoolDistributions(
+        address=hypervisor_status["pool"]["address"]
+    ):
+        # rewarder address is the id for this merkle reward-> find it
+        if data["rewardId"] == rewarder_static["rewarder_address"]:
+            # add reward to result
+            result.append(
+                distributor_creator.construct_reward_data(
+                    distribution_data=data,
+                    hypervisor_address=hypervisor_status["address"],
+                    total_hypervisorToken_qtty=hypervisor_status["totalSupply"],
+                    epoch_duration=_epoch_duration,
+                    convert_bint=True,
+                )
+            )
+            #
+
+
+# User rewards status
+
+
+def create_user_rewards_status_merkl(
+    chain: Chain,
+    already_processed: list,
+    rewrite: bool = False,
+):
+    # TODO: work in progress
+
+    # create merkl helper
+    canciller = angle_merkle_wraper()
+    # get epochs
+    for epoch_data in canciller.get_epochs(chain=chain):
+        timestamp = epoch_data["timestamp"]
+        epoch = epoch_data["epoch"]
+        # get rewards for epoch
+        for merkl_proof, merkl_data in canciller.get_rewards(chain=chain, epoch=epoch):
+            # boostedAddress = merkl_data["boostedAddress"]
+            # boostedReward = merkl_data["boostedReward"]
+            # lastUpdateEpoch = merkl_data["lastUpdateEpoch"]
+            # pool = merkl_data["pool"]
+            # token = merkl_data["token"]
+            # tokenDecimals = merkl_data["tokenDecimals"]
+            # tokenSymbol = merkl_data["tokenSymbol"]
+            # totalAmount = merkl_data["totalAmount"]
+
+            for holder_address, amount_data in merkl_data["holders"].items():
+                if gamma_amount := amount_data["breakdown"].get("gamma", 0):
+                    # this gamma user has merkl rewards
+                    pass
