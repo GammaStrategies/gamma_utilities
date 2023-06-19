@@ -192,7 +192,7 @@ class zyberswap_masterchef_rewarder(gamma_rewarder):
                 # get rewards data
                 result.append(
                     {
-                        "network": self._network,
+                        # "network": self._network,
                         "block": self.block,
                         "timestamp": self._timestamp,
                         # "hypervisor_address": pinfo[0].lower(), # there is no hype address in this contract
@@ -550,7 +550,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
                         # if rewardsPerSec: # do not uncomment bc it leads to unknown result ( error or no result)
                         result.append(
                             {
-                                "network": self._network,
+                                # "network": self._network,
                                 "block": self.block,
                                 "timestamp": self._timestamp,
                                 "hypervisor_address": pinfo[0].lower(),
