@@ -2196,3 +2196,133 @@ class database_local(db_collections_common):
                 }
             },
         ]
+
+    @staticmethod
+    def query_locs_apr_hypervisor_data_calculation(
+        hypervisor_address: str | None = None,
+        timestamp_ini: int | None = None,
+        timestamp_end: int | None = None,
+        block_ini: int | None = None,
+        block_end: int | None = None,
+    ) -> list[dict]:
+        """Returns a list of hypervisor status following LOC APR method calculation-> (operation) to (operation+1)(block-1)
+
+        Args:
+            hypervisor_address (str | None, optional): . Defaults to None.
+            timestamp_ini (int | None, optional): . Defaults to None.
+            timestamp_end (int | None, optional): . Defaults to None.
+            block_ini (int | None, optional): . Defaults to None.
+            block_end (int | None, optional): . Defaults to None.
+
+        Returns:
+            list[dict]: _description_
+        """
+        # build match
+        _and = []
+        _match = {
+            "qtty_token0": {"$ne": "0"},
+            "qtty_token1": {"$ne": "0"},
+            "src": {"$ne": "0x0000000000000000000000000000000000000000"},
+            "dst": {"$ne": "0x0000000000000000000000000000000000000000"},
+            "topic": {
+                "$in": [
+                    "transfer",
+                    "deposit",
+                    "withdraw",
+                    "rebalance",
+                    "zeroBurn",
+                ]
+            },
+        }
+        query = [
+            {"$sort": {"blockNumber": 1}},
+            {
+                "$group": {
+                    "_id": "$address",
+                    "block_ini": {"$push": "$blockNumber"},
+                    "block_end": {
+                        "$push": {"$toInt": {"$subtract": ["$blockNumber", 1]}}
+                    },
+                }
+            },
+            {
+                "$project": {
+                    "hypervisor_address": "$_id",
+                    "blocks": {"$setUnion": ["$block_ini", "$block_end"]},
+                    "_id": 0,
+                }
+            },
+            {"$addFields": {"block_size": {"$size": "$blocks"}}},
+            # discard less than 3 ops
+            {"$match": {"block_size": {"$gte": 3}}},
+            # discard first and last blocks
+            {
+                "$project": {
+                    "hypervisor_address": "$hypervisor_address",
+                    "block": {
+                        "$slice": [
+                            "$blocks",
+                            1,
+                            {"$toInt": {"$subtract": ["$block_size", 2]}},
+                        ]
+                    },
+                }
+            },
+            {"$unwind": "$block"},
+            # find hype status
+            {
+                "$lookup": {
+                    "from": "status",
+                    "let": {"op_block": "$block", "op_address": "$hypervisor_address"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$and": [
+                                        {"$eq": ["$address", "$$op_address"]},
+                                        {
+                                            "$or": [
+                                                {"$eq": ["$block", "$$op_block"]},
+                                            ]
+                                        },
+                                    ],
+                                }
+                            }
+                        },
+                        {"$limit": 1},
+                    ],
+                    "as": "status",
+                }
+            },
+            {"$unwind": "$status"},
+            {
+                "$group": {
+                    "_id": "$hypervisor_address",
+                    "status": {"$push": "$status"},
+                }
+            },
+        ]
+
+        # add block or timestamp in query
+        if block_ini:
+            _and.append({"blockNumber": {"$gte": block_ini}})
+        elif timestamp_ini:
+            _and.append({"timestamp": {"$gte": timestamp_ini}})
+        if block_end:
+            _and.append({"blockNumber": {"$lte": block_end}})
+        elif timestamp_end:
+            _and.append({"timestamp": {"$lte": timestamp_end}})
+
+        # add hype address
+        if hypervisor_address:
+            _and.append({"address": {"$lte": hypervisor_address}})
+
+        # add to query
+        if _and:
+            _match["$and"] = _and
+
+        # add match to query
+        query.insert(0, {"$match": _match})
+
+        # debug_query = f"{query}"
+        return query
