@@ -453,7 +453,7 @@ class web3wrap:
                 )
 
             except Exception as e:
-                # not working rpc
+                # not working rpc or function at block has no data
                 logging.getLogger(__name__).debug(
                     f"  Error calling function {function_name} using {rpcUrl} rpc: {e}"
                 )
