@@ -5,7 +5,6 @@ import concurrent.futures
 import tqdm
 
 from bins.configuration import (
-    ANGLE_MERKL_REWARDS,
     CONFIGURATION,
     STATIC_REGISTRY_ADDRESSES,
 )
@@ -375,9 +374,12 @@ def create_rewards_static_merkl(
             address=distributor_creator_address, network=chain.database_name
         )
 
-        # create list of hypervisor pools:
-        #       multiple hypes can have 1 pool, so this var will act as secondary option, behind ANGLE_MERKLE_REWARDS in config
-        hype_pools = {x["pool"]["address"]: x["address"] for x in hypervisors}
+        # create list of hypervisor pools: ( multiple hypes can have the same pool address )
+        hype_pools = {}
+        for x in hypervisors:
+            if not x["pool"]["address"] in hype_pools:
+                hype_pools[x["pool"]["address"]] = []
+            hype_pools[x["pool"]["address"]].append(x["address"])
 
         # get distributor address
         # distributor_address = distributor_creator.distributor.lower()
@@ -385,55 +387,39 @@ def create_rewards_static_merkl(
         # get all distributions from distribution list that match configured hype addresses
         for index, distribution in enumerate(distributor_creator.getAllDistributions):
             if distribution["pool"] in hype_pools:
-                # get hypervisor from fixed merkl rewards
-                hype_address = None
-                if (
-                    hype_address := ANGLE_MERKL_REWARDS[chain]
-                    .get(distribution["pool"], {})
-                    .get("hypervisor", None)
-                ):
-                    logging.getLogger(__name__).debug(
-                        f" Found hypervisor {hype_address} for pool {distribution['pool']} in ANGLE MERKL configuration"
-                    )
-                else:
-                    hype_address = hype_pools[distribution["pool"]].lower()
-                    logging.getLogger(__name__).error(
-                        f"Could not find hypervisor for pool {distribution['pool']} in ANGLE MERKL configuration. Using {hype_address}"
-                    )
+                # add rewards for each hype
+                for hype_address in hype_pools[distribution["pool"]]:
+                    # build static reward data object
+                    reward_data = {
+                        "block": distributor_creator.block,
+                        "timestamp": distributor_creator._timestamp,
+                        "hypervisor_address": hype_address.lower(),
+                        "rewarder_address": distribution["rewardId"].lower(),
+                        "rewarder_type": rewarderType.ANGLE_MERKLE,
+                        "rewarder_refIds": [index],
+                        "rewarder_registry": distributor_creator_address.lower(),
+                        "rewardToken": distribution["token"].lower(),
+                        "rewardToken_symbol": distribution["token_symbol"],
+                        "rewardToken_decimals": distribution["token_decimals"],
+                        "rewards_perSecond": 0,  # TODO: remove this field from all static rewards
+                        "total_hypervisorToken_qtty": 0,  # TODO: remove this field from all static rewards
+                    }
 
-                # build static reward data object
-                reward_data = {
-                    "block": distributor_creator.block,
-                    "timestamp": distributor_creator._timestamp,
-                    "hypervisor_address": hype_address.lower(),
-                    "rewarder_address": distribution[
-                        "rewardId"
-                    ].lower(),  # modify so its unique for hype
-                    "rewarder_type": rewarderType.ANGLE_MERKLE,
-                    "rewarder_refIds": [index],
-                    "rewarder_registry": distributor_creator_address.lower(),
-                    "rewardToken": distribution["token"].lower(),
-                    "rewardToken_symbol": distribution["token_symbol"],
-                    "rewardToken_decimals": distribution["token_decimals"],
-                    "rewards_perSecond": -1,  # TODO: remove this field from all static rewards
-                    "total_hypervisorToken_qtty": 0,  # TODO: remove this field from all static rewards
-                }
-
-                # save later to database
-                if (
-                    rewrite
-                    or f"{reward_data['hypervisor_address']}_{reward_data['rewarder_address']}"
-                    not in already_processed
-                ):
-                    # add block creation data
-                    if creation_data := _get_contract_creation_block(
-                        network=chain.database_name,
-                        contract_address=reward_data["rewarder_registry"],
+                    # save later to database
+                    if (
+                        rewrite
+                        or f"{reward_data['hypervisor_address']}_{reward_data['rewarder_address']}"
+                        not in already_processed
                     ):
-                        reward_data["block"] = creation_data["block"]
+                        # add block creation data
+                        if creation_data := _get_contract_creation_block(
+                            network=chain.database_name,
+                            contract_address=reward_data["rewarder_registry"],
+                        ):
+                            reward_data["block"] = creation_data["block"]
 
-                    # save to database
-                    yield reward_data
+                        # save to database
+                        yield reward_data
 
 
 # def feed_gamma_masterchef_static(

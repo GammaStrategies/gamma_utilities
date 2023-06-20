@@ -119,6 +119,7 @@ STATIC_REGISTRY_ADDRESSES = {
             "uniswapv3": "0x66CD859053c458688044d816117D5Bdf42A56813".lower(),
             "zyberswap": "0x37595FCaF29E4fBAc0f7C1863E3dF2Fe6e2247e9".lower(),
             "camelot": "0xa216C2b6554A0293f69A1555dd22f4b7e60Fe907".lower(),
+            "sushi": "0x0f867f14b39a5892a39841a03ba573426de4b1d0".lower(),
         },
         "MasterChefV2Registry": {
             "camelot": "0x26da8473AaA54e8c7835fA5fdd1599eB4c144d31".lower(),
@@ -533,31 +534,105 @@ USDC_TOKEN_ADDRESSES = {
 }
 
 
-ANGLE_MERKL_REWARDS = {
-    Chain.POLYGON: {
-        "0x21988C9CFD08db3b5793c2C6782271dC94749251".lower(): {
-            "protocol": Protocol.SUSHI,
-            "hypervisor": "0xCC65Ab3bA6E625F84de1C0129eC2476d0bf54dc3".lower(),
-        },
-        "0xff5713fdbad797b81539b5f9766859d4e050a6cc".lower(): {
-            "protocol": Protocol.SUSHI,
-            "hypervisor": "0x566bfD3aD5F6Ac8445411dCaE5730253D9feDe51".lower(),
-        },
-        "0xf1a12338d39fc085d8631e1a745b5116bc9b2a32".lower(): {
-            "protocol": Protocol.SUSHI,
-            "hypervisor": "0x9D8D8b587a73B90171FA961972BB4C028a39D967".lower(),
-        },
-        "0x1b0585fc8195fc04a46a365e670024dfb63a960c".lower(): {
-            "protocol": Protocol.SUSHI,
-            "hypervisor": "0xc0c7cc649A41e8aBdf59945c6ebfd19deE8067b6".lower(),
-        },
-        "0xf0a9c0f829602e05936fa5ef2fb6f19c82bfc94d".lower(): {
-            "protocol": Protocol.SUSHI,
-            "hypervisor": "0xE84E1F78D0Feb63Ba712060441E6305f9A16622c".lower(),
-        },
-        "0x3fa147d6309abeb5c1316f7d8a7d8bd023e0cd80".lower(): {
-            "protocol": Protocol.UNISWAPv3,
-            "hypervisor": "0xa29193Af0816D43cF44A3745755BF5f5e2f4F170".lower(),
-        },
-    },
-}
+# TODO: hypervisor -> hypervisors[str]
+# ANGLE_MERKL_REWARDS = {
+#     Chain.POLYGON: {
+#         "0x21988C9CFD08db3b5793c2C6782271dC94749251".lower(): {
+#             "protocol": Protocol.SUSHI,
+#             "hypervisor": "0xCC65Ab3bA6E625F84de1C0129eC2476d0bf54dc3".lower(),
+#         },
+#         "0xff5713fdbad797b81539b5f9766859d4e050a6cc".lower(): {
+#             "protocol": Protocol.SUSHI,
+#             "hypervisor": "0x566bfD3aD5F6Ac8445411dCaE5730253D9feDe51".lower(),
+#         },
+#         "0xf1a12338d39fc085d8631e1a745b5116bc9b2a32".lower(): {
+#             "protocol": Protocol.SUSHI,
+#             "hypervisor": "0x9D8D8b587a73B90171FA961972BB4C028a39D967".lower(),
+#         },
+#         "0x1b0585fc8195fc04a46a365e670024dfb63a960c".lower(): {
+#             "protocol": Protocol.SUSHI,
+#             "hypervisor": "0xc0c7cc649A41e8aBdf59945c6ebfd19deE8067b6".lower(),
+#         },
+#         "0xf0a9c0f829602e05936fa5ef2fb6f19c82bfc94d".lower(): {
+#             "protocol": Protocol.SUSHI,
+#             "hypervisor": "0xE84E1F78D0Feb63Ba712060441E6305f9A16622c".lower(),
+#         },
+#         # "0x3fa147d6309abeb5c1316f7d8a7d8bd023e0cd80".lower(): {
+#         #     "protocol": Protocol.UNISWAPv3,
+#         #     "hypervisor": "0xa29193Af0816D43cF44A3745755BF5f5e2f4F170".lower(),
+#         # },
+#         "0x21988C9CFD08db3b5793c2C6782271dC94749251".lower(): {
+#             "protocol": Protocol.SUSHI,
+#             "hypervisor": "0xe7f55cc6cd2db6c469bf5096d7f650539afcff5d".lower(),
+#         },
+#         "0x8cfaab34f5159abf9c35587ac40d09a05dc94765".lower(): {
+#             "protocol": Protocol.SUSHI,
+#             "hypervisor": "0xccb87b6b2ed593600b52489ab566d274d2609d6c".lower(),
+#         },
+#         "0x4646e8a5e1d14e2da01577822d6346c7883c6890".lower(): {
+#             "protocol": Protocol.SUSHI,
+#             "hypervisor": "0x9f0db194015b2878adc6c75cc8a152e043e9a567".lower(),
+#         },
+#         "0xf1a12338d39fc085d8631e1a745b5116bc9b2a32".lower(): {
+#             "protocol": Protocol.SUSHI,
+#             "hypervisor": "0x4dac867fbdd90213615886f21ab2a666f6e01c61".lower(),
+#         },
+#         "0x1b0585fc8195fc04a46a365e670024dfb63a960c".lower(): {
+#             "protocol": Protocol.SUSHI,
+#             "hypervisor": "0x9d2ef0b6722448d5b3864a77e40ae44ee51ef352".lower(),
+#         },
+#         "0xff5713fdbad797b81539b5f9766859d4e050a6cc".lower(): {
+#             "protocol": Protocol.SUSHI,
+#             "hypervisor": "0xa52ecc4ed16f97c71071a3bd14309e846647d7f0".lower(),
+#         },
+#         "0xcafdbcaa114315e5508a1cc1275b4e5d88bc218c".lower(): {
+#             "protocol": Protocol.SUSHI,
+#             "hypervisor": "0x9e04a2287e135663e29f5954c9d101f7287b1703".lower(),
+#         },
+#     },
+#     Chain.ARBITRUM: {
+#         "0x15e444da5b343c5a0931f5d3e85d158d1efc3d40".lower(): {
+#             "protocol": Protocol.SUSHI,
+#             "hypervisor": "0x61c4daa8f7009cc39b3e7a9b8bd722413c29e676".lower(),
+#         },
+#         "0x15e444da5b343c5a0931f5d3e85d158d1efc3d40".lower(): {
+#             "protocol": Protocol.SUSHI,
+#             "hypervisor": "0x1068797a45aa430147b1c1223fbeede020b742a4".lower(),
+#         },
+#         "0xd9e96f78b3c68ba79fd4dfad4ddf4f27bd1e2ecf".lower(): {
+#             "protocol": Protocol.SUSHI,
+#             "hypervisor": "0x6c60106a7cb319ac13ac7d87d1d972213a731fb2".lower(),
+#         },
+#         "0xcda3b7bec56dbb562453231f142f63d3b00f8eb3".lower(): {
+#             "protocol": Protocol.SUSHI,
+#             "hypervisor": "0xd2b816351c7ee21c41f540065bed5f55159d49bd".lower(),
+#         },
+#         "0x1698837611eee2118dbe874ee84f3fa52ea49a52".lower(): {
+#             "protocol": Protocol.SUSHI,
+#             "hypervisor": "0x497729103a496c445638aa0a500f9309b1609fd8".lower(),
+#         },
+#         "0xb3942c9ffa04efbc1fa746e146be7565c76e3dc1".lower(): {
+#             "protocol": Protocol.SUSHI,
+#             "hypervisor": "0x12a848f8455f7691209dcd0416df7ef91af6d696".lower(),
+#         },
+#         "0xb3942c9ffa04efbc1fa746e146be7565c76e3dc1".lower(): {
+#             "protocol": Protocol.SUSHI,
+#             "hypervisor": "0x2fd6fd1e3f1fe24cc1422d22e62884a4528d1a24".lower(),
+#         },
+#         "0xb1aeb76b4e3e628ee54753ad4b8ef68c41e67a9f".lower(): {
+#             "protocol": Protocol.SUSHI,
+#             "hypervisor": "0x6a5512e440b610474679173c4929a94acf342f00".lower(),
+#         },
+#         "0xb1aeb76b4e3e628ee54753ad4b8ef68c41e67a9f".lower(): {
+#             "protocol": Protocol.SUSHI,
+#             "hypervisor": "0x79bb33f681bd70eb1bbe640000b130bcb6d126d0".lower(),
+#         },
+#     },
+# }
+# 0xb3aba1fb17ea51d909938c87f823fdfb0797a49b	WETH-SUSHI	0x77410ee5d6d114bd4b5cb94ecfa2b609a9d8b4b6
+# 0xb3aba1fb17ea51d909938c87f823fdfb0797a49b	WETH-SUSHI	0xc7bb5f253f4a8e5e69f9b0b26cc475d2fd581479
+# 0x5bc248a30b247eb4a6f11081854ce8e2168e1ef9	RDNT-WETH	0xb26d1dc509965a4b6bb466594a49321799ad891f
+# 0x5bc248a30b247eb4a6f11081854ce8e2168e1ef9	RDNT-WETH	0x97083c5431a1635f61391abc61bbbe99629525f1
+# 0xa6a9dfc3fb2790336c62bd3dff21fc5eef054803	AXLUSDC-USDCE	0x2dbafdcc273e724b00fc64960315d8f06987715f
+# 0x2ab937e744b6e067c55329838a587d1cf50c874f	WETH-GMX	0xa1a3d3e38ac7bb1902cc5c67fa58a8e68890d917
+# 0x2ab937e744b6e067c55329838a587d1cf50c874f	WETH-GMX	0xba1af4e8a1750c9cf5f052c26c234d6d314bc858

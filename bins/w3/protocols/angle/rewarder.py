@@ -777,3 +777,41 @@ class angle_merkle_distributor_creator(gamma_rewarder):
             raise NotImplementedError("Not implemented yet")
 
         return result
+
+    def get_reward_calculations(
+        self, distribution: dict, _epoch_duration: int | None = None
+    ) -> dict:
+        """extracts reward paste info from distribution raw data
+
+        Args:
+            distribution (dict): dict returned in convert_distribution_tuple def
+            _epoch_duration (int | None, optional): supply to avoid innecesary RPC calls. Defaults to None.
+
+        Returns:
+            dict: {
+                "reward_x_epoch": ,
+                "reward_x_second": ,
+                "reward_yearly": ,
+                "reward_yearly_token0": ,
+                "reward_yearly_token1": ,
+                "reward_yearly_fees": ,
+            }
+        """
+        reward_x_epoch = distribution["totalAmount"] / (distribution["numEpoch"])
+
+        reward_x_second = reward_x_epoch / (_epoch_duration or self.EPOCH_DURATION)
+
+        reward_yearly = reward_x_second * 3600 * 24 * 365
+
+        reward_yearly_token0 = distribution["propToken0"] * reward_yearly
+        reward_yearly_token1 = distribution["propToken1"] * reward_yearly
+        reward_yearly_fees = distribution["propFees"] * reward_yearly
+
+        return {
+            "reward_x_epoch": reward_x_epoch,
+            "reward_x_second": reward_x_second,
+            "reward_yearly": reward_yearly,
+            "reward_yearly_token0": reward_yearly_token0,
+            "reward_yearly_token1": reward_yearly_token1,
+            "reward_yearly_fees": reward_yearly_fees,
+        }
