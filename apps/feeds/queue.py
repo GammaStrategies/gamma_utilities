@@ -94,9 +94,19 @@ def build_and_save_queue_from_operation(operation: dict, network: str):
     )
     # 1) create new hypervisor status at block and block -1 if operation["topic"] in ["deposit", "withdraw", "rebalance", "zeroBurn"]
     for block in blocks:
-        if not local_db.get_items_from_database(
+        if found_status := local_db.get_items_from_database(
             collection_name="status", find={"id": f"{operation['address']}_{block}"}
         ):
+            # already in database
+            logging.getLogger(__name__).debug(
+                f" {network}'s {operation['address']} hype at block {operation['blockNumber']} is already in database"
+            )
+            # check if rewards should be updated
+            build_and_save_queue_from_hypervisor_status(
+                hypervisor_status=found_status[0], network=network
+            )
+        else:
+            # not in database
             # add hype status to queue
             local_db.set_queue_item(
                 data=QueueItem(
@@ -123,10 +133,6 @@ def build_and_save_queue_from_operation(operation: dict, network: str):
                         data=operation,
                     ).as_dict
                 )
-        else:
-            logging.getLogger(__name__).debug(
-                f" {network}'s {operation['address']} hype at block {operation['blockNumber']} is already in database"
-            )
 
 
 def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network: str):
