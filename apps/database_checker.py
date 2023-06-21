@@ -1236,6 +1236,10 @@ def repair_queue_failed_items(
     queue_item_type: queueItemType | None = None,
     count_gte: int | None = None,
 ):
+    logging.getLogger(__name__).info(
+        f">Repair queue items that have failed more than 10 times ..."
+    )
+
     # get all 1st rewarder status from database
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     protocol = "gamma"
