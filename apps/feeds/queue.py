@@ -399,7 +399,7 @@ def pull_from_queue_reward_status(network: str, queue_item: QueueItem) -> bool:
     # check if item block is higher than static rewarder block
     if queue_item.block < queue_item.data["reward_static"]["block"]:
         logging.getLogger(__name__).error(
-            f" {network} queue item {queue_item.id} block {queue_item.block} is lower than reward static block {queue_item.data['reward_static']['block']}. Skipping"
+            f" {network} queue item {queue_item.id} block {queue_item.block} is lower than reward creation block {queue_item.data['reward_static']['block']}.Skipping and removing from queue"
         )
         # remove item from queue
         local_db.del_queue_item(queue_item.id)
