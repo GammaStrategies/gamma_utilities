@@ -396,6 +396,15 @@ def pull_from_queue_reward_status(network: str, queue_item: QueueItem) -> bool:
     # set local database name and create manager
     local_db = database_local(mongo_url=mongo_url, db_name=f"{network}_gamma")
 
+    # check if item block is higher than static rewarder block
+    if queue_item.block < queue_item.data["reward_static"]["block"]:
+        logging.getLogger(__name__).error(
+            f" {network} queue item {queue_item.id} block {queue_item.block} is lower than reward static block {queue_item.data['reward_static']['block']}. Skipping"
+        )
+        # remove item from queue
+        local_db.del_queue_item(queue_item.id)
+        return True
+
     try:
         if reward_status_list := create_reward_status_from_hype_status(
             hypervisor_status=queue_item.data["hypervisor_status"],
