@@ -381,12 +381,21 @@ def create_reward_status_from_hype_status(
     # make sure block is after rewarder creation
     if hypervisor_status["block"] < rewarder_static["block"]:
         logging.getLogger(__name__).debug(
-            f" Hypervisor block {hypervisor_status['block']} is before rewarder creation block {rewarder_static['block']}. Not processing reward status."
+            f" {hypervisor_status['address']} hype block {hypervisor_status['block']} is before rewarder creation block {rewarder_static['block']}. Not processing reward status."
+        )
+        # create a dummy reward status zero so it gets discarded and not processed again
+        rewards_data.append({"rewards_perSecond": 0})
+        return rewards_data
+    # make sure hypervisor has supply
+    elif int(hypervisor_status["totalSupply"]) == 0:
+        logging.getLogger(__name__).debug(
+            f" {hypervisor_status['address']} hype at block {hypervisor_status['block']} has zero supply. Not processing reward status."
         )
         # create a dummy reward status zero so it gets discarded and not processed again
         rewards_data.append({"rewards_perSecond": 0})
         return rewards_data
 
+    # start process
     try:
         if rewarder_static["rewarder_type"] in [
             rewarderType.ZYBERSWAP_masterchef_v1,
@@ -699,109 +708,117 @@ def create_rewards_status_angle_merkle(
     _epoch_duration = distributor_creator.EPOCH_DURATION
 
     # get raw distribution data from merkle
-    for distribution_data in distributor_creator.getActivePoolDistributions(
+    distributions = distributor_creator.getActivePoolDistributions(
         address=hypervisor_status["pool"]["address"]
-    ):
+    )
+    for distribution_data in distributions:
         # rewarder address is the id for this merkle reward-> find it
-        if distribution_data["rewardId"] == rewarder_static["rewarder_address"]:
-            # get pool TVL ( and all other info )
-            try:
-                # check tokenX == hype tokenX
-                if (
-                    distribution_data["token0_contract"]
-                    != hypervisor_status["pool"]["token0"]
-                    or distribution_data["token1_contract"]
-                    != hypervisor_status["pool"]["token1"]
-                ):
-                    # big problem
-                    logging.getLogger(__name__).error(
-                        f" Merkle Rewards - rewarder id {rewarder_static['rewarder_address']} has different pool tokens than the hypervisor it is attached to!!"
-                    )
-
-                # get token prices
-                (
-                    rewardToken_price,
-                    token0_price,
-                    token1_price,
-                ) = get_reward_pool_prices(
-                    network=network,
-                    block=hypervisor_status["block"],
-                    reward_token=distribution_data["token"],
-                    token0=distribution_data["token0_contract"],
-                    token1=distribution_data["token1_contract"],
-                )
-
-                # hypervisor data
-                hype_price_per_share = get_hypervisor_price_per_share(
-                    hypervisor_status=hypervisor_status,
-                    token0_price=token0_price,
-                    token1_price=token1_price,
-                )
-                hype_tvl_usd = (
-                    int(hypervisor_status["totalSupply"])
-                    / (10 ** hypervisor_status["decimals"])
-                ) * hype_price_per_share
-
-                # pool data
-                pool_total0 = int(distribution_data["token0_balance_in_pool"]) / (
-                    10 ** int(distribution_data["token0_decimals"])
-                )
-                pool_total1 = int(distribution_data["token1_balance_in_pool"]) / (
-                    10 ** int(distribution_data["token1_decimals"])
-                )
-                pool_tvl_usd = pool_total0 * token0_price + pool_total1 * token1_price
-
-                #  Gamma's pool proportion
-                gamma_pool_proportion = (
-                    (hype_tvl_usd / pool_tvl_usd) if pool_tvl_usd else 0
-                )
-
-                # multiple reward information
-                calculations = distributor_creator.get_reward_calculations(
-                    distribution=distribution_data, _epoch_duration=_epoch_duration
-                )
-
-                general_APR = (
-                    calculations["reward_yearly"] * rewardToken_price
-                ) / pool_tvl_usd
-
-                # TODO: calculate specific xact APR for Gamma we need the pool's fees collected vs Gamma's fees collected.
-                # we have token0 and 1 proportion vs pool but not pool fees collected.
-
-                # build reward base data
-                reward_data = distributor_creator.construct_reward_data(
-                    distribution_data=distribution_data,
-                    hypervisor_address=hypervisor_status["address"],
-                    total_hypervisorToken_qtty=hypervisor_status["totalSupply"],
-                    epoch_duration=_epoch_duration,
-                    convert_bint=True,
-                )
-
-                # modify rewardsPerSecond proportionally to gamma's position ( gamma vs total tvl)
-                reward_data["rewards_perSecond"] = (
-                    calculations["reward_x_second"] * gamma_pool_proportion
-                )
-
-                # add status fields ( APR )
-                reward_data["hypervisor_symbol"] = hypervisor_status["symbol"]
-                reward_data["dex"] = hypervisor_status["dex"]
-                reward_data["apr"] = general_APR
-                reward_data["rewardToken_price_usd"] = rewardToken_price
-                reward_data["token0_price_usd"] = token0_price
-                reward_data["token1_price_usd"] = token1_price
-                reward_data["hypervisor_share_price_usd"] = hype_price_per_share
-
-                # add reward to result
-                result.append(reward_data)
-
-            except Exception as e:
+        # if distribution_data["rewardId"] == rewarder_static["rewarder_address"]:
+        # get pool TVL ( and all other info )
+        try:
+            # check tokenX == hype tokenX
+            if (
+                distribution_data["token0_contract"]
+                != hypervisor_status["pool"]["token0"]["address"]
+                or distribution_data["token1_contract"]
+                != hypervisor_status["pool"]["token1"]["address"]
+            ):
+                # big problem
                 logging.getLogger(__name__).error(
-                    f" Merkle Rewards-> {network}'s {rewarder_static['rewardToken']} price at block {hypervisor_status['block']} could not be calculated. Error: {e}"
-                )
-                logging.getLogger(__name__).debug(
-                    f" Merkle Rewards last err debug data -> rewarder_static {rewarder_static}           hype status {hypervisor_status}"
+                    f" Merkle Rewards - rewarder id {rewarder_static['rewarder_address']} has different pool tokens than the hypervisor it is attached to!!"
                 )
 
+            # get token prices
+            (
+                rewardToken_price,
+                token0_price,
+                token1_price,
+            ) = get_reward_pool_prices(
+                network=network,
+                block=hypervisor_status["block"],
+                reward_token=distribution_data["token"],
+                token0=distribution_data["token0_contract"],
+                token1=distribution_data["token1_contract"],
+            )
+
+            # hypervisor data
+            hype_price_per_share = get_hypervisor_price_per_share(
+                hypervisor_status=hypervisor_status,
+                token0_price=token0_price,
+                token1_price=token1_price,
+            )
+            hype_tvl_usd = (
+                int(hypervisor_status["totalSupply"])
+                / (10 ** hypervisor_status["decimals"])
+            ) * hype_price_per_share
+
+            # pool data
+            pool_total0 = int(distribution_data["token0_balance_in_pool"]) / (
+                10 ** int(distribution_data["token0_decimals"])
+            )
+            pool_total1 = int(distribution_data["token1_balance_in_pool"]) / (
+                10 ** int(distribution_data["token1_decimals"])
+            )
+            pool_tvl_usd = pool_total0 * token0_price + pool_total1 * token1_price
+
+            #  Gamma's pool proportion
+            gamma_pool_proportion = (hype_tvl_usd / pool_tvl_usd) if pool_tvl_usd else 0
+
+            # multiple reward information
+            calculations = distributor_creator.get_reward_calculations(
+                distribution=distribution_data, _epoch_duration=_epoch_duration
+            )
+
+            general_APR = (
+                ((calculations["reward_yearly"] * rewardToken_price) / pool_tvl_usd)
+                if pool_tvl_usd
+                else 0
+            )
+
+            # TODO: calculate specific xact APR for Gamma we need the pool's fees collected vs Gamma's fees collected.
+            # we have token0 and 1 proportion vs pool but not pool fees collected.
+
+            # build reward base data
+            reward_data = distributor_creator.construct_reward_data(
+                distribution_data=distribution_data,
+                hypervisor_address=hypervisor_status["address"],
+                total_hypervisorToken_qtty=hypervisor_status["totalSupply"],
+                epoch_duration=_epoch_duration,
+                convert_bint=True,
+            )
+
+            # modify rewardsPerSecond proportionally to gamma's position ( gamma vs total tvl)
+            reward_data["rewards_perSecond"] = (
+                calculations["reward_x_second"] * gamma_pool_proportion
+            )
+
+            # add status fields ( APR )
+            reward_data["hypervisor_symbol"] = hypervisor_status["symbol"]
+            reward_data["dex"] = hypervisor_status["dex"]
+            reward_data["apr"] = general_APR
+            reward_data["rewardToken_price_usd"] = rewardToken_price
+            reward_data["token0_price_usd"] = token0_price
+            reward_data["token1_price_usd"] = token1_price
+            reward_data["hypervisor_share_price_usd"] = hype_price_per_share
+
+            # add reward to result
+            result.append(reward_data)
+
+        except Exception as e:
+            logging.getLogger(__name__).error(
+                f" Merkle Rewards-> {network}'s {rewarder_static['rewardToken']} price at block {hypervisor_status['block']} could not be calculated. Error: {e}"
+            )
+            logging.getLogger(__name__).debug(
+                f" Merkle Rewards last err debug data -> rewarder_static {rewarder_static}           hype status {hypervisor_status}"
+            )
+            # make sure we return an empty list
+            return []
+
+    # empty result means no rewards at this block
+    if not result:
+        logging.getLogger(__name__).debug(
+            f" Merkle Rewards-> {network}'s {rewarder_static['rewardToken']} has no rewards at block {hypervisor_status['block']}"
+        )
     return result
 
 

@@ -250,7 +250,7 @@ class angle_merkle_distributor_creator(gamma_rewarder):
         result = []
         for raw_result in self.call_function_autoRpc("getActiveDistributions", None):
             try:
-                result.append(self.convert_distribution_tuple(raw_result))
+                result.append(self.convert_distribution_extended_tuple(raw_result))
 
             except Exception as e:
                 logging.getLogger(__name__).exception(
@@ -299,7 +299,7 @@ class angle_merkle_distributor_creator(gamma_rewarder):
             "getActivePoolDistributions", None, Web3.toChecksumAddress(address)
         ):
             try:
-                result.append(self.convert_distribution_tuple(raw_result))
+                result.append(self.convert_distribution_extended_tuple(raw_result))
 
             except Exception as e:
                 logging.getLogger(__name__).exception(
@@ -335,7 +335,7 @@ class angle_merkle_distributor_creator(gamma_rewarder):
         result = []
         for raw_result in self.call_function_autoRpc("getAllDistributions", None):
             try:
-                result.append(self.convert_distribution_tuple(raw_result))
+                result.append(self.convert_distribution_base_tuple(raw_result))
 
             except Exception as e:
                 logging.getLogger(__name__).exception(
@@ -649,36 +649,74 @@ class angle_merkle_distributor_creator(gamma_rewarder):
 
     # custom functions
 
-    def convert_distribution_tuple(self, raw_data: tuple) -> dict:
-        """Converts the raw data from the getDistributionsBetweenEpochs function into a dictionary"""
+    def convert_distribution_base_tuple(self, raw_data: tuple) -> dict:
         return {
-            "rewardId": raw_data[0][0],
-            "pool": raw_data[0][1].lower(),
-            "token": raw_data[0][2].lower(),
-            "totalAmount": raw_data[0][3],
-            "wraper_contracts": raw_data[0][4],
-            "wraper_type": raw_data[0][5],
-            "propToken0": raw_data[0][6],
-            "propToken1": raw_data[0][7],
-            "propFees": raw_data[0][8],
-            "epochStart": raw_data[0][9],
-            "numEpoch": raw_data[0][10],
-            "isOutOfRangeincentivized": raw_data[0][11],
-            "boostedReward": raw_data[0][12],
-            "boostedAddress": raw_data[0][13],
-            "additionalData": raw_data[0][14],
-            "pool_fee": raw_data[1],
-            "token0_contract": raw_data[2][0].lower(),
-            "token0_decimals": raw_data[2][1],
-            "token0_symbol": raw_data[2][2],
-            "token0_balance_in_pool": raw_data[2][3],
-            "token1_contract": raw_data[3][0].lower(),
-            "token1_decimals": raw_data[3][1],
-            "token1_symbol": raw_data[3][2],
-            "token1_balance_in_pool": raw_data[3][3],
-            "token_symbol": raw_data[4],
-            "token_decimals": raw_data[5],
+            "rewardId": "0x" + raw_data[0].hex(),
+            "pool": raw_data[1].lower(),
+            "token": raw_data[2].lower(),
+            "totalAmount": raw_data[3],
+            "wraper_contracts": raw_data[4],
+            "wraper_type": raw_data[5],
+            "propToken0": raw_data[6],
+            "propToken1": raw_data[7],
+            "propFees": raw_data[8],
+            "epochStart": raw_data[9],
+            "numEpoch": raw_data[10],
+            "isOutOfRangeincentivized": raw_data[11],
+            "boostedReward": raw_data[12],
+            "boostedAddress": raw_data[13],
+            "additionalData": "0x" + raw_data[14].hex(),
         }
+
+    def convert_distribution_extended_tuple(self, raw_data: tuple) -> dict:
+        """Converts the raw data from the getDistributionsBetweenEpochs function into a dictionary"""
+
+        result = self.convert_distribution_base_tuple(raw_data[0])
+        result.update(
+            {
+                "pool_fee": raw_data[1],
+                "token0_contract": raw_data[2][0].lower(),
+                "token0_decimals": raw_data[2][1],
+                "token0_symbol": raw_data[2][2],
+                "token0_balance_in_pool": raw_data[2][3],
+                "token1_contract": raw_data[3][0].lower(),
+                "token1_decimals": raw_data[3][1],
+                "token1_symbol": raw_data[3][2],
+                "token1_balance_in_pool": raw_data[3][3],
+                "token_symbol": raw_data[4],
+                "token_decimals": raw_data[5],
+            }
+        )
+        return result
+
+        # return {
+        #     "rewardId": "0x" + raw_data[0][0].hex(),
+        #     "pool": raw_data[0][1].lower(),
+        #     "token": raw_data[0][2].lower(),
+        #     "totalAmount": raw_data[0][3],
+        #     "wraper_contracts": raw_data[0][4],
+        #     "wraper_type": raw_data[0][5],
+        #     "propToken0": raw_data[0][6],
+        #     "propToken1": raw_data[0][7],
+        #     "propFees": raw_data[0][8],
+        #     "epochStart": raw_data[0][9],
+        #     "numEpoch": raw_data[0][10],
+        #     "isOutOfRangeincentivized": raw_data[0][11],
+        #     "boostedReward": raw_data[0][12],
+        #     "boostedAddress": raw_data[0][13],
+        #     "additionalData": "0x" + raw_data[0][14].hex(),
+        #     "pool_fee": raw_data[1],
+        #     "token0_contract": raw_data[2][0].lower(),
+        #     "token0_decimals": raw_data[2][1],
+        #     "token0_symbol": raw_data[2][2],
+        #     "token0_balance_in_pool": raw_data[2][3],
+        #     "token1_contract": raw_data[3][0].lower(),
+        #     "token1_decimals": raw_data[3][1],
+        #     "token1_symbol": raw_data[3][2],
+        #     "token1_balance_in_pool": raw_data[3][3],
+        #     "token_symbol": raw_data[4],
+        #     "token_decimals": raw_data[5],
+        # }
 
     def construct_reward_data(
         self,
@@ -724,6 +762,11 @@ class angle_merkle_distributor_creator(gamma_rewarder):
             if convert_bint
             else total_hypervisorToken_qtty,
         }
+
+    def _getRoundedEpoch(self, epoch: int, epoch_duration: int | None = None) -> int:
+        """Rounds an `epoch` timestamp to the start of the corresponding period"""
+        epoch_duration = epoch_duration or self.EPOCH_DURATION
+        return (epoch / epoch_duration) * epoch_duration
 
     # get all rewards
     def get_rewards(
@@ -784,7 +827,7 @@ class angle_merkle_distributor_creator(gamma_rewarder):
         """extracts reward paste info from distribution raw data
 
         Args:
-            distribution (dict): dict returned in convert_distribution_tuple def
+            distribution (dict): dict returned in convert_distribution_xxx_tuple def
             _epoch_duration (int | None, optional): supply to avoid innecesary RPC calls. Defaults to None.
 
         Returns:
@@ -797,15 +840,17 @@ class angle_merkle_distributor_creator(gamma_rewarder):
                 "reward_yearly_fees": ,
             }
         """
-        reward_x_epoch = distribution["totalAmount"] / (distribution["numEpoch"])
+        reward_x_epoch = (
+            distribution["totalAmount"] / (10 ** distribution["token_decimals"])
+        ) / (distribution["numEpoch"])
 
         reward_x_second = reward_x_epoch / (_epoch_duration or self.EPOCH_DURATION)
 
         reward_yearly = reward_x_second * 3600 * 24 * 365
 
-        reward_yearly_token0 = distribution["propToken0"] * reward_yearly
-        reward_yearly_token1 = distribution["propToken1"] * reward_yearly
-        reward_yearly_fees = distribution["propFees"] * reward_yearly
+        reward_yearly_token0 = (distribution["propToken0"] / 10000) * reward_yearly
+        reward_yearly_token1 = (distribution["propToken1"] / 10000) * reward_yearly
+        reward_yearly_fees = (distribution["propFees"] / 10000) * reward_yearly
 
         return {
             "reward_x_epoch": reward_x_epoch,

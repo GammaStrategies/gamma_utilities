@@ -73,7 +73,7 @@ class angle_merkle_wraper:
                     chain, []
                 ):
                     continue
-                # lower case pool
+                # lower case pool address
                 pool = reward_data["pool"].lower()
 
                 for holder_address, amount_data in reward_data["holders"].items():
