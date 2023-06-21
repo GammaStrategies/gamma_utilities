@@ -7,7 +7,7 @@ import concurrent.futures
 import contextlib
 import re
 
-from apps.feeds.queue import QueueItem
+from apps.feeds.queue import QueueItem, process_queue_item_type
 
 from bins.configuration import CONFIGURATION
 from bins.general.enums import databaseSource, queueItemType
@@ -36,7 +36,7 @@ def repair_all():
     """Repair all errors found in logs"""
 
     # repair queue
-    repair_queue()
+    repair_queue_locked_items()
 
     # repair blocks
     repair_blocks()
@@ -1183,6 +1183,14 @@ def repair_missing_blocks(protocol: str, network: str, batch_size: int = 100000)
 
 
 def repair_queue():
+    # locked items
+    repair_queue_locked_items()
+
+    # try process failed items with count > 10
+    repair_queue_failed_items(count_gte=10)
+
+
+def repair_queue_locked_items():
     """
     Reset queue items that are locked for more than 10 minutes
     No queue item should be running for more than 2 minutes
@@ -1221,6 +1229,58 @@ def repair_queue():
                     ).free_queue_item(queue_item)
                     logging.getLogger(__name__).debug(
                         f" {network}'s queue item {queue_item['id']} has been in the processing state for {minutes_passed} minutes. It probably halted. Freeing it..."
+                    )
+
+
+def repair_queue_failed_items(
+    queue_item_type: queueItemType | None = None,
+    count_gte: int | None = None,
+):
+    # get all 1st rewarder status from database
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    protocol = "gamma"
+    db_collection = "queue"
+    batch_size = 100000
+
+    for protocol in CONFIGURATION["script"]["protocols"]:
+        # override networks if specified in cml
+        networks = (
+            CONFIGURATION["_custom_"]["cml_parameters"].networks
+            or CONFIGURATION["script"]["protocols"][protocol]["networks"]
+        )
+        for network in networks:
+            # get a list of queue items with count > 10
+            db_name = f"{network}_{protocol}"
+            find = {}
+            # construct query
+            if count_gte:
+                find["count"] = {"$gte": count_gte}
+            if queue_item_type:
+                find["type"] = queue_item_type.value
+
+            # get queue items
+            for db_queue_item in tqdm.tqdm(
+                database_local(
+                    mongo_url=mongo_url, db_name=db_name
+                ).get_items_from_database(
+                    collection_name=db_collection, find=find, batch_size=batch_size
+                )
+            ):
+                # convert database queue item to class
+                queue_item = QueueItem(**db_queue_item)
+
+                # modify queue item count so that can be processed
+                queue_item.count = 9
+
+                # process queue item
+                if process_queue_item_type(network=network, queue_item=queue_item):
+                    logging.getLogger(__name__).debug(
+                        f"Queue item {queue_item.id} processed"
+                    )
+
+                else:
+                    logging.getLogger(__name__).warning(
+                        f"Queue item {queue_item.id} could not be processed"
                     )
 
 
@@ -1795,6 +1855,8 @@ def main(option: str, **kwargs):
         repair_hypervisor_status()
     if option == "repair":
         repair_all()
+    if option == "queue":
+        repair_queue()
     if option == "special":
         # used to check for special cases
         reScrape_database_prices()

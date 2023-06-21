@@ -73,10 +73,11 @@ def convert_DEX_POOLS(DEX_POOLS: dict) -> dict:
             if token1 not in token_pools[chain]:
                 token_pools[chain][token1] = {}
 
-            if token1 in token_pools[chain][token0]:
-                po = ""
-            if token0 in token_pools[chain][token1]:
-                po = ""
+            # if token1 in token_pools[chain][token0]:
+            #     po = ""
+            # if token0 in token_pools[chain][token1]:
+            #     po = ""
+
             # add tokens as keys
             token_pools[chain][token0][token1] = {
                 "protocol": pool["protocol"],

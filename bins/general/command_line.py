@@ -78,8 +78,15 @@ def parse_commandLine_args():
     # checks
     par_check = exGroup.add_argument(
         "--check",
-        choices=["prices", "database", "repair", "hypervisor_status", "special"],
-        help=" execute checks ",
+        choices=[
+            "prices",
+            "database",
+            "repair",
+            "hypervisor_status",
+            "queue",
+            "special",
+        ],
+        help=" execute checks & repairs",
     )
 
     # analysis
