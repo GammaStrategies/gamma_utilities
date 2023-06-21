@@ -700,10 +700,10 @@ class database_local(db_collections_common):
         )
 
     # queue
-    def set_queue_item(self, data: dict):
+    def set_queue_item(self, data: dict) -> UpdateResult:
         # data should already have a unique id ( is an operation )
         # save to db
-        self.replace_item_to_database(data=data, collection_name="queue")
+        return self.replace_item_to_database(data=data, collection_name="queue")
 
     def get_queue_item(self, types: list[queueItemType] | None = None) -> dict | None:
         find = {"processing": 0}
