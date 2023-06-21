@@ -99,7 +99,7 @@ def feed_operations(
             )
             if x["address"] not in hypes_not_included
         }
-        hypervisor_addresses = hypervisor_static_in_database.keys()
+        hypervisor_addresses = list(hypervisor_static_in_database.keys())
         hypervisor_addresses_in_operations = local_db.get_distinct_items_from_database(
             collection_name="operations",
             field="address",
@@ -277,7 +277,7 @@ def feed_operations_hypervisors(
                 limit=1,
                 projection={"id": 1},
             ):
-                # fire scrape event on block of hypervisor status, prices, rewarder status
+                # fire scrape event on block regarding hypervisor and rewarders snapshots (status) and token prices
                 # build queue events from operation
                 build_and_save_queue_from_operation(
                     operation=operation, network=network

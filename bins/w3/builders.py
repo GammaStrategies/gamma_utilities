@@ -4,6 +4,7 @@ from web3 import Web3
 from bins.general.enums import Chain, Protocol
 
 from bins.w3 import protocols
+from bins.w3.protocols.general import bep20, bep20_cached, erc20, erc20_cached
 
 
 # build instances of classes
@@ -424,3 +425,41 @@ def build_protocol_pool(
         )
     else:
         raise NotImplementedError(f"Protocol {protocol} not implemented")
+
+
+def build_erc20_helper(
+    chain: Chain, address: str | None = None, cached: bool = False
+) -> bep20 | erc20:
+    """Create a bep20 or erc20 with the zero address
+
+    Args:
+        chain (Chain):
+        cached (bool, optional): . Defaults to False.
+
+    Returns:
+        bep20 | erc20:
+    """
+    if cached:
+        return (
+            bep20_cached(
+                address=address or "0x0000000000000000000000000000000000000000",
+                network=chain.database_name,
+            )
+            if chain == Chain.BSC
+            else erc20_cached(
+                address=address or "0x0000000000000000000000000000000000000000",
+                network=chain.database_name,
+            )
+        )
+
+    return (
+        bep20(
+            address="0x0000000000000000000000000000000000000000",
+            network=chain.database_name,
+        )
+        if chain == Chain.BSC
+        else erc20(
+            address="0x0000000000000000000000000000000000000000",
+            network=chain.database_name,
+        )
+    )

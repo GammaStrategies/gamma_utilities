@@ -141,3 +141,42 @@ class rewarderType(str, Enum):
     BEAMSWAP_masterchef_v2_rewarder = "beamswap_masterchef_v2_rewarder"
 
     ANGLE_MERKLE = "angle_merkle"
+
+
+# HELPERS
+def text_to_chain(text: str) -> Chain:
+    """Text to Chain conversion
+
+    Args:
+        text (str): what to find
+
+    Returns:
+        Chain:
+    """
+    for chain in Chain:
+        if text.lower() in [
+            chain.value.lower(),
+            chain.database_name.lower(),
+            chain.fantasy_name.lower(),
+        ]:
+            return chain
+    raise ValueError(f"Chain with text {text} not found")
+
+
+def text_to_protocol(text: str) -> Protocol:
+    """Text to Protocol conversion
+
+    Args:
+        text (str): what to find
+
+    Returns:
+        Protocol:
+    """
+    for protocol in Protocol:
+        if text.lower() in [
+            protocol.value.lower(),
+            protocol.database_name.lower(),
+            protocol.fantasy_name.lower(),
+        ]:
+            return protocol
+    raise ValueError(f"Protocol with text {text} not found")

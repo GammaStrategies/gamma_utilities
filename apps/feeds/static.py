@@ -9,8 +9,8 @@ from bins.configuration import (
     STATIC_REGISTRY_ADDRESSES,
 )
 from bins.database.common.db_collections_common import database_local
-from bins.general.enums import Chain, Protocol, rewarderType
-from bins.w3.builders import build_hypervisor, convert_dex_protocol
+from bins.general.enums import Chain, Protocol, rewarderType, text_to_chain
+from bins.w3.builders import build_erc20_helper, build_hypervisor, convert_dex_protocol
 
 from bins.w3.protocols.general import erc20, bep20
 
@@ -230,7 +230,7 @@ def feed_rewards_static(
 
     elif dex == Protocol.SUSHI.database_name:
         for rewards_static in create_rewards_static_merkl(
-            network=network,
+            chain=text_to_chain(network),
             hypervisors=hypervisors,
             already_processed=already_processed,
             rewrite=rewrite,
@@ -387,6 +387,13 @@ def create_rewards_static_merkl(
         # get all distributions from distribution list that match configured hype addresses
         for index, distribution in enumerate(distributor_creator.getAllDistributions):
             if distribution["pool"] in hype_pools:
+                # bc there is no token info in allDistributions, we need to get it from chain
+                tokenHelper = build_erc20_helper(
+                    chain=chain, address=distribution["token"].lower(), cached=True
+                )
+                token_symbol = tokenHelper.symbol
+                token_decimals = tokenHelper.decimals
+
                 # add rewards for each hype
                 for hype_address in hype_pools[distribution["pool"]]:
                     # build static reward data object
@@ -399,8 +406,8 @@ def create_rewards_static_merkl(
                         "rewarder_refIds": [index],
                         "rewarder_registry": distributor_creator_address.lower(),
                         "rewardToken": distribution["token"].lower(),
-                        "rewardToken_symbol": distribution["token_symbol"],
-                        "rewardToken_decimals": distribution["token_decimals"],
+                        "rewardToken_symbol": token_symbol,
+                        "rewardToken_decimals": token_decimals,
                         "rewards_perSecond": 0,  # TODO: remove this field from all static rewards
                         "total_hypervisorToken_qtty": 0,  # TODO: remove this field from all static rewards
                     }

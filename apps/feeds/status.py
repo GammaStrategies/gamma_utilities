@@ -270,9 +270,7 @@ def create_and_save_hypervisor_status(
 ## Rewards status
 
 
-def feed_rewards_status(
-    network: str | None = None, dex: str | None = None, protocol: str = "gamma"
-):
+def feed_rewards_status(network: str | None = None, protocol: str = "gamma"):
     logging.getLogger(__name__).info(
         f">Feeding {protocol}'s {network} rewards status information"
     )
