@@ -184,7 +184,7 @@ def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network
 
     # Rewards
     # avoid rewards if there is no hypervisor supply
-    if not int(hypervisor_status["totalSupply"]):
+    if int(hypervisor_status["totalSupply"]) <= 0:
         # get a list of rewards_static rewardToken linked with hypervisor_address
         # make sure hype block is greater than static reward block
         for reward_static in local_db.get_items_from_database(
