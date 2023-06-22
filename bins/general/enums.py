@@ -160,6 +160,11 @@ def text_to_chain(text: str) -> Chain:
             chain.fantasy_name.lower(),
         ]:
             return chain
+
+    if text.lower() == "polygon-zkevm":
+        return Chain.POLYGON_ZKEVM
+    elif text.lower() == "mainnet":
+        return Chain.ETHEREUM
     raise ValueError(f"Chain with text {text} not found")
 
 

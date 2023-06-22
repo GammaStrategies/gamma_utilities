@@ -193,6 +193,37 @@ def feed_rewards_static(
         collection_name="static", find={"dex": dex}, batch_size=batch_size
     )
 
+    # process
+    create_n_add_reward_static(
+        network=network,
+        dex=dex,
+        hypervisors=hypervisors,
+        already_processed=already_processed,
+        rewrite=rewrite,
+    )
+
+
+def create_n_add_reward_static(
+    network: str,
+    dex: str,
+    hypervisors: list[dict],
+    already_processed: list,
+    rewrite: bool,
+):
+    """Chooses the right function to create and add rewards static data to database
+
+    Args:
+        network (str):
+        dex (str):
+        hypervisors (list[dict]): hypervisors as dict
+        already_processed (list): already processed rewards static
+        rewrite (bool):
+    """
+    local_db = database_local(
+        mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
+        db_name=f"{network}_gamma",
+    )
+
     # get hypervisors addresses to process
     hypervisor_addresses = [x["address"] for x in hypervisors]
 

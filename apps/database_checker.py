@@ -1210,6 +1210,7 @@ def repair_queue_locked_items():
             or CONFIGURATION["script"]["protocols"][protocol]["networks"]
         )
         for network in networks:
+            logging.getLogger(__name__).info(f"          processing {network} ...")
             # get a list of queue items with processing >0
             db_name = f"{network}_{protocol}"
             for queue_item in tqdm.tqdm(
@@ -1253,6 +1254,7 @@ def repair_queue_failed_items(
             or CONFIGURATION["script"]["protocols"][protocol]["networks"]
         )
         for network in networks:
+            logging.getLogger(__name__).info(f"          processing {network} ...")
             # get a list of queue items with count > 10
             db_name = f"{network}_{protocol}"
             find = {}

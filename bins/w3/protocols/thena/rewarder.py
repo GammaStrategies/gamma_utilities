@@ -485,6 +485,10 @@ class thena_voter_v3(web3wrap):
                         for gauge in gauge_result:
                             gauge["rewarder_registry"] = self.address.lower()
                         result += gauge_result
+                else:
+                    # no rewards for this hype
+                    # TODO: log
+                    pass
 
         else:
             # TODO: get all hypervisors data ... by pid
