@@ -909,18 +909,16 @@ def repair_missing_hypervisor_status(
         # get all operations blocks with the topic=["deposit", "withdraw", "zeroBurn", "rebalance"]
         operation_blocks = []
 
-        for operation in tqdm.tqdm(
-            database_local(
-                mongo_url=mongo_url, db_name=db_name
-            ).get_items_from_database(
-                collection_name="operations",
-                find={
-                    "address": hype["address"],
-                    "topic": {"$in": ["deposit", "withdraw", "zeroBurn", "rebalance"]},
-                },
-                batch_size=batch_size,
-                sort=[("blockNumber", 1)],
-            )
+        for operation in database_local(
+            mongo_url=mongo_url, db_name=db_name
+        ).get_items_from_database(
+            collection_name="operations",
+            find={
+                "address": hype["address"],
+                "topic": {"$in": ["deposit", "withdraw", "zeroBurn", "rebalance"]},
+            },
+            batch_size=batch_size,
+            sort=[("blockNumber", 1)],
         ):
             operation_blocks.append(int(operation["blockNumber"]))
             operation_blocks.append(int(operation["blockNumber"]) - 1)
@@ -973,6 +971,10 @@ def repair_missing_hypervisor_status(
                 logging.getLogger(__name__).info(
                     f"  No blocks for {network}'s {hype['address']} have been added to the queue as they were already present"
                 )
+        else:
+            logging.getLogger(__name__).debug(
+                f" No missing status blocks found for {network}'s {hype['address']}"
+            )
 
 
 def repair_hype_status_from_user(min_count: int = 1):
