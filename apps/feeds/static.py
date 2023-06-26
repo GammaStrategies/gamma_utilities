@@ -209,6 +209,7 @@ def create_n_add_reward_static(
     hypervisors: list[dict],
     already_processed: list,
     rewrite: bool,
+    block: int = 0,
 ):
     """Chooses the right function to create and add rewards static data to database
 
@@ -234,6 +235,7 @@ def create_n_add_reward_static(
             hypervisor_addresses=hypervisor_addresses,
             already_processed=already_processed,
             rewrite=rewrite,
+            block=block,
         ):
             # save to database
             local_db.set_rewards_static(data=rewards_static)
@@ -245,6 +247,7 @@ def create_n_add_reward_static(
             hypervisor_addresses=hypervisor_addresses,
             already_processed=already_processed,
             rewrite=rewrite,
+            block=block,
         ):
             # save to database
             local_db.set_rewards_static(data=rewards_static)
@@ -255,6 +258,7 @@ def create_n_add_reward_static(
             hypervisor_addresses=hypervisor_addresses,
             already_processed=already_processed,
             rewrite=rewrite,
+            block=block,
         ):
             # save to database
             local_db.set_rewards_static(data=rewards_static)
@@ -265,6 +269,7 @@ def create_n_add_reward_static(
             hypervisors=hypervisors,
             already_processed=already_processed,
             rewrite=rewrite,
+            block=block,
         ):
             # save to database
             local_db.set_rewards_static(data=rewards_static)
@@ -279,6 +284,7 @@ def create_rewards_static_zyberswap(
     hypervisor_addresses: list,
     already_processed: list,
     rewrite: bool = False,
+    block: int = 0,
 ):
     # TODO: zyberswap masterchef duo -> 0x72E4CcEe48fB8FEf18D99aF2965Ce6d06D55C8ba  creation_block: 80073186
     to_process_contract_addresses = {
@@ -291,28 +297,28 @@ def create_rewards_static_zyberswap(
         if contract_data["type"] == rewarderType.ZYBERSWAP_masterchef_v1:
             # create masterchef object
             zyberswap_masterchef = zyberswap_masterchef_v1(
-                address=masterchef_address, network=network
+                address=masterchef_address, network=network, block=block
             )
             rewards_data = zyberswap_masterchef.get_rewards(
                 hypervisor_addresses=hypervisor_addresses, convert_bint=True
             )
 
-        for reward_data in rewards_data:
-            # add block creation data
-            if creation_data := _get_contract_creation_block(
-                network=network, contract_address=reward_data["rewarder_address"]
-            ):
-                reward_data["block"] = creation_data["block"]
-            else:
-                # modify block number manually -> block num. is later used to update rewards_status from
-                reward_data["block"] = contract_data["creation_block"]
-            if (
-                rewrite
-                or f"{reward_data['hypervisor_address']}_{reward_data['rewarder_address']}"
-                not in already_processed
-            ):
-                # save to database
-                yield reward_data
+            for reward_data in rewards_data:
+                # add block creation data
+                if creation_data := _get_contract_creation_block(
+                    network=network, contract_address=reward_data["rewarder_address"]
+                ):
+                    reward_data["block"] = creation_data["block"]
+                else:
+                    # modify block number manually -> block num. is later used to update rewards_status from
+                    reward_data["block"] = contract_data["creation_block"]
+                if (
+                    rewrite
+                    or f"{reward_data['hypervisor_address']}_{reward_data['rewarder_address']}"
+                    not in already_processed
+                ):
+                    # save to database
+                    yield reward_data
 
 
 def create_rewards_static_beamswap(
@@ -320,6 +326,7 @@ def create_rewards_static_beamswap(
     hypervisor_addresses: list,
     already_processed: list,
     rewrite: bool = False,
+    block: int = 0,
 ):
     to_process_contract_addresses = {
         "0x9d48141B234BB9528090E915085E0e6Af5Aad42c".lower(): {
@@ -331,7 +338,7 @@ def create_rewards_static_beamswap(
         if contract_data["type"] == rewarderType.BEAMSWAP_masterchef_v2:
             # create masterchef object
             masterchef = beamswap_masterchef_v2(
-                address=masterchef_address, network=network
+                address=masterchef_address, network=network, block=block
             )
 
         for reward_data in masterchef.get_rewards(
@@ -359,6 +366,7 @@ def create_rewards_static_thena(
     hypervisor_addresses: list,
     already_processed: list,
     rewrite: bool = False,
+    block: int = 0,
 ):
     to_process_contract_addresses = {
         "0x3a1d0952809f4948d15ebce8d345962a282c4fcb".lower(): {
@@ -368,7 +376,9 @@ def create_rewards_static_thena(
     }
     for thenaVoter_address, contract_data in to_process_contract_addresses.items():
         # create thena voter object
-        thena_voter = thena_voter_v3(address=thenaVoter_address, network=network)
+        thena_voter = thena_voter_v3(
+            address=thenaVoter_address, network=network, block=block
+        )
         rewards_data = thena_voter.get_rewards(
             hypervisor_addresses=hypervisor_addresses, convert_bint=True
         )
@@ -394,6 +404,7 @@ def create_rewards_static_merkl(
     hypervisors: list[dict],
     already_processed: list,
     rewrite: bool = False,
+    block: int = 0,
 ):
     if (
         distributor_creator_address := STATIC_REGISTRY_ADDRESSES.get(chain, {})
@@ -402,7 +413,9 @@ def create_rewards_static_merkl(
     ):
         # create merkl helper
         distributor_creator = angle_merkle_distributor_creator(
-            address=distributor_creator_address, network=chain.database_name
+            address=distributor_creator_address,
+            network=chain.database_name,
+            block=block,
         )
 
         # create list of hypervisor pools: ( multiple hypes can have the same pool address )
@@ -417,6 +430,16 @@ def create_rewards_static_merkl(
 
         # get all distributions from distribution list that match configured hype addresses
         for index, distribution in enumerate(distributor_creator.getAllDistributions):
+            # check reward token validity
+            if not distributor_creator.isValid_reward_token(
+                reward_address=distribution["token"].lower()
+            ):
+                # reward token not valid
+                logging.getLogger(__name__).debug(
+                    f" Reward token {distribution['token']} is not valid. Merkl reward index {index} will not be processed."
+                )
+                continue
+
             if distribution["pool"] in hype_pools:
                 # bc there is no token info in allDistributions, we need to get it from chain
                 tokenHelper = build_erc20_helper(
