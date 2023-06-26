@@ -218,7 +218,10 @@ class rewarderType(str, Enum):
 
 class Family_type(str, Enum):
     #      ( value , type , database_name, fantasy_name )
+
     REGISTRY_HYPERVISOR = ("hypervisor", "hypervisor", "Hypervisors registry")
+
+    REGISTRY_MASTERCHEF = ("masterchef", "masterchef", "Masterchefs registry")
     REGISTRY_REWARDER = ("rewarder", "rewarder", "Rewarders registry")
     CHAIN = ("chain", "chain", "Chain")
     PROTOCOL = ("protocol", "protocol", "Protocol")
