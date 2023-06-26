@@ -17,7 +17,7 @@ from bins.configuration import (
 from bins.database.common.db_collections_common import database_global
 from bins.formulas.dex_formulas import sqrtPriceX96_to_price_float
 from bins.general import file_utilities
-from bins.general.enums import Chain, Protocol, databaseSource
+from bins.general.enums import Chain, Protocol, databaseSource, text_to_chain
 from bins.w3.builders import build_protocol_pool
 
 
@@ -128,10 +128,7 @@ class price_scraper:
             # GET FROM ONCHAIN USDC = 1 USD
 
             # convert network string in chain enum
-            chain = None
-            for chain_obj in Chain:
-                if chain_obj.database_name == network:
-                    chain = chain_obj
+            chain = text_to_chain(network)
             # get price from onchain
             onchain_price_helper = usdc_price_scraper()
             _price = onchain_price_helper.get_price(
@@ -477,12 +474,12 @@ class usdc_price_scraper:
 
             # try get path from file
             price = self._get_price_using_file_paths(
-                chain=chain, token_address=token_address
+                chain=chain, token_address=token_address, block=block
             )
             if price is None:
                 # try get price from var
                 price = self._get_price_using_var_paths(
-                    chain=chain, token_address=token_address
+                    chain=chain, token_address=token_address, block=block
                 )
 
             return price
