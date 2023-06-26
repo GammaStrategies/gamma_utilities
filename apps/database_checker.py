@@ -560,9 +560,7 @@ def reScrape_database_prices(batch_size=100000, protocol="gamma"):
         batch_size (int, optional): . Defaults to 100000.
         protocol (str, optional): . Defaults to "gamma".
     """
-    logging.getLogger(__name__).info(
-        f">Re scrape {protocol}'s {network} prices, in reverse order "
-    )
+    logging.getLogger(__name__).info(f">Re scrape prices, in reverse order ")
     networks = (
         CONFIGURATION["_custom_"]["cml_parameters"].networks
         or CONFIGURATION["script"]["protocols"][protocol]["networks"]
