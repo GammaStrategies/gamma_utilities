@@ -289,7 +289,9 @@ def feed_rewards_status(network: str | None = None, protocol: str = "gamma"):
         total=len(to_be_processed_reward_static), leave=False
     ) as progress_bar:
         for rewarder_static in to_be_processed_reward_static:
-            for reward in feed_rewards_status_loop(rewarder_static):
+            for reward in feed_rewards_status_loop(
+                network=network, rewarder_static=rewarder_static
+            ):
                 # only save rewards with positive rewards per second
                 if reward:
                     if int(reward["rewards_perSecond"]) > 0:
@@ -309,8 +311,7 @@ def feed_rewards_status(network: str | None = None, protocol: str = "gamma"):
             progress_bar.update(1)
 
 
-def feed_rewards_status_loop(rewarder_static: dict):
-    network = rewarder_static["network"]
+def feed_rewards_status_loop(network: str, rewarder_static: dict) -> list[dict]:
     # set local database name and create manager
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     db_name = f"{network}_gamma"  # TODO: change hardcoded db name to be dynamic
@@ -366,9 +367,9 @@ def feed_rewards_status_loop(rewarder_static: dict):
         for result_item in ex.map(
             lambda p: create_reward_status_from_hype_status(*p), args
         ):
-            # append only if not empty-> will be empty when processing static masterchef s
-            if result:
-                result.append(result_item)
+            # add only if not empty-> will be empty when processing static masterchef s
+            if result_item:
+                result += result_item
 
     return result
 
@@ -384,7 +385,13 @@ def create_reward_status_from_hype_status(
             f" {hypervisor_status['address']} hype block {hypervisor_status['block']} is before rewarder creation block {rewarder_static['block']}. Not processing reward status."
         )
         # create a dummy reward status zero so it gets discarded and not processed again
-        rewards_data.append({"rewards_perSecond": 0})
+        rewards_data.append(
+            {
+                "rewards_perSecond": 0,
+                "rewarder_address": rewarder_static["rewarder_address"],
+                "block": hypervisor_status["block"],
+            }
+        )
         return rewards_data
     # make sure hypervisor has supply
     elif int(hypervisor_status["totalSupply"]) == 0:
@@ -392,7 +399,13 @@ def create_reward_status_from_hype_status(
             f" {hypervisor_status['address']} hype at block {hypervisor_status['block']} has zero supply. Not processing reward status."
         )
         # create a dummy reward status zero so it gets discarded and not processed again
-        rewards_data.append({"rewards_perSecond": 0})
+        rewards_data.append(
+            {
+                "rewards_perSecond": 0,
+                "rewarder_address": rewarder_static["rewarder_address"],
+                "block": hypervisor_status["block"],
+            }
+        )
         return rewards_data
 
     # start process
@@ -440,7 +453,7 @@ def create_reward_status_from_hype_status(
         )
 
     logging.getLogger(__name__).debug(
-        f"    -> Done processing {network}'s rewarder {rewarder_static['rewarder_address']}"
+        f"    -> Done processing {network}'s rewarder {rewarder_static['rewarder_address']}  registry: {rewarder_static['rewarder_registry']}"
     )
 
     return rewards_data
@@ -573,7 +586,7 @@ def add_apr_process01(network: str, hypervisor_status: dict, reward_data: dict) 
 # specific rewarder functions
 def create_rewards_status_zyberswap(
     network: str, rewarder_static: dict, hypervisor_status: dict
-) -> dict:
+) -> list:
     if rewarder_static["rewarder_type"] == rewarderType.ZYBERSWAP_masterchef_v1:
         # do nothing because this is the reward given by the masterchef and will be processed once we get to the rewarder ( thru the masterchef itself..)
         pass
@@ -615,7 +628,7 @@ def create_rewards_status_zyberswap(
 
 def create_rewards_status_thena(
     network: str, rewarder_static: dict, hypervisor_status: dict
-) -> dict:
+) -> list:
     result = []
 
     thena_gauge = thena_gauge_v2(
@@ -653,7 +666,7 @@ def create_rewards_status_thena(
 
 def create_rewards_status_beamswap(
     network: str, rewarder_static: dict, hypervisor_status: dict
-) -> dict:
+) -> list:
     if rewarder_static["rewarder_type"] == rewarderType.BEAMSWAP_masterchef_v2:
         # do nothing because this is the reward given by the masterchef and will be processed once we get to the rewarder ( thru the masterchef itself..)
         pass
@@ -695,7 +708,7 @@ def create_rewards_status_beamswap(
 
 def create_rewards_status_angle_merkle(
     network: str, rewarder_static: dict, hypervisor_status: dict
-) -> dict:
+) -> list:
     result = []
 
     # create merkl helper at status block
@@ -770,7 +783,10 @@ def create_rewards_status_angle_merkle(
             )
 
             general_APR = (
-                ((calculations["reward_yearly"] * rewardToken_price) / pool_tvl_usd)
+                (
+                    (calculations["reward_yearly_decimal"] * rewardToken_price)
+                    / pool_tvl_usd
+                )
                 if pool_tvl_usd
                 else 0
             )
@@ -788,8 +804,9 @@ def create_rewards_status_angle_merkle(
             )
 
             # modify rewardsPerSecond proportionally to gamma's position ( gamma vs total tvl)
-            reward_data["rewards_perSecond"] = (
-                calculations["reward_x_second"] * gamma_pool_proportion
+            # will never be accurate at 100%
+            reward_data["rewards_perSecond"] = str(
+                int(calculations["reward_x_second"] * gamma_pool_proportion)
             )
 
             # add status fields ( APR )

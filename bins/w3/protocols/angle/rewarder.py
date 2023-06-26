@@ -1,6 +1,7 @@
 import logging
 from web3 import Web3
-from bins.general.enums import rewarderType
+from bins.general.enums import rewarderType, text_to_chain
+from bins.w3.protocols.angle.addresses import REWARD_TEST_TOKEN_ADDRESS
 from bins.w3.protocols.gamma.rewarder import gamma_rewarder
 
 
@@ -763,6 +764,25 @@ class angle_merkle_distributor_creator(gamma_rewarder):
             else total_hypervisorToken_qtty,
         }
 
+    def isValid_reward_token(self, reward_address: str) -> bool:
+        """Check if rewart token address is a valid enabled address
+
+        Args:
+            reward_address (str):
+
+        Returns:
+            bool: invalid=False
+        """
+        # check if dummy
+        if (
+            reward_address.lower()
+            in REWARD_TEST_TOKEN_ADDRESS.get(text_to_chain(self._network), {}).keys()
+        ):
+            # return is not valid
+            return False
+
+        return True
+
     def _getRoundedEpoch(self, epoch: int, epoch_duration: int | None = None) -> int:
         """Rounds an `epoch` timestamp to the start of the corresponding period"""
         epoch_duration = epoch_duration or self.EPOCH_DURATION
@@ -806,6 +826,9 @@ class angle_merkle_distributor_creator(gamma_rewarder):
             for hypervisor, pool in hypervisors_pools:
                 # get data
                 for reward_data in self.getActivePoolDistributions(pool):
+                    if not self.isValid_reward_token(reward_data["token"].lower()):
+                        continue
+
                     result.append(
                         self.construct_reward_data(
                             distribution_data=reward_data,
@@ -838,18 +861,42 @@ class angle_merkle_distributor_creator(gamma_rewarder):
                 "reward_yearly_token0": ,
                 "reward_yearly_token1": ,
                 "reward_yearly_fees": ,
-            }
+
+                "reward_x_epoch_decimal": ,
+                "reward_x_second_decimal": ,
+                "reward_yearly_decimal": ,
+                "reward_yearly_token0_decimal": ,
+                "reward_yearly_token1_decimal": ,
+                "reward_yearly_fees_decimal": ,
+                }
         """
-        reward_x_epoch = (
+
+        reward_x_epoch_decimal = (
             distribution["totalAmount"] / (10 ** distribution["token_decimals"])
         ) / (distribution["numEpoch"])
 
+        reward_x_epoch = distribution["totalAmount"] / (distribution["numEpoch"])
+
+        reward_x_second_decimal = reward_x_epoch_decimal / (
+            _epoch_duration or self.EPOCH_DURATION
+        )
         reward_x_second = reward_x_epoch / (_epoch_duration or self.EPOCH_DURATION)
 
+        reward_yearly_decimal = reward_x_second_decimal * 3600 * 24 * 365
         reward_yearly = reward_x_second * 3600 * 24 * 365
 
+        reward_yearly_token0_decimal = (
+            distribution["propToken0"] / 10000
+        ) * reward_yearly_decimal
         reward_yearly_token0 = (distribution["propToken0"] / 10000) * reward_yearly
+        reward_yearly_token1_decimal = (
+            distribution["propToken1"] / 10000
+        ) * reward_yearly_decimal
         reward_yearly_token1 = (distribution["propToken1"] / 10000) * reward_yearly
+
+        reward_yearly_fees_decimal = (
+            distribution["propFees"] / 10000
+        ) * reward_yearly_decimal
         reward_yearly_fees = (distribution["propFees"] / 10000) * reward_yearly
 
         return {
@@ -859,4 +906,11 @@ class angle_merkle_distributor_creator(gamma_rewarder):
             "reward_yearly_token0": reward_yearly_token0,
             "reward_yearly_token1": reward_yearly_token1,
             "reward_yearly_fees": reward_yearly_fees,
+            #
+            "reward_x_epoch_decimal": reward_x_epoch_decimal,
+            "reward_x_second_decimal": reward_x_second_decimal,
+            "reward_yearly_decimal": reward_yearly_decimal,
+            "reward_yearly_token0_decimal": reward_yearly_token0_decimal,
+            "reward_yearly_token1_decimal": reward_yearly_token1_decimal,
+            "reward_yearly_fees_decimal": reward_yearly_fees_decimal,
         }
