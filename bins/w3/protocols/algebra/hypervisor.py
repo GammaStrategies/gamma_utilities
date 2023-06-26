@@ -7,10 +7,10 @@ from bins.w3.protocols.algebra.pool import (
 )
 from bins.w3.protocols.general import bep20, bep20_cached, erc20_cached
 
-from bins.w3.protocols import uniswap
+from bins.w3.protocols import gamma
 
 
-class gamma_hypervisor(uniswap.hypervisor.gamma_hypervisor):
+class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
     def __init__(
         self,
         address: str,

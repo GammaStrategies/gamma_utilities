@@ -9,7 +9,7 @@ from web3.middleware import geth_poa_middleware, simple_cache_middleware
 
 from bins.configuration import CONFIGURATION
 from bins.w3.protocols.general import erc20, bep20
-from bins.w3.protocols.uniswap.hypervisor import (
+from bins.w3.protocols.gamma.hypervisor import (
     gamma_hypervisor,
     gamma_hypervisor_bep20,
 )
