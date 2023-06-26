@@ -102,6 +102,79 @@ class Protocol(str, Enum):
         return obj
 
 
+class ProtocolVersion(str, Enum):
+    #  ( value , protocol, database_name, fantasy_name )
+    GAMMA_v1 = ("gamma_v1", Protocol.GAMMA, "gamma_v1", "Gamma v1")
+    GAMMA_v2 = ("gamma_v2", Protocol.GAMMA, "gamma_v2", "Gamma v2")
+
+    ALGEBRAv3_v1 = ("algebrav3_v1", Protocol.ALGEBRAv3, "algebrav3_v1", "AlgebraV3 v1")
+    ALGEBRAv3_v2 = ("algebrav3_v2", Protocol.ALGEBRAv3, "algebrav3_v2", "AlgebraV3 v2")
+
+    UNISWAPv3 = ("uniswap_v3", Protocol.UNISWAPv3, "uniswap_v3", "Uniswap v3")
+    UNISWAPv4 = ("uniswap_v4", Protocol.UNISWAPv3, "uniswap_v4", "Uniswap v4")
+
+    PANCAKESWAP_v1 = (
+        "pancakeswap_v1",
+        Protocol.PANCAKESWAP,
+        "pancakeswap_v1",
+        "Pancakeswap v1",
+    )  # univ3 mod
+    BEAMSWAP_v1 = (
+        "beamswap_v1",
+        Protocol.BEAMSWAP,
+        "beamswap_v1",
+        "Beamswap v1",
+    )  # univ3 mod
+    CAMELOT_v1 = (
+        "camelot_v1",
+        Protocol.CAMELOT,
+        "camelot_v1",
+        "Camelot v1",
+    )  # algebra mods
+    QUICKSWAP_v1 = ("quickswap_v1", Protocol.QUICKSWAP, "quickswap_v1", "QuickSwap v1")
+    ZYBERSWAP_v1 = ("zyberswap_v1", Protocol.ZYBERSWAP, "zyberswap_v1", "Zyberswap v1")
+    THENA_v1 = ("thena_v1", Protocol.THENA, "thena_v1", "Thena v1")
+    GLACIER_v1 = ("glacier_v1", Protocol.GLACIER, "glacier_v1", "Glacier v1")
+    SPIRITSWAP_v1 = (
+        "spiritswap_v1",
+        Protocol.SPIRITSWAP,
+        "spiritswap_v1",
+        "SpiritSwap v1",
+    )
+    SUSHI_v1 = ("sushi_v1", Protocol.SUSHI, "sushi_v1", "Sushi v1")
+    RETRO_v1 = ("retro_v1", Protocol.RETRO, "retro_v1", "Retro v1")
+    STELLASWAP_v1 = (
+        "stellaswap_v1",
+        Protocol.STELLASWAP,
+        "stellaswap_v1",
+        "Stellaswap v1",
+    )
+
+    RAMSES_v1 = ("ramses_v1", Protocol.RAMSES, "ramses_v1", "Ramses v1")
+    VEZARD_v1 = ("vezard_v1", Protocol.VEZARD, "vezard_v1", "veZard v1")
+    EQUILIBRE_v1 = ("equilibre_v1", Protocol.EQUILIBRE, "equilibre_v1", "Equilibre v1")
+
+    # extra properties
+    protocol: Protocol
+    database_name: str
+    fantasy_name: str
+
+    def __new__(
+        self,
+        value: str,
+        protocol: Protocol,
+        database_name: str | None = None,
+        fantasy_name: str | None = None,
+    ):
+        obj = str.__new__(self, value)
+        obj._value_ = value
+        obj.protocol = protocol
+        # optional properties
+        obj.database_name = database_name or value.lower()
+        obj.fantasy_name = fantasy_name or value.lower()
+        return obj
+
+
 class databaseSource(str, Enum):
     """Data source for the prices saved in database"""
 
@@ -141,6 +214,32 @@ class rewarderType(str, Enum):
     BEAMSWAP_masterchef_v2_rewarder = "beamswap_masterchef_v2_rewarder"
 
     ANGLE_MERKLE = "angle_merkle"
+
+
+class Family_type(str, Enum):
+    #      ( value , type , database_name, fantasy_name )
+    REGISTRY_HYPERVISOR = ("hypervisor", "hypervisor", "Hypervisors registry")
+    REGISTRY_REWARDER = ("rewarder", "rewarder", "Rewarders registry")
+    CHAIN = ("chain", "chain", "Chain")
+    PROTOCOL = ("protocol", "protocol", "Protocol")
+    DEX = ("dex", "dex", "Dex")
+
+    # extra properties
+    database_name: str
+    fantasy_name: str
+
+    def __new__(
+        self,
+        value: str,
+        database_name: str | None = None,
+        fantasy_name: str | None = None,
+    ):
+        obj = str.__new__(self, value)
+        obj._value_ = value
+        # optional properties
+        obj.database_name = database_name or value.lower()
+        obj.fantasy_name = fantasy_name or value.lower()
+        return obj
 
 
 # HELPERS
