@@ -14,11 +14,13 @@ def create_price_paths_json():
     token_price_paths = build_token_paths(max_depth=6)
 
     save_json(filename="token_paths", data=token_price_paths, folder_path="data")
-    logging.getLogger(__name__).info("  token paths json file saved")
+    logging.getLogger(__name__).info(
+        "  token paths json file saved at data/token_paths.json"
+    )
 
 
 def convert_DEX_POOLS(DEX_POOLS: dict) -> dict:
-    """convert DEX_POOLS format to token_pools format
+    """convert DEX_POOLS config var format to token_pools format
 
     Args:
         DEX_POOLS (dict): { <Chain>: {
@@ -159,7 +161,7 @@ def build_token_paths(max_depth: int = 6):
                 )
                 token_pools_paths.extend(new_paths)
 
-            # 3) set paths in order ( and choose the shorter ones )
+            # 3) sort paths and select the shorter ones
             logging.getLogger(__name__).debug(f"  sorting paths for {chain}")
             for path in token_pools_paths:
                 # reverse path
@@ -224,9 +226,11 @@ def add_database_pools_to_paths(token_pools: dict, chain: Chain):
 def create_paths(
     path: list, token_pools: dict, chain: Chain, max_depth: int = 5, progress_hook=None
 ) -> list[list]:
+    """create a list of paths using token addresses in pools recursively"""
+
     # limit the depth of the path to avoid infinite loops
     if len(path) >= max_depth:
-        logging.getLogger(__name__).debug(f"  max depth reached")
+        logging.getLogger(__name__).debug(f" {chain.database_name} max depth reached")
         return []
 
     path_result = []
@@ -241,7 +245,7 @@ def create_paths(
         processed_tokens.append(path_item["token_from"])
         processed_tokens.append(path_item["token_to"])
 
-    # find token from in token pools paths to get to all possible paths
+    # find token_from in token_pools paths to get to all possible paths
     if token_from in token_pools[chain]:
         for token, pool_data in token_pools[chain][token_from].items():
             # has to be different than already processed
@@ -262,7 +266,7 @@ def create_paths(
                 # add new path to result ( this is a closed path)
                 path_result.append(new_path)
 
-                # create new paths from new path
+                # create new paths from this newly created and closed path
                 if new_paths := create_paths(
                     path=new_path,
                     token_pools=token_pools,
