@@ -52,13 +52,12 @@ def repair_prices(min_count: int = 1):
     repair_prices_from_logs(min_count=min_count)
 
     repair_prices_from_status(
-        max_repair_per_network=CONFIGURATION["_custom_"]["cml_parameters"].max_repair
+        max_repair_per_network=CONFIGURATION["_custom_"]["cml_parameters"].maximum
         or 500
     )
 
     repair_prices_from_database(
-        max_repair_per_network=CONFIGURATION["_custom_"]["cml_parameters"].max_repair
-        or 50
+        max_repair_per_network=CONFIGURATION["_custom_"]["cml_parameters"].maximum or 50
     )
 
 
@@ -553,12 +552,15 @@ def repair_prices_from_status(
                 progress_bar.update(1)
 
 
-def reScrape_database_prices(batch_size=100000, protocol="gamma"):
+def reScrape_database_prices(
+    batch_size=100000, protocol="gamma", network_limit: int | None = None
+):
     """Rescrape all database prices
 
     Args:
         batch_size (int, optional): . Defaults to 100000.
         protocol (str, optional): . Defaults to "gamma".
+        network_limit(int, optional): Maximum number of prices to process. Defaults to 5000.
     """
     logging.getLogger(__name__).info(f">Re scrape prices, in reverse order ")
     networks = (
@@ -579,6 +581,13 @@ def reScrape_database_prices(batch_size=100000, protocol="gamma"):
             sort=[("block", -1)],
             batch_size=batch_size,
         )
+        # limit number of prices to process
+        if network_limit:
+            logging.getLogger(__name__).info(
+                f" Found {len(database_items):,.0f} prices for {network} -> limiting them to {network_limit:,.0f} "
+            )
+            database_items = database_items[:network_limit]
+
         different = 0
         with tqdm.tqdm(total=len(database_items)) as progress_bar:
             for db_price_item in database_items:
@@ -1081,7 +1090,7 @@ def repair_missing_hype_status():
             repair_missing_hypervisor_status(
                 protocol=protocol,
                 network=network,
-                max_repair=CONFIGURATION["_custom_"]["cml_parameters"].max_repair,
+                max_repair=CONFIGURATION["_custom_"]["cml_parameters"].maximum,
             )
 
 
@@ -1865,7 +1874,9 @@ def main(option: str, **kwargs):
         repair_queue()
     if option == "special":
         # used to check for special cases
-        reScrape_database_prices()
+        reScrape_database_prices(
+            network_limit=CONFIGURATION["_custom_"]["cml_parameters"].maximum
+        )
     # else:
     #     raise NotImplementedError(
     #         f" Can't find any action to be taken from {option} checks option"

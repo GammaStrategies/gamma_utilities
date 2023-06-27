@@ -140,9 +140,9 @@ def parse_commandLine_args():
         help=" execute prices analysis on service network",
     )
     par_main.add_argument(
-        "--max_repair",
+        "--maximum",
         type=int,
-        help=" Set a maximum number of repairs to be executed. When more than <max_repair> items are found to be repaired, the process will only repair a total of <max_repair>",
+        help=" Set a maximum number of x to be executed. When more than <maximum> items are found to process, only <maximum> will be processed",
     )
     par_main.add_argument(
         "--do_userStatus",
