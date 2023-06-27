@@ -11,6 +11,7 @@ from web3.middleware import geth_poa_middleware, simple_cache_middleware
 from bins.configuration import CONFIGURATION, WEB3_CHAIN_IDS
 from bins.general import file_utilities
 from bins.cache import cache_utilities
+from bins.general.enums import Chain
 
 
 # main base class
@@ -88,7 +89,7 @@ class web3wrap:
         result.middleware_onion.add(simple_cache_middleware)
 
         # add middleware as needed
-        if network != "ethereum":
+        if network not in [Chain.ETHEREUM.database_name]:
             result.middleware_onion.inject(geth_poa_middleware, layer=0)
 
         return result
@@ -455,7 +456,7 @@ class web3wrap:
             except Exception as e:
                 # not working rpc or function at block has no data
                 logging.getLogger(__name__).debug(
-                    f"  Error calling function {function_name} using {rpcUrl} rpc: {e}"
+                    f"  Error calling function {function_name} using {rpcUrl} rpc: {e}  address: {self._address}"
                 )
 
         # no rpcUrl worked
