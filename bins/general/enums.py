@@ -17,7 +17,7 @@ class Chain(str, Enum):
     )
     AVALANCHE = ("avalanche", 43114, "avalanche", "Avalanche")
     FANTOM = ("fantom", 250, "fantom", "Fantom")
-    MOONBEAM = ("moonbeam", 1287, "moonbeam", "Moonbeam")
+    MOONBEAM = ("moonbeam", 1284, "moonbeam", "Moonbeam")
 
     # extra properties
     id: int
