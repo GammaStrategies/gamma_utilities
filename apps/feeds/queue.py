@@ -391,8 +391,9 @@ def pull_from_queue_hypervisor_status(network: str, queue_item: QueueItem) -> bo
             f"Error processing {network}'s hypervisor status queue item: {e}"
         )
 
-    # free item from processing
-    local_db.free_queue_item(db_queue_item=queue_item.as_dict)
+    # free item ?
+    to_free_or_not_to_free_item(queue_item=queue_item, local_db=local_db)
+
     return False
 
 
@@ -446,8 +447,8 @@ def pull_from_queue_reward_status(network: str, queue_item: QueueItem) -> bool:
             f"Error processing {network}'s rewards status queue item: {e}"
         )
 
-    # free item from processing
-    local_db.free_queue_item(db_queue_item=queue_item.as_dict)
+    # free item ?
+    to_free_or_not_to_free_item(queue_item=queue_item, local_db=local_db)
 
     return False
 
@@ -495,8 +496,8 @@ def pull_from_queue_price(network: str, queue_item: QueueItem) -> bool:
             f"Error processing {network}'s price queue item: {e}"
         )
 
-    # free item from processing
-    local_db.free_queue_item(db_queue_item=queue_item.as_dict)
+    # free item ?
+    to_free_or_not_to_free_item(queue_item=queue_item, local_db=local_db)
 
     return False
 
@@ -542,7 +543,35 @@ def pull_from_queue_block(network: str, queue_item: QueueItem) -> bool:
             f"Error processing {network}'s block queue item: {e}"
         )
 
-    # free item from processing
-    local_db.free_queue_item(db_queue_item=queue_item.as_dict)
+    # free item ?
+    to_free_or_not_to_free_item(queue_item=queue_item, local_db=local_db)
 
     return False
+
+
+# helper functions
+
+
+def to_free_or_not_to_free_item(
+    queue_item: QueueItem, local_db: database_local
+) -> bool:
+    """Free item from processing if count is lower than 5,
+        so that after 5 fails, next time will need an unlock before processing, taking longer
+
+    Args:
+        queue_item (QueueItem):
+        local_db (database_local):
+
+    Returns:
+        bool: freed or not
+    """
+    #
+    #
+    if queue_item.count < 5:
+        local_db.free_queue_item(db_queue_item=queue_item.as_dict)
+        return True
+    else:
+        logging.getLogger(__name__).debug(
+            f" Not freeing {queue_item.type} {queue_item.id} from queue because it failed {queue_item.count} times. Will need to be unlocked by a 'check' command"
+        )
+        return False
