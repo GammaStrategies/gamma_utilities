@@ -177,6 +177,9 @@ class price_scraper:
             try:
                 _price = self._get_price_from_coingecko(network, token_id, block, of)
                 _source = databaseSource.COINGECKO
+                if isinstance(_price, dict):
+                    _price = _price[token_id]["usd"]
+
             except Exception as e:
                 logging.getLogger(LOG_NAME).debug(
                     f" Could not get {network}'s token {token_id} price at block {block} from coingecko. error-> {e}"
@@ -209,6 +212,8 @@ class price_scraper:
             )
 
         # return result
+        if isinstance(_price, dict):
+            po = "error stop"
         return _price, _source
 
     def _get_price_from_thegraph(

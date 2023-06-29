@@ -70,7 +70,7 @@ def get_request(
             wait_secs=wait_secs,
             timeout_secs=timeout_secs,
         ).json()
-    except Exception:
+    except Exception as e:
         pass
 
 

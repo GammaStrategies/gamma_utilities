@@ -1,5 +1,6 @@
 import logging
 import time
+import re
 
 from bins.general import net_utilities
 
@@ -31,8 +32,6 @@ class geckoterminal_price_helper:
 
         self.retries = retries
         self.request_timeout = request_timeout
-
-        self.__RATE_LIMIT = net_utilities.rate_limit(rate_max_sec=0.4)  #  rate limiter
 
     @property
     def networks(self) -> list[str]:
@@ -222,12 +221,14 @@ class geckoterminal_price_helper:
             token_address, True
         ):
             url = f"{self.build_networks_url(network)}/tokens/{token_address}/pools"
-            data = request_data(url=url, timeout=self.request_timeout)
-            # create network
-            if not network in CACHED_POOLS_TOKEN_DATA:
-                CACHED_POOLS_TOKEN_DATA[network] = {}
-            # create token pool data
-            CACHED_POOLS_TOKEN_DATA[network][token_address] = data
+            if data := request_data(url=url, timeout=self.request_timeout):
+                # create network
+                if not network in CACHED_POOLS_TOKEN_DATA:
+                    CACHED_POOLS_TOKEN_DATA[network] = {}
+                # create token pool data
+                CACHED_POOLS_TOKEN_DATA[network][token_address] = data
+            else:
+                return None
 
         # return result
         return CACHED_POOLS_TOKEN_DATA[network][token_address]
@@ -308,20 +309,40 @@ class geckoterminal_price_helper:
         Returns:
             str | None:  base_token, quote_token or None
         """
-        if (
-            pool_data["relationships"]["base_token"]["data"]["id"].split("_")[1].lower()
-            == token_address.lower()
+        # regex address
+        regx_txt = "(?P<address>0x[a-zA-Z0-9]{40})"  # "(?P<address>0x.[^_]{39})"
+
+        # check if this is base token
+        for match in re.findall(
+            regx_txt, pool_data["relationships"]["base_token"]["data"]["id"]
         ):
-            return "base_token"
-        elif (
-            pool_data["relationships"]["quote_token"]["data"]["id"]
-            .split("_")[1]
-            .lower()
-            == token_address.lower()
+            if match.lower() == token_address.lower():
+                return "base_token"
+
+        # check if this is quote token
+        for match in re.findall(
+            regx_txt, pool_data["relationships"]["quote_token"]["data"]["id"]
         ):
-            return "quote_token"
-        else:
-            return None
+            if match.lower() == token_address.lower():
+                return "quote_token"
+
+        # nothing found
+        return None
+
+        # if (
+        #     pool_data["relationships"]["base_token"]["data"]["id"].split("_")[1].lower()
+        #     == token_address.lower()
+        # ):
+        #     return "base_token"
+        # elif (
+        #     pool_data["relationships"]["quote_token"]["data"]["id"]
+        #     .split("_")[1]
+        #     .lower()
+        #     == token_address.lower()
+        # ):
+        #     return "quote_token"
+        # else:
+        #     return None
 
 
 # @sleep_and_retry
