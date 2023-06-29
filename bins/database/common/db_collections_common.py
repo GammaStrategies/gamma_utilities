@@ -377,6 +377,15 @@ class database_global(db_collections_common):
                         ],
                     ],
                 },
+                "current_usd_prices": {
+                    "mono_indexes": {"id": True, "address": False},
+                    "multi_indexes": [
+                        [
+                            ("address", ASCENDING),
+                            ("network", ASCENDING),
+                        ],
+                    ],
+                },
             }
         super().__init__(
             mongo_url=mongo_url, db_name=db_name, db_collections=db_collections
@@ -400,6 +409,24 @@ class database_global(db_collections_common):
         }
 
         self.save_item_to_database(data=data, collection_name="usd_prices")
+
+    def set_current_price_usd(
+        self,
+        network: str,
+        token_address: str,
+        price_usd: float,
+        source: str,
+    ):
+        data = {
+            "id": f"{network}_{token_address}",
+            "network": network,
+            "timestamp": int(datetime.now().timestamp()),
+            "address": token_address,
+            "price": float(price_usd),
+            "source": source,
+        }
+
+        self.save_item_to_database(data=data, collection_name="current_usd_prices")
 
     def set_block(self, network: str, block: int, timestamp: datetime.timestamp):
         data = {

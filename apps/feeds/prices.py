@@ -1,4 +1,5 @@
 import contextlib
+from datetime import datetime
 import logging
 import tqdm
 import concurrent.futures
@@ -6,6 +7,7 @@ import concurrent.futures
 from bins.configuration import CONFIGURATION, add_to_memory, get_from_memory
 from bins.database.common.db_collections_common import database_global, database_local
 from bins.formulas.dex_formulas import sqrtPriceX96_to_price_float
+from bins.general.file_utilities import load_json
 from bins.mixed.price_utilities import price_scraper
 
 
@@ -297,6 +299,73 @@ def create_tokenBlocks_allRewardsTokens(network: str, limit: int | None = None) 
             )
         ]
     )
+
+
+def feed_current_usd_prices(threaded: bool = True):
+    """Feed current usd prices for all tokens specified in data/price_token_address.json file"""
+
+    logging.getLogger(__name__).info(
+        "Feeding current usd prices for all tokens specified in data/price_token_address.json file"
+    )
+
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db = database_global(mongo_url=mongo_url)
+    price_helper = price_scraper(cache=False)
+
+    def loopme(network, address) -> tuple[str, str, bool]:
+        # get price
+        price, source = price_helper.get_price(network=network, token_id=address)
+        # save price
+        if price:
+            db.set_current_price_usd(
+                network=network,
+                token_address=address,
+                price_usd=price,
+                source=source,
+            )
+
+            return network, f"{address} saved", True
+
+        return network, f"{address} - no price found", False
+
+    # load token addresses by chain
+    if token_addresses := load_json(filename="price_token_address", folder_path="data"):
+        _errors = 0
+        #
+        args = [
+            (network, address)
+            for network, addresses in token_addresses.items()
+            for address in addresses
+        ]
+        with tqdm.tqdm(total=len(args)) as progress_bar:
+            #
+            if threaded:
+                with concurrent.futures.ThreadPoolExecutor() as ex:
+                    for network, address, result in ex.map(lambda p: loopme(*p), args):
+                        if not result:
+                            _errors += 1
+                        # progress
+                        progress_bar.set_description(
+                            f" [errors: {_errors}] {network} USD price for {address}"
+                        )
+                        progress_bar.update(1)
+
+            else:
+                for network, address in args:
+                    # get price
+                    net, addr, result = loopme(network=network, address=address)
+
+                    if not result:
+                        _errors += 1
+                    # progress
+                    progress_bar.set_description(
+                        f" [errors: {_errors}] {net} USD price for {addr}"
+                    )
+                    progress_bar.update(1)
+        #
+        logging.getLogger(__name__).info(
+            f" {_errors} errors found while feeding current prices"
+        )
 
 
 # ##############################

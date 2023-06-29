@@ -26,6 +26,7 @@ from apps.feeds.status import (
     feed_hypervisor_status,
 )
 from apps.feeds.prices import (
+    feed_current_usd_prices,
     feed_prices,
     create_tokenBlocks_all,
 )
@@ -303,6 +304,40 @@ def operations_db_service():
     logging.getLogger("telegram").info(" Operations database feeding loop stoped")
 
 
+def current_prices_db_service():
+    # send eveyone service ON
+    logging.getLogger("telegram").info(" Current prices database feeding loop started")
+
+    # get minimum time between loops ( defaults to 5 minutes)
+    min_loop_time = 1
+
+    try:
+        while True:
+            _startime = datetime.now(timezone.utc)
+
+            feed_current_usd_prices(threaded=True)
+
+            # nforce a min time between loops
+            _endtime = datetime.now(timezone.utc)
+            if (_endtime - _startime).total_seconds() < min_loop_time:
+                sleep_time = min_loop_time - (_endtime - _startime).total_seconds()
+                logging.getLogger(__name__).debug(
+                    f" Current prices database feeding service is sleeping for {sleep_time} seconds to loop again"
+                )
+                time.sleep(sleep_time)
+
+    except KeyboardInterrupt:
+        logging.getLogger(__name__).debug(
+            " Current prices database feeding loop stoped by user"
+        )
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            f" Unexpected error while loop-feeding database with current prices. error {e}"
+        )
+    # send eveyone not updating anymore
+    logging.getLogger("telegram").info(" Current prices database feeding loop stoped")
+
+
 def main(option: str, **kwargs):
     if option == "local":
         local_db_service()
@@ -321,6 +356,8 @@ def main(option: str, **kwargs):
         queue_db_service()
     elif option == "operations":
         operations_db_service()
+    elif option == "current_prices":
+        current_prices_db_service()
     else:
         raise NotImplementedError(
             f" Can't find any action to be taken from {option} service option"
