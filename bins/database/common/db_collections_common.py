@@ -368,7 +368,12 @@ class database_global(db_collections_common):
                     "multi_indexes": [],
                 },
                 "usd_prices": {
-                    "mono_indexes": {"id": True, "address": False, "block": False},
+                    "mono_indexes": {
+                        "id": True,
+                        "address": False,
+                        "block": False,
+                        "network": False,
+                    },
                     "multi_indexes": [
                         [
                             ("address", ASCENDING),
@@ -470,6 +475,13 @@ class database_global(db_collections_common):
         return self.get_items_from_database(
             collection_name="usd_prices",
             find={"id": f"{network}_{block}_{address}"},
+        )
+
+    def get_prices_usd_last(self, network: str) -> list[dict]:
+        """get last block known prices of all tokens present in the database"""
+        return self.get_items_from_database(
+            collection_name="usd_prices",
+            aggregate=self.query_last_prices(network=network),
         )
 
     def get_price_usd_closestBlock(
@@ -591,6 +603,27 @@ class database_global(db_collections_common):
             # Take the first one
             {"$limit": limit},
         ]
+
+    @staticmethod
+    def query_last_prices(network: str, limit:int|None=None) -> list[dict]:
+        """get last prices from database
+
+        Args:
+            network (str):
+
+        Returns:
+            list[dict]:
+        """
+        query = [
+            {"$match": {"network": network}},
+            {"$sort": {"block": -1}},
+        ]
+        if limit:
+            query.append({"$limit": limit})
+
+        query.append({"$group": {"_id": "$address", "doc": {"$first": "$$ROOT"}}})
+        query.append({"$replaceRoot": {"newRoot": "$doc"}})
+        return query
 
 
 class database_local(db_collections_common):

@@ -211,9 +211,6 @@ class price_scraper:
                 f" {network}'s token {token_id} price at block {block} not found"
             )
 
-        # return result
-        if isinstance(_price, dict):
-            po = "error stop"
         return _price, _source
 
     def _get_price_from_thegraph(
