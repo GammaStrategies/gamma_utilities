@@ -145,7 +145,7 @@ cython_debug/
 local_data/
 data/cache/
 data/protocol_analysis/
-data/token_paths.json
+data/*.json
 logs/
 *.csv
 *.csv#
