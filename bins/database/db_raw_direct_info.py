@@ -150,7 +150,6 @@ class direct_db_hypervisor_info:
         logIndex_condition: str = "$lte",
         topics: list = None,
     ) -> dict:
-
         if topics is None:
             topics = ["deposit", "withdraw", "rebalance", "feeBurn"]
 
@@ -263,7 +262,6 @@ class direct_db_hypervisor_info:
         ]
 
     def get_data(self, ini_date: datetime = None, end_date: datetime = None) -> dict:
-
         # convert to timestamps
         ini_timestamp = ini_date.timestamp()
         end_timestamp = end_date.timestamp()
@@ -280,7 +278,6 @@ class direct_db_hypervisor_info:
 
         result = []
         for operation in operations:
-
             latest_operation = self.latest_operation(block=operation["blockNumber"])
             # discard operation if outside timestamp
             if latest_operation["blockNumber"] not in status:
@@ -389,7 +386,6 @@ class direct_db_hypervisor_info:
         last_status = None
         last_row = None
         for status in status_list:
-
             # CHECK: do not process zero supply status
             if status["totalSupply"] == 0:
                 # skip till hype has supply status
@@ -465,7 +461,6 @@ class direct_db_hypervisor_info:
             ) / row["usd_price_token1"]
 
             if last_status != None:
-
                 self._get_impermanent_data_vOld1_createResult(
                     last_row, row, last_status, result
                 )
@@ -557,7 +552,6 @@ class direct_db_hypervisor_info:
         timezero_underlying_in_usd_perShare = 0
 
         for status in status_list:
-
             # CHECK: do not process zero supply status
             if status["totalSupply"] == 0:
                 # skip till hype has supply status
@@ -708,7 +702,6 @@ class direct_db_hypervisor_info:
                 row["fee_apy"] = row["fee_apr"] = 0
 
             if last_status != None:
-
                 self._get_impermanent_data_createResults(row, last_row, result, status)
             last_status = status
             last_row = row
@@ -764,7 +757,6 @@ class direct_db_hypervisor_info:
         )
 
     def calculate(self, ini_status: dict, end_status: dict) -> dict:
-
         ## totalAmounts = tokens depoyed in both positions + tokensOwed0 + unused (balanceOf) in the Hypervisor
 
         #### DEBUG TEST #####
@@ -885,7 +877,6 @@ class direct_db_hypervisor_info:
         }
 
     def get_price(self, block: int, address: str) -> Decimal:
-
         ##
         try:
             return Decimal(self._prices[block][address])
@@ -896,7 +887,6 @@ class direct_db_hypervisor_info:
             return Decimal("0")
 
     def get_feeReturn(self, ini_date: datetime, end_date: datetime) -> tuple:
-
         timestamp_ini = ini_date.timestamp()
         timestamp_end = end_date.timestamp()
         status_list = [
@@ -924,7 +914,6 @@ class direct_db_hypervisor_info:
         total_period_seconds = 0
 
         for status in status_list:
-
             ini_usd_price_token0 = self.get_price(
                 block=status["ini_block"],
                 address=self._static["pool"]["token0"]["address"],
@@ -982,7 +971,6 @@ class direct_db_hypervisor_info:
         return fee_apy, fee_apr
 
     def get_feeReturn_and_IL_v1(self, ini_date: datetime, end_date: datetime) -> tuple:
-
         timestamp_ini = ini_date.timestamp()
         timestamp_end = end_date.timestamp()
         status_list = [
@@ -1054,7 +1042,6 @@ class direct_db_hypervisor_info:
             )
 
             for status in status_list:
-
                 if status["end_block"] == status["ini_block"]:
                     # 0 block period can't be processed
                     logging.getLogger(__name__).debug(
@@ -1197,7 +1184,6 @@ class direct_db_hypervisor_info:
         return status_list
 
     def get_feeReturn_and_IL(self, ini_date: datetime, end_date: datetime) -> tuple:
-
         timestamp_ini = ini_date.timestamp()
         timestamp_end = end_date.timestamp()
 
@@ -1244,7 +1230,6 @@ class direct_db_hypervisor_info:
         last_status = None
         result = list()
         for idx, status in enumerate(status_list):
-
             # set time zero
             if (
                 timezero_usd_price0 + timezero_usd_price1 == 0

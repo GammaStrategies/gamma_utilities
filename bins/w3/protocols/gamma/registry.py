@@ -77,42 +77,6 @@ class gamma_hypervisor_registry(web3wrap):
         )
 
     # CUSTOM FUNCTIONS
-    # def get_hypervisors_generator(self):
-    #     """Retrieve hypervisors from registry
-
-    #     Returns:
-    #        gamma_hypervisor
-    #     """
-    #     total_qtty = self.counter + 1  # index positions ini=0 end=counter
-    #     for i in range(total_qtty):
-    #         try:
-    #             hypervisor_id, idx = self.hypeByIndex(index=i)
-
-    #             # filter blacklisted hypes
-    #             if idx == 0 or (
-    #                 self._network in self.__blacklist_addresses
-    #                 and hypervisor_id.lower()
-    #                 in self.__blacklist_addresses[self._network]
-    #             ):
-    #                 # hypervisor is blacklisted: loop
-    #                 continue
-
-    #             # build hypervisor
-    #             hypervisor = gamma_hypervisor(
-    #                 address=hypervisor_id,
-    #                 network=self._network,
-    #                 block=self.block,
-    #             )
-    #             # check this is actually an hypervisor (erroneous addresses exist like "ethereum":{"0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599"})
-    #             hypervisor.getTotalAmounts  # test func
-
-    #             # return correct hypervisor
-    #             yield hypervisor
-    #         except Exception:
-    #             logging.getLogger(__name__).warning(
-    #                 f" Hypervisor registry returned the address {hypervisor_id} and may not be an hypervisor ( at web3 chain id: {self._chain_id} )"
-    #             )
-
     def get_hypervisors_addresses(self) -> list[str]:
         """Retrieve hypervisors all addresses from registry
 
