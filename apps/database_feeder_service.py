@@ -8,6 +8,7 @@ import logging
 # import signal
 import multiprocessing as mp
 from datetime import datetime, timedelta, timezone
+import threading
 import time
 
 from apps.parallel_feed import process_all_queues
@@ -26,6 +27,7 @@ from apps.feeds.status import (
     feed_hypervisor_status,
 )
 from apps.feeds.prices import (
+    create_current_usd_prices_address_json,
     feed_current_usd_prices,
     feed_prices,
     create_tokenBlocks_all,
@@ -308,23 +310,44 @@ def current_prices_db_service():
     # send eveyone service ON
     logging.getLogger("telegram").info(" Current prices database feeding loop started")
 
-    # get minimum time between loops ( defaults to 5 minutes)
-    min_loop_time = 1
+    # control var to recreate the price list json file used as source for this service
+    _create_file_startime = datetime.now(timezone.utc)
+    _create_file_every = 60 * 60 * 2  # in seconds
+    create_json_process: mp.Process | None = None
+
+    def create_json_file(create_json_process):
+        if not create_json_process or not create_json_process.is_alive():
+            create_json_process = mp.Process(
+                target=create_current_usd_prices_address_json,
+                name="create_json",
+            )
+        elif create_json_process.exitcode < 0:
+            logging.getLogger(__name__).error(
+                "   create_json_file process ended with an error or a terminate"
+            )
+            create_json_process = mp.Process(
+                target=create_current_usd_prices_address_json,
+                name="create_json",
+            )
+        else:
+            # try join n reset
+            create_json_process.join()
+            create_json_process = mp.Process(
+                target=create_current_usd_prices_address_json,
+                name="create_json",
+            )
+
+        create_json_process.start()
 
     try:
         while True:
-            _startime = datetime.now(timezone.utc)
-
             feed_current_usd_prices(threaded=True)
 
-            # nforce a min time between loops
+            # recreate the price json file
             _endtime = datetime.now(timezone.utc)
-            if (_endtime - _startime).total_seconds() < min_loop_time:
-                sleep_time = min_loop_time - (_endtime - _startime).total_seconds()
-                logging.getLogger(__name__).debug(
-                    f" Current prices database feeding service is sleeping for {sleep_time} seconds to loop again"
-                )
-                time.sleep(sleep_time)
+            if (_endtime - _create_file_startime).total_seconds() > _create_file_every:
+                _create_file_startime = _endtime
+                create_json_file(create_json_process)
 
     except KeyboardInterrupt:
         logging.getLogger(__name__).debug(

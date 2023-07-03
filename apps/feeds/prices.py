@@ -1,13 +1,15 @@
 import contextlib
 from datetime import datetime
 import logging
+import random
 import tqdm
 import concurrent.futures
 
 from bins.configuration import CONFIGURATION, add_to_memory, get_from_memory
 from bins.database.common.db_collections_common import database_global, database_local
 from bins.formulas.dex_formulas import sqrtPriceX96_to_price_float
-from bins.general.file_utilities import load_json
+from bins.general.enums import Chain
+from bins.general.file_utilities import load_json, save_json
 from bins.mixed.price_utilities import price_scraper
 
 
@@ -310,7 +312,7 @@ def feed_current_usd_prices(threaded: bool = True):
 
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     db = database_global(mongo_url=mongo_url)
-    price_helper = price_scraper(cache=False)
+    price_helper = price_scraper(cache=False, thegraph=False)
 
     def loopme(network, address) -> tuple[str, str, bool]:
         # get price
@@ -337,6 +339,8 @@ def feed_current_usd_prices(threaded: bool = True):
             for network, addresses in token_addresses.items()
             for address in addresses
         ]
+        # shuffle args so that prices get updated in a random order
+        random.shuffle(args)
         with tqdm.tqdm(total=len(args)) as progress_bar:
             #
             if threaded:
@@ -366,6 +370,81 @@ def feed_current_usd_prices(threaded: bool = True):
         logging.getLogger(__name__).info(
             f" {_errors} errors found while feeding current prices"
         )
+
+
+def create_current_usd_prices_address_json():
+    # get all 1st rewarder status from database
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    batch_size = 100000
+    db = database_global(mongo_url=mongo_url)
+    filename = "price_token_address"
+    folder_path = "data"
+    logging.getLogger(__name__).info(f" Creating current usd prices address json file")
+
+    query = [
+        {
+            "$group": {
+                "_id": {
+                    "network": "$network",
+                    "address": "$address",
+                },
+            },
+        },
+    ]
+    result = {}
+
+    # add manually tokens not found in the database
+    manual_tokens = {
+        Chain.CELO.database_name: {
+            "0xc16b81af351ba9e64c1a069e3ab18c244a1e3049".lower(): {"symbol": "ageur"},
+            "0x471ece3750da237f93b8e339c536989b8978a438".lower(): {"symbol": "celo"},
+            "0xd8763cba276a3738e6de85b4b3bf5fded6d6ca73".lower(): {"symbol": "ceur"},
+            "0x765de816845861e75a25fca122bb6898b8b1282a".lower(): {"symbol": "cusd"},
+            "0x02de4766c272abc10bc88c220d214a26960a7e92".lower(): {"symbol": "nct"},
+            "0x46c9757c5497c5b1f2eb73ae79b6b67d119b0b58".lower(): {"symbol": "pact"},
+            "0x37f750b7cc259a2f741af45294f6a16572cf5cad".lower(): {"symbol": "usdc"},
+            "0x12055ae73a83730d766a7cfed62f1797987d5fa5".lower(): {"symbol": "vmbt"},
+            "0x66803fb87abd4aac3cbb3fad7c3aa01f6f3fb207".lower(): {"symbol": "weth"},
+        },
+        Chain.POLYGON.database_name: {
+            "0xef6ab48ef8dfe984fab0d5c4cd6aff2e54dfda14".lower(): {"symbol": "crispm"},
+        },
+        Chain.ETHEREUM.database_name: {
+            "0xf5581dfefd8fb0e4aec526be659cfab1f8c781da".lower(): {"symbol": "hopr"},
+        },
+        Chain.AVALANCHE.database_name: {
+            "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e".lower(): {"symbol": "usdc"},
+            "0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7".lower(): {"symbol": "usdt"},
+        },
+    }
+
+    # get tokens from database
+    for item in db.get_items_from_database(
+        collection_name="usd_prices", aggregate=query, batch_size=batch_size
+    ):
+        if item["_id"]["network"] not in result:
+            result[item["_id"]["network"]] = {}
+
+        if "address" not in result[item["_id"]["network"]]:
+            result[item["_id"]["network"]][item["_id"]["address"]] = {}
+        else:
+            raise Exception(f" {item['_id']['address']} already in list")
+
+    # add manual tokens to result
+    for network, tokens in manual_tokens.items():
+        if network not in result:
+            result[network] = {}
+
+        for address, data in tokens.items():
+            if address not in result[network]:
+                result[network][address] = data
+            else:
+                logging.getLogger(__name__).warning(
+                    f" manually added {network} {address} is already in the database so its safe to remove it from the manual list"
+                )
+
+    # save to file
+    save_json(filename=filename, data=result, folder_path=folder_path)
 
 
 # ##############################

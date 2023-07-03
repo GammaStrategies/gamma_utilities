@@ -33,6 +33,7 @@ class price_scraper:
         cache_filename: str = "",
         coingecko: bool = True,
         geckoterminal: bool = True,
+        thegraph: bool = True,
     ):
         cache_folderName = CONFIGURATION["cache"]["save_path"]
 
@@ -45,6 +46,7 @@ class price_scraper:
 
         self.coingecko = coingecko
         self.geckoterminal = geckoterminal
+        self.thegraph = thegraph
 
         # create price helpers
         self.init_apis(cache, cache_folderName)
@@ -138,7 +140,8 @@ class price_scraper:
 
         # thegraph
         if (
-            _price in [None, 0]
+            self.thegraph
+            and _price in [None, 0]
             and token_id.lower() not in self.token_addresses_not_thegraph
         ):
             # get a list of thegraph_connectors
