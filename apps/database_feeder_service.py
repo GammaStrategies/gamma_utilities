@@ -2,6 +2,7 @@
 #  periodic data action
 #
 
+import os
 import sys
 import logging
 
@@ -339,6 +340,10 @@ def current_prices_db_service():
 
         logging.getLogger(__name__).debug("   Starting json file creation process")
         create_json_process.start()
+
+    # check if the json file exists, if not create it
+    if not os.path.isfile(os.path.join("data", "current_usd_prices.json")):
+        create_json_file(create_json_process)
 
     try:
         while True:
