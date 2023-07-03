@@ -32,8 +32,11 @@ class price_scraper:
         cache: bool = True,
         cache_filename: str = "",
         coingecko: bool = True,
+        onchain: bool = True,
         geckoterminal: bool = True,
+        geckoterminal_sleepNretry: bool = False,
         thegraph: bool = True,
+        source_order: list[databaseSource] | None = None,
     ):
         cache_folderName = CONFIGURATION["cache"]["save_path"]
 
@@ -46,7 +49,11 @@ class price_scraper:
 
         self.coingecko = coingecko
         self.geckoterminal = geckoterminal
+        self.geckoterminal_sleepNretry = geckoterminal_sleepNretry
         self.thegraph = thegraph
+        self.onchain = onchain
+
+        self.source_order = source_order or self.create_source_order()
 
         # create price helpers
         self.init_apis(cache, cache_folderName)
@@ -78,11 +85,119 @@ class price_scraper:
         )
 
         self.geckoterminal_price_connector = geckoterminal_price_helper(
-            retries=2, request_timeout=10
+            retries=2, request_timeout=10, sleepNretry=self.geckoterminal_sleepNretry
         )
+
+    def create_source_order(self) -> list[databaseSource]:
+        """create the price scraper order"""
+        result = []
+        if self.cache:
+            result.append(databaseSource.CACHE)
+        if self.onchain:
+            result.append(databaseSource.ONCHAIN)
+        if self.geckoterminal:
+            result.append(databaseSource.GECKOTERMINAL)
+        if self.coingecko:
+            result.append(databaseSource.COINGECKO)
+        if self.thegraph:
+            result.append(databaseSource.THEGRAPH)
+        if len(result) == 0:
+            raise Exception("No price sources selected")
+        return result
 
     ## PUBLIC ##
     def get_price(
+        self, network: str, token_id: str, block: int = 0, of: str = "USD"
+    ) -> tuple[float, databaseSource]:
+        """
+        return: price_usd_token, source
+        """
+
+        # result var
+        _price = None
+        _source = None
+
+        # make address lower case
+        token_id = token_id.lower()
+
+        # try return price from cached values
+        _price, _source = self._get_price_from_cache(
+            network=network, token_id=token_id, block=block, of=of
+        )
+
+        # geckoterminal
+        if (
+            self.geckoterminal
+            and _price in [None, 0]
+            and network in self.geckoterminal_price_connector.networks
+        ):
+            # GET FROM GECKOTERMINAL
+            _price, _source = self._get_price_from_geckoterminal(
+                network, token_id, block, of
+            )
+
+        # chain
+        if _price in [None, 0]:
+            # GET FROM ONCHAIN USDC = 1 USD
+            _price, _source = self._get_price_from_onchain_data(
+                network,
+                token_id,
+                block,
+            )
+
+        # thegraph
+        if (
+            self.thegraph
+            and _price in [None, 0]
+            and token_id.lower() not in self.token_addresses_not_thegraph
+        ):
+            # get a list of thegraph_connectors
+            _price, _source = self._get_price_from_thegraph(
+                network=network,
+                token_id=token_id,
+                block=block,
+            )
+
+        # coingecko
+        if (
+            self.coingecko
+            and _price in [None, 0]
+            and network in self.coingecko_price_connector.networks
+        ):
+            # GET FROM COINGECKO
+            _price, _source = self._get_price_from_coingecko(
+                network, token_id, block, of
+            )
+
+        # SAVE CACHE
+        if _price not in [None, 0]:
+            logging.getLogger(LOG_NAME).debug(
+                f" {network}'s token {token_id} price at block {block} was found: {_price}"
+            )
+
+            if self.cache != None:
+                # save price to cache and disk
+                logging.getLogger(LOG_NAME).debug(
+                    f" {network}'s token {token_id} price at block {block} was saved to cache"
+                )
+
+                self.cache.add_data(
+                    chain_id=network,
+                    address=token_id,
+                    block=block,
+                    key=of,
+                    data=_price,
+                    save2file=True,
+                )
+        else:
+            # not found
+            logging.getLogger(LOG_NAME).warning(
+                f" {network}'s token {token_id} price at block {block} not found"
+            )
+
+        return _price, _source
+
+    def get_price_OLD(
         self, network: str, token_id: str, block: int = 0, of: str = "USD"
     ) -> tuple[float, databaseSource]:
         """
@@ -216,174 +331,317 @@ class price_scraper:
 
         return _price, _source
 
+    def get_price_new(
+        self,
+        network: str,
+        token_id: str,
+        block: int = 0,
+        of: str = "USD",
+        source_order: list | None = None,
+    ) -> tuple[float, databaseSource]:
+        """
+        return: price_usd_token, source
+        """
+
+        # result var
+        _price = None
+        _source = None
+
+        # make address lower case
+        token_id = token_id.lower()
+
+        for source in source_order or self.source_order:
+            if source == databaseSource.CACHE:
+                _price, _source = self._get_price_from_cache(
+                    network, token_id, block, of
+                )
+            elif (
+                source == databaseSource.GECKOTERMINAL
+                and network in self.geckoterminal_price_connector.networks
+            ):
+                _price, _source = self._get_price_from_geckoterminal(
+                    network, token_id, block, of
+                )
+            elif (
+                source == databaseSource.COINGECKO
+                and network in self.coingecko_price_connector.networks
+            ):
+                _price, _source = self._get_price_from_coingecko(
+                    network, token_id, block, of
+                )
+            elif source == databaseSource.ONCHAIN:
+                _price, _source = self._get_price_from_onchain_data(
+                    network, token_id, block
+                )
+
+            elif source == databaseSource.THEGRAPH:
+                _price, _source = self._get_price_from_thegraph(
+                    network, token_id, block
+                )
+
+            #
+            if _price not in [None, 0]:
+                break
+
+        # SAVE CACHE
+        if _price not in [None, 0]:
+            logging.getLogger(LOG_NAME).debug(
+                f" {network}'s token {token_id} price at block {block} was found: {_price}"
+            )
+
+            if self.cache != None:
+                # save price to cache and disk
+                logging.getLogger(LOG_NAME).debug(
+                    f" {network}'s token {token_id} price at block {block} was saved to cache"
+                )
+
+                self.cache.add_data(
+                    chain_id=network,
+                    address=token_id,
+                    block=block,
+                    key=of,
+                    data=_price,
+                    save2file=True,
+                )
+        else:
+            # not found
+            logging.getLogger(LOG_NAME).warning(
+                f" {network}'s token {token_id} price at block {block} not found"
+            )
+
+        return _price, _source
+
+    def _get_price_from_cache(
+        self, network, token_id, block: int = 0, of: str = "USD"
+    ) -> tuple[float, databaseSource]:
+        _source = databaseSource.CACHE
+
+        # try return price from cached values
+        try:
+            _price = self.cache.get_data(
+                chain_id=network, address=token_id, block=block, key=of
+            )
+        except Exception:
+            _price = None
+
+        return _price, _source
+
     def _get_price_from_thegraph(
         self,
-        thegraph_connector,
-        dex: str,
         network: str,
         token_id: str,
         block: int,
-        of: str,
-    ) -> float:
-        if of != "USD":
-            raise NotImplementedError(
-                f" Cannot find {of} price method to be gathered from"
+    ) -> tuple[float, databaseSource]:
+        #
+        _source = databaseSource.THEGRAPH
+        _price = 0
+        # get a list of thegraph_connectors
+        thegraph_connectors = self._get_connector_candidates(network=network)
+
+        for dex, connector in thegraph_connectors.items():
+            logging.getLogger(LOG_NAME).debug(
+                f" Trying to get {network}'s token {token_id} price at block {block} from {dex} subgraph"
             )
 
-        _where_query = f""" id: "{token_id}" """
+            try:
+                _where_query = f""" id: "{token_id}" """
 
-        if block != 0:
-            # get price at block
-            _block_query = f""" number: {block}"""
-            _data = thegraph_connector.get_all_results(
-                network=network,
-                query_name="tokens",
-                where=_where_query,
-                block=_block_query,
-            )
-        else:
-            # get current block price
-            _data = thegraph_connector.get_all_results(
-                network=network, query_name="tokens", where=_where_query
-            )
-
-        # process query
-        try:
-            # get the first item in data list
-            _data = _data[0]
-
-            token_symbol = _data["symbol"]
-            # decide what to use to get to price ( value or volume )
-            if (
-                float(_data["totalValueLockedUSD"]) > 0
-                and float(_data["totalValueLocked"]) > 0
-            ):
-                # get unit usd price from value locked
-                _price = float(_data["totalValueLockedUSD"]) / float(
-                    _data["totalValueLocked"]
-                )
-            elif (
-                "volume" in _data
-                and float(_data["volume"]) > 0
-                and "volumeUSD" in _data
-                and float(_data["volumeUSD"]) > 0
-            ):
-                # get unit usd price from volume
-                _price = float(_data["volumeUSD"]) / float(_data["volume"])
-            else:
-                # no way
-                _price = 0
-
-            # TODO: decide on certain circumstances (DAI USDC...)
-            # if _price == 0:
-            #     _price = self._price_special_case(address=token_id, network=network)
-        except ZeroDivisionError:
-            # one or all prices are zero. Cant continue
-            # return zeros
-            logging.getLogger(LOG_NAME).warning(
-                f"one or all price variables of {network}'s token {token_symbol} (address {token_id}) at block {block} from {dex} subgraph are ZERO. Can't get price.  --> data: {_data}"
-            )
-
-            _price = 0
-        except (KeyError, TypeError) as err:
-            # errors': [{'message': 'indexing_error'}]
-            if "errors" in _data:
-                for error in _data["errors"]:
-                    logging.getLogger(LOG_NAME).error(
-                        f"Unexpected error while getting price of {network}'s token address {token_id} at block {block} from {dex} subgraph   data:{_data}      .error: {error}"
+                if block != 0:
+                    # get price at block
+                    _block_query = f""" number: {block}"""
+                    _data = connector.get_all_results(
+                        network=network,
+                        query_name="tokens",
+                        where=_where_query,
+                        block=_block_query,
+                    )
+                else:
+                    # get current block price
+                    _data = connector.get_all_results(
+                        network=network, query_name="tokens", where=_where_query
                     )
 
-            else:
-                logging.getLogger(LOG_NAME).exception(
-                    f"Unexpected error while getting price of {network}'s token address {token_id} at block {block} from {dex} subgraph   data:{_data}      .error: {sys.exc_info()[0]}"
+                # process query
+                try:
+                    # get the first item in data list
+                    _data = _data[0]
+
+                    token_symbol = _data["symbol"]
+                    # decide what to use to get to price ( value or volume )
+                    if (
+                        float(_data["totalValueLockedUSD"]) > 0
+                        and float(_data["totalValueLocked"]) > 0
+                    ):
+                        # get unit usd price from value locked
+                        _price = float(_data["totalValueLockedUSD"]) / float(
+                            _data["totalValueLocked"]
+                        )
+                    elif (
+                        "volume" in _data
+                        and float(_data["volume"]) > 0
+                        and "volumeUSD" in _data
+                        and float(_data["volumeUSD"]) > 0
+                    ):
+                        # get unit usd price from volume
+                        _price = float(_data["volumeUSD"]) / float(_data["volume"])
+                    else:
+                        # no way
+                        _price = 0
+
+                    # TODO: decide on certain circumstances (DAI USDC...)
+                    # if _price == 0:
+                    #     _price = self._price_special_case(address=token_id, network=network)
+                except ZeroDivisionError:
+                    # one or all prices are zero. Cant continue
+                    # return zeros
+                    logging.getLogger(LOG_NAME).warning(
+                        f"one or all price variables of {network}'s token {token_symbol} (address {token_id}) at block {block} from {dex} subgraph are ZERO. Can't get price.  --> data: {_data}"
+                    )
+
+                    _price = 0
+                except (KeyError, TypeError) as err:
+                    # errors': [{'message': 'indexing_error'}]
+                    if "errors" in _data:
+                        for error in _data["errors"]:
+                            logging.getLogger(LOG_NAME).error(
+                                f"Unexpected error while getting price of {network}'s token address {token_id} at block {block} from {dex} subgraph   data:{_data}      .error: {error}"
+                            )
+
+                    else:
+                        logging.getLogger(LOG_NAME).exception(
+                            f"Unexpected error while getting price of {network}'s token address {token_id} at block {block} from {dex} subgraph   data:{_data}      .error: {sys.exc_info()[0]}"
+                        )
+
+                    _price = 0
+                except IndexError as err:
+                    logging.getLogger(LOG_NAME).error(
+                        f"No data returned while getting price of {network}'s token address {token_id} at block {block} from {dex} subgraph   data:{_data}      .error: {sys.exc_info()[0]}"
+                    )
+
+                    _price = 0
+                except Exception:
+                    logging.getLogger(LOG_NAME).exception(
+                        f"Unexpected error while getting price of {network}'s token address {token_id} at block {block} from {dex} subgraph   data:{_data}      .error: {sys.exc_info()[0]}"
+                    )
+
+                    _price = 0
+
+            except Exception as e:
+                logging.getLogger(LOG_NAME).debug(
+                    f" Could not get {network}'s token {token_id} price at block {block} from thegraph. error-> {e}"
                 )
 
-            _price = 0
-        except IndexError as err:
-            logging.getLogger(LOG_NAME).error(
-                f"No data returned while getting price of {network}'s token address {token_id} at block {block} from {dex} subgraph   data:{_data}      .error: {sys.exc_info()[0]}"
-            )
-
-            _price = 0
-        except Exception:
-            logging.getLogger(LOG_NAME).exception(
-                f"Unexpected error while getting price of {network}'s token address {token_id} at block {block} from {dex} subgraph   data:{_data}      .error: {sys.exc_info()[0]}"
-            )
-
-            _price = 0
-
         # return result
-        return _price
+        return _price, _source
 
     def _get_price_from_coingecko(
         self, network: str, token_id: str, block: int, of: str
-    ) -> float:
+    ) -> tuple[float, databaseSource]:
+        _source = databaseSource.COINGECKO
         _price = 0
-        if of != "USD":
-            raise NotImplementedError(
-                f" Cannot find {of} price method to be gathered from"
-            )
 
-        if block != 0:
-            # convert block to timestamp
-            if timestamp := self._convert_block_to_timestamp(
-                network=network, block=block
-            ):
-                # get price at block
-                _price = self.coingecko_price_connector.get_price_historic(
-                    network, token_id, timestamp
+        try:
+            if of != "USD":
+                raise NotImplementedError(
+                    f" Cannot find {of} price method to be gathered from"
                 )
-        else:
-            # get current block price
-            _price = self.coingecko_price_connector.get_price(network, token_id, "usd")
 
+            if block != 0:
+                # convert block to timestamp
+                if timestamp := self._convert_block_to_timestamp(
+                    network=network, block=block
+                ):
+                    # get price at block
+                    _price = self.coingecko_price_connector.get_price_historic(
+                        network, token_id, timestamp
+                    )
+            else:
+                # get current block price
+                _price = self.coingecko_price_connector.get_price(
+                    network, token_id, "usd"
+                )
+        except Exception as e:
+            logging.getLogger(LOG_NAME).debug(
+                f" Could not get {network}'s token {token_id} price at block {block} from coingecko. error-> {e}"
+            )
         #
-        return _price
+        if _price and isinstance(_price, dict):
+            if token_id.lower() in _price:
+                _price = _price[token_id.lower()]["usd"]
+            else:
+                _price = 0
+
+        return _price, _source
 
     def _get_price_from_geckoterminal(
         self, network: str, token_id: str, block: int, of: str
-    ) -> float:
+    ) -> tuple[float, databaseSource]:
         _price = 0
+        _source = databaseSource.GECKOTERMINAL
 
-        if of != "USD":
-            raise NotImplementedError(
-                f" Cannot find {of} price method to be gathered from"
+        try:
+            if of != "USD":
+                raise NotImplementedError(
+                    f" Cannot find {of} price method to be gathered from"
+                )
+
+            if block != 0:
+                # convert block to timestamp
+                if timestamp := self._convert_block_to_timestamp(
+                    network=network, block=block
+                ):
+                    try:
+                        # get price at block
+                        _price = self.geckoterminal_price_connector.get_price_historic(
+                            network=network,
+                            token_address=token_id,
+                            before_timestamp=timestamp,
+                        )
+                    except RateLimitException as err:
+                        logging.getLogger(__name__).debug(
+                            f" geckoterminal auto rate limit fired"
+                        )
+
+                    # if no historical price was found but timestamp is 5 minute close to current time, get current price
+                    if _price in [0, None] and (time.time() - timestamp) <= (5 * 60):
+                        logging.getLogger(__name__).warning(
+                            f" Price at block {block} not found using ohlcvs geckoterminal. Because timestamp date {datetime.fromtimestamp(timestamp)} is close to current time, try getting current price"
+                        )
+                        _price = self.geckoterminal_price_connector.get_price_now(
+                            network=network, token_address=token_id
+                        )
+
+            else:
+                # get current block price
+                _price = self.geckoterminal_price_connector.get_price_now(
+                    network=network, token_address=token_id
+                )
+        except Exception as e:
+            logging.getLogger(LOG_NAME).debug(
+                f" Could not get {network}'s token {token_id} price at block {block} from geckoterminal. error-> {e}"
             )
-
-        if block != 0:
-            # convert block to timestamp
-            if timestamp := self._convert_block_to_timestamp(
-                network=network, block=block
-            ):
-                try:
-                    # get price at block
-                    _price = self.geckoterminal_price_connector.get_price_historic(
-                        network=network,
-                        token_address=token_id,
-                        before_timestamp=timestamp,
-                    )
-                except RateLimitException as err:
-                    logging.getLogger(__name__).debug(
-                        f" geckoterminal auto rate limit fired"
-                    )
-
-                # if no historical price was found but timestamp is 5 minute close to current time, get current price
-                if _price in [0, None] and (time.time() - timestamp) <= (5 * 60):
-                    logging.getLogger(__name__).warning(
-                        f" Price at block {block} not found using ohlcvs geckoterminal. Because timestamp date {datetime.fromtimestamp(timestamp)} is close to current time, try getting current price"
-                    )
-                    _price = self.geckoterminal_price_connector.get_price_now(
-                        network=network, token_address=token_id
-                    )
-
-        else:
-            # get current block price
-            _price = self.geckoterminal_price_connector.get_price_now(
-                network=network, token_address=token_id
-            )
-
         #
-        return _price
+        return _price, _source
+
+    def _get_price_from_onchain_data(
+        self, network: str, token_id: str, block: int
+    ) -> tuple[float, databaseSource]:
+        _price = 0
+        _source = databaseSource.ONCHAIN
+        try:
+            # convert network string in chain enum
+            chain = text_to_chain(network)
+            # get price from onchain
+            onchain_price_helper = usdc_price_scraper()
+            _price = onchain_price_helper.get_price(
+                chain=chain, token_address=token_id, block=block
+            )
+        except Exception as e:
+            logging.getLogger(LOG_NAME).exception(
+                f"Error while getting onchain price {e}"
+            )
+
+        return _price, _source
 
     # HELPERS
     def _convert_block_to_timestamp(self, network: str, block: int) -> int:

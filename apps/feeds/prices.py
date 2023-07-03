@@ -4,11 +4,12 @@ import logging
 import random
 import tqdm
 import concurrent.futures
+from bins.apis.coingecko_utilities import coingecko_price_helper
 
 from bins.configuration import CONFIGURATION, add_to_memory, get_from_memory
 from bins.database.common.db_collections_common import database_global, database_local
 from bins.formulas.dex_formulas import sqrtPriceX96_to_price_float
-from bins.general.enums import Chain
+from bins.general.enums import Chain, databaseSource
 from bins.general.file_utilities import load_json, save_json
 from bins.mixed.price_utilities import price_scraper
 
@@ -312,7 +313,70 @@ def feed_current_usd_prices(threaded: bool = True):
 
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     db = database_global(mongo_url=mongo_url)
-    price_helper = price_scraper(cache=False, thegraph=False)
+    price_helper = price_scraper(
+        cache=False,
+        thegraph=False,
+        geckoterminal_sleepNretry=True,
+        source_order=[
+            databaseSource.ONCHAIN,
+            databaseSource.GECKOTERMINAL,
+            databaseSource.THEGRAPH,
+        ],
+    )
+
+    cg_helper = coingecko_price_helper(retries=2, request_timeout=25)
+
+    def loopme_coingecko(network, addresses) -> tuple[str, list[str], bool]:
+        result = []
+        addresses_processed = []
+        # get prices from coingecko
+        prices = cg_helper.get_prices(
+            network, contract_addresses=list(addresses.keys())
+        )
+
+        # loop through prices
+        for token_address, price in prices.items():
+            if not token_address in addresses_processed:
+                result.append(
+                    {
+                        "id": f"{network}_{token_address}",
+                        "network": network,
+                        "timestamp": int(datetime.now().timestamp()),
+                        "address": token_address,
+                        "price": float(price["usd"]),
+                        "source": databaseSource.COINGECKO,
+                    }
+                )
+                addresses_processed.append(token_address)
+            else:
+                logging.getLogger(__name__).error(
+                    f"{network} - {token_address} is repeated in price_token_address.json file"
+                )
+
+        # save prices to database in bulk
+        if result:
+            # check if all addresses were processed
+            # if len(result) != len(addresses):
+            #    # differences = set(addresses_processed.keys()).difference(set(addresses))
+            #     logging.getLogger(__name__).debug(
+            #         f" result lengh: {len(result)} is different than addresses lengh: {len(addresses)}"
+            #     )
+
+            if response := db.replace_items_to_database(
+                data=result, collection_name="current_usd_prices"
+            ):
+                logging.getLogger(__name__).debug(
+                    f"{network} - {len(result)} prices saved to database"
+                )
+                return network, addresses_processed, True
+            else:
+                logging.getLogger(__name__).debug(
+                    f"{network} - {len(result)} prices not saved to database"
+                )
+        else:
+            logging.getLogger(__name__).debug(f"{network} - no prices found")
+
+        return network, addresses, False
 
     def loopme(network, address) -> tuple[str, str, bool]:
         # get price
@@ -333,7 +397,29 @@ def feed_current_usd_prices(threaded: bool = True):
     # load token addresses by chain
     if token_addresses := load_json(filename="price_token_address", folder_path="data"):
         _errors = 0
-        #
+
+        # build arguments list for coingecko
+        args = [
+            (network, addresses.copy())
+            for network, addresses in token_addresses.items()
+        ]
+
+        logging.getLogger(__name__).debug(
+            f"  Using coingecko to gather prices for {len(args)} tokens at once"
+        )
+        with tqdm.tqdm(total=len(args)) as progress_bar:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+                for network, addresses, result in ex.map(
+                    lambda p: loopme_coingecko(*p), args
+                ):
+                    if result:
+                        for address in addresses:
+                            # remove address from token_addresses
+                            token_addresses[network].pop(address)
+                    # progress
+                    progress_bar.update(1)
+
+        # build arguments list with the remaining addresses
         args = [
             (network, address)
             for network, addresses in token_addresses.items()
@@ -341,6 +427,9 @@ def feed_current_usd_prices(threaded: bool = True):
         ]
         # shuffle args so that prices get updated in a random order
         random.shuffle(args)
+        logging.getLogger(__name__).debug(
+            f"  Using multiple sources to gather prices for {len(args)} tokens left"
+        )
         with tqdm.tqdm(total=len(args)) as progress_bar:
             #
             if threaded:
@@ -348,6 +437,9 @@ def feed_current_usd_prices(threaded: bool = True):
                     for network, address, result in ex.map(lambda p: loopme(*p), args):
                         if not result:
                             _errors += 1
+                            logging.getLogger(__name__).error(
+                                f" {network} USD price for {address} was not found"
+                            )
                         # progress
                         progress_bar.set_description(
                             f" [errors: {_errors}] {network} USD price for {address}"
@@ -361,6 +453,9 @@ def feed_current_usd_prices(threaded: bool = True):
 
                     if not result:
                         _errors += 1
+                        logging.getLogger(__name__).error(
+                            f" {net} USD price for {addr} was not found"
+                        )
                     # progress
                     progress_bar.set_description(
                         f" [errors: {_errors}] {net} USD price for {addr}"

@@ -1,13 +1,14 @@
 import logging
 import time
 import re
+from bins.cache.cache_utilities import pool_token_cache
 
 from bins.general import net_utilities
 
 from ratelimit import RateLimitException, limits, sleep_and_retry
 
 
-CACHED_POOLS_TOKEN_DATA = {}
+POOL_TOKEN_CACHE = pool_token_cache(time_limit=3600)
 
 
 class geckoterminal_price_helper:
@@ -15,7 +16,7 @@ class geckoterminal_price_helper:
 
     _main_url = "https://api.geckoterminal.com/api/v2/"
 
-    def __init__(self, retries: int = 1, request_timeout=10):
+    def __init__(self, retries: int = 1, request_timeout=10, sleepNretry: bool = False):
         # todo: coded coingecko's network id conversion
         self.netids = {
             "polygon": "polygon_pos",
@@ -32,6 +33,7 @@ class geckoterminal_price_helper:
 
         self.retries = retries
         self.request_timeout = request_timeout
+        self.sleepNretry = sleepNretry
 
     @property
     def networks(self) -> list[str]:
@@ -153,7 +155,7 @@ class geckoterminal_price_helper:
         result = []
         # find price searching for pools
         if pools_token_data := self.get_pools_token_data(
-            network=network, token_address=token0_address, use_cache=False
+            network=network, token_address=token0_address, use_cache=True
         ):
             # search for the token in the pools:  identify token as base or quote and retrieve its price usd from attributes
             try:
@@ -216,22 +218,21 @@ class geckoterminal_price_helper:
                     ]
         """
 
-        # TODO: control the size of cache
-        if not use_cache or CACHED_POOLS_TOKEN_DATA.get(network, {}).get(
-            token_address, True
+        if (
+            not use_cache
+            or POOL_TOKEN_CACHE.get_data(key=network, subkey=token_address) is None
         ):
             url = f"{self.build_networks_url(network)}/tokens/{token_address}/pools"
-            if data := request_data(url=url, timeout=self.request_timeout):
-                # create network
-                if not network in CACHED_POOLS_TOKEN_DATA:
-                    CACHED_POOLS_TOKEN_DATA[network] = {}
-                # create token pool data
-                CACHED_POOLS_TOKEN_DATA[network][token_address] = data
+            if data := request_data(
+                url=url, timeout=self.request_timeout, sleepnretry=self.sleepNretry
+            ):
+                POOL_TOKEN_CACHE.set_data(key=network, subkey=token_address, data=data)
+
             else:
                 return None
 
         # return result
-        return CACHED_POOLS_TOKEN_DATA[network][token_address]
+        return POOL_TOKEN_CACHE.get_data(key=network, subkey=token_address)
 
     def get_ohlcvs(
         self,
@@ -257,7 +258,9 @@ class geckoterminal_price_helper:
             raise ValueError(f"token must be 'base' or 'quote'")
 
         url = f"{self.build_networks_url(network)}/pools/{pool_address}/ohlcv/{timeframe}?{self.build_url_arguments(aggregate=aggregate, before_timestamp=before_timestamp, limit=limit, currency=currency, token=token)}"
-        return request_data(url=url, timeout=self.request_timeout)
+        return request_data(
+            url=url, timeout=self.request_timeout, sleepnretry=self.sleepNretry
+        )
 
     # HELPERs
 
@@ -345,9 +348,35 @@ class geckoterminal_price_helper:
         #     return None
 
 
-# @sleep_and_retry
+def request_data(url, timeout, sleepnretry: bool = False):
+    if sleepnretry:
+        return request_data_sleepnretry(url=url, timeout=timeout)
+    else:
+        return request_data_limited(url=url, timeout=timeout)
+
+
 @limits(calls=1, period=3, raise_on_limit=False)
-def request_data(url, timeout):
+def request_data_limited(url, timeout):
+    if data := net_utilities.get_request(url=url, timeout_secs=timeout):
+        if "data" in data:
+            return data
+        else:
+            # {'status': '429', 'title': 'Rate Limited', 'debug': 'free limit'}
+            if "status" in data and data["status"] == "429":
+                logging.getLogger(__name__).warning(
+                    f" Rate Limited by geckoterminal. retrying in 1 sec..."
+                )
+            else:
+                logging.getLogger(__name__).warning(
+                    f"no data returned by geckoterminal -> {data}. retrying in 1 sec..."
+                )
+            time.sleep(1)
+    return None
+
+
+@sleep_and_retry
+@limits(calls=1, period=3, raise_on_limit=True)
+def request_data_sleepnretry(url, timeout):
     if data := net_utilities.get_request(url=url, timeout_secs=timeout):
         if "data" in data:
             return data

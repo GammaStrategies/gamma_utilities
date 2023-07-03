@@ -337,17 +337,28 @@ def current_prices_db_service():
                 name="create_json",
             )
 
+        logging.getLogger(__name__).debug("   Starting json file creation process")
         create_json_process.start()
 
     try:
         while True:
+            _starttime = datetime.now(timezone.utc)
             feed_current_usd_prices(threaded=True)
-
             # recreate the price json file
             _endtime = datetime.now(timezone.utc)
+
             if (_endtime - _create_file_startime).total_seconds() > _create_file_every:
                 _create_file_startime = _endtime
                 create_json_file(create_json_process)
+
+            if (datetime.now(timezone.utc) - _starttime).total_seconds() < 30:
+                sleep_time = abs(
+                    30 - (datetime.now(timezone.utc) - _starttime).total_seconds()
+                )
+                logging.getLogger(__name__).debug(
+                    f"   Sleeping for {sleep_time} seconds to loop again"
+                )
+                time.sleep(sleep_time)
 
     except KeyboardInterrupt:
         logging.getLogger(__name__).debug(

@@ -1,4 +1,5 @@
 import contextlib
+from datetime import datetime, timezone
 import sys
 import os
 import logging
@@ -478,3 +479,75 @@ class price_cache(standard_property_cache):
         # logging.getLogger("special").debug(
         #     "          {:,.0f} loaded from {}  cache file ".format(
         #         _loaded, self.file_name))
+
+
+class pool_token_cache:
+    # cache specific to handle geckoterminal pool tokens
+    # TODO: control the size of cache
+
+    def __init__(self, time_limit: int = 3600):
+        """init cache
+
+        Args:
+            time_limit (int, optional): maximum seconds to keep cached value. Defaults to 600.
+        """
+        self._cache = dict()
+        self._time_limit = time_limit
+
+    @property
+    def cache(self):
+        return self._cache
+
+    def set_data(self, key: str, subkey: str, data: dict) -> bool:
+        """Add data to the "key" dict
+
+        Args:
+            key (str):
+            subkey (str):
+            data (dict):
+
+        Returns:
+            bool:
+        """
+        try:
+            _now = datetime.now(timezone.utc).timestamp()
+            data["cache_timestamp"] = _now
+            # create key if not present
+            if key not in self._cache:
+                self._cache[key] = dict()
+
+            # update cache
+            self._cache[key][subkey] = data
+
+            return True
+
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f"Unexpected error while setting pool_token_cache data. error: {e}"
+            )
+
+        return False
+
+    def get_data(self, key: str, subkey: str) -> dict:
+        """Get data from the "key" dict
+
+        Args:
+            key (str): _description_
+            subkey (str): _description_
+
+        Returns:
+            dict: _description_
+        """
+        _now = datetime.now(timezone.utc).timestamp()
+        # check if key is present
+        if key in self._cache:
+            # check if value_key is present
+            if subkey in self._cache[key]:
+                # check if value is still valid
+                if (
+                    _now - self._cache[key][subkey].pop("cache_timestamp")
+                    < self._time_limit
+                ):
+                    return self._cache[key][subkey]
+
+        return None

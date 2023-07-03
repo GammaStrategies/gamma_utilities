@@ -70,9 +70,14 @@ class coingecko_price_helper:
                 contract_addresses=contract_address,
             )
 
-        except Exception:
+        except ValueError as e:
+            logging.getLogger(__name__).error(
+                f" ValueError at coingecko's price gathering of {contract_address}        error-> {e}"
+            )
+
+        except Exception as e:
             logging.getLogger(__name__).exception(
-                f" Exception at coingecko's price gathering of {contract_address}        error-> {sys.exc_info()[0]}"
+                f" Exception at coingecko's price gathering of {contract_address}        error-> {e}"
             )
 
         return 0
