@@ -257,6 +257,14 @@ class db_collections_common:
                 coll_name=collection_name, dbFilter=find, update=update
             )
 
+    @property
+    def db_manager(self) -> MongoDbManager:
+        return MongoDbManager(
+            url=self._db_mongo_url,
+            db_name=self._db_name,
+            collections=self._db_collections,
+        )
+
     @staticmethod
     def convert_decimal_to_d128(item: dict) -> dict:
         """Converts a dictionary decimal values to BSON.decimal128, recursivelly.
@@ -605,7 +613,7 @@ class database_global(db_collections_common):
         ]
 
     @staticmethod
-    def query_last_prices(network: str, limit:int|None=None) -> list[dict]:
+    def query_last_prices(network: str, limit: int | None = None) -> list[dict]:
         """get last prices from database
 
         Args:
