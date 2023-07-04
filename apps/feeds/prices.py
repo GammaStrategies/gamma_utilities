@@ -315,7 +315,7 @@ def feed_current_usd_prices(threaded: bool = True):
     db = database_global(mongo_url=mongo_url)
     price_helper = price_scraper(
         cache=False,
-        thegraph=False,
+        thegraph=True,
         geckoterminal_sleepNretry=True,
         source_order=[
             databaseSource.ONCHAIN,

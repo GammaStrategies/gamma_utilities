@@ -53,8 +53,6 @@ class price_scraper:
         self.thegraph = thegraph
         self.onchain = onchain
 
-        self.source_order = source_order or self.create_source_order()
-
         # create price helpers
         self.init_apis(cache, cache_folderName)
 
@@ -93,20 +91,20 @@ class price_scraper:
         result = []
         if self.cache:
             result.append(databaseSource.CACHE)
-        if self.onchain:
-            result.append(databaseSource.ONCHAIN)
         if self.geckoterminal:
             result.append(databaseSource.GECKOTERMINAL)
-        if self.coingecko:
-            result.append(databaseSource.COINGECKO)
+        if self.onchain:
+            result.append(databaseSource.ONCHAIN)
         if self.thegraph:
             result.append(databaseSource.THEGRAPH)
+        if self.coingecko:
+            result.append(databaseSource.COINGECKO)
         if len(result) == 0:
             raise Exception("No price sources selected")
         return result
 
     ## PUBLIC ##
-    def get_price(
+    def get_price_OLDMOD(
         self, network: str, token_id: str, block: int = 0, of: str = "USD"
     ) -> tuple[float, databaseSource]:
         """
@@ -331,7 +329,7 @@ class price_scraper:
 
         return _price, _source
 
-    def get_price_new(
+    def get_price(
         self,
         network: str,
         token_id: str,
@@ -350,7 +348,7 @@ class price_scraper:
         # make address lower case
         token_id = token_id.lower()
 
-        for source in source_order or self.source_order:
+        for source in source_order or self.create_source_order():
             if source == databaseSource.CACHE:
                 _price, _source = self._get_price_from_cache(
                     network, token_id, block, of
@@ -379,7 +377,7 @@ class price_scraper:
                     network, token_id, block
                 )
 
-            #
+            # if price found, exit for loop
             if _price not in [None, 0]:
                 break
 

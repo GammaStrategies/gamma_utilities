@@ -262,6 +262,67 @@ class geckoterminal_price_helper:
             url=url, timeout=self.request_timeout, sleepnretry=self.sleepNretry
         )
 
+    def search(self, text_to_search: str) -> dict:
+        """search address in gecko terminal realm
+
+        Args:
+            text_to_search (str):
+
+        Returns:
+            dict:  example:  {
+                "data": {
+                "id": "636a2746-3f7b-4703-b3ce-b8928181b092",
+                "type": "search",
+                "attributes": {
+                    "networks": [],
+                    "dexes": [],
+                    "pools": [
+                        {
+                            "type": "pool",
+                            "address": "0xcf5cebf7ddbda02e9691c2da19459a5f54fbf733",
+                            "api_address": "0xcf5cebf7ddbda02e9691c2da19459a5f54fbf733",
+                            "price_in_usd": "30.7113421481082",
+                            "reserve_in_usd": "16.94336007789644224019234628811",
+                            "from_volume_in_usd": "0.0",
+                            "to_volume_in_usd": "0.0",
+                            "price_percent_change": "0%",
+                            "network": {
+                                "name": "CELO",
+                                "image_url": "https://assets.geckoterminal.com/0f0vvsahd5ycw2h3zgiv2pdppm7b",
+                                "identifier": "celo"
+                            },
+                            "dex": {
+                                "name": "Uniswap V3 (Celo)",
+                                "identifier": "uniswap_v3_celo",
+                                "image_url": "https://assets.geckoterminal.com/l61ksh3lzzp06j7q10ro2xd6bpdi"
+                            },
+                            "tokens": [
+                                {
+                                    "name": "Verra Mangrove Basket Token",
+                                    "symbol": "VMBT",
+                                    "image_url": "missing.png",
+                                    "is_base_token": true
+                                },
+                                {
+                                    "name": "Celo native asset",
+                                    "symbol": "CELO",
+                                    "image_url": "https://assets.coingecko.com/coins/images/11090/small/InjXBNx9_400x400.jpg?1674707499",
+                                    "is_base_token": false
+                                }
+                            ]
+                        }
+                    ],
+                    "pairs": []
+                }
+            }
+        }
+        """
+        # https://app.geckoterminal.com/api/p1/search?query=
+        url = f"{self._main_url}search?query={text_to_search}"
+        return request_data(
+            url=url, timeout=self.request_timeout, sleepnretry=self.sleepNretry
+        )
+
     # HELPERs
 
     def build_networks_url(self, network: str) -> str:
