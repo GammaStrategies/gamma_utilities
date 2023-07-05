@@ -96,6 +96,13 @@ def parse_commandLine_args():
         help=" execute analysis ",
     )
 
+    # tests
+    par_test = exGroup.add_argument(
+        "--test",
+        choices=["protocols"],
+        help=" execute tests ",
+    )
+
     # debug
     par_main.add_argument(
         "--debug",
