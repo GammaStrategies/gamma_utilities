@@ -71,8 +71,8 @@ class pool(algebra.pool.poolv3):
         Returns:
            dict:    uint160 price; // The square root of the current price in Q64.96 format
                     int24 tick; // The current tick
-                    uint16 feeZtO; // The current fee for ZtO swap in hundredths of a bip, i.e. 1e-6
-                    uint16 feeOtZ; // The current fee for OtZ swap in hundredths of a bip, i.e. 1e-6
+                    uint16 feeZto; // The current fee for ZtO swap in hundredths of a bip, i.e. 1e-6
+                    uint16 feeOtz; // The current fee for OtZ swap in hundredths of a bip, i.e. 1e-6
                     uint16 timepointIndex; // The index of the last written timepoint
                     uint8 communityFee; // The community fee represented as a percent of all collected fee in thousandths (1e-3)
                     bool unlocked; // True if the contract is unlocked, otherwise - false
@@ -87,8 +87,8 @@ class pool(algebra.pool.poolv3):
                 "communityFeeToken1": tmp[5],
                 "unlocked": tmp[6],
                 # special
-                "feeZtO": tmp[2],
-                "feeOtZ": tmp[3],
+                "feeZto": tmp[2],
+                "feeOtz": tmp[3],
             }
         else:
             raise ValueError(f" globalState function call returned None")
