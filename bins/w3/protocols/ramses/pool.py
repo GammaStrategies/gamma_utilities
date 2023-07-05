@@ -33,7 +33,87 @@ class pool(uniswap.pool.poolv3):
     def identify_dex_name(self) -> str:
         return Protocol.RAMSES.database_name
 
-    # TODO: add ramses custom fields
+    # PROPERTIES
+
+    def boostInfos(self, period: int):
+        """
+
+        Returns:
+            totalBoostAmount uint128, totalVeRamAmount int128
+        """
+        return self.call_function_autoRpc("boostInfos", None, period)
+
+    def boostInfos_2(self, period: int, key: str):
+        """
+
+        Returns:
+            boostAmount uint128, veRamAmount int128, secondsDebtX96 int256, boostedSecondsDebtX96 int256
+        """
+        return self.call_function_autoRpc("boostInfos", None, period, key)
+
+    @property
+    def boostedLiquidity(self) -> int:
+        return self.call_function_autoRpc("boostedLiquidity")
+
+    @property
+    def lastPeriod(self) -> int:
+        return self.call_function_autoRpc("lastPeriod")
+
+    @property
+    def nfpManager(self) -> str:
+        return self.call_function_autoRpc("nfpManager")
+
+    def periodCumulativesInside(self, period: int, tickLower: int, tickUpper: int):
+        """
+        Returns:
+            secondsPerLiquidityInsideX128 uint160, secondsPerBoostedLiquidityInsideX128 uint160
+        """
+        return self.call_function_autoRpc(
+            "periodCumulativesInside", None, period, tickLower, tickUpper
+        )
+
+    def periods(self, period: int):
+        """
+        Returns:
+            previousPeriod uint32, startTick int24, lastTick int24, endSecondsPerLiquidityPeriodX128 uint160, endSecondsPerBoostedLiquidityPeriodX128 uint160, boostedInRange uint32
+        """
+        return self.call_function_autoRpc("periods", None, period)
+
+    def positionPeriodDebt(
+        self, period: int, owner: str, index: int, tickLower: int, tickUpper: int
+    ):
+        """
+        Returns:
+            secondsDebtX96 int256, boostedSecondsDebtX96 int256
+        """
+        return self.call_function_autoRpc(
+            "positionPeriodDebt", None, period, owner, index, tickLower, tickUpper
+        )
+
+    def positionPeriodSecondsInRange(
+        self, period: int, owner: str, index: int, tickLower: int, tickUpper: int
+    ):
+        """
+        Returns:
+            periodSecondsInsideX96 uint256, periodBoostedSecondsInsideX96 uint256
+        """
+        return self.call_function_autoRpc(
+            "positionPeriodSecondsInRange",
+            None,
+            period,
+            owner,
+            index,
+            tickLower,
+            tickUpper,
+        )
+
+    @property
+    def veRam(self) -> str:
+        return self.call_function_autoRpc("veRam")
+
+    @property
+    def voter(self) -> str:
+        return self.call_function_autoRpc("voter")
 
 
 class pool_cached(uniswap.pool.poolv3_cached):
@@ -66,4 +146,108 @@ class pool_cached(uniswap.pool.poolv3_cached):
     def identify_dex_name(self) -> str:
         return Protocol.RAMSES.database_name
 
-    # TODO: add ramses custom fields
+    # PROPERTIES
+    @property
+    def boostedLiquidity(self) -> int:
+        prop_name = "boostedLiquidity"
+        result = self._cache.get_data(
+            chain_id=self._chain_id,
+            address=self.address,
+            block=self.block,
+            key=prop_name,
+        )
+        if result is None:
+            result = getattr(super(), prop_name)
+            self._cache.add_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+                data=result,
+                save2file=self.SAVE2FILE,
+            )
+        return result
+
+    @property
+    def lastPeriod(self) -> int:
+        prop_name = "lastPeriod"
+        result = self._cache.get_data(
+            chain_id=self._chain_id,
+            address=self.address,
+            block=self.block,
+            key=prop_name,
+        )
+        if result is None:
+            result = getattr(super(), prop_name)
+            self._cache.add_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+                data=result,
+                save2file=self.SAVE2FILE,
+            )
+        return result
+
+    @property
+    def nfpManager(self) -> str:
+        prop_name = "nfpManager"
+        result = self._cache.get_data(
+            chain_id=self._chain_id,
+            address=self.address,
+            block=self.block,
+            key=prop_name,
+        )
+        if result is None:
+            result = getattr(super(), prop_name)
+            self._cache.add_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+                data=result,
+                save2file=self.SAVE2FILE,
+            )
+        return result
+
+    @property
+    def veRam(self) -> str:
+        prop_name = "veRam"
+        result = self._cache.get_data(
+            chain_id=self._chain_id,
+            address=self.address,
+            block=self.block,
+            key=prop_name,
+        )
+        if result is None:
+            result = getattr(super(), prop_name)
+            self._cache.add_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+                data=result,
+                save2file=self.SAVE2FILE,
+            )
+        return result
+
+    @property
+    def voter(self) -> str:
+        prop_name = "voter"
+        result = self._cache.get_data(
+            chain_id=self._chain_id,
+            address=self.address,
+            block=self.block,
+            key=prop_name,
+        )
+        if result is None:
+            result = getattr(super(), prop_name)
+            self._cache.add_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+                data=result,
+                save2file=self.SAVE2FILE,
+            )
+        return result

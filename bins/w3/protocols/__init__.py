@@ -13,4 +13,5 @@ from bins.w3.protocols import (
     sushiswap,
     stellaswap,
     angle,
+    ramses,
 )

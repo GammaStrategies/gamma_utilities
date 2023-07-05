@@ -184,7 +184,7 @@ def build_hypervisor(
     custom_web3Url: str | None = None,
     cached: bool = False,
 ) -> protocols.uniswap.hypervisor.gamma_hypervisor:
-    # choose type based on dex
+    # choose type based on Protocol
     if protocol == Protocol.UNISWAPv3:
         hypervisor = (
             protocols.uniswap.hypervisor.gamma_hypervisor(
@@ -347,6 +347,25 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
         )
+    elif protocol == Protocol.RAMSES:
+        hypervisor = (
+            protocols.ramses.hypervisor.gamma_hypervisor(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not cached
+            else protocols.ramses.hypervisor.gamma_hypervisor_cached(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+        )
+
     elif protocol == Protocol.GAMMA:
         hypervisor = (
             protocols.gamma.hypervisor.gamma_hypervisor(

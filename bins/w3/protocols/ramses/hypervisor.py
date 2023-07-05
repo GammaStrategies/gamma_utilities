@@ -3,7 +3,7 @@ from bins.general.enums import Protocol
 from bins.w3.protocols import uniswap
 from bins.w3.protocols.general import erc20
 
-from bins.w3.protocols import pool
+from bins.w3.protocols.ramses.pool import pool, pool_cached
 
 from bins.w3.protocols.uniswap.pool import (
     poolv3,
@@ -11,6 +11,7 @@ from bins.w3.protocols.uniswap.pool import (
 )
 
 
+# Hype v1.3
 class gamma_hypervisor(uniswap.hypervisor.gamma_hypervisor):
     # SETUP
     def __init__(
@@ -45,6 +46,16 @@ class gamma_hypervisor(uniswap.hypervisor.gamma_hypervisor):
     def identify_dex_name(self) -> str:
         return Protocol.RAMSES.database_name
 
+    # PROPERTIES
+    @property
+    def DOMAIN_SEPARATOR(self) -> str:
+        """EIP-712: Typed structured data hashing and signing"""
+        return self.call_function_autoRpc("DOMAIN_SEPARATOR")
+
+    @property
+    def PRECISION(self) -> int:
+        return self.call_function_autoRpc("PRECISION")
+
     @property
     def pool(self) -> pool:
         if self._pool is None:
@@ -55,10 +66,29 @@ class gamma_hypervisor(uniswap.hypervisor.gamma_hypervisor):
             )
         return self._pool
 
+    @property
+    def receiver(self) -> str:
+        """Rewards receiver address"""
+        return self.call_function_autoRpc("receiver")
+
+    @property
+    def veRamTokenId(self) -> int:
+        """The veRam Token Id"""
+        return self.call_function_autoRpc("veRamTokenId")
+
+    @property
+    def voter(self) -> str:
+        """voter address"""
+        return self.call_function_autoRpc("voter")
+
+    @property
+    def whitelistedAddress(self) -> str:
+        return self.call_function_autoRpc("whitelistedAddress")
+
 
 class gamma_hypervisor_cached(uniswap.hypervisor.gamma_hypervisor_cached):
     def identify_dex_name(self) -> str:
-        return Protocol.BEAMSWAP.database_name
+        return Protocol.RAMSES.database_name
 
     @property
     def pool(self) -> pool_cached:
@@ -69,3 +99,87 @@ class gamma_hypervisor_cached(uniswap.hypervisor.gamma_hypervisor_cached):
                 block=self.block,
             )
         return self._pool
+
+    @property
+    def receiver(self) -> str:
+        prop_name = "receiver"
+        result = self._cache.get_data(
+            chain_id=self._chain_id,
+            address=self.address,
+            block=self.block,
+            key=prop_name,
+        )
+        if result is None:
+            result = getattr(super(), prop_name)
+            self._cache.add_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+                data=result,
+                save2file=self.SAVE2FILE,
+            )
+        return result
+
+    @property
+    def veRamTokenId(self) -> int:
+        prop_name = "veRamTokenId"
+        result = self._cache.get_data(
+            chain_id=self._chain_id,
+            address=self.address,
+            block=self.block,
+            key=prop_name,
+        )
+        if result is None:
+            result = getattr(super(), prop_name)
+            self._cache.add_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+                data=result,
+                save2file=self.SAVE2FILE,
+            )
+        return result
+
+    @property
+    def voter(self) -> str:
+        prop_name = "voter"
+        result = self._cache.get_data(
+            chain_id=self._chain_id,
+            address=self.address,
+            block=self.block,
+            key=prop_name,
+        )
+        if result is None:
+            result = getattr(super(), prop_name)
+            self._cache.add_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+                data=result,
+                save2file=self.SAVE2FILE,
+            )
+        return result
+
+    @property
+    def whitelistedAddress(self) -> str:
+        prop_name = "whitelistedAddress"
+        result = self._cache.get_data(
+            chain_id=self._chain_id,
+            address=self.address,
+            block=self.block,
+            key=prop_name,
+        )
+        if result is None:
+            result = getattr(super(), prop_name)
+            self._cache.add_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+                data=result,
+                save2file=self.SAVE2FILE,
+            )
+        return result
