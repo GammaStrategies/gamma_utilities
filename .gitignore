@@ -151,8 +151,6 @@ logs/
 *.csv#
 *.ods
 *.ods#
-tests/*.json
-tests/results
 
 TODO
 apps/fastAPI

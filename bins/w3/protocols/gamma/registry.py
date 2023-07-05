@@ -77,40 +77,54 @@ class gamma_hypervisor_registry(web3wrap):
         )
 
     # CUSTOM FUNCTIONS
-    def get_hypervisors_addresses(self) -> list[str]:
+    def get_hypervisors_addresses(self, force_count: int = 10) -> list[str]:
         """Retrieve hypervisors all addresses from registry
 
         Returns:
            list of addresses
         """
 
-        total_qtty = self.counter + 1  # index positions ini=0 end=counter
-
+        #
+        total_hypervisors_qtty = self.counter
         result = []
-        for i in range(total_qtty):
+        # retrieve all valid hypervisors addresses
+        # loop until all hypervisors have been retrieved ( no while loop to avoid infinite loop)
+        for i in range(10000):
+            # exit
+            if len(result) >= total_hypervisors_qtty:
+                break
+
             try:
                 hypervisor_id, idx = self.hypeByIndex(index=i)
 
-                # filter erroneous and blacklisted hypes
-                if idx == 0 or (
-                    self._network in self.__blacklist_addresses
-                    and hypervisor_id.lower()
-                    in self.__blacklist_addresses[self._network]
-                ):
-                    # hypervisor is blacklisted: loop
-                    continue
+                if idx:
+                    result.append(hypervisor_id)
 
-                result.append(hypervisor_id)
             except TypeError as e:
                 # hype index is out of bounds
                 logging.getLogger(__name__).debug(
-                    f" Hypervisor index used to call hypeByIndex is out of bounds for {self._network} {self.address}  error-> {e} "
+                    f" Hypervisor index {i} is out of bounds for {self._network} {self.address}  error-> {e} "
                 )
+                # break
+                logging.getLogger(__name__).error(
+                    f" Breaking loop for {self._network} {self.address} while not all hypervisors have been returned. This should not happen."
+                )
+                break
+
             except Exception as e:
                 # executiuon reverted:  arbitrum and mainnet have diff ways of indexing (+1 or 0)
                 logging.getLogger(__name__).warning(
                     f" Error while retrieving addresses from registry {self._network} {self.address}  error-> {e} "
                 )
+
+        # remove blacklisted addresses
+        for address in result:
+            if (
+                self._network in self.__blacklist_addresses
+                and address.lower() in self.__blacklist_addresses[self._network]
+            ):
+                # address is blacklisted
+                result.remove(address)
 
         return result
 
