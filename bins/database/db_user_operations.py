@@ -214,7 +214,8 @@ class user_operations_hypervisor_builder:
     def _process_operations(self, rewrite: bool | None = None):
         """process all operations"""
 
-        # get operations
+        # get operations:
+        # {  }
         operations = self.get_hypervisor_operations(
             initial_block=self.get_starting_block() if not rewrite else None
         )
@@ -850,7 +851,20 @@ class user_operations_hypervisor_builder:
             initial_block (int, optional): The block from where to start. Defaults to 0.
 
         Returns:
-            list[dict]: operation + a "status" field with the block's hypervisor status fields "totalSupply", "fees_uncollected" and "totalAmounts"
+            list: [
+                    {
+                        <operation fields>
+                        status: {
+                            totalSupply: ( in decimal ) ,
+                            fees_uncollected: { qtty_token0: , qtty_token1:} ,
+                            totalAmounts:  {total0, total1},
+                            undelying_token0:
+                            undelying_token1:
+                            },
+                        underlying_token0_perShare: (  deployed + uncollected fees )
+                        underlying_token1_perShare:
+                    }
+                ]
 
         """
 
@@ -972,13 +986,6 @@ class user_operations_hypervisor_builder:
                             0,
                         ]
                     },
-                }
-            },
-            {
-                "$group": {
-                    "_id": "$address",
-                    "hypervisor_address": {"$first": "$address"},
-                    "operations": {"$push": "$$ROOT"},
                 }
             },
             {"$unset": ["_id"]},

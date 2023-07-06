@@ -483,7 +483,6 @@ class price_cache(standard_property_cache):
 
 class pool_token_cache:
     # cache specific to handle geckoterminal pool tokens
-    # TODO: control the size of cache
 
     def __init__(self, time_limit: int = 3600):
         """init cache
