@@ -868,6 +868,120 @@ class user_operations_hypervisor_builder:
 
         query = [
             {"$match": match},
+            {
+                "$lookup": {
+                    "from": "status",
+                    "let": {
+                        "operation_hype_address": "$address",
+                        "operation_block": "$blockNumber",
+                    },
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$and": [
+                                        {
+                                            "$eq": [
+                                                "$address",
+                                                "$$operation_hype_address",
+                                            ]
+                                        },
+                                        {"$eq": ["$block", "$$operation_block"]},
+                                    ],
+                                }
+                            }
+                        },
+                        {
+                            "$project": {
+                                "totalSupply": {
+                                    "$divide": [
+                                        {"$toDecimal": "$totalSupply"},
+                                        {"$pow": [10, "$decimals"]},
+                                    ]
+                                },
+                                "fees_uncollected": "$fees_uncollected",
+                                "totalAmounts": "$totalAmounts",
+                                "underlying_token0": {
+                                    "$divide": [
+                                        {
+                                            "$sum": [
+                                                {"$toDecimal": "$totalAmounts.total0"},
+                                                {
+                                                    "$toDecimal": "$fees_uncollected.qtty_token0"
+                                                },
+                                            ]
+                                        },
+                                        {"$pow": [10, "$pool.token0.decimals"]},
+                                    ]
+                                },
+                                "underlying_token1": {
+                                    "$divide": [
+                                        {
+                                            "$sum": [
+                                                {"$toDecimal": "$totalAmounts.total1"},
+                                                {
+                                                    "$toDecimal": "$fees_uncollected.qtty_token1"
+                                                },
+                                            ]
+                                        },
+                                        {"$pow": [10, "$pool.token1.decimals"]},
+                                    ]
+                                },
+                            }
+                        },
+                        {"$unset": ["_id"]},
+                    ],
+                    "as": "status",
+                }
+            },
+            {"$unset": ["_id"]},
+            {"$unwind": "$status"},
+            {
+                "$addFields": {
+                    "underlying_token0_perShare": {
+                        "$ifNull": [
+                            {
+                                "$cond": [
+                                    {"$eq": ["$status.totalSupply", "0"]},
+                                    0,
+                                    {
+                                        "$divide": [
+                                            {"$toDecimal": "$status.underlying_token0"},
+                                            {"$toDecimal": "$status.totalSupply"},
+                                        ]
+                                    },
+                                ]
+                            },
+                            0,
+                        ]
+                    },
+                    "underlying_token1_perShare": {
+                        "$ifNull": [
+                            {
+                                "$cond": [
+                                    {"$eq": ["$status.totalSupply", "0"]},
+                                    0,
+                                    {
+                                        "$divide": [
+                                            {"$toDecimal": "$status.underlying_token1"},
+                                            {"$toDecimal": "$status.totalSupply"},
+                                        ]
+                                    },
+                                ]
+                            },
+                            0,
+                        ]
+                    },
+                }
+            },
+            {
+                "$group": {
+                    "_id": "$address",
+                    "hypervisor_address": {"$first": "$address"},
+                    "operations": {"$push": "$$ROOT"},
+                }
+            },
+            {"$unset": ["_id"]},
             {"$sort": {"blockNumber": 1, "logIndex": 1}},
         ]
 
