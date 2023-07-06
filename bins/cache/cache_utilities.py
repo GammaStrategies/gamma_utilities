@@ -543,6 +543,10 @@ class pool_token_cache:
         if key in self._cache:
             # check if value_key is present
             if subkey in self._cache[key]:
+                # check if cache_timestamp is present and add it if not: (saved cache may not have it)
+                if "cache_timestamp" not in self._cache[key][subkey]:
+                    self._cache[key][subkey]["cache_timestamp"] = _now
+
                 # check if value is still valid
                 if (
                     _now - self._cache[key][subkey].pop("cache_timestamp")
