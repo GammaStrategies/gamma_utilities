@@ -41,6 +41,9 @@ class user_operation:
     price_usd_token1 = Decimal("0")
     price_usd_share = Decimal("0")
 
+    underlying_token0_per_share = Decimal("0")
+    underlying_token1_per_share = Decimal("0")
+
 
 class user_operations_hypervisor_builder:
     def __init__(self, hypervisor_address: str, network: str, protocol: str):
@@ -222,7 +225,11 @@ class user_operations_hypervisor_builder:
 
         _errors = 0
         with tqdm.tqdm(total=len(operations), leave=False) as progress_bar:
-            for operation in operations:
+            # transform operations decimals128 fields to decimal
+            for operation in [
+                self.local_db_manager.convert_d128_to_decimal(item=op)
+                for op in operations
+            ]:
                 # progress show
                 progress_bar.set_description(
                     f' processing 0x..{operation["address"][-4:]}  {operation["blockNumber"]}  {operation["topic"]}'
@@ -356,6 +363,14 @@ class user_operations_hypervisor_builder:
             10 ** Decimal(operation["decimals_token1"])
         )
 
+        # add undelying tokenX per share at this block
+        new_user_operation.underlying_token0_per_share = operation[
+            "underlying_token0_perShare"
+        ]
+        new_user_operation.underlying_token1_per_share = operation[
+            "underlying_token1_perShare"
+        ]
+
         # result
         return new_user_operation
 
@@ -400,6 +415,14 @@ class user_operations_hypervisor_builder:
         new_user_operation.token1_out = Decimal(operation["qtty_token1"]) / (
             10 ** Decimal(operation["decimals_token1"])
         )
+
+        # add undelying tokenX per share at this block
+        new_user_operation.underlying_token0_per_share = operation[
+            "underlying_token0_perShare"
+        ]
+        new_user_operation.underlying_token1_per_share = operation[
+            "underlying_token1_perShare"
+        ]
 
         # result
         return new_user_operation
@@ -499,6 +522,21 @@ class user_operations_hypervisor_builder:
             10 ** Decimal(operation["decimals_contract"])
         )
 
+        # subtract underlying tokens
+        source_user_operation.token0_out = (
+            operation["underlying_token0_perShare"] * source_user_operation.shares_out
+        )
+        source_user_operation.token1_out = (
+            operation["underlying_token1_perShare"] * source_user_operation.shares_out
+        )
+        # add undelying tokenX per share at this block
+        source_user_operation.underlying_token0_per_share = operation[
+            "underlying_token0_perShare"
+        ]
+        source_user_operation.underlying_token1_per_share = operation[
+            "underlying_token1_perShare"
+        ]
+
         # Destination
         destination_user_operation = user_operation()
         destination_user_operation.operation_id = operation["id"]
@@ -519,6 +557,16 @@ class user_operations_hypervisor_builder:
         )
         destination_user_operation.shares_in = source_user_operation.shares_out
 
+        # add underlying tokens
+        destination_user_operation.token0_in = source_user_operation.token0_out
+        destination_user_operation.token1_in = source_user_operation.token1_out
+        # add undelying tokenX per share at this block
+        destination_user_operation.underlying_token0_per_share = operation[
+            "underlying_token0_perShare"
+        ]
+        destination_user_operation.underlying_token1_per_share = operation[
+            "underlying_token1_perShare"
+        ]
         # result
         return source_user_operation, destination_user_operation
 
@@ -644,6 +692,14 @@ class user_operations_hypervisor_builder:
                 new_user_operation.fees_token1_in = (
                     percentage * user_fees_collected_token1
                 )
+
+                # add undelying tokenX per share at this block
+                new_user_operation.underlying_token0_per_share = operation[
+                    "underlying_token0_perShare"
+                ]
+                new_user_operation.underlying_token1_per_share = operation[
+                    "underlying_token1_perShare"
+                ]
 
                 # return
                 return (
@@ -787,6 +843,14 @@ class user_operations_hypervisor_builder:
 
         new_user_operation.fees_token0_in = fees_collected_token0
         new_user_operation.fees_token1_in = fees_collected_token1
+
+        # add undelying tokenX per share at this block
+        new_user_operation.underlying_token0_per_share = operation[
+            "underlying_token0_perShare"
+        ]
+        new_user_operation.underlying_token1_per_share = operation[
+            "underlying_token1_perShare"
+        ]
 
         return self.convert_user_operation_toDb(new_user_operation)
 
@@ -956,7 +1020,7 @@ class user_operations_hypervisor_builder:
                         "$ifNull": [
                             {
                                 "$cond": [
-                                    {"$eq": ["$status.totalSupply", "0"]},
+                                    {"$eq": ["$status.totalSupply", 0]},
                                     0,
                                     {
                                         "$divide": [
@@ -973,7 +1037,7 @@ class user_operations_hypervisor_builder:
                         "$ifNull": [
                             {
                                 "$cond": [
-                                    {"$eq": ["$status.totalSupply", "0"]},
+                                    {"$eq": ["$status.totalSupply", 0]},
                                     0,
                                     {
                                         "$divide": [
@@ -1125,44 +1189,6 @@ class user_operations_hypervisor_builder:
                     },
                 }
             },
-            # {
-            #     "$lookup": {
-            #         "from": "status",
-            #         "let": {
-            #             "operation_hype_address": "$address",
-            #             "operation_block": "$blockNumber",
-            #         },
-            #         "pipeline": [
-            #             {
-            #                 "$match": {
-            #                     "$expr": {
-            #                         "$and": [
-            #                             {
-            #                                 "$eq": [
-            #                                     "$address",
-            #                                     "$$operation_hype_address",
-            #                                 ]
-            #                             },
-            #                             {hypervisor_block_condition: ["$block", "$$operation_block"]},
-            #                         ],
-            #                     }
-            #                 }
-            #             },
-            #             {"$sort": {"block": -1}},
-            #             {"$limit": 1},
-            #             {
-            #                 "$project": {
-            #                     "totalSupply": "$totalSupply",
-            #                     "fees_uncollected": "$fees_uncollected",
-            #                     "totalAmounts": "$totalAmounts",
-            #                 }
-            #             },
-            #             {"$unset": ["_id"]},
-            #         ],
-            #         "as": "status",
-            #     }
-            # },
-            # {"$unwind": "$status"},
             {
                 "$group": {
                     "_id": "$address",
@@ -1174,16 +1200,6 @@ class user_operations_hypervisor_builder:
                             ]
                         }
                     },
-                    # "hype_shares": {"$last": "$status.totalSupply"},
-                    # "hype_underlying_token0": {"$last": "$status.totalAmounts.total0"},
-                    # "hype_underlying_token1": {"$last": "$status.totalAmounts.total1"},
-                    # "hype_uncollected_token0": {
-                    #     "$last": "$status.fees_uncollected.qtty_token0"
-                    # },
-                    # "hype_uncollected_token1": {
-                    #     "$last": "$status.fees_uncollected.qtty_token1"
-                    # },
-                    # "data": {"$push": "$$ROOT"},
                 }
             },
         ]
