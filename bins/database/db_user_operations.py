@@ -37,6 +37,16 @@ class user_operation:
     fees_token0_in = Decimal("0")
     fees_token1_in = Decimal("0")
 
+    # TODO: how to handle rewards in token and its price?
+    # rewards = [
+    #    {
+    #       "token_symbol": str,
+    #       "qtty": str,
+    #       "price_usd": str,
+    # },
+    # ]
+    # rewards_usd_in = Decimal("0")
+
     price_usd_token0 = Decimal("0")
     price_usd_token1 = Decimal("0")
     price_usd_share = Decimal("0")
@@ -214,14 +224,15 @@ class user_operations_hypervisor_builder:
 
     # action loop
 
-    def _process_operations(self, rewrite: bool | None = None):
+    def _process_operations(
+        self, rewrite: bool | None = None, initial_block: int | None = None
+    ):
         """process all operations"""
 
+        initial_block = None if rewrite else initial_block or self.get_starting_block()
         # get operations:
         # {  }
-        operations = self.get_hypervisor_operations(
-            initial_block=self.get_starting_block() if not rewrite else None
-        )
+        operations = self.get_hypervisor_operations(initial_block=initial_block)
 
         _errors = 0
         with tqdm.tqdm(total=len(operations), leave=False) as progress_bar:
@@ -311,7 +322,9 @@ class user_operations_hypervisor_builder:
 
         elif operation["topic"] == "report":
             # global status for all addresses
-            self._process_topic_report(operation=operation)
+            raise NotImplementedError(
+                f""" {operation["topic"]} topic not implemented yet"""
+            )
 
         else:
             raise NotImplementedError(
@@ -569,6 +582,29 @@ class user_operations_hypervisor_builder:
         ]
         # result
         return source_user_operation, destination_user_operation
+
+    def _stake_to_rewarder(self, operation: dict):
+        # get rewarder from database
+        if rewards := self.get_rewards_status(
+            rewarder_address=operation["dst"].lower(), block=operation["blockNumber"]
+        ):
+            for reward in rewards:
+                pass
+        else:
+            logging.getLogger(__name__).debug(
+                f" No rewards found in database using rewarder {operation['dst'].lower()} for hypervisor {operation['address']} at block {operation['blockNumber']}"
+            )
+
+    def _unstake_to_rewarder(self, operation: dict):
+        if rewards := self.get_rewards_status(
+            rewarder_address=operation["src"].lower(), block=operation["blockNumber"]
+        ):
+            for reward in rewards:
+                pass
+        else:
+            logging.getLogger(__name__).debug(
+                f" No rewards found in database using rewarder {operation['src'].lower()} for hypervisor {operation['address']} at block {operation['blockNumber']}"
+            )
 
     @log_execution_time
     def _share_fees_with_acounts(self, operation: dict):
@@ -1376,6 +1412,29 @@ class user_operations_hypervisor_builder:
         return (
             underlying_token0 * price_usd_t0 + underlying_token1 * price_usd_t1
         ) / Decimal(hype_status["totalSupply"])
+
+    @log_execution_time
+    def get_rewards_status(self, rewarder_address: str, block: int) -> list | None:
+        """get rewards status
+
+        Args:
+            block (int): block number
+
+        Returns:
+            list: rewards status given by the rewarder at the specific block
+        """
+        # get from hypervisor status
+        if rewards_status := self.local_db_manager.get_items_from_database(
+            collection_name="rewards_status",
+            find={
+                "hypervisor_address": self.address,
+                "rewarder_address": rewarder_address,
+                "block": block,
+            },
+        ):
+            return rewards_status
+        else:
+            return None
 
     # Transformers
     def convert_user_operation_toDb(self, status: user_operation) -> dict:

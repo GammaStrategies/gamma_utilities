@@ -13,16 +13,59 @@ from bins.general.enums import Period
     "symbol": "ETH-WETH",                               
     "block": 12345678,
     "timestamp": 12345678,
-    "fees_apr": 0.00000000000000,               --->  fees APR using the defined period ( not yearly but for the defined period)
-    "rewards_apr": 0.00000000000000,            --->  rewards APR using the defined period ( not yearly but for the defined period)
-    "lping": 0.00000000000000,                  --->  end-initial  LP value -> Gain/loss from staying in vault, denominated in USD
-    "hold_deposited": 0.00000000000000,         --->  deposited qtty value difference between ini&end  ( token0_qtty*token0_price + token1_qtty*token1_price at ini&end )
-    "hold_fifty": 0.00000000000000,             --->  50% of deposited value in usd converted to token0 & 50% for token1 as qtty ( token0_qtty*token0_price + token1_qtty*token1_price at ini&end )
-    "hold_token0": 0.00000000000000,            --->  100% of deposited value in usd converted to token0 qtty value difference between ini&end
-    "hold_token1": 0.00000000000000,            --->  100% of deposited value in usd converted to token1 qtty value difference between ini&end
-    "net_apr": 0.00000000000000,                --->  fees_apr + rewards_apr
-    "impermanent_result": 0.00000000000000,     --->  lping - fees_apr
-    "gamma_vs_hold": 0.00000000000000,          --->  ( (net_apr+1) / (hold_deposited+1) ) - 1
+    "period_seconds": 00000,                     --->  period in seconds between this and last return operation
+    "fees_yield: 0.00000000000000,               --->  fees yield using the defined period between current block and last block ( defined in operation and operation-1 blocks )
+    "rewards_yield": 0.00000000000000,           --->  rewards yield using the defined period between current block and last block ( defined in operation and operation-1 blocks )
+
+    "total_supply": 0.00000000000000,            --->  total supply at the end of the block
+    "underlying_token0_perShare"                 --->  underlying token0 per share ( including uncollected fees) at the end of the block
+    "underlying_token1_perShare"                 
+    "price_token0": 0.00000000000000,             --->  price of token0 at the end of the block
+    "price_token1": 0.00000000000000,            
+
+    "control": {
+        "total_deposit_token0_qtty":            --->  total deposited qtty of token0 aggregated from all operations
+        "total_deposit_token1_qtty": 
+        "total_deposit_value_usd":              --->  total deposited value in usd aggregated from all operations the time it happened
+        "total_withdraw_token0_qtty":           --->  total withdrawn qtty of token0 aggregated from all operations
+        "total_withdraw_token1_qtty": 
+        "total_withdraw_value_usd":             --->  total withdrawn value in usd aggregated from all operations the time it happened
+    },
+    
+    on-the-fly calculations :
+
+                                                            return operations list = all return operations between blocks or timestamps
+
+        "total_pnl" : 0.00000000000000,             --->  total pnl aggregated from all operations
+                                                            ----------------------------------------------------------
+                                                            total_withdraw_value_usd - 
+                                                            total_deposit_value_usd + 
+                                                            (total_supply * underlying_token0_perShare * price_token0) + (total_supply * underlying_token1_perShare * price_token1)
+
+        "fees_apr": 0.00000000000000,               --->  fees APR using the defined period 
+                                                            ----------------------------------------------------------
+                                                            cum_fee_return = prod([1 + fees_yield for all return operations list])
+                                                            total_period_seconds = sum all period_seconds fields from return operation list 
+                                                            day_in_seconds = Decimal("86400")  |   year_in_seconds = Decimal("365") * day_in_seconds
+                                                            fees_apr = (cum_fee_return - 1) * (year_in_seconds / total_period_seconds))
+        "fees_apy": 0.00000000000000,                       fees_apy = (1 + (cum_fee_return - 1) * (day_in_seconds / total_period_seconds)) ** 365 - 1
+    
+        "rewards_apr": 0.00000000000000,            --->  rewards APR using the defined period 
+                                                            ----------------------------------------------------------
+        
+
+        "lping": 0.00000000000000,                  --->  end-initial  LP value -> Gain/loss from staying in vault, denominated in USD
+        "hold_deposited": 0.00000000000000,         --->  deposited qtty value difference between ini&end  ( token0_qtty*token0_price + token1_qtty*token1_price at ini&end )
+        "hold_fifty": 0.00000000000000,             --->  50% of deposited value in usd converted to token0 & 50% for token1 as qtty ( token0_qtty*token0_price + token1_qtty*token1_price at ini&end )
+        "hold_token0": 0.00000000000000,            --->  100% of deposited value in usd converted to token0 qtty value difference between ini&end
+        "hold_token1": 0.00000000000000,            --->  100% of deposited value in usd converted to token1 qtty value difference between ini&end
+    
+        "fee_result": 0.00000000000000,             --->  fees aquired during the period
+        "rewards_result": 0.00000000000000,         --->  rewards aquired during the period
+        "market_hedge_result": 0.00000000000000,    --->  (end price_token0 - initial price_token0)* initial(underlying_token0_perShare*total_supply) + (end price_token1 - initial price_token1) * initial(underlying_token1_perShare*total_supply)
+        "asset_rebalance_result": 0.00000000000000,     --->  (end underlying_token0_perShare - initial underlying_token0_perShare )*total_supply*initial price_token0 + (end underlying_token1_perShare - initial underlying_token1_perShare )*total_supply*initial price_token1
+        
+        "gamma_vs_hold": 0.00000000000000,          --->  ( (net_apr+1) / (hold_deposited+1) ) - 1
 } """
 
 # return period -> 1day 7days 14days 30days 60days 90days 180days 365days

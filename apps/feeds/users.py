@@ -41,10 +41,27 @@ def feed_user_status(network: str, protocol: str):
 
 
 ### user operations ###################
-def feed_user_operations(network: str, protocol: str, rewrite: bool | None = None):
+def feed_user_operations(
+    network: str,
+    protocol: str,
+    rewrite: bool | None = None,
+    hypervisor_addresses: list[str] | None = None,
+    initial_block: int | None = None,
+):
+    """Feed user operations for a given network and protocol
+
+    Args:
+        network (str):
+        protocol (str):
+        rewrite (bool | None, optional): rewrite all from first block fount. Defaults to None.
+        hypervisor_addresses (list[str] | None, optional): list of hype addresses. Defaults to None.
+        initial_block (int | None, optional): block to start from. Defaults to None.
+    """
+
     # get hypervisor addresses from database
-    hypervisor_addresses = get_hypervisor_addresses_from_database(
-        network=network, protocol=protocol
+    hypervisor_addresses = (
+        hypervisor_addresses
+        or get_hypervisor_addresses_from_database(network=network, protocol=protocol)
     )
 
     logging.getLogger(__name__).info(
@@ -61,7 +78,7 @@ def feed_user_operations(network: str, protocol: str, rewrite: bool | None = Non
         )
 
         try:
-            hype_new._process_operations(rewrite=rewrite)
+            hype_new._process_operations(rewrite=rewrite, initial_block=initial_block)
         except ValueError as e:
             logging.getLogger(__name__).error(
                 f" Unexpected error while feeding user status of {network}'s  {address} -> error {e}"
