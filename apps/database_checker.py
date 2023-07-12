@@ -553,14 +553,14 @@ def repair_prices_from_status(
 def reScrape_database_prices(
     batch_size=100000, protocol="gamma", network_limit: int | None = None
 ):
-    """Rescrape all database prices
+    """Rescrape thegraph database prices
 
     Args:
         batch_size (int, optional): . Defaults to 100000.
         protocol (str, optional): . Defaults to "gamma".
         network_limit(int, optional): Maximum number of prices to process. Defaults to 5000.
     """
-    logging.getLogger(__name__).info(f">Re scrape prices, in reverse order ")
+    logging.getLogger(__name__).info(f">Re scrape thegraph prices, in reverse order ")
     networks = (
         CONFIGURATION["_custom_"]["cml_parameters"].networks
         or CONFIGURATION["script"]["protocols"][protocol]["networks"]
@@ -574,7 +574,7 @@ def reScrape_database_prices(
             collection_name="usd_prices",
             find={
                 "network": network,
-                # "source": {"$ne": "auto"},
+                "source": {"$in": ["thegraph"]},
             },
             sort=[("block", -1)],
             batch_size=batch_size,
@@ -585,6 +585,10 @@ def reScrape_database_prices(
                 f" Found {len(database_items):,.0f} prices for {network} -> limiting them to {network_limit:,.0f} "
             )
             database_items = database_items[:network_limit]
+        else:
+            logging.getLogger(__name__).info(
+                f" Found {len(database_items):,.0f} prices to update for {network}"
+            )
 
         different = 0
         with tqdm.tqdm(total=len(database_items)) as progress_bar:

@@ -407,7 +407,9 @@ def create_rewards_static_merkl(
     block: int = 0,
 ):
     if (
-        distributor_creator_address := STATIC_REGISTRY_ADDRESSES.get(chain, {})
+        distributor_creator_address := STATIC_REGISTRY_ADDRESSES.get(
+            chain.database_name, {}
+        )
         .get("angle_merkl", {})
         .get("distributionCreator", None)
     ):
@@ -481,6 +483,40 @@ def create_rewards_static_merkl(
 
                         # save to database
                         yield reward_data
+
+
+def create_rewards_static_gamma(
+    chain: Chain,
+    hypervisors: list[dict],
+    already_processed: list,
+    rewrite: bool = False,
+    block: int = 0,
+):
+    for dex in (
+        [dex]
+        if dex
+        else STATIC_REGISTRY_ADDRESSES.get(chain.database_name, {})
+        .get("MasterChefV2Registry", {})
+        .keys()
+    ):
+        logging.getLogger(__name__).info(
+            f"   creating static {chain.database_name} rewards for {dex}"
+        )
+
+        # create masterchef v2 registry helper
+        masterchef_registry = gamma_masterchef_registry(
+            address=STATIC_REGISTRY_ADDRESSES[chain.database_name][
+                "MasterChefV2Registry"
+            ][dex],
+            network=chain.database_name,
+        )
+
+        # get masterchef addresses from masterchef registry
+        for registry_address in masterchef_registry.get_masterchef_addresses():
+            # create reward registry
+            reward_registry = gamma_masterchef_v1(
+                address=registry_address, network=chain.database_name
+            )
 
 
 # def feed_gamma_masterchef_static(
