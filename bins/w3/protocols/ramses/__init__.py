@@ -1,1 +1,1 @@
-from bins.w3.protocols.ramses import hypervisor, pool
+from bins.w3.protocols.ramses import hypervisor, pool, rewarder
