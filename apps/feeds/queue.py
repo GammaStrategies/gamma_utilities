@@ -460,7 +460,8 @@ def pull_from_queue_price(network: str, queue_item: QueueItem) -> bool:
     local_db = database_local(mongo_url=mongo_url, db_name=f"{network}_gamma")
 
     try:
-        price_helper = price_scraper(cache=False)
+        # TODO: currently, thegraph is disabled bc some prices are super deviated from reality ( to check conversions)
+        price_helper = price_scraper(cache=False, thegraph=False)
 
         price, source = price_helper.get_price(
             network=network, token_id=queue_item.address, block=queue_item.block
