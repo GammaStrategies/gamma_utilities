@@ -192,6 +192,11 @@ def parse_commandLine_args():
         nargs="+",
         help=" Types of queue to process ",
     )
+    par_main.add_argument(
+        "--queue_count",
+        type=int,
+        help=" queue count gte to process ",
+    )
 
     # print helpwhen no command is passed
     return par_main.parse_args(args=None if sys.argv[1:] else ["--help"])

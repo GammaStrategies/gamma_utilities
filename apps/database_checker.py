@@ -1198,7 +1198,7 @@ def repair_queue():
     repair_queue_locked_items()
 
     # try process failed items with count > 10
-    repair_queue_failed_items(count_gte=10)
+    repair_queue_failed_items(count_gte=CONFIGURATION["_custom_"]["cml_parameters"].queue_count or 10)
 
 
 def repair_queue_locked_items():
