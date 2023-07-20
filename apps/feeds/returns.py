@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime, timezone
 import logging
 
@@ -163,6 +164,7 @@ def feed_returns(
             last_item = data
 
 
+@dataclass
 class period_yield_data:
     address: str
     timestamp: int
@@ -171,15 +173,22 @@ class period_yield_data:
     period_blocks_qtty: int
     period_seconds: int
 
-    ini_tvl_usd: float
-    end_tvl_usd: float
+    ini_tvl_token0: float
+    ini_tvl_token1: float
+    # ini_tvl_usd: float
+
+    end_tvl_token0: float
+    end_tvl_token1: float
+    # end_tvl_usd: float
 
     ini_hypervisor_supply: float
     end_hypervisor_supply: float
 
-    period_total_rewards_usd: float
+    period_fees_usd: float  # fees aquired during the period ( LPing ) using uncollected fees
+    period_rewards_usd: float  # rewards aquired during the period
 
-    period_fees_percentage_yield: float
+    period_fees_percentage_yield: float  # collected fees during period / initial tvl
+    period_rewards_percentage_yield: float
 
     token0_price_ini: float
     token0_price_end: float
@@ -189,6 +198,20 @@ class period_yield_data:
     @property
     def period_days(self) -> float:
         return self.period_seconds / (24 * 60 * 60)
+
+    @property
+    def ini_tvl_usd(self) -> float:
+        return (
+            self.ini_tvl_token0 * self.token0_price_ini
+            + self.ini_tvl_token1 * self.token0_price_end
+        )
+
+    @property
+    def end_tvl_usd(self) -> float:
+        return (
+            self.end_tvl_token0 * self.token0_price_end
+            + self.end_tvl_token1 * self.token1_price_end
+        )
 
     def fill_from_rewards_data(self, ini_rewards: list[dict], end_rewards: list[dict]):
         """_summary_
@@ -302,27 +325,19 @@ class period_yield_data:
             )
 
             # initial tvl
-            ini_tvl_token0 = ini_hype["totalAmounts"]["token0"] / (
+            self.ini_tvl_token0 = ini_hype["totalAmounts"]["token0"] / (
                 10 ** ini_hype["pool"]["token0"]["decimals"]
             )
-            ini_tvl_token1 = ini_hype["totalAmounts"]["token1"] / (
+            self.ini_tvl_token1 = ini_hype["totalAmounts"]["token1"] / (
                 10 ** ini_hype["pool"]["token1"]["decimals"]
-            )
-            self.ini_tvl_usd = (
-                ini_tvl_token0 * self.token0_price_ini
-                + ini_tvl_token1 * self.token0_price_end
             )
 
             # end tvl can differ from ini tvl when asset prices or weights change
-            end_tvl_token0 = end_hype["totalAmounts"]["token0"] / (
+            self.end_tvl_token0 = end_hype["totalAmounts"]["token0"] / (
                 10 ** end_hype["pool"]["token0"]["decimals"]
             )
-            end_tvl_token1 = end_hype["totalAmounts"]["token1"] / (
+            self.end_tvl_token1 = end_hype["totalAmounts"]["token1"] / (
                 10 ** end_hype["pool"]["token1"]["decimals"]
-            )
-            self.end_tvl_usd = (
-                end_tvl_token0 * self.token0_price_end
-                + end_tvl_token1 * self.token1_price_end
             )
 
         # calculate the fees uncollected on this period
@@ -336,7 +351,10 @@ class period_yield_data:
             fees_uncollected_token0 * self.token0_price_end
             + fees_uncollected_token1 * self.token1_price_end
         )
+
         # Yield percentage: percentage of total value staked at ini
         self.period_fees_percentage_yield = (
             (fees_uncollected_usd / self.ini_tvl_usd) if self.ini_tvl_usd else 0
         )
+
+        self.period_fees_usd = fees_uncollected_usd
