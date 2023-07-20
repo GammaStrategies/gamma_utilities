@@ -163,8 +163,8 @@ def _create_hypervisor_static_dbObject(
 
 
 def feed_rewards_static(
-    network: str | None = None,
-    dex: str | None = None,
+    network: str,
+    dex: str,
     protocol: str = "gamma",
     rewrite: bool = False,
 ):
