@@ -1499,7 +1499,7 @@ def get_price(
     """get price of token at block
     Will return a tuple with price and source
     """
-    return price_scraper(cache=False).get_price(
+    return price_scraper(cache=False, thegraph=False).get_price(
         network=network, token_id=token_address, block=block
     )
 

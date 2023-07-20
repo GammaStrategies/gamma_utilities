@@ -26,6 +26,7 @@ class onchain_data_helper:
         self.price_helper = price_utilities.price_scraper(
             cache=CONFIGURATION["cache"]["enabled"],
             cache_filename="uniswapv3_price_cache",
+            thegraph=False,
         )
 
     #
