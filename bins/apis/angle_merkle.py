@@ -118,184 +118,77 @@ class angle_merkle_wraper:
 
         Returns:
             dict:
-                {
-                "pools": {
-                    "0x8dB1b906d47dFc1D84A87fc49bd0522e285b98b9": {
-                        "aprs": {
-                            "Average APR (rewards / pool TVL)": 32.42676911929763,
-                            "(ve)Boosted Average APR": 81.06692279824408,
-                            "agEUR APR (rewards for agEUR / agEUR TVL)": 20.983585853035084,
-                            "WETH APR (rewards for WETH / WETH TVL)": 16.983407867098425,
-                            "Average Arrakis APR": 22.975428754383387,
-                            "Average Gamma APR": 21.875379219871817
-                            },
-                        "chainId": 1,
-                        "decimalToken0": 18,
-                        "decimalToken1": 18,
-                        "distributionData": [
-                            {
-                                "amm": 0,
-                                "amount": 423058.39257920283,
-                                "breakdown": {},
-                                "end": 1686182400,
-                                "isBoosted": true,
-                                "isLive": false,
-                                "isMock": false,
-                                "isOutOfRangeIncentivized": false,
-                                "propFees": 40,
-                                "propToken0": 40,
-                                "propToken1": 20,
-                                "start": 1685577600,
-                                "token": "0x31429d1856aD1377A8A0079410B297e1a9e214c2",
-                                "tokenSymbol": "ANGLE",
-                                "unclaimed": 0,
-                                "wrappers": [
-                                    0,
-                                    2
-                                ]
-                            },
-                            {
-                                "amm": 0,
-                                "amount": 419923.2944062928,
-                                "breakdown": {},
-                                "end": 1686787200,
-                                "isBoosted": true,
-                                "isLive": false,
-                                "isMock": false,
-                                "isOutOfRangeIncentivized": false,
-                                "propFees": 40,
-                                "propToken0": 40,
-                                "propToken1": 20,
-                                "start": 1686182400,
-                                "token": "0x31429d1856aD1377A8A0079410B297e1a9e214c2",
-                                "tokenSymbol": "ANGLE",
-                                "unclaimed": 0,
-                                "wrappers": [
-                                    0,
-                                    2
-                                ]
-                            },
-                            {
-                                "amm": 0,
-                                "amount": 246210.2636292404,
-                                "breakdown": {},
-                                "end": 1687392000,
-                                "isBoosted": true,
-                                "isLive": false,
-                                "isMock": false,
-                                "isOutOfRangeIncentivized": false,
-                                "propFees": 40,
-                                "propToken0": 40,
-                                "propToken1": 20,
-                                "start": 1686787200,
-                                "token": "0x31429d1856aD1377A8A0079410B297e1a9e214c2",
-                                "tokenSymbol": "ANGLE",
-                                "unclaimed": 0,
-                                "wrappers": [
-                                    0,
-                                    2
-                                ]
-                            },
-                            {
-                                "amm": 0,
-                                "amount": 243975.27074993515,
-                                "breakdown": {},
-                                "end": 1687996800,
-                                "isBoosted": true,
-                                "isLive": false,
-                                "isMock": false,
-                                "isOutOfRangeIncentivized": false,
-                                "propFees": 40,
-                                "propToken0": 40,
-                                "propToken1": 20,
-                                "start": 1687392000,
-                                "token": "0x31429d1856aD1377A8A0079410B297e1a9e214c2",
-                                "tokenSymbol": "ANGLE",
-                                "unclaimed": 0,
-                                "wrappers": [
-                                    0,
-                                    2
-                                ]
-                            },
-                            {
-                                "amm": 0,
-                                "amount": 336642.11093298777,
-                                "breakdown": {},
-                                "end": 1688601600,
-                                "isBoosted": true,
-                                "isLive": false,
-                                "isMock": false,
-                                "isOutOfRangeIncentivized": false,
-                                "propFees": 40,
-                                "propToken0": 40,
-                                "propToken1": 20,
-                                "start": 1687996800,
-                                "token": "0x31429d1856aD1377A8A0079410B297e1a9e214c2",
-                                "tokenSymbol": "ANGLE",
-                                "unclaimed": 0,
-                                "wrappers": [
-                                    0,
-                                    2
-                                ]
-                            },
-                            {
-                                "amm": 0,
-                                "amount": 330279.17457460955,
-                                "breakdown": {},
-                                "end": 1689206400,
-                                "isBoosted": true,
-                                "isLive": true,
-                                "isMock": false,
-                                "isOutOfRangeIncentivized": false,
-                                "propFees": 40,
-                                "propToken0": 40,
-                                "propToken1": 20,
-                                "start": 1688601600,
-                                "token": "0x31429d1856aD1377A8A0079410B297e1a9e214c2",
-                                "tokenSymbol": "ANGLE",
-                                "unclaimed": 0,
-                                "wrappers": [
-                                    0,
-                                    2
-                                ]
-                            }
-                        ],
-                        "liquidity": 105062.60605084439,
-                        "meanAPR": 81.06692279824408,
-                        "pool": "0x8dB1b906d47dFc1D84A87fc49bd0522e285b98b9",
-                        "poolFee": 0.05,
-                        "rewardsPerToken": {},
-                        "token0": "0x1a7e4e63778B4f12a199C062f3eFdD288afCBce8",
-                        "token0InPool": 921063.6689873504,
-                        "token1": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-                        "token1InPool": 332.25038995374683,
-                        "tokenSymbol0": "agEUR",
-                        "tokenSymbol1": "WETH",
-                        "tvl": 1639073.2879926525,
-                        "userBalances": [
-                            {
-                                "balance0": 0,
-                                "balance1": 0,
-                                "origin": 0,
-                                "tvl": 0
-                            },
-                            {
-                                "balance0": 0,
-                                "balance1": 0,
-                                "origin": 2,
-                                "tvl": 0
-                            },
-                            {
-                                "balance0": 0,
-                                "balance1": 0,
-                                "origin": 2,
-                                "tvl": 0
-                            }
-                        ],
-                        "userTVL": 0,
-                        "userTotalBalance0": 0,
-                        "userTotalBalance1": 0
-                    },
+                0xFf5713FdbAD797b81539b5F9766859d4E050a6CC
+                    almDetails
+                        0	{…}
+                        1	{…}
+                        2	{…}
+                        3
+                            address	"0x54110794464cda7c7cc30bfe047ebe4038874812"
+                            almLiquidity	0.010626968917940165
+                            label	"Gamma 0x54110794464cda7c7cc30bfe047ebe4038874812"
+                            origin	2
+                            poolBalance0	0.15697740535490154
+                            poolBalance1	0.000061113368809844
+                    aprs
+                        Average APR (rewards / pool TVL)	121.04090552200174
+                        SUSHI APR (rewards for SUSHI / SUSHI TVL)	33.45404519112058
+                        WETH APR (rewards for WETH / WETH TVL)	87.59176828314386
+                        Steer 0xaebbf70504c4d07be4a28cb37e6a1c9401ef00f9	68.57504966218352
+                        Gamma 0x566bfd3ad5f6ac8445411dcae5730253d9fede51	54.781002605135
+                        Gamma 0xa52ecc4ed16f97c71071a3bd14309e846647d7f0	66.59123309007497
+                        Gamma 0x54110794464cda7c7cc30bfe047ebe4038874812	63.29434958057311
+                    chainId	137
+                    decimalToken0	18
+                    decimalToken1	18
+                    distributionData
+                    0
+                        amm	1
+                        amount	97
+                        breakdown	{}
+                        end	1685534400
+                        id	"0xb3fc2abc303c70a16ab9d5…7a3d971b024dd34b97e94b1"
+                        isBoosted	false
+                        isLive	false
+                        isMock	false
+                        isOutOfRangeIncentivized	false
+                        propFees	10
+                        propToken0	45
+                        propToken1	45
+                        start	1684324800
+                        token	"0x0b3F868E0BE5597D5DB7fEB59E1CADBb0fdDa50a"
+                        tokenSymbol	"SUSHI"
+                        unclaimed	0
+                        wrappers
+                            0	2
+                            1	2
+                            2	2
+                            3	6
+                    1	{…}
+                    2	{…}
+                    3	{…}
+                    4	{…}
+                    5	{…}
+                    6	{…}
+                    7	{…}
+                    8	{…}
+                    9	{…}
+                    10	{…}
+                    liquidity	27571.184748392985
+                    meanAPR	121.04090552200174
+                    pool	"0xFf5713FdbAD797b81539b5F9766859d4E050a6CC"
+                    poolFee	0.3
+                    rewardsPerToken	{}
+                    token0	"0x0b3F868E0BE5597D5DB7fEB59E1CADBb0fdDa50a"
+                    token0InPool	13150.447872776927
+                    token1	"0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619"
+                    token1InPool	1.7861113069716428
+                    tokenSymbol0	"SUSHI"
+                    tokenSymbol1	"WETH"
+                    tvl	12963.594190903937
+                    userTVL	0
+                    userTotalBalance0	0
+                    userTotalBalance1	0
         """
 
         url = f"https://api.angle.money/v1/merkl?chainId={chain.id}"

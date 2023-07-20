@@ -311,7 +311,20 @@ def feed_rewards_status(network: str | None = None, protocol: str = "gamma"):
             progress_bar.update(1)
 
 
-def feed_rewards_status_loop(network: str, rewarder_static: dict) -> list[dict]:
+def feed_rewards_status_loop(
+    network: str, rewarder_static: dict, rewrite: bool = False
+) -> list[dict]:
+    """
+        feed rewards status for a specific rewarder
+
+    Args:
+        network (str):
+        rewarder_static (dict):
+        rewrite (bool, optional): rewrite all status. Defaults to False.
+
+    Returns:
+        list[dict]: list of rewards status
+    """
     # set local database name and create manager
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     db_name = f"{network}_gamma"  # TODO: change hardcoded db name to be dynamic
@@ -319,15 +332,19 @@ def feed_rewards_status_loop(network: str, rewarder_static: dict) -> list[dict]:
     batch_size = 50000
 
     # already processed blocks for this hype rewarder combination
-    processed_blocks = database_local(
-        mongo_url=mongo_url, db_name=db_name
-    ).get_distinct_items_from_database(
-        collection_name="rewards_status",
-        field="block",
-        condition={
-            "hypervisor_address": rewarder_static["hypervisor_address"],
-            "rewarder_address": rewarder_static["rewarder_address"],
-        },
+    processed_blocks = (
+        database_local(
+            mongo_url=mongo_url, db_name=db_name
+        ).get_distinct_items_from_database(
+            collection_name="rewards_status",
+            field="block",
+            condition={
+                "hypervisor_address": rewarder_static["hypervisor_address"],
+                "rewarder_address": rewarder_static["rewarder_address"],
+            },
+        )
+        if not rewrite
+        else []
     )
 
     # to be processed as per the hypervisor status
@@ -345,12 +362,13 @@ def feed_rewards_status_loop(network: str, rewarder_static: dict) -> list[dict]:
         batch_size=batch_size,
     )
 
-    # get the last 20 hype status to process
-    if len(to_process_hypervisor_status) > 20:
+    # limit the umber of status to process
+    max_items = 20
+    if len(to_process_hypervisor_status) > max_items:
         logging.getLogger(__name__).debug(
-            f"  Found {len(to_process_hypervisor_status)} status blocks to be scraped  but only the last 20 will be processed << TODO: change this >>"
+            f"  Found {len(to_process_hypervisor_status)} status blocks to be scraped but only the last {max_items} will be processed"
         )
-        to_process_hypervisor_status = to_process_hypervisor_status[-20:]
+        to_process_hypervisor_status = to_process_hypervisor_status[-max_items:]
 
     result = []
     # process
@@ -729,7 +747,28 @@ def create_rewards_status_angle_merkle(
         if (
             distribution_data["rewardId"].lower()
             == rewarder_static["rewarder_address"].lower()
-        ):
+        ) or len(distributions) == 1:
+            # warn on distributions len=1
+            if (
+                distribution_data["rewardId"].lower()
+                != rewarder_static["rewarder_address"].lower()
+                and len(distributions) == 1
+            ):
+                # check if rewards are active
+                end_timestamp = distribution_data["epochStart"] + (
+                    distribution_data["numEpoch"] * _epoch_duration
+                )
+                if hypervisor_status["timestamp"] <= end_timestamp:
+                    logging.getLogger(__name__).warning(
+                        f" Only one active distribution found for hype {rewarder_static['hypervisor_address']} at block {hypervisor_status['block']} [timestamp {hypervisor_status['timestamp']}] and does not match rewarder id but will use it anyway"
+                    )
+                else:
+                    # this should be discarded as it is not active
+                    logging.getLogger(__name__).error(
+                        f" Rewarder for hype {rewarder_static['hypervisor_address']} at block {hypervisor_status['block']} [timestamp {hypervisor_status['timestamp']}] ended on {end_timestamp} and does not match rewarder id. Not processing this rewarder."
+                    )
+                    continue
+
             # get pool TVL ( and all other info )
             try:
                 # check tokenX == hype tokenX
@@ -831,7 +870,7 @@ def create_rewards_status_angle_merkle(
                     f" Merkle Rewards-> {network}'s {rewarder_static['rewardToken']} price at block {hypervisor_status['block']} could not be calculated. Error: {e}"
                 )
                 logging.getLogger(__name__).debug(
-                    f" Merkle Rewards last err debug data -> rewarder_static {rewarder_static}           hype status {hypervisor_status}"
+                    f" Merkle Rewards last err debug data -> rewarder_static {rewarder_static}           hype status {distributions}"
                 )
                 # make sure we return an empty list
                 return []
@@ -844,21 +883,6 @@ def create_rewards_status_angle_merkle(
     if not result:
         logging.getLogger(__name__).debug(
             f" Merkle Rewards-> {network}'s {rewarder_static['rewardToken']} has no rewards at block {hypervisor_status['block']}"
-        )
-
-    if (
-        hypervisor_status["address"] == "0x6c60106a7cb319ac13ac7d87d1d972213a731fb2"
-        and hypervisor_status["block"] == 104245606
-        and result
-    ):
-        logging.getLogger(__name__).debug(
-            f"-------------------------------------------------"
-        )
-        for item in result:
-            logging.getLogger(__name__).debug(f" {item} ")
-
-        logging.getLogger(__name__).debug(
-            f"-------------------------------------------------"
         )
 
     return result
