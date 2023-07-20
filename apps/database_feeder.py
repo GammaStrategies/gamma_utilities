@@ -655,7 +655,10 @@ def main(option="operations"):
                 feed_all_prices(network=network)
 
             elif option == "rewards":
-                feed_rewards_static(protocol=protocol, network=network)
+                for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][
+                    network
+                ]:
+                    feed_rewards_static(protocol=protocol, network=network, dex=dex)
 
             elif option == "queue":
                 pull_from_queue(network=network)
