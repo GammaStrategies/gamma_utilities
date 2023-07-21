@@ -918,6 +918,7 @@ def repair_missing_hypervisor_status(
         # get all operations blocks with the topic=["deposit", "withdraw", "zeroBurn", "rebalance"]
         operation_blocks = []
 
+        # add all topic blocks and block-1
         for operation in database_local(
             mongo_url=mongo_url, db_name=db_name
         ).get_items_from_database(
@@ -931,6 +932,20 @@ def repair_missing_hypervisor_status(
         ):
             operation_blocks.append(int(operation["blockNumber"]))
             operation_blocks.append(int(operation["blockNumber"]) - 1)
+
+        # add transfer opertçation blocks
+        for operation in database_local(
+            mongo_url=mongo_url, db_name=db_name
+        ).get_items_from_database(
+            collection_name="operations",
+            find={
+                "address": hype["address"],
+                "topic": {"$in": ["transfer"]},
+            },
+            batch_size=batch_size,
+            sort=[("blockNumber", 1)],
+        ):
+            operation_blocks.append(int(operation["blockNumber"]))
 
         # get differences
         if difference_blocks := differences(operation_blocks, hype_status_blocks):
@@ -1198,7 +1213,9 @@ def repair_queue():
     repair_queue_locked_items()
 
     # try process failed items with count > 10
-    repair_queue_failed_items(count_gte=CONFIGURATION["_custom_"]["cml_parameters"].queue_count or 10)
+    repair_queue_failed_items(
+        count_gte=CONFIGURATION["_custom_"]["cml_parameters"].queue_count or 10
+    )
 
 
 def repair_queue_locked_items():
