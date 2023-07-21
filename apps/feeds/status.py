@@ -738,38 +738,15 @@ def create_rewards_status_angle_merkle(
     # save for later use
     _epoch_duration = distributor_creator.EPOCH_DURATION
 
-    # get raw distribution data from merkle
+    # get active distribution data from merkle
     distributions = distributor_creator.getActivePoolDistributions(
         address=hypervisor_status["pool"]["address"]
     )
     for distribution_data in distributions:
-        # rewarder address is the id for this merkle reward-> find it
-        if (
-            distribution_data["rewardId"].lower()
-            == rewarder_static["rewarder_address"].lower()
-        ) or len(distributions) == 1:
-            # warn on distributions len=1
-            if (
-                distribution_data["rewardId"].lower()
-                != rewarder_static["rewarder_address"].lower()
-                and len(distributions) == 1
-            ):
-                # check if rewards are active
-                end_timestamp = distribution_data["epochStart"] + (
-                    distribution_data["numEpoch"] * _epoch_duration
-                )
-                if hypervisor_status["timestamp"] <= end_timestamp:
-                    logging.getLogger(__name__).warning(
-                        f" Only one active distribution found for hype {rewarder_static['hypervisor_address']} at block {hypervisor_status['block']} [timestamp {hypervisor_status['timestamp']}] and does not match rewarder id but will use it anyway"
-                    )
-                else:
-                    # this should be discarded as it is not active
-                    logging.getLogger(__name__).error(
-                        f" Rewarder for hype {rewarder_static['hypervisor_address']} at block {hypervisor_status['block']} [timestamp {hypervisor_status['timestamp']}] ended on {end_timestamp} and does not match rewarder id. Not processing this rewarder."
-                    )
-                    continue
-
-            # get pool TVL ( and all other info )
+        # check if reward token is valid
+        if distributor_creator.isValid_reward_token(
+            reward_address=distribution_data["token"].lower()
+        ):
             try:
                 # check tokenX == hype tokenX
                 if (
@@ -806,8 +783,18 @@ def create_rewards_status_angle_merkle(
                     int(hypervisor_status["totalSupply"])
                     / (10 ** hypervisor_status["decimals"])
                 ) * hype_price_per_share
+                hypervisor_liquidity = int(
+                    hypervisor_status["basePosition"]["liquidity"]
+                ) + int(hypervisor_status["limitPosition"]["liquidity"])
+                hypervisor_total0 = int(hypervisor_status["totalAmounts"]["total0"]) / (
+                    10 ** hypervisor_status["pool"]["token0"]["decimals"]
+                )
+                hypervisor_total1 = int(hypervisor_status["totalAmounts"]["total1"]) / (
+                    10 ** hypervisor_status["pool"]["token1"]["decimals"]
+                )
 
                 # pool data
+                pool_liquidity = int(hypervisor_status["pool"]["liquidity"])
                 pool_total0 = int(distribution_data["token0_balance_in_pool"]) / (
                     10 ** int(distribution_data["token0_decimals"])
                 )
@@ -816,27 +803,58 @@ def create_rewards_status_angle_merkle(
                 )
                 pool_tvl_usd = pool_total0 * token0_price + pool_total1 * token1_price
 
-                #  Gamma's pool proportion
-                gamma_pool_proportion = (
-                    (hype_tvl_usd / pool_tvl_usd) if pool_tvl_usd else 0
-                )
-
                 # multiple reward information
                 calculations = distributor_creator.get_reward_calculations(
                     distribution=distribution_data, _epoch_duration=_epoch_duration
                 )
 
-                general_APR = (
-                    (
-                        (calculations["reward_yearly_decimal"] * rewardToken_price)
-                        / pool_tvl_usd
-                    )
-                    if pool_tvl_usd
-                    else 0
+                # reward x year decimal
+                reward_x_year_decimal_propFees = (
+                    calculations["reward_yearly_fees_decimal"]
+                ) * (hypervisor_liquidity / pool_liquidity)
+                reward_x_year_decimal_propToken0 = (
+                    calculations["reward_yearly_token0_decimal"]
+                ) * (hypervisor_total0 / pool_total0)
+                reward_x_year_decimal_propToken1 = (
+                    calculations["reward_yearly_token1_decimal"]
+                ) * (hypervisor_total1 / pool_total1)
+
+                # reward x second
+                reward_x_second_propFees = (
+                    calculations["reward_x_second"]
+                    * (distribution_data["propFees"] / 10000)
+                ) * (hypervisor_liquidity / pool_liquidity)
+                reward_x_second_propToken0 = (
+                    calculations["reward_x_second"]
+                    * (distribution_data["propToken0"] / 10000)
+                ) * (hypervisor_total0 / pool_total0)
+                reward_x_second_propToken1 = (
+                    calculations["reward_x_second"]
+                    * (distribution_data["propToken1"] / 10000)
+                ) * (hypervisor_total1 / pool_total1)
+
+                total_yearly_rewards = (
+                    reward_x_year_decimal_propFees
+                    + reward_x_year_decimal_propToken0
+                    + reward_x_year_decimal_propToken1
                 )
 
-                # TODO: calculate specific xact APR for Gamma we need the pool's fees collected vs Gamma's fees collected.
-                # we have token0 and 1 proportion vs pool but not pool fees collected.
+                fee_APR = (
+                    reward_x_year_decimal_propFees * rewardToken_price
+                ) / hype_tvl_usd
+                token0_APR = (
+                    reward_x_year_decimal_propToken0 * rewardToken_price
+                ) / hype_tvl_usd
+                token1_APR = (
+                    reward_x_year_decimal_propToken1 * rewardToken_price
+                ) / hype_tvl_usd
+
+                hype_APR = fee_APR + token0_APR + token1_APR
+                reward_x_second = int(
+                    reward_x_second_propToken1
+                    + reward_x_second_propToken0
+                    + reward_x_second_propFees
+                )
 
                 # build reward base data
                 reward_data = distributor_creator.construct_reward_data(
@@ -847,16 +865,12 @@ def create_rewards_status_angle_merkle(
                     convert_bint=True,
                 )
 
-                # modify rewardsPerSecond proportionally to gamma's position ( gamma vs total tvl)
-                # will never be accurate at 100%
-                reward_data["rewards_perSecond"] = str(
-                    int(calculations["reward_x_second"] * gamma_pool_proportion)
-                )
+                reward_data["rewards_perSecond"] = str(reward_x_second)
 
                 # add status fields ( APR )
                 reward_data["hypervisor_symbol"] = hypervisor_status["symbol"]
                 reward_data["dex"] = hypervisor_status["dex"]
-                reward_data["apr"] = general_APR
+                reward_data["apr"] = hype_APR
                 reward_data["rewardToken_price_usd"] = rewardToken_price
                 reward_data["token0_price_usd"] = token0_price
                 reward_data["token1_price_usd"] = token1_price

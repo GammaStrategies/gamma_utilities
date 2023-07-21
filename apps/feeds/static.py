@@ -402,7 +402,7 @@ def create_rewards_static_thena(
 def create_rewards_static_merkl(
     chain: Chain,
     hypervisors: list[dict],
-    already_processed: list,
+    already_processed: list[str],
     rewrite: bool = False,
     block: int = 0,
 ):

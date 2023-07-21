@@ -823,9 +823,11 @@ class angle_merkle_distributor_creator(gamma_rewarder):
         # is live? -> (distributionEpochStart + distribution.numEpoch * EPOCH_DURATION > roundedEpochStart &&  distributionEpochStart < roundedEpochEnd)
 
         if hypervisors_pools:
-            for hypervisor, pool in hypervisors_pools:
+            for hypervisor, pool_address in hypervisors_pools:
                 # get data
-                for reward_data in self.getActivePoolDistributions(pool):
+                for reward_data in self.getActivePoolDistributions(
+                    address=pool_address
+                ):
                     if not self.isValid_reward_token(reward_data["token"].lower()):
                         continue
 
