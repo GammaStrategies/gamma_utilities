@@ -1127,7 +1127,7 @@ class database_local(db_collections_common):
         ]
 
     # user operations
-    def set_user_operation(self, data: dict):
+    def set_user_operation(self, data: dict) -> UpdateResult:
         """
 
         Args:
@@ -1139,7 +1139,9 @@ class database_local(db_collections_common):
         ] = f"{data['user_address']}_{data['block']}_{data['logIndex']}_{data['hypervisor_address']}"
 
         # convert decimal to bson compatible and save
-        self.replace_item_to_database(data=data, collection_name="user_operations")
+        return self.replace_item_to_database(
+            data=data, collection_name="user_operations"
+        )
 
     def set_user_operations_bulk(self, data: list[dict]):
         """Bulk insert user operations
