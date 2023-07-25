@@ -1,11 +1,13 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from decimal import Decimal
 import logging
 
 from bins.configuration import CONFIGURATION
 from bins.database.common.db_collections_common import database_local
 from bins.database.helpers import get_price_from_db
-from bins.general.enums import Period
+
+# from bins.general.enums import Period
 
 
 # calculate APR for ---> periods stablished by operations
@@ -166,51 +168,102 @@ def feed_returns(
 
 @dataclass
 class period_yield_data:
-    address: str
-    timestamp: int
-    block: int
+    address: str = None
 
-    period_blocks_qtty: int
-    period_seconds: int
+    ini_timestamp: int = None
+    end_timestamp: int = None
 
-    ini_tvl_token0: float
-    ini_tvl_token1: float
-    # ini_tvl_usd: float
+    ini_block: int = None
+    end_block: int = None
 
-    end_tvl_token0: float
-    end_tvl_token1: float
-    # end_tvl_usd: float
+    period_blocks_qtty: int = None
+    period_seconds: int = None
 
-    ini_hypervisor_supply: float
-    end_hypervisor_supply: float
+    ini_underlying_token0: float = None
+    ini_underlying_token1: float = None
 
-    period_fees_usd: float  # fees aquired during the period ( LPing ) using uncollected fees
-    period_rewards_usd: float  # rewards aquired during the period
+    end_underlying_token0: float = None
+    end_underlying_token1: float = None
 
-    period_fees_percentage_yield: float  # collected fees during period / initial tvl
-    period_rewards_percentage_yield: float
+    ini_hypervisor_supply: float = None
+    end_hypervisor_supply: float = None
 
-    token0_price_ini: float
-    token0_price_end: float
-    token1_price_ini: float
-    token1_price_end: float
+    period_fees_token0: float = None  # fees growth
+    period_fees_token1: float = None
+
+    period_rewards_usd: float = None  # rewards aquired during the period
+
+    period_fees_percentage_yield: float = (
+        None  # collected fees during period / initial tvl
+    )
+    period_rewards_percentage_yield: float = None
+
+    token0_price_ini: float = None
+    token0_price_end: float = None
+    token1_price_ini: float = None
+    token1_price_end: float = None
+
+    @property
+    def period_blocks_qtty(self) -> int:
+        return self.end_block - self.ini_block
+
+    @property
+    def period_seconds(self) -> int:
+        return self.end_timestamp - self.ini_timestamp
 
     @property
     def period_days(self) -> float:
         return self.period_seconds / (24 * 60 * 60)
 
     @property
-    def ini_tvl_usd(self) -> float:
+    def ini_underlying_usd(self) -> float:
         return (
-            self.ini_tvl_token0 * self.token0_price_ini
-            + self.ini_tvl_token1 * self.token0_price_end
+            self.ini_underlying_token0 * self.token0_price_ini
+            + self.ini_underlying_token1 * self.token0_price_end
         )
 
     @property
-    def end_tvl_usd(self) -> float:
+    def end_underlying_usd(self) -> float:
         return (
-            self.end_tvl_token0 * self.token0_price_end
-            + self.end_tvl_token1 * self.token1_price_end
+            self.end_underlying_token0 * self.token0_price_end
+            + self.end_underlying_token1 * self.token1_price_end
+        )
+
+    @property
+    def period_fees_usd(self) -> float:
+        """fees aquired during the period ( LPing ) using uncollected fees
+            (using end prices)
+
+        Returns:
+            float:
+        """
+        return (
+            self.period_fees_token0 * self.token0_price_end
+            + self.period_fees_token1 * self.token1_price_end
+        )
+
+    @property
+    def period_impermanent_usd(self) -> float:
+        """Impermanent divergence represents the value change in market prices and pool token weights
+
+        Returns:
+            float:
+        """
+        return self.end_underlying_usd - (
+            self.ini_underlying_usd + self.period_fees_usd
+        )
+
+    @property
+    def period_impermanent_percentage_yield(self) -> float:
+        """Impermanent divergence represents the value change in market prices and pool token weights
+
+        Returns:
+            float: _description_
+        """
+        return (
+            self.period_impermanent_usd / self.ini_underlying_usd
+            if self.ini_underlying_usd
+            else 0
         )
 
     def fill_from_rewards_data(self, ini_rewards: list[dict], end_rewards: list[dict]):
@@ -287,6 +340,31 @@ class period_yield_data:
     def fill_from_hypervisors_data(
         self, ini_hype: dict, end_hype: dict, network: str | None = None
     ):
+        # fill basics
+        if not self.address:
+            self.address = end_hype["address"]
+        if not self.ini_timestamp:
+            self.ini_timestamp = ini_hype["timestamp"]
+        if not self.end_timestamp:
+            self.end_timestamp = end_hype["timestamp"]
+        if not self.ini_block:
+            self.ini_block = ini_hype["block"]
+        if not self.end_block:
+            self.end_block = end_hype["block"]
+
+        # supply
+        self.ini_hypervisor_supply = Decimal(ini_hype["totalSupply"]) / (
+            10 ** ini_hype["decimals"]
+        )
+        self.end_hypervisor_supply = Decimal(end_hype["totalSupply"]) / (
+            10 ** end_hype["decimals"]
+        )
+        # check if supply at ini and end is the same
+        if self.ini_hypervisor_supply != self.end_hypervisor_supply:
+            raise ValueError(
+                f" Hypervisor supply at ini and end is different. Ini: {self.ini_hypervisor_supply} End: {self.end_hypervisor_supply} for hypervisor {self.address} end block {self.block}"
+            )
+
         if not network and (
             not self.token0_price_ini
             or not self.token1_price_ini
@@ -298,63 +376,88 @@ class period_yield_data:
             )
         elif network and not self.token0_price_ini:
             # get token prices at ini and end blocks from database
-            self.token0_price_ini = get_price_from_db(
-                network=network,
-                block=ini_hype["block"],
-                token=ini_hype["pool"]["token0"]["address"],
+            self.token0_price_ini = Decimal(
+                str(
+                    get_price_from_db(
+                        network=network,
+                        block=ini_hype["block"],
+                        token_address=ini_hype["pool"]["token0"]["address"],
+                    )
+                )
             )
 
-            self.token0_price_end = (
-                get_price_from_db(
-                    network=network,
-                    block=end_hype["block"],
-                    token=end_hype["pool"]["token0"]["address"],
-                ),
+            self.token0_price_end = Decimal(
+                str(
+                    get_price_from_db(
+                        network=network,
+                        block=end_hype["block"],
+                        token_address=end_hype["pool"]["token0"]["address"],
+                    )
+                )
             )
 
-            self.token1_price_ini = get_price_from_db(
-                network=network,
-                block=ini_hype["block"],
-                token=ini_hype["pool"]["token1"]["address"],
+            self.token1_price_ini = Decimal(
+                str(
+                    get_price_from_db(
+                        network=network,
+                        block=ini_hype["block"],
+                        token_address=ini_hype["pool"]["token1"]["address"],
+                    )
+                )
             )
 
-            self.token1_price_end = get_price_from_db(
-                network=network,
-                block=end_hype["block"],
-                token=end_hype["pool"]["token1"]["address"],
+            self.token1_price_end = Decimal(
+                str(
+                    get_price_from_db(
+                        network=network,
+                        block=end_hype["block"],
+                        token_address=end_hype["pool"]["token1"]["address"],
+                    )
+                )
             )
 
-            # initial tvl
-            self.ini_tvl_token0 = ini_hype["totalAmounts"]["token0"] / (
-                10 ** ini_hype["pool"]["token0"]["decimals"]
-            )
-            self.ini_tvl_token1 = ini_hype["totalAmounts"]["token1"] / (
-                10 ** ini_hype["pool"]["token1"]["decimals"]
-            )
+            # calculate this period's fee growth
+            self.period_fees_token0 = (
+                Decimal(end_hype["fees_uncollected"]["qtty_token0"])
+                - Decimal(ini_hype["fees_uncollected"]["qtty_token0"])
+            ) / (10 ** ini_hype["pool"]["token0"]["decimals"])
+            self.period_fees_token1 = (
+                Decimal(end_hype["fees_uncollected"]["qtty_token1"])
+                - Decimal(ini_hype["fees_uncollected"]["qtty_token1"])
+            ) / (10 ** ini_hype["pool"]["token1"]["decimals"])
 
-            # end tvl can differ from ini tvl when asset prices or weights change
-            self.end_tvl_token0 = end_hype["totalAmounts"]["token0"] / (
-                10 ** end_hype["pool"]["token0"]["decimals"]
-            )
-            self.end_tvl_token1 = end_hype["totalAmounts"]["token1"] / (
-                10 ** end_hype["pool"]["token1"]["decimals"]
-            )
+            # check for positive fee growth
+            if self.period_fees_token0 < 0 or self.period_fees_token1 < 0:
+                raise ValueError(
+                    f" Fees growth can't be negative and they are [0:{self.period_fees_token0} 1:{self.period_fees_token1}] for hypervisor {self.address} end block {self.block}"
+                )
 
-        # calculate the fees uncollected on this period
-        fees_uncollected_token0 = int(
-            end_hype["fees_uncollected"]["qtty_token0"]
-        ) - int(ini_hype["fees_uncollected"]["qtty_token0"])
-        fees_uncollected_token1 = int(
-            end_hype["fees_uncollected"]["qtty_token1"]
-        ) - int(ini_hype["fees_uncollected"]["qtty_token1"])
-        fees_uncollected_usd = (
-            fees_uncollected_token0 * self.token0_price_end
-            + fees_uncollected_token1 * self.token1_price_end
-        )
+            # initial underlying ( including fees uncollected )
+            self.ini_underlying_token0 = (
+                Decimal(ini_hype["totalAmounts"]["total0"])
+                + Decimal(ini_hype["fees_uncollected"]["qtty_token0"])
+            ) / (10 ** ini_hype["pool"]["token0"]["decimals"])
+            self.ini_underlying_token1 = (
+                Decimal(ini_hype["totalAmounts"]["total1"])
+                + Decimal(ini_hype["fees_uncollected"]["qtty_token1"])
+            ) / (10 ** ini_hype["pool"]["token1"]["decimals"])
+
+            # end underlying can differ from ini tvl when asset prices or weights change
+            self.end_underlying_token0 = (
+                Decimal(end_hype["totalAmounts"]["total0"])
+                + Decimal(end_hype["fees_uncollected"]["qtty_token0"])
+            ) / (10 ** end_hype["pool"]["token0"]["decimals"])
+            self.end_underlying_token1 = (
+                Decimal(end_hype["totalAmounts"]["total1"])
+                + Decimal(end_hype["fees_uncollected"]["qtty_token1"])
+            ) / (10 ** end_hype["pool"]["token1"]["decimals"])
 
         # Yield percentage: percentage of total value staked at ini
         self.period_fees_percentage_yield = (
-            (fees_uncollected_usd / self.ini_tvl_usd) if self.ini_tvl_usd else 0
+            (self.period_fees_usd / self.ini_underlying_usd)
+            if self.ini_underlying_usd
+            else 0
         )
 
-        self.period_fees_usd = fees_uncollected_usd
+    def to_dict(self) -> dict:
+        pass

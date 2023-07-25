@@ -429,7 +429,7 @@ def request_data_limited(url, timeout):
                 )
             else:
                 logging.getLogger(__name__).warning(
-                    f"no data returned by geckoterminal -> {data}. retrying in 1 sec..."
+                    f"no data returned by geckoterminal {url} -> {data}. retrying in 1 sec..."
                 )
             time.sleep(1)
     return None
