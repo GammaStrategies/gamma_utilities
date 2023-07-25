@@ -460,6 +460,16 @@ def build_protocol_pool(
                 address=pool_address, network=chain.database_name, block=block
             )
         )
+    elif protocol == Protocol.RAMSES:
+        return (
+            protocols.ramses.pool.pool(
+                address=pool_address, network=chain.database_name, block=block
+            )
+            if not cached
+            else protocols.ramses.pool.pool_cached(
+                address=pool_address, network=chain.database_name, block=block
+            )
+        )
     else:
         raise NotImplementedError(f"Protocol {protocol} not implemented")
 

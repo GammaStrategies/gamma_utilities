@@ -1,5 +1,43 @@
 from web3 import Web3
+from bins.general.enums import rewarderType
 from bins.w3.protocols.general import web3wrap
+
+
+# [position_token0_amount, position_token1_amount] = token_amounts_from_current_price(pool['sqrtPrice'], range_delta, pool['liquidity'])
+
+#  position_usd = (position_token0_amount * token0['price'] / 10**token0['decimals']) + (position_token1_amount * token1['price'] / 10**token1['decimals'])
+
+#  pool['lpApr'] = (totalUSD * 36500 / (position_usd if position_usd > 0 else 1)) + (pool['feeApr'] if pool['feeApr'] < 300 else 0)
+
+# current pool token amounts arround current price ( +-% deviation)
+
+# week = 7 * 24 * 60 * 60
+# now = datetime.datetime.now().timestamp()
+# current_period = int(now // week * week + week)
+
+# Ramses fee_distribution: --  https://github.com/RamsesExchange/Ramses-API/blob/master/cl/constants/feeDistribution.json
+#   20% fees to LPs
+#   80% fees to veRAM and treasury
+# The current ratios upon newly made pools are:
+# - 20% LPers
+# - 5% Ecosystem Incentives fund.
+# - 75% veRAM
+
+# Competitive Rewarding Logic
+# The CL Gauges determine rewards based on several factors:
+# Tick Delta (Δ) [Upper - Lower] of the user's position
+# Position size
+# Position Utilization: In Range? [True or False]
+
+# get gamma range lowtick uppertick and find out how many liquidity exist on that range ( token0 , token1) and then in usd
+#
+# gauge rewardRate per rewardToken ( reward rate reported by gauge contracts are already normalized to total unboosted liquidity)
+#  rewardRate_decimal =  rewardRate * 60 * 60 * 24 / 10**token decimals
+#  rewardsRate usd = rewardRate_decimals * token price
+#
+#  rewardsRate_usd a year / total liquidity in gamma range usd = APY
+#
+#
 
 
 # gauge
@@ -153,3 +191,90 @@ class gauge(web3wrap):
     def voter(self) -> str:
         """ """
         return self.call_function_autoRpc("voter")
+
+    # get all rewards
+    def get_rewards(
+        self,
+        convert_bint: bool = False,
+    ) -> list[dict]:
+        """Get hypervisor rewards data
+            Be aware that some fields are to be filled outside this func
+        Args:
+            hypervisor_address (str): lower case hypervisor address.
+            convert_bint (bool, optional): Convert big integers to string. Defaults to False.
+        Returns:
+            list[dict]: network: str
+                        block: int
+                        timestamp: int
+                                hypervisor_address: str = None
+                        rewarder_address: str
+                        rewarder_type: str
+                        rewarder_refIds: list[str]
+                        rewardToken: str
+                                rewardToken_symbol: str = None
+                                rewardToken_decimals: int = None
+                        rewards_perSecond: int
+                                total_hypervisorToken_qtty: int = None
+        """
+        result = []
+        for reward_token in self.getRewardTokens:
+            # get reward rate
+            RewardsPerSec = self.rewardRate(reward_token)
+
+            result.append(
+                {
+                    # "network": self._network,
+                    "block": self.block,
+                    "timestamp": self._timestamp,
+                    "hypervisor_address": None,
+                    "rewarder_address": self.address.lower(),
+                    "rewarder_type": rewarderType.RAMSES_v2,
+                    "rewarder_refIds": [],
+                    "rewarder_registry": self.gaugeFactory.lower(),
+                    "rewardToken": reward_token.lower(),
+                    "rewardToken_symbol": None,
+                    "rewardToken_decimals": None,
+                    "rewards_perSecond": str(RewardsPerSec)
+                    if convert_bint
+                    else RewardsPerSec,
+                    "total_hypervisorToken_qtty": None,
+                }
+            )
+
+        return result
+
+
+# MultiFeeDistribution (hypervisor receiver )
+# https://github.com/curvefi/multi-rewards
+class multiFeeDistribution(web3wrap):
+    # https://arbiscan.io/address/0xdfc86bf44dccc9529319e4fbc9579781c9345e18#readProxyContract
+    def __init__(
+        self,
+        address: str,
+        network: str,
+        abi_filename: str = "",
+        abi_path: str = "",
+        block: int = 0,
+        timestamp: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
+    ):
+        self._abi_filename = abi_filename or "multiFeeDistribution"
+        self._abi_path = abi_path or "data/abi/ramses"
+
+        super().__init__(
+            address=address,
+            network=network,
+            abi_filename=self._abi_filename,
+            abi_path=self._abi_path,
+            block=block,
+            timestamp=timestamp,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
+        )
+
+    # TODO: get all rewards
+
+
+# TODO: gaugeFactory
+#   getGauge(pool address)

@@ -10,15 +10,18 @@ from bins.configuration import CONFIGURATION
 from bins.database.common.db_collections_common import database_global, database_local
 from bins.database.helpers import get_price_from_db
 from bins.formulas.apr import calculate_rewards_apr
-from bins.general.enums import Chain, Protocol, rewarderType
+from bins.general.enums import Chain, Protocol, rewarderType, text_to_chain
 from bins.w3.protocols.angle.rewarder import angle_merkle_distributor_creator
 from bins.w3.protocols.beamswap.rewarder import beamswap_masterchef_v2
 
 from bins.w3.protocols.thena.rewarder import thena_gauge_v2
 from bins.w3.protocols.zyberswap.rewarder import zyberswap_masterchef_v1
 
+from bins.w3.protocols.ramses.hypervisor import gamma_hypervisor as ramses_hypervisor
+
 from bins.w3.builders import (
     build_db_hypervisor,
+    build_erc20_helper,
 )
 from bins.w3.protocols.general import erc20_cached
 
@@ -465,6 +468,15 @@ def create_reward_status_from_hype_status(
                 hypervisor_status=hypervisor_status,
             )
 
+        elif rewarder_static["rewarder_type"] in [
+            rewarderType.RAMSES_v2,
+        ]:
+            rewards_data = create_rewards_status_ramses(
+                chain=text_to_chain(network),
+                rewarder_static=rewarder_static,
+                hypervisor_status=hypervisor_status,
+            )
+
     except Exception as e:
         logging.getLogger(__name__).exception(
             f" Unexpected error constructing {network}'s {rewarder_static['rewarder_address']} rewarder data. error-> {e}"
@@ -897,6 +909,56 @@ def create_rewards_status_angle_merkle(
     if not result:
         logging.getLogger(__name__).debug(
             f" Merkle Rewards-> {network}'s {rewarder_static['rewardToken']} has no rewards at block {hypervisor_status['block']}"
+        )
+
+    return result
+
+
+def create_rewards_status_ramses(
+    chain: Chain, rewarder_static: dict, hypervisor_status: dict
+):
+    result = []
+    # create ramses hypervisor
+    hype_status = ramses_hypervisor(
+        address=hypervisor_status["address"],
+        network=chain.database_name,
+        block=hypervisor_status["block"],
+    )
+
+    for reward_data in hype_status.gauge.get_rewards(convert_bint=True):
+        # build erc20 helper
+        erc20_helper = build_erc20_helper(
+            chain=chain, address=reward_data["rewardToken"], cached=True
+        )
+
+        # add missing fields
+        reward_data["hypervisor_address"] = hypervisor_status["address"].lower()
+        reward_data["rewardToken_symbol"] = erc20_helper.symbol
+        reward_data["rewardToken_decimals"] = erc20_helper.decimals
+        reward_data["total_hypervisorToken_qtty"] = str(
+            hypervisor_status["totalSupply"]
+        )
+
+        # add apr
+        try:
+            reward_data = add_apr_process01(
+                network=chain.database_name,
+                hypervisor_status=hypervisor_status,
+                reward_data=reward_data,
+            )
+            result.append(reward_data)
+        except Exception as e:
+            logging.getLogger(__name__).error(
+                f" Ramses Rewards-> {chain.database_name}'s {rewarder_static.get('rewardToken','None')} price at block {hypervisor_status['block']} could not be calculated. Error: {e}"
+            )
+            logging.getLogger(__name__).debug(
+                f" Ramses Rewards last err debug data -> rewarder_static {rewarder_static}    hype status {hypervisor_status}"
+            )
+
+    # empty result means no rewards at this block
+    if not result:
+        logging.getLogger(__name__).debug(
+            f" Ramses Rewards-> {chain.database_name}'s {rewarder_static.get('rewardToken','None')} has no rewards at block {hypervisor_status['block']}"
         )
 
     return result

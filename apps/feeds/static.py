@@ -24,6 +24,7 @@ from bins.w3.protocols.thena.rewarder import thena_voter_v3
 from bins.w3.protocols.zyberswap.rewarder import zyberswap_masterchef_v1
 from bins.w3.protocols.beamswap.rewarder import beamswap_masterchef_v2
 from bins.w3.protocols.angle.rewarder import angle_merkle_distributor_creator
+from bins.w3.protocols.ramses.hypervisor import gamma_hypervisor as ramses_hypervisor
 
 from bins.apis.etherscan_utilities import etherscan_helper
 
@@ -263,8 +264,19 @@ def create_n_add_reward_static(
             # save to database
             local_db.set_rewards_static(data=rewards_static)
 
-    elif dex == Protocol.SUSHI.database_name:
+    elif dex in [Protocol.SUSHI.database_name, Protocol.RETRO.database_name]:
         for rewards_static in create_rewards_static_merkl(
+            chain=text_to_chain(network),
+            hypervisors=hypervisors,
+            already_processed=already_processed,
+            rewrite=rewrite,
+            block=block,
+        ):
+            # save to database
+            local_db.set_rewards_static(data=rewards_static)
+
+    elif dex == Protocol.RAMSES.database_name:
+        for rewards_static in create_rewards_static_ramses(
             chain=text_to_chain(network),
             hypervisors=hypervisors,
             already_processed=already_processed,
@@ -483,6 +495,57 @@ def create_rewards_static_merkl(
 
                         # save to database
                         yield reward_data
+
+
+def create_rewards_static_ramses(
+    chain: Chain,
+    hypervisors: list[dict],
+    already_processed: list[str],
+    rewrite: bool = False,
+    block: int = 0,
+):
+    for hype_static in hypervisors:
+        if rewrite or hype_static["address"].lower() not in already_processed:
+            # create ramses hypervisor
+            hype_status = ramses_hypervisor(
+                address=hype_static["address"], network=chain.database_name, block=block
+            )
+
+            # get gauge rewardsRate
+            for reward_token in hype_status.gauge.getRewardTokens:
+                # setup basics
+                reward_token = reward_token.lower()
+                # build erc20 helper
+                erc20_helper = build_erc20_helper(
+                    chain=chain, address=reward_token, cached=True
+                )
+                reward_token_symbol = erc20_helper.symbol
+                reward_token_decimals = erc20_helper.decimals
+
+                reward_rate = str(
+                    hype_status.gauge.rewardRate(token_address=reward_token)
+                )
+
+                # build static reward data object
+                reward_data = {
+                    "block": hype_static["block"],  # creation
+                    "timestamp": hype_static["timestamp"],  # creation
+                    "hypervisor_address": hype_status.address.lower(),
+                    "rewarder_address": hype_status.gauge.address.lower(),
+                    "rewarder_type": rewarderType.RAMSES_v2,
+                    "rewarder_refIds": [],
+                    "rewarder_registry": hype_status.gauge.gaugeFactory.lower(),
+                    "rewardToken": reward_token.lower(),
+                    "rewardToken_symbol": reward_token_symbol,
+                    "rewardToken_decimals": reward_token_decimals,
+                    "rewards_perSecond": reward_rate,  # TODO: remove this field from all static rewards
+                    "total_hypervisorToken_qtty": str(
+                        hype_status.totalSupply
+                    ),  # TODO: remove this field from all static rewards
+                }
+
+                # save to database
+                yield reward_data
 
 
 def create_rewards_static_gamma(
