@@ -14,4 +14,5 @@ from bins.w3.protocols import (
     stellaswap,
     angle,
     ramses,
+    ascent,
 )

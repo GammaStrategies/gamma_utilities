@@ -19,6 +19,8 @@ class Chain(str, Enum):
     FANTOM = ("fantom", 250, "fantom", "Fantom")
     MOONBEAM = ("moonbeam", 1284, "moonbeam", "Moonbeam")
 
+    MANTLE = ("mantle", 5000, "mantle", "Mantle")
+
     # extra properties
     id: int
     database_name: str
@@ -74,6 +76,8 @@ class Protocol(str, Enum):
     RAMSES = ("ramses", "ramses", "Ramses")
     VEZARD = ("vezard", "vezard", "veZard")
     EQUILIBRE = ("equilibre", "equilibre", "Equilibre")
+
+    ASCENT = ("ascent", "ascent", "Ascent")
 
     # extra properties
     database_name: str
@@ -214,6 +218,8 @@ class rewarderType(str, Enum):
     BEAMSWAP_masterchef_v2_rewarder = "beamswap_masterchef_v2_rewarder"
 
     ANGLE_MERKLE = "angle_merkle"
+
+    RAMSES_v2 = "ramses_v2"
 
 
 class Family_type(str, Enum):

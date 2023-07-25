@@ -87,6 +87,7 @@ STATIC_REGISTRY_ADDRESSES = {
             "quickswap": "0xAeC731F69Fa39aD84c7749E913e3bC227427Adfd".lower(),
             "retro": "0xcac19d43c9558753d7535978a370055614ce832e".lower(),
             "sushi": "0x97686103b3e7238ca6c2c439146b30adbd84a593".lower(),
+            "ascent": "0x7b9c2f68f16c3618bb45616fb98d83f94fd7062e".lower(),
         },
         "MasterChefRegistry": "0x135B02F8b110Fe2Dd8B6a5e2892Ee781264c2fbe".lower(),
         "MasterChefV2Registry": {
