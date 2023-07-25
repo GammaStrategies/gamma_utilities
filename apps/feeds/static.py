@@ -152,7 +152,7 @@ def _create_hypervisor_static_dbObject(
         network=network, contract_address=address
     ):
         logging.getLogger(__name__).debug(
-            f"     setting creation block and timestamp for {network}'s {address}"
+            f"     setting creation block and timestamp for {network}'s {address.lower()}"
         )
         hypervisor_data["block"] = creation_data["block"]
         hypervisor_data["timestamp"] = creation_data["timestamp"]
@@ -511,41 +511,53 @@ def create_rewards_static_ramses(
                 address=hype_static["address"], network=chain.database_name, block=block
             )
 
-            # get gauge rewardsRate
-            for reward_token in hype_status.gauge.getRewardTokens:
-                # setup basics
-                reward_token = reward_token.lower()
+            for reward_data in hype_status.gauge.get_rewards(convert_bint=True):
                 # build erc20 helper
                 erc20_helper = build_erc20_helper(
-                    chain=chain, address=reward_token, cached=True
+                    chain=chain, address=reward_data["rewardToken"], cached=True
                 )
-                reward_token_symbol = erc20_helper.symbol
-                reward_token_decimals = erc20_helper.decimals
+                reward_data["hypervisor_address"] = hype_status.address.lower()
+                reward_data["rewardToken_symbol"] = erc20_helper.symbol
+                reward_data["rewardToken_decimals"] = erc20_helper.decimals
+                reward_data["total_hypervisorToken_qtty"] = str(hype_status.totalSupply)
 
-                reward_rate = str(
-                    hype_status.gauge.rewardRate(token_address=reward_token)
-                )
-
-                # build static reward data object
-                reward_data = {
-                    "block": hype_static["block"],  # creation
-                    "timestamp": hype_static["timestamp"],  # creation
-                    "hypervisor_address": hype_status.address.lower(),
-                    "rewarder_address": hype_status.gauge.address.lower(),
-                    "rewarder_type": rewarderType.RAMSES_v2,
-                    "rewarder_refIds": [],
-                    "rewarder_registry": hype_status.gauge.gaugeFactory.lower(),
-                    "rewardToken": reward_token.lower(),
-                    "rewardToken_symbol": reward_token_symbol,
-                    "rewardToken_decimals": reward_token_decimals,
-                    "rewards_perSecond": reward_rate,  # TODO: remove this field from all static rewards
-                    "total_hypervisorToken_qtty": str(
-                        hype_status.totalSupply
-                    ),  # TODO: remove this field from all static rewards
-                }
-
-                # save to database
                 yield reward_data
+
+            # # get gauge rewardsRate
+            # for reward_token in hype_status.gauge.getRewardTokens:
+            #     # setup basics
+            #     reward_token = reward_token.lower()
+            #     # build erc20 helper
+            #     erc20_helper = build_erc20_helper(
+            #         chain=chain, address=reward_token, cached=True
+            #     )
+            #     reward_token_symbol = erc20_helper.symbol
+            #     reward_token_decimals = erc20_helper.decimals
+
+            #     reward_rate = str(
+            #         hype_status.gauge.rewardRate(token_address=reward_token)
+            #     )
+
+            #     # build static reward data object
+            #     reward_data = {
+            #         "block": hype_static["block"],  # creation
+            #         "timestamp": hype_static["timestamp"],  # creation
+            #         "hypervisor_address": hype_status.address.lower(),
+            #         "rewarder_address": hype_status.gauge.address.lower(),
+            #         "rewarder_type": rewarderType.RAMSES_v2,
+            #         "rewarder_refIds": [],
+            #         "rewarder_registry": hype_status.gauge.gaugeFactory.lower(),
+            #         "rewardToken": reward_token.lower(),
+            #         "rewardToken_symbol": reward_token_symbol,
+            #         "rewardToken_decimals": reward_token_decimals,
+            #         "rewards_perSecond": reward_rate,  # TODO: remove this field from all static rewards
+            #         "total_hypervisorToken_qtty": str(
+            #             hype_status.totalSupply
+            #         ),  # TODO: remove this field from all static rewards
+            #     }
+            #
+            #    # save to database
+            #    yield reward_data
 
 
 def create_rewards_static_gamma(
