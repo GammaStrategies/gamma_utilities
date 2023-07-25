@@ -598,21 +598,26 @@ def main(option="operations"):
                 for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][
                     network
                 ]:
-                    # feed database with static hypervisor info
-                    feed_hypervisor_static(
-                        protocol=protocol,
-                        network=network,
-                        dex=dex,
-                        rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
-                    )
+                    try:
+                        # feed database with static hypervisor info
+                        feed_hypervisor_static(
+                            protocol=protocol,
+                            network=network,
+                            dex=dex,
+                            rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
+                        )
 
-                    # feed rewarders static
-                    feed_rewards_static(
-                        network=network,
-                        dex=dex,
-                        protocol=protocol,
-                        rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
-                    )
+                        # feed rewarders static
+                        feed_rewards_static(
+                            network=network,
+                            dex=dex,
+                            protocol=protocol,
+                            rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
+                        )
+                    except Exception as e:
+                        logging.getLogger(__name__).exception(
+                            f" Error processing {option} data from {network} {dex}  )-:  {e} "
+                        )
 
             elif option == "operations":
                 for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][
@@ -661,7 +666,10 @@ def main(option="operations"):
                     feed_rewards_static(protocol=protocol, network=network, dex=dex)
 
             elif option == "queue":
-                pull_from_queue(network=network)
+                pull_from_queue(
+                    network=network,
+                    types=CONFIGURATION["_custom_"]["cml_parameters"].queue_types,
+                )
             else:
                 raise NotImplementedError(
                     f" Can't find an operation match for {option} "
