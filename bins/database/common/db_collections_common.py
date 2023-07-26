@@ -761,6 +761,17 @@ class database_local(db_collections_common):
                     },
                     "multi_indexes": [],
                 },
+                "hypervisor_returns": {
+                    "mono_indexes": {
+                        "id": True,
+                        "address": False,
+                        "ini_block": False,
+                        "end_block": False,
+                        "ini_timestamp": False,
+                        "end_timestamp": False,
+                    },
+                    "multi_indexes": [],
+                },
             }
 
         super().__init__(
@@ -1259,8 +1270,17 @@ class database_local(db_collections_common):
         ] = f"{data['hypervisor_address']}_{data['rewarder_address']}_{data['block']}"
         self.save_item_to_database(data=data, collection_name="rewards_status")
 
-    # all
+    # hypervisor returns
+    def set_hypervisor_returns(self, data: dict) -> UpdateResult:
+        # create id
+        data["id"] = f"{data['address']}_{data['ini_block']}_{data['end_block']}"
 
+        # save
+        return self.replace_item_to_database(
+            data=data, collection_name="hypervisor_returns"
+        )
+
+    # all
     def get_items(self, collection_name: str, **kwargs) -> list:
         """Any
 
@@ -2279,10 +2299,10 @@ class database_local(db_collections_common):
 
         Args:
             hypervisor_address (str | None, optional): . Defaults to None.
-            timestamp_ini (int | None, optional): . Defaults to None.
-            timestamp_end (int | None, optional): . Defaults to None.
-            block_ini (int | None, optional): . Defaults to None.
-            block_end (int | None, optional): . Defaults to None.
+            timestamp_ini (int | None, optional): greater or equal to . Defaults to None.
+            timestamp_end (int | None, optional): lower or equal to. Defaults to None.
+            block_ini (int | None, optional): greater or equal to  . Defaults to None.
+            block_end (int | None, optional): lower or equal to  . Defaults to None.
 
         Returns:
             list[dict]: _description_
