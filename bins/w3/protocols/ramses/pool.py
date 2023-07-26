@@ -1,4 +1,6 @@
+from hexbytes import HexBytes
 from web3 import Web3
+from bins.formulas import dex_formulas
 from bins.general.enums import Protocol
 from bins.w3.protocols import uniswap
 
@@ -107,6 +109,36 @@ class pool(uniswap.pool.poolv3):
             tickUpper,
         )
 
+    def positions(self, position_key: str) -> dict:
+        """
+
+        Args:
+           position_key (str): 0x....
+
+        Returns:
+           _type_:
+                   liquidity   uint128 :  99225286851746
+                   feeGrowthInside0LastX128   uint256 :  0
+                   feeGrowthInside1LastX128   uint256 :  0
+                   tokensOwed0   uint128 :  0
+                   tokensOwed1   uint128 :  0
+                   attachedVeRamId uint256
+        """
+        position_key = (
+            HexBytes(position_key) if type(position_key) == str else position_key
+        )
+        if result := self.call_function_autoRpc("positions", None, position_key):
+            return {
+                "liquidity": result[0],
+                "feeGrowthInside0LastX128": result[1],
+                "feeGrowthInside1LastX128": result[2],
+                "tokensOwed0": result[3],
+                "tokensOwed1": result[4],
+                "attachedVeRamId": result[5],
+            }
+        else:
+            raise ValueError(f" positions function call returned None")
+
     @property
     def veRam(self) -> str:
         return self.call_function_autoRpc("veRam")
@@ -114,6 +146,27 @@ class pool(uniswap.pool.poolv3):
     @property
     def voter(self) -> str:
         return self.call_function_autoRpc("voter")
+
+    # CUSTOM FUNCTIONS
+
+    def position(self, ownerAddress: str, tickLower: int, tickUpper: int) -> dict:
+        """
+
+        Returns:
+           dict:
+                   liquidity   uint128 :  99225286851746
+                   feeGrowthInside0LastX128   uint256 :  0
+                   feeGrowthInside1LastX128   uint256 :  0
+                   tokensOwed0   uint128 :  0
+                   tokensOwed1   uint128 :  0
+        """
+        return self.positions(
+            dex_formulas.get_positionKey_ramses(
+                ownerAddress=ownerAddress,
+                tickLower=tickLower,
+                tickUpper=tickUpper,
+            )
+        )
 
 
 class pool_cached(uniswap.pool.poolv3_cached):
@@ -145,6 +198,96 @@ class pool_cached(uniswap.pool.poolv3_cached):
 
     def identify_dex_name(self) -> str:
         return Protocol.RAMSES.database_name
+
+    def boostInfos(self, period: int):
+        """
+
+        Returns:
+            totalBoostAmount uint128, totalVeRamAmount int128
+        """
+        return self.call_function_autoRpc("boostInfos", None, period)
+
+    def boostInfos_2(self, period: int, key: str):
+        """
+
+        Returns:
+            boostAmount uint128, veRamAmount int128, secondsDebtX96 int256, boostedSecondsDebtX96 int256
+        """
+        return self.call_function_autoRpc("boostInfos", None, period, key)
+
+    def periodCumulativesInside(self, period: int, tickLower: int, tickUpper: int):
+        """
+        Returns:
+            secondsPerLiquidityInsideX128 uint160, secondsPerBoostedLiquidityInsideX128 uint160
+        """
+        return self.call_function_autoRpc(
+            "periodCumulativesInside", None, period, tickLower, tickUpper
+        )
+
+    def periods(self, period: int):
+        """
+        Returns:
+            previousPeriod uint32, startTick int24, lastTick int24, endSecondsPerLiquidityPeriodX128 uint160, endSecondsPerBoostedLiquidityPeriodX128 uint160, boostedInRange uint32
+        """
+        return self.call_function_autoRpc("periods", None, period)
+
+    def positionPeriodDebt(
+        self, period: int, owner: str, index: int, tickLower: int, tickUpper: int
+    ):
+        """
+        Returns:
+            secondsDebtX96 int256, boostedSecondsDebtX96 int256
+        """
+        return self.call_function_autoRpc(
+            "positionPeriodDebt", None, period, owner, index, tickLower, tickUpper
+        )
+
+    def positionPeriodSecondsInRange(
+        self, period: int, owner: str, index: int, tickLower: int, tickUpper: int
+    ):
+        """
+        Returns:
+            periodSecondsInsideX96 uint256, periodBoostedSecondsInsideX96 uint256
+        """
+        return self.call_function_autoRpc(
+            "positionPeriodSecondsInRange",
+            None,
+            period,
+            owner,
+            index,
+            tickLower,
+            tickUpper,
+        )
+
+    def positions(self, position_key: str) -> dict:
+        """
+
+        Args:
+           position_key (str): 0x....
+
+        Returns:
+           _type_:
+                   liquidity   uint128 :  99225286851746
+                   feeGrowthInside0LastX128   uint256 :  0
+                   feeGrowthInside1LastX128   uint256 :  0
+                   tokensOwed0   uint128 :  0
+                   tokensOwed1   uint128 :  0
+                   attachedVeRamId uint256
+        """
+        position_key = (
+            HexBytes(position_key) if type(position_key) == str else position_key
+        )
+        if result := self.call_function_autoRpc("positions", None, position_key):
+            return {
+                "liquidity": result[0],
+                "feeGrowthInside0LastX128": result[1],
+                "feeGrowthInside1LastX128": result[2],
+                "tokensOwed0": result[3],
+                "tokensOwed1": result[4],
+                "attachedVeRamId": result[5],
+            }
+        else:
+            raise ValueError(f" positions function call returned None")
 
     # PROPERTIES
     @property
@@ -251,3 +394,24 @@ class pool_cached(uniswap.pool.poolv3_cached):
                 save2file=self.SAVE2FILE,
             )
         return result
+
+    # CUSTOM FUNCTIONS
+
+    def position(self, ownerAddress: str, tickLower: int, tickUpper: int) -> dict:
+        """
+
+        Returns:
+           dict:
+                   liquidity   uint128 :  99225286851746
+                   feeGrowthInside0LastX128   uint256 :  0
+                   feeGrowthInside1LastX128   uint256 :  0
+                   tokensOwed0   uint128 :  0
+                   tokensOwed1   uint128 :  0
+        """
+        return self.positions(
+            dex_formulas.get_positionKey_ramses(
+                ownerAddress=ownerAddress,
+                tickLower=tickLower,
+                tickUpper=tickUpper,
+            )
+        )
