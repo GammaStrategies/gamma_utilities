@@ -16,8 +16,8 @@ from apps.parallel_feed import process_all_queues
 
 from bins.configuration import CONFIGURATION
 
+from apps.feeds.operations import feed_operations
 from apps.database_feeder import (
-    feed_operations,
     feed_timestamp_blocks,
     feed_blocks_timestamp,
 )
