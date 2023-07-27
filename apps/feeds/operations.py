@@ -230,6 +230,8 @@ def feed_operations_hypervisors(
     # create a task pool to handle operations
     tasks = []
 
+    # control var
+    _waiting = False
     with tqdm.tqdm(total=100) as progress_bar:
         # create callback progress funtion
         def _update_progress(text=None, remaining=None, total=None):
@@ -249,12 +251,19 @@ def feed_operations_hypervisors(
 
         # build task handler
         def task_handler():
-            while True:
+            loopme = True
+            while loopme:
+                # exit
+                if _waiting and len(tasks) == 0:
+                    loopme = False
+                    return
+                # process tasks
                 for task in tasks[:]:
                     if task.ready():
                         tasks.remove(task)
-                # update progress
-                _update_progress(total=len(tasks))
+                        if _waiting:
+                            # update progress
+                            _update_progress(text=" processing queued items")
 
         # start task handler
         task_thread = threading.Thread(target=task_handler)
@@ -277,12 +286,21 @@ def feed_operations_hypervisors(
                         (operation, local_db, network),
                     )
                 )
+            # continue progress if there are tasks to complete
+            if len(tasks):
+                logging.getLogger(__name__).info(
+                    f"  Finished finding {network} operations, waiting for {len(tasks)} tasks to finish..."
+                )
+                # log
+                _waiting = True
+                _update_progress(
+                    text=" processing queued items",
+                    total=len(tasks),
+                    remaining=len(tasks),
+                )
 
-        logging.getLogger(__name__).info(
-            f"  Finished finding {network} operations, waiting for {len(tasks)} tasks to finish..."
-        )
-        # join thread to close
-        task_thread.join()
+            # join thread to close
+            task_thread.join()
 
 
 def task_process_operation(operation: dict, local_db: database_local, network: str):
@@ -290,6 +308,7 @@ def task_process_operation(operation: dict, local_db: database_local, network: s
     operation["id"] = f"""{operation["logIndex"]}_{operation["transactionHash"]}"""
     # lower case address ( to ease comparison )
     operation["address"] = operation["address"].lower()
+    # save operation to database
     local_db.set_operation(data=operation)
 
     # make sure hype is not in status collection already
