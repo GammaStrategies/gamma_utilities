@@ -12,6 +12,7 @@ from bins.apis.geckoterminal_helper import geckoterminal_price_helper
 from bins.configuration import (
     CONFIGURATION,
     DEX_POOLS_PRICE_PATHS,
+    TOKEN_ADDRESS_CONVERSION,
     USDC_TOKEN_ADDRESSES,
 )
 from bins.database.common.db_collections_common import database_global
@@ -104,231 +105,6 @@ class price_scraper:
         return result
 
     ## PUBLIC ##
-    def get_price_OLDMOD(
-        self, network: str, token_id: str, block: int = 0, of: str = "USD"
-    ) -> tuple[float, databaseSource]:
-        """
-        return: price_usd_token, source
-        """
-
-        # result var
-        _price = None
-        _source = None
-
-        # make address lower case
-        token_id = token_id.lower()
-
-        # try return price from cached values
-        _price, _source = self._get_price_from_cache(
-            network=network, token_id=token_id, block=block, of=of
-        )
-
-        # geckoterminal
-        if (
-            self.geckoterminal
-            and _price in [None, 0]
-            and network in self.geckoterminal_price_connector.networks
-        ):
-            # GET FROM GECKOTERMINAL
-            _price, _source = self._get_price_from_geckoterminal(
-                network, token_id, block, of
-            )
-
-        # chain
-        if _price in [None, 0]:
-            # GET FROM ONCHAIN USDC = 1 USD
-            _price, _source = self._get_price_from_onchain_data(
-                network,
-                token_id,
-                block,
-            )
-
-        # thegraph
-        if (
-            self.thegraph
-            and _price in [None, 0]
-            and token_id.lower() not in self.token_addresses_not_thegraph
-        ):
-            # get a list of thegraph_connectors
-            _price, _source = self._get_price_from_thegraph(
-                network=network,
-                token_id=token_id,
-                block=block,
-            )
-
-        # coingecko
-        if (
-            self.coingecko
-            and _price in [None, 0]
-            and network in self.coingecko_price_connector.networks
-        ):
-            # GET FROM COINGECKO
-            _price, _source = self._get_price_from_coingecko(
-                network, token_id, block, of
-            )
-
-        # SAVE CACHE
-        if _price not in [None, 0]:
-            logging.getLogger(LOG_NAME).debug(
-                f" {network}'s token {token_id} price at block {block} was found: {_price}"
-            )
-
-            if self.cache != None:
-                # save price to cache and disk
-                logging.getLogger(LOG_NAME).debug(
-                    f" {network}'s token {token_id} price at block {block} was saved to cache"
-                )
-
-                self.cache.add_data(
-                    chain_id=network,
-                    address=token_id,
-                    block=block,
-                    key=of,
-                    data=_price,
-                    save2file=True,
-                )
-        else:
-            # not found
-            logging.getLogger(LOG_NAME).warning(
-                f" {network}'s token {token_id} price at block {block} not found"
-            )
-
-        return _price, _source
-
-    def get_price_OLD(
-        self, network: str, token_id: str, block: int = 0, of: str = "USD"
-    ) -> tuple[float, databaseSource]:
-        """
-        return: price_usd_token, source
-        """
-
-        # result var
-        _price = None
-        _source = None
-
-        # make address lower case
-        token_id = token_id.lower()
-
-        # try return price from cached values
-        try:
-            _price = self.cache.get_data(
-                chain_id=network, address=token_id, block=block, key=of
-            )
-            _source = databaseSource.CACHE
-        except Exception:
-            _price = None
-
-        # geckoterminal
-        if (
-            self.geckoterminal
-            and _price in [None, 0]
-            and network in self.geckoterminal_price_connector.networks
-        ):
-            # GET FROM GECKOTERMINAL
-            logging.getLogger(LOG_NAME).debug(
-                f" Trying to get {network}'s token {token_id} price at block {block} from geckoterminal"
-            )
-            try:
-                _price = self._get_price_from_geckoterminal(
-                    network, token_id, block, of
-                )
-                _source = databaseSource.GECKOTERMINAL
-            except Exception as e:
-                logging.getLogger(LOG_NAME).debug(
-                    f" Could not get {network}'s token {token_id} price at block {block} from geckoterminal. error-> {e}"
-                )
-
-        # chain
-        if _price in [None, 0]:
-            # GET FROM ONCHAIN USDC = 1 USD
-
-            # convert network string in chain enum
-            chain = text_to_chain(network)
-            # get price from onchain
-            onchain_price_helper = usdc_price_scraper()
-            _price = onchain_price_helper.get_price(
-                chain=chain, token_address=token_id, block=block
-            )
-            _source = databaseSource.ONCHAIN
-
-        # thegraph
-        if (
-            self.thegraph
-            and _price in [None, 0]
-            and token_id.lower() not in self.token_addresses_not_thegraph
-        ):
-            # get a list of thegraph_connectors
-            thegraph_connectors = self._get_connector_candidates(network=network)
-
-            for dex, connector in thegraph_connectors.items():
-                logging.getLogger(LOG_NAME).debug(
-                    f" Trying to get {network}'s token {token_id} price at block {block} from {dex} subgraph"
-                )
-                with contextlib.suppress(Exception):
-                    _price = self._get_price_from_thegraph(
-                        thegraph_connector=connector,
-                        dex=dex,
-                        network=network,
-                        token_id=token_id,
-                        block=block,
-                        of=of,
-                    )
-
-                    if _price not in [None, 0]:
-                        # exit for loop
-                        _source = databaseSource.THEGRAPH
-                        break
-
-        # coingecko
-        if (
-            self.coingecko
-            and _price in [None, 0]
-            and network in self.coingecko_price_connector.networks
-        ):
-            # GET FROM COINGECKO
-            logging.getLogger(LOG_NAME).debug(
-                f" Trying to get {network}'s token {token_id} price at block {block} from coingecko"
-            )
-
-            try:
-                _price = self._get_price_from_coingecko(network, token_id, block, of)
-                _source = databaseSource.COINGECKO
-                if isinstance(_price, dict):
-                    _price = _price[token_id]["usd"]
-
-            except Exception as e:
-                logging.getLogger(LOG_NAME).debug(
-                    f" Could not get {network}'s token {token_id} price at block {block} from coingecko. error-> {e}"
-                )
-
-        # SAVE CACHE
-        if _price not in [None, 0]:
-            logging.getLogger(LOG_NAME).debug(
-                f" {network}'s token {token_id} price at block {block} was found: {_price}"
-            )
-
-            if self.cache != None:
-                # save price to cache and disk
-                logging.getLogger(LOG_NAME).debug(
-                    f" {network}'s token {token_id} price at block {block} was saved to cache"
-                )
-
-                self.cache.add_data(
-                    chain_id=network,
-                    address=token_id,
-                    block=block,
-                    key=of,
-                    data=_price,
-                    save2file=True,
-                )
-        else:
-            # not found
-            logging.getLogger(LOG_NAME).warning(
-                f" {network}'s token {token_id} price at block {block} not found"
-            )
-
-        return _price, _source
-
     def get_price(
         self,
         network: str,
@@ -348,6 +124,19 @@ class price_scraper:
         # make address lower case
         token_id = token_id.lower()
 
+        # HARDCODED: change token address if manually specified in configuration
+        try:
+            chain = text_to_chain(network)
+            if token_id in TOKEN_ADDRESS_CONVERSION[chain]:
+                # change token address
+                logging.getLogger(__name__).debug(
+                    f"  {network} token address {token_id} has changed to {TOKEN_ADDRESS_CONVERSION[chain][token_id]} as set in configuration to gather price of"
+                )
+                token_id = TOKEN_ADDRESS_CONVERSION[network][token_id]
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f" Error while trying to evaluate a change of token address while getting price {e}"
+            )
         for source in source_order or self.create_source_order():
             if source == databaseSource.CACHE:
                 _price, _source = self._get_price_from_cache(
