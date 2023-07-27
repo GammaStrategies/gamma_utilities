@@ -1,14 +1,16 @@
 from web3 import Web3
 from bins.general.enums import Protocol
-from bins.w3.protocols import uniswap
+from bins.w3.protocols import gamma
 from bins.w3.protocols.general import erc20
 
 from bins.w3.protocols.ramses.pool import pool, pool_cached
 from bins.w3.protocols.ramses.rewarder import gauge, multiFeeDistribution
 
+WEEK = 60 * 60 * 24 * 7
+
 
 # Hype v1.3
-class gamma_hypervisor(uniswap.hypervisor.gamma_hypervisor):
+class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
     # SETUP
     def __init__(
         self,
@@ -100,8 +102,129 @@ class gamma_hypervisor(uniswap.hypervisor.gamma_hypervisor):
     def whitelistedAddress(self) -> str:
         return self.call_function_autoRpc("whitelistedAddress")
 
+    # CUSTOM FUNCTIONS
 
-class gamma_hypervisor_cached(uniswap.hypervisor.gamma_hypervisor_cached):
+    @property
+    def current_period(self) -> int:
+        """Get the current period
+
+        Returns:
+            int: current period
+        """
+        return self._timestamp // WEEK
+
+    @property
+    def current_period_remaining_seconds(self) -> int:
+        """Get the current period remaining seconds
+
+        Returns:
+            int: current period remaining seconds
+        """
+        return ((self.current_period + 1) * WEEK) - self._timestamp
+
+    def get_maximum_rewards(self, period: int, reward_token: str) -> tuple[int, int]:
+        """Calculate the maximum base and boosted reward rate
+
+        Args:
+            period (int): period to calculate the reward rate for
+            reward_token (str): address of the reward token
+
+        Returns:
+            dict: {
+                    "baseRewards": ,
+                    "boostedRewards": ,
+                }
+        """
+        allRewards = self.gauge.tokenTotalSupplyByPeriod(
+            var=period, address=reward_token
+        )
+        boostedRewards = (allRewards * 6) // 10
+        baseRewards = allRewards - boostedRewards
+
+        return baseRewards, boostedRewards
+
+    def calculate_rewards(self, period: int, reward_token: str) -> dict:
+        """get rewards data for a given period and token address
+
+        Args:
+            period (int):
+            reward_token (str): reward token address
+
+        Returns:
+            dict: {
+                    "max_baseRewards": (int)
+                    "max_boostedRewards": (int)
+                    "max_period_seconds": (int)
+                    "max_rewards_per_second": (int)
+                    "current_baseRewards": (int)
+                    "current_boostedRewards": (int)
+                    "current_period_seconds": (int)
+                    "current_rewards_per_second": (int)
+                }
+        """
+        # get max rewards
+        baseRewards, boostedRewards = self.get_maximum_rewards(
+            period=period, reward_token=reward_token
+        )
+
+        (
+            periodSecondsInsideX96_base,
+            periodBoostedSecondsInsideX96_base,
+        ) = self.pool.positionPeriodSecondsInRange(
+            period=period,
+            owner=self.address,
+            index=0,
+            tickLower=self.baseLower,
+            tickUpper=self.baseUpper,
+        )
+        (
+            periodSecondsInsideX96_limit,
+            periodBoostedSecondsInsideX96_limit,
+        ) = self.pool.positionPeriodSecondsInRange(
+            period=period,
+            owner=self.address,
+            index=0,
+            tickLower=self.limitLower,
+            tickUpper=self.limitUpper,
+        )
+
+        # rewards are base rewards plus boosted rewards
+
+        amount_base = 0
+        amount_boost = 0
+        if periodSecondsInsideX96_base:
+            amount_base += (baseRewards * periodSecondsInsideX96_base) / (WEEK << 96)
+        if periodBoostedSecondsInsideX96_base:
+            amount_boost += (boostedRewards * periodBoostedSecondsInsideX96_base) / (
+                WEEK << 96
+            )
+        if periodSecondsInsideX96_limit:
+            amount_base += (baseRewards * periodSecondsInsideX96_limit) / (WEEK << 96)
+        if periodBoostedSecondsInsideX96_limit:
+            amount_boost += (boostedRewards * periodBoostedSecondsInsideX96_limit) / (
+                WEEK << 96
+            )
+
+        # get rewards per second
+        seconds_in_period = WEEK - self.current_period_remaining_seconds
+
+        return {
+            "max_baseRewards": baseRewards,
+            "max_boostedRewards": boostedRewards,
+            "max_period_seconds": WEEK,
+            "max_rewards_per_second": int((baseRewards + boostedRewards) / WEEK),
+            "current_baseRewards": amount_base,
+            "current_boostedRewards": amount_boost,
+            "current_period_seconds": seconds_in_period,
+            "current_rewards_per_second": int(
+                (amount_base + amount_boost) / seconds_in_period
+            )
+            if seconds_in_period
+            else 0,
+        }
+
+
+class gamma_hypervisor_cached(gamma.hypervisor.gamma_hypervisor_cached):
     # SETUP
     def __init__(
         self,

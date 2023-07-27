@@ -89,7 +89,13 @@ class pool(uniswap.pool.poolv3):
             secondsDebtX96 int256, boostedSecondsDebtX96 int256
         """
         return self.call_function_autoRpc(
-            "positionPeriodDebt", None, period, owner, index, tickLower, tickUpper
+            "positionPeriodDebt",
+            None,
+            period,
+            Web3.toChecksumAddress(owner),
+            index,
+            tickLower,
+            tickUpper,
         )
 
     def positionPeriodSecondsInRange(
@@ -103,7 +109,7 @@ class pool(uniswap.pool.poolv3):
             "positionPeriodSecondsInRange",
             None,
             period,
-            owner,
+            Web3.toChecksumAddress(owner),
             index,
             tickLower,
             tickUpper,
@@ -239,7 +245,13 @@ class pool_cached(uniswap.pool.poolv3_cached):
             secondsDebtX96 int256, boostedSecondsDebtX96 int256
         """
         return self.call_function_autoRpc(
-            "positionPeriodDebt", None, period, owner, index, tickLower, tickUpper
+            "positionPeriodDebt",
+            None,
+            period,
+            Web3.toChecksumAddress(owner),
+            index,
+            tickLower,
+            tickUpper,
         )
 
     def positionPeriodSecondsInRange(
@@ -253,7 +265,7 @@ class pool_cached(uniswap.pool.poolv3_cached):
             "positionPeriodSecondsInRange",
             None,
             period,
-            owner,
+            Web3.toChecksumAddress(owner),
             index,
             tickLower,
             tickUpper,

@@ -641,6 +641,13 @@
     },
     {
         "inputs": [],
+        "name": "getReward",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
         "name": "getTotalAmounts",
         "outputs": [
             {

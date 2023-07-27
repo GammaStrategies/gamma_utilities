@@ -1,7 +1,7 @@
 from web3 import Web3
 from bins.general.enums import rewarderType
 from bins.w3.protocols.general import web3wrap
-
+from bins.w3.protocols.ramses.pool import pool
 
 # [position_token0_amount, position_token1_amount] = token_amounts_from_current_price(pool['sqrtPrice'], range_delta, pool['liquidity'])
 
@@ -57,6 +57,8 @@ class gauge(web3wrap):
         self._abi_filename = abi_filename or "RamsesGaugeV2"
         self._abi_path = abi_path or "data/abi/ramses"
 
+        self._pool: pool | None = None
+
         super().__init__(
             address=address,
             network=network,
@@ -70,7 +72,9 @@ class gauge(web3wrap):
 
     def earned(self, token_address: str, token_id: int) -> int:
         """ """
-        return self.call_function_autoRpc("earned", None, token_address, token_id)
+        return self.call_function_autoRpc(
+            "earned", None, Web3.toChecksumAddress(token_address), token_id
+        )
 
     @property
     def feeCollector(self) -> str:
@@ -94,31 +98,41 @@ class gauge(web3wrap):
 
     def isReward(self, address: str) -> bool:
         """ """
-        return self.call_function_autoRpc("isReward", None, address)
+        return self.call_function_autoRpc(
+            "isReward", None, Web3.toChecksumAddress(address)
+        )
 
     def lastClaimByToken(self, address: str, var: bytes) -> int:
         """ """
-        return self.call_function_autoRpc("lastClaimByToken", None, address, var)
+        return self.call_function_autoRpc(
+            "lastClaimByToken", None, Web3.toChecksumAddress(address), var
+        )
 
     def left(self, token_address: str) -> int:
         """ """
-        return self.call_function_autoRpc("left", None, token_address)
+        return self.call_function_autoRpc(
+            "left", None, Web3.toChecksumAddress(token_address)
+        )
 
     @property
     def nfpManager(self) -> str:
         """ """
         return self.call_function_autoRpc("nfpManager")
 
-    def periodClaimedAmount(self, var: int, data: bytes, address: str) -> int:
+    def periodClaimedAmount(self, period: int, data: bytes, address: str) -> int:
         """ """
         return self.call_function_autoRpc(
-            "periodClaimedAmount", None, var, data, address
+            "periodClaimedAmount", None, period, data, Web3.toChecksumAddress(address)
         )
 
     def periodEarned(self, period: int, token_address: str, token_id: int) -> int:
         """ """
         return self.call_function_autoRpc(
-            "periodEarned", None, period, token_address, token_id
+            "periodEarned",
+            None,
+            period,
+            Web3.toChecksumAddress(token_address),
+            token_id,
         )
 
     def periodEarned2(
@@ -135,28 +149,39 @@ class gauge(web3wrap):
             "periodEarned",
             None,
             period,
-            token_address,
+            Web3.toChecksumAddress(token_address),
             owner,
             index,
             tickLower,
             tickUpper,
         )
 
-    def periodTotalBoostedSeconds(self, var: int) -> int:
+    def periodTotalBoostedSeconds(self, period: int) -> int:
         """ """
-        return self.call_function_autoRpc("periodTotalBoostedSeconds", None, var)
+        return self.call_function_autoRpc("periodTotalBoostedSeconds", None, period)
 
     @property
-    def pool(self) -> str:
+    def pool(self) -> pool:
         """ """
-        return self.call_function_autoRpc("pool")
+        if self._pool is None:
+            self._pool = pool(
+                address=self.call_function_autoRpc("pool"),
+                network=self._network,
+                block=self.block,
+            )
+        return self._pool
 
     def positionHash(
         self, owner: str, index: int, tickUpper: int, tickLower: int
     ) -> int:
         """ """
         return self.call_function_autoRpc(
-            "positionHash", None, owner, index, tickUpper, tickLower
+            "positionHash",
+            None,
+            Web3.toChecksumAddress(owner),
+            index,
+            tickUpper,
+            tickLower,
         )
 
     def positionInfo(self, token_id: int):
@@ -167,8 +192,10 @@ class gauge(web3wrap):
         return self.call_function_autoRpc("positionInfo", None, token_id)
 
     def rewardRate(self, token_address: str) -> int:
-        """ """
-        return self.call_function_autoRpc("rewardRate", None, token_address)
+        """normalized to total unboosted liquidity ..."""
+        return self.call_function_autoRpc(
+            "rewardRate", None, Web3.toChecksumAddress(token_address)
+        )
 
     def rewards(self, var: int) -> str:
         """ """
@@ -177,7 +204,7 @@ class gauge(web3wrap):
     def tokenTotalSupplyByPeriod(self, var: int, address: str) -> int:
         """ """
         return self.call_function_autoRpc(
-            "tokenTotalSupplyByPeriod", None, var, address
+            "tokenTotalSupplyByPeriod", None, var, Web3.toChecksumAddress(address)
         )
 
     def veRamInfo(self, ve_ram_token_id: int):
@@ -273,7 +300,12 @@ class multiFeeDistribution(web3wrap):
             custom_web3Url=custom_web3Url,
         )
 
-    # TODO: get all rewards
+    # TODO: complete functions
+
+    @property
+    def totalStakes(self) -> int:
+        """ """
+        return self.call_function_autoRpc("totalStakes")
 
 
 # TODO: gaugeFactory

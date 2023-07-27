@@ -10,6 +10,10 @@ from bins.configuration import CONFIGURATION
 from bins.database.common.db_collections_common import database_global, database_local
 from bins.database.helpers import get_price_from_db
 from bins.formulas.apr import calculate_rewards_apr
+from bins.formulas.dex_formulas import (
+    pool_token_amounts_from_current_price,
+    select_ramses_apr_calc_deviation,
+)
 from bins.general.enums import Chain, Protocol, rewarderType, text_to_chain
 from bins.w3.protocols.angle.rewarder import angle_merkle_distributor_creator
 from bins.w3.protocols.beamswap.rewarder import beamswap_masterchef_v2
@@ -526,6 +530,10 @@ def get_reward_pool_prices(
 def get_hypervisor_price_per_share(
     hypervisor_status: dict, token0_price: float, token1_price: float
 ) -> float:
+    # do not calculate when no supply
+    if int(hypervisor_status["totalSupply"]) == 0:
+        return 0.0
+
     # hypervisor price per share
     hype_total0 = int(hypervisor_status["totalAmounts"]["total0"]) / (
         10 ** hypervisor_status["pool"]["token0"]["decimals"]
@@ -916,7 +924,7 @@ def create_rewards_status_angle_merkle(
 
 def create_rewards_status_ramses(
     chain: Chain, rewarder_static: dict, hypervisor_status: dict
-):
+) -> list:
     result = []
     # create ramses hypervisor
     hype_status = ramses_hypervisor(
@@ -925,19 +933,60 @@ def create_rewards_status_ramses(
         block=hypervisor_status["block"],
     )
 
-    for reward_data in hype_status.gauge.get_rewards(convert_bint=True):
+    hypervisor_totalSupply = hype_status.totalSupply
+    pool_liquidity = hype_status.pool.liquidity
+    gamma_liquidity = (
+        hype_status.getBasePosition["liquidity"]
+        + hype_status.getLimitPosition["liquidity"]
+    )
+    totalStaked = hype_status.receiver.totalStakes
+
+    if not hypervisor_totalSupply:
+        logging.getLogger(__name__).debug(
+            f"Can't calculate rewards status for ramses hype {hype_status.symbol} {hype_status.address} because it has no supply"
+        )
+        return []
+
+    result = []
+    for reward_token in hype_status.gauge.getRewardTokens:
         # build erc20 helper
         erc20_helper = build_erc20_helper(
-            chain=chain, address=reward_data["rewardToken"], cached=True
+            chain=chain, address=reward_token, cached=True
         )
 
-        # add missing fields
-        reward_data["hypervisor_address"] = hypervisor_status["address"].lower()
-        reward_data["rewardToken_symbol"] = erc20_helper.symbol
-        reward_data["rewardToken_decimals"] = erc20_helper.decimals
-        reward_data["total_hypervisorToken_qtty"] = str(
-            hypervisor_status["totalSupply"]
+        real_rewards = hype_status.calculate_rewards(
+            period=hype_status.current_period, reward_token=reward_token
         )
+
+        if real_rewards["current_rewards_per_second"]:
+            gamma_rewards_per_second = real_rewards["current_rewards_per_second"]
+            # get LP staked
+            total_hypervisorToken_qtty = str(totalStaked or hype_status.totalSupply)
+        else:
+            gamma_rewards_per_second = real_rewards["max_rewards_per_second"]
+            # xtrapolate gamma hype supply to approach pool value
+            if gamma_liquidity:
+                total_hypervisorToken_qtty = int(
+                    hypervisor_totalSupply * (pool_liquidity / gamma_liquidity)
+                )
+            else:
+                total_hypervisorToken_qtty = 0
+
+        reward_data = {
+            # "network": self._network,
+            "block": hype_status.block,
+            "timestamp": hype_status._timestamp,
+            "hypervisor_address": hype_status.address.lower(),
+            "rewarder_address": hype_status.gauge.address.lower(),
+            "rewarder_type": rewarderType.RAMSES_v2,
+            "rewarder_refIds": [],
+            "rewarder_registry": hype_status.gauge.gaugeFactory.lower(),
+            "rewardToken": reward_token.lower(),
+            "rewardToken_symbol": erc20_helper.symbol,
+            "rewardToken_decimals": erc20_helper.decimals,
+            "rewards_perSecond": str(gamma_rewards_per_second),
+            "total_hypervisorToken_qtty": str(total_hypervisorToken_qtty),
+        }
 
         # add apr
         try:
@@ -954,6 +1003,50 @@ def create_rewards_status_ramses(
             logging.getLogger(__name__).debug(
                 f" Ramses Rewards last err debug data -> rewarder_static {rewarder_static}    hype status {hypervisor_status}"
             )
+
+    # for reward_data in hype_status.gauge.get_rewards(convert_bint=True):
+    #     # build erc20 helper
+    #     erc20_helper = build_erc20_helper(
+    #         chain=chain, address=reward_data["rewardToken"], cached=True
+    #     )
+
+    #     # sqrt_price = hype_status.pool.slot0["sqrtPriceX96"]
+    #     # deviation = select_ramses_apr_calc_deviation(
+    #     #     token0_address=hype_status.pool.token0.address,
+    #     #     token1_address=hype_status.pool.token1.address,
+    #     #     token0_symbol=hype_status.pool.token0.symbol,
+    #     #     token1_symbol=hype_status.pool.token1.symbol,
+    #     # )
+    #     # [
+    #     #     pool_token0_amount_rewarded,
+    #     #     pool_token1_amount_rewarded,
+    #     # ] = pool_token_amounts_from_current_price(
+    #     #     sqrt_price=sqrt_price, deviation=deviation, liquidity=hype_status.pool.liquidity
+    #     # )
+
+    #     # add missing fields
+    #     reward_data["hypervisor_address"] = hypervisor_status["address"].lower()
+    #     reward_data["rewardToken_symbol"] = erc20_helper.symbol
+    #     reward_data["rewardToken_decimals"] = erc20_helper.decimals
+    #     reward_data["total_hypervisorToken_qtty"] = str(
+    #         hypervisor_status["totalSupply"]
+    #     )
+
+    #     # add apr
+    #     try:
+    #         reward_data = add_apr_process01(
+    #             network=chain.database_name,
+    #             hypervisor_status=hypervisor_status,
+    #             reward_data=reward_data,
+    #         )
+    #         result.append(reward_data)
+    #     except Exception as e:
+    #         logging.getLogger(__name__).error(
+    #             f" Ramses Rewards-> {chain.database_name}'s {rewarder_static.get('rewardToken','None')} price at block {hypervisor_status['block']} could not be calculated. Error: {e}"
+    #         )
+    #         logging.getLogger(__name__).debug(
+    #             f" Ramses Rewards last err debug data -> rewarder_static {rewarder_static}    hype status {hypervisor_status}"
+    #         )
 
     # empty result means no rewards at this block
     if not result:

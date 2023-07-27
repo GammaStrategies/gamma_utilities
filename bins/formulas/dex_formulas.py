@@ -1,3 +1,4 @@
+from math import sqrt
 from web3 import Web3
 from decimal import Decimal
 
@@ -176,6 +177,123 @@ def whois_token(token_addressA: str, token_addressB: str) -> tuple[str, str]:
             token_addressA,
         )
     )
+
+
+# ramses related
+def pool_token_amounts_from_current_price(
+    sqrt_price: int, deviation: int, liquidity: int
+) -> tuple[int, int]:
+    """
+            Returns the token0 and token1 amounts around the price and deviation in basis points (1/10000)
+
+    Args:
+        price (int): the pool's current sqrt price
+        deviation (int): the deviation from current price, in basis points (1/10000)
+        liquidity (int): the amount of liquidity to mint
+
+    Returns:
+        tuple[token0_amount,token1_amount]
+    """
+
+    sqrt_price = int(sqrt_price)
+    price = (sqrt_price**2) / 2 ** (96 * 2)
+    high_sqrt_x96 = int(sqrt(price * (10000 + deviation) / 10000) * 2**96)
+    low_sqrt_x96 = int(sqrt(price * (10000 - deviation) / 10000) * 2**96)
+    position_token0_amount = LiquidityAmounts.getAmount0ForLiquidity(
+        high_sqrt_x96, sqrt_price, liquidity, False
+    )
+    position_token1_amount = LiquidityAmounts.getAmount1ForLiquidity(
+        sqrt_price, low_sqrt_x96, liquidity, False
+    )
+
+    position_token0_amount_ = get_amount0_delta(
+        high_sqrt_x96, sqrt_price, liquidity, False
+    )
+    position_token1_amount_ = get_amount1_delta(
+        sqrt_price, low_sqrt_x96, liquidity, False
+    )
+
+    return (position_token0_amount, position_token1_amount)
+
+
+def get_amount0_delta(
+    sqrt_ratio_a_x96: int,
+    sqrt_ratio_b_x96: int,
+    liquidity: int,
+) -> int:
+    if sqrt_ratio_a_x96 > sqrt_ratio_b_x96:
+        sqrt_ratio_a_x96, sqrt_ratio_b_x96 = sqrt_ratio_b_x96, sqrt_ratio_a_x96
+
+    numerator1 = liquidity * (1 << 96)
+    numerator2 = sqrt_ratio_b_x96 - sqrt_ratio_a_x96
+
+    assert sqrt_ratio_a_x96 > 0
+
+    return (numerator1 * numerator2 // sqrt_ratio_b_x96) // sqrt_ratio_a_x96
+
+
+def get_amount1_delta(
+    sqrt_ratio_a_x96: int,
+    sqrt_ratio_b_x96: int,
+    liquidity: int,
+) -> int:
+    if sqrt_ratio_a_x96 > sqrt_ratio_b_x96:
+        sqrt_ratio_a_x96, sqrt_ratio_b_x96 = sqrt_ratio_b_x96, sqrt_ratio_a_x96
+
+    return (liquidity * (sqrt_ratio_b_x96 - sqrt_ratio_a_x96)) // (1 << 96)
+
+
+def select_ramses_apr_calc_deviation(
+    token0_address, token1_address, token0_symbol, token1_symbol
+):
+    from bins.w3.protocols.ramses.tokenType import (
+        token_type_dict,
+        Token_Type,
+        weth_address,
+        ram_address,
+    )
+
+    # from https://github.com/RamsesExchange/Ramses-API/blob/master/cl/pools.py
+    # get range delta
+
+    # transform keys
+    token_type_dict_moded = {k.lower(): v for k, v in token_type_dict.items()}
+    # ini
+    token0_type = 500
+    token0_type = 500
+    # set types
+    if token0_symbol in token_type_dict_moded:
+        token0_type = token_type_dict_moded[token0_symbol]
+    if token1_symbol in token_type_dict_moded:
+        token1_type = token_type_dict_moded[token1_symbol]
+
+    pool_type = token0_type * token1_type
+    range_delta = 500
+    # case: LSD and WETH
+    if pool_type == Token_Type["LSD"] and (
+        token0_address == weth_address or token1_address == weth_address
+    ):
+        range_delta = 50  # +-0.5%
+
+    # case: neadRAM
+    if pool_type == Token_Type["NEAD"] and (
+        token0_address == ram_address or token1_address == ram_address
+    ):
+        range_delta = 50  # +-0.5%
+
+    # case: STABLE-STABLE
+    elif pool_type == 9:
+        range_delta = 10  # +-0.1%
+
+    # case: STABLE-LOOSE_STABLE
+    elif pool_type >= 4:
+        range_delta = 50  # +-0.5%
+
+    # case: all other cases
+    else:
+        range_delta = 500  # +-5%
+
+    return range_delta
 
 
 class LiquidityAmounts:
