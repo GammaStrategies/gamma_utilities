@@ -943,7 +943,7 @@ def create_rewards_status_ramses(
 
     if not hypervisor_totalSupply:
         logging.getLogger(__name__).debug(
-            f"Can't calculate rewards status for ramses hype {hype_status.symbol} {hype_status.address} because it has no supply"
+            f"Can't calculate rewards status for ramses hype {hype_status.symbol} {hype_status.address} because it has no supply at block {hype_status.block}"
         )
         return []
 
@@ -961,7 +961,7 @@ def create_rewards_status_ramses(
         if real_rewards["current_rewards_per_second"]:
             gamma_rewards_per_second = real_rewards["current_rewards_per_second"]
             # get LP staked
-            total_hypervisorToken_qtty = str(totalStaked or hype_status.totalSupply)
+            total_hypervisorToken_qtty = totalStaked or hype_status.totalSupply
         else:
             gamma_rewards_per_second = real_rewards["max_rewards_per_second"]
             # xtrapolate gamma hype supply to approach pool value
