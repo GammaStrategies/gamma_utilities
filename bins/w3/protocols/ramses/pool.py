@@ -45,13 +45,23 @@ class pool(uniswap.pool.poolv3):
         """
         return self.call_function_autoRpc("boostInfos", None, period)
 
-    def boostInfos_2(self, period: int, key: str):
-        """
-
+    def boostInfos_2(self, period: int, key: str) -> dict | None:
+        """Get the boost information for a specific position at a period
+                boostAmount the amount of boost this position has for this period,
+                veRamAmount the amount of veRam attached to this position for this period,
+                secondsDebtX96 used to account for changes in the deposit amount during the period
+                boostedSecondsDebtX96 used to account for changes in the boostAmount and veRam locked during the period,
         Returns:
             boostAmount uint128, veRamAmount int128, secondsDebtX96 int256, boostedSecondsDebtX96 int256
         """
-        return self.call_function_autoRpc("boostInfos", None, period, key)
+        if tmp := self.call_function_autoRpc("boostInfos", None, period, key):
+            return {
+                "boostAmount": tmp[0],
+                "veRamAmount": tmp[1],
+                "secondsDebtX96": tmp[2],
+                "boostedSecondsDebtX96": tmp[3],
+            }
+        return
 
     @property
     def boostedLiquidity(self) -> int:
