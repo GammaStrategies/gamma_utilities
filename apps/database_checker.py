@@ -61,25 +61,6 @@ def repair_prices(min_count: int = 1):
     )
 
 
-def repair_prices_from_database(
-    batch_size: int = 100000, max_repair_per_network: int | None = None
-):
-    for protocol in CONFIGURATION["script"]["protocols"]:
-        # override networks if specified in cml
-        networks = (
-            CONFIGURATION["_custom_"]["cml_parameters"].networks
-            or CONFIGURATION["script"]["protocols"][protocol]["networks"]
-        )
-        for network in networks:
-            logging.getLogger(__name__).info(
-                f" > Trying to repair {network}'s prices from database (old prices)"
-            )
-            feed_prices(
-                network=network,
-                price_ids=create_tokenBlocks_all(network=network),
-            )
-
-
 def repair_prices_from_logs(min_count: int = 1):
     """Check price errors from debug and price logs and try to scrape again"""
 
@@ -107,6 +88,7 @@ def repair_prices_from_logs(min_count: int = 1):
             find={"id": {"$in": price_ids_to_search}},
             projection={"id": 1},
         )
+
         # remove those prices from network_token_blocks
         for price_id in price_ids_in_database:
             try:
@@ -180,6 +162,376 @@ def repair_prices_from_logs(min_count: int = 1):
         logging.getLogger(__name__).exception(
             " unexpected error checking prices from log"
         )
+
+
+def repair_prices_from_status(
+    batch_size: int = 100000, max_repair_per_network: int | None = None
+):
+    """Check prices not present in database but present in hypervisors and rewards status and add them to the QUEUE to be processed"""
+
+    logging.getLogger(__name__).info(
+        f">Check prices not present in database but present in hypervisors and rewards status and add them to the queue to be processed"
+    )
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+
+    for protocol in CONFIGURATION["script"]["protocols"]:
+        # override networks if specified in cml
+        networks = (
+            CONFIGURATION["_custom_"]["cml_parameters"].networks
+            or CONFIGURATION["script"]["protocols"][protocol]["networks"]
+        )
+
+        with tqdm.tqdm(total=len(networks)) as progress_bar:
+            for network in networks:
+                try:
+                    # database name
+                    db_name = f"{network}_{protocol}"
+
+                    # database helper
+                    def _db():
+                        return database_local(mongo_url=mongo_url, db_name=db_name)
+
+                    logging.getLogger(__name__).info(
+                        f" Building a price id list of addresses and blocks that should be present in the database for {network}"
+                    )
+                    # prices to get = all token0 and token1 addresses from hypervisor status + rewarder status blocks
+                    # price id = network_block_address
+                    (
+                        price_ids_shouldBe,
+                        blocks_shouldBe,
+                    ) = shouldBe_price_ids_from_status_hypervisors(
+                        network=network
+                    )  # set()
+                    # add rewards
+                    price_ids_shouldBe.update(
+                        shouldBe_price_ids_from_status_rewards(network=network)
+                    )  # =  set()
+                    # progress
+                    progress_bar.set_description(
+                        f" {network} should be prices: {len(price_ids_shouldBe)}"
+                    )
+                    progress_bar.update(0)
+
+                    # # get all token addressess + block from status hypervisors
+                    # logging.getLogger(__name__).info(
+                    #     f" Getting hypervisor status token addresses and blocks for {network}"
+                    # )
+                    # for hype_status in _db().get_items_from_database(
+                    #     collection_name="status",
+                    #     find={},
+                    #     batch_size=batch_size,
+                    #     projection={"pool": 1, "block": 1},
+                    # ):
+                    #     # add token addresses
+                    #     price_ids_shouldBe.add(
+                    #         f"{network}_{hype_status['block']}_{hype_status['pool']['token0']['address']}"
+                    #     )
+                    #     price_ids_shouldBe.add(
+                    #         f"{network}_{hype_status['block']}_{hype_status['pool']['token1']['address']}"
+                    #     )
+
+                    #     # add block
+                    #     blocks_shouldBe.add(hype_status["block"])
+
+                    #     # progress
+                    #     progress_bar.set_description(
+                    #         f" {network} should be prices: {len(price_ids_shouldBe)}"
+                    #     )
+                    #     progress_bar.update(0)
+
+                    # logging.getLogger(__name__).info(
+                    #     f" Getting rewarder status token addresses and blocks for {network}"
+                    # )
+                    # for rewarder_status in _db().get_items_from_database(
+                    #     collection_name="rewards_status",
+                    #     find={"blocks": {"$nin": list(blocks_shouldBe)}},
+                    #     batch_size=batch_size,
+                    #     projection={"rewardToken": 1, "block": 1},
+                    # ):
+                    #     # add token addresses
+                    #     price_ids_shouldBe.add(
+                    #         f"{network}_{rewarder_status['block']}_{rewarder_status['rewardToken']}"
+                    #     )
+
+                    #     # add block
+                    #     blocks_shouldBe.add(rewarder_status["block"])
+
+                    #     # progress
+                    #     progress_bar.set_description(
+                    #         f" {network} should be prices: {len(price_ids_shouldBe)}"
+                    #     )
+                    #     progress_bar.update(0)
+
+                    logging.getLogger(__name__).info(
+                        f" Checking if there are {len(price_ids_shouldBe)} prices for {network} in the price database"
+                    )
+
+                    if price_ids_diffs := price_ids_shouldBe - set(
+                        [
+                            id["id"]
+                            for id in database_global(
+                                mongo_url=mongo_url
+                            ).get_items_from_database(
+                                collection_name="usd_prices",
+                                find={"network": network},
+                                batch_size=batch_size,
+                                projection={"_id": 0, "id": 1},
+                            )
+                        ]
+                    ):
+                        logging.getLogger(__name__).info(
+                            f" Found {len(price_ids_diffs)} missing prices for {network}"
+                        )
+
+                        try:
+                            # check if those prices are already in the queue to be processed
+                            # price id : {network}_{block}_{address}
+                            if price_ids_in_queue := set(
+                                [
+                                    f"{network}_{x['block']}_{x['address']}"
+                                    for x in _db().get_items_from_database(
+                                        collection_name="queue",
+                                        find={"type": queueItemType.PRICE},
+                                        batch_size=batch_size,
+                                        projection={
+                                            "_id": 0,
+                                            "type": 1,
+                                            "block": 1,
+                                            "address": 1,
+                                        },
+                                    )
+                                ]
+                            ):
+                                # remove prices already in queue from price_ids_diffs
+                                logging.getLogger(__name__).info(
+                                    f" Found {len(price_ids_in_queue)} prices already in queue for {network}. Removing them from the process list"
+                                )
+                                price_ids_diffs = price_ids_diffs - price_ids_in_queue
+
+                        except Exception as e:
+                            logging.getLogger(__name__).exception(
+                                f" Error getting queued prices for {network}"
+                            )
+
+                        # do not repair more than max_repair_per_network prices at once to avoid being too much time in the same network
+                        if (
+                            max_repair_per_network
+                            and len(price_ids_diffs) > max_repair_per_network
+                        ):
+                            logging.getLogger(__name__).info(
+                                f" Selecting a random sample of {max_repair_per_network} prices due to maximum repair limit set."
+                            )
+                            # choose to repair the most recent ones first
+                            price_ids_diffs = sorted(price_ids_diffs, reverse=True)[
+                                :max_repair_per_network
+                            ]
+                            # choose to repair the first max_repair_per_network
+                            # price_ids_diffs = random.sample(
+                            #     price_ids_diffs, max_repair_per_network
+                            # )
+
+                        # progress_bar.total += len(price_ids_diffs)
+
+                        def create_queue_item(price_id):
+                            network, block, address = price_id.split("_")
+                            return QueueItem(
+                                type=queueItemType.PRICE,
+                                block=block,
+                                address=address,
+                                data={},
+                            ).as_dict
+
+                        # create a list of queue items tobe added to database
+                        to_queue_items = [
+                            create_queue_item(price_id) for price_id in price_ids_diffs
+                        ]
+
+                        # add to queue
+                        if result := _db().replace_items_to_database(
+                            data=to_queue_items, collection_name="queue"
+                        ):
+                            if (
+                                result.inserted_count
+                                or result.upserted_count
+                                or result.modified_count
+                            ):
+                                logging.getLogger(__name__).debug(
+                                    f" Added {len(to_queue_items)} prices to the queue for {network}."
+                                )
+                            else:
+                                logging.getLogger(__name__).warning(
+                                    f" No prices added to the queue for {network}. Database returned:  {result.bulk_api_result}"
+                                )
+                        else:
+                            logging.getLogger(__name__).error(
+                                f" No database return while adding prices to the queue for {network}."
+                            )
+                        progress_bar.update(1)
+
+                    else:
+                        logging.getLogger(__name__).info(
+                            f" No missing prices found for {network}"
+                        )
+
+                except Exception as e:
+                    logging.getLogger(__name__).exception(
+                        f" error in {network} while repairing prices from hype status  {e} "
+                    )
+
+                # progress
+                progress_bar.update(1)
+
+
+def shouldBe_price_ids_from_status_rewards(
+    network: str, batch_size: int = 100000
+) -> set[str]:
+    """List of price ids that should be present in the database, built using hypervisor status linked to static rewards
+
+    Args:
+        network (str):
+
+    Returns:
+        set[str]:
+    """
+
+    logging.getLogger(__name__).debug(
+        f" Building a 'should be' price id list from rewards for {network}"
+    )
+
+    # create a result price ids
+    price_ids = set()
+
+    # database helper
+    local_db = database_local(
+        mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
+        db_name=f"{network}_gamma",
+    )
+    # special query to get the list
+    query = [
+        {
+            "$project": {
+                "hypervisor_address": "$hypervisor_address",
+                "rewardToken": "$rewardToken",
+            }
+        },
+        {
+            "$lookup": {
+                "from": "status",
+                "localField": "hypervisor_address",
+                "foreignField": "address",
+                "as": "hypervisor_status",
+                "pipeline": [
+                    {"$project": {"block": "$block"}},
+                ],
+            }
+        },
+        {"$unwind": "$hypervisor_status"},
+        {
+            "$project": {
+                "rewardToken": "$rewardToken",
+                "block": "$hypervisor_status.block",
+            }
+        },
+        {"$sort": {"block": 1}},
+    ]
+
+    price_ids.update(
+        [
+            f"{network}_{item['block']}_{item['rewardToken']}"
+            for item in local_db.get_items_from_database(
+                collection_name="rewards_static", aggregate=query, batch_size=batch_size
+            )
+        ]
+    )
+
+    # # loop
+    # for reward_static in local_db.get_items_from_database(
+    #     collection_name="rewards_static",
+    #     find={},
+    #     batch_size=batch_size,
+    #     projection={"block": 1, "rewardToken": 1, "hypervisor_address": 1},
+    # ):
+    #     # get all hypervisor status blocks and build a price id for each one
+    #     price_ids.update(
+    #         [
+    #             f"{network}_{hype_status['block']}_{reward_static['rewardToken']}"
+    #             for hype_status in local_db.get_items_from_database(
+    #                 collection_name="status",
+    #                 find={"address": reward_static["hypervisor_address"]},
+    #                 projection={"block": 1},
+    #             )
+    #         ]
+    #     )
+
+    return price_ids
+
+
+def shouldBe_price_ids_from_status_hypervisors(
+    network: str, batch_size: int = 100000
+) -> tuple[set[str], set]:
+    """List of price ids that should be present in the database, built using hypervisor status
+    Args:
+        network (str):
+
+    Returns:
+        list[str]:  list of price ids and list of blocks
+    """
+
+    logging.getLogger(__name__).debug(
+        f" Building a 'should be' price id list from hypervisor status for {network}"
+    )
+
+    # create a result price ids
+    price_ids = set()
+    block_ids = set()
+
+    # database helper
+    local_db = database_local(
+        mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
+        db_name=f"{network}_gamma",
+    )
+
+    for hype_status in local_db.get_items_from_database(
+        collection_name="status",
+        find={},
+        batch_size=batch_size,
+        projection={
+            "block": 1,
+            "pool.token0.address": 1,
+            "pool.token1.address": 1,
+            "address": 1,
+        },
+    ):
+        # get all hypervisor status blocks and build a price id for each one
+        price_ids.add(
+            f"{network}_{hype_status['block']}_{hype_status['pool']['token0']['address']}"
+        )
+        price_ids.add(
+            f"{network}_{hype_status['block']}_{hype_status['pool']['token0']['address']}"
+        )
+        # add block to block_ids
+        block_ids.add(hype_status["block"])
+
+    return price_ids, block_ids
+
+
+def repair_prices_from_database(
+    batch_size: int = 100000, max_repair_per_network: int | None = None
+):
+    for protocol in CONFIGURATION["script"]["protocols"]:
+        # override networks if specified in cml
+        networks = (
+            CONFIGURATION["_custom_"]["cml_parameters"].networks
+            or CONFIGURATION["script"]["protocols"][protocol]["networks"]
+        )
+        for network in networks:
+            logging.getLogger(__name__).info(
+                f" > Trying to repair {network}'s prices from database (old prices)"
+            )
+            feed_prices(
+                network=network,
+                price_ids=create_tokenBlocks_all(network=network),
+            )
 
 
 def repair_prices_from_status_OLD(
@@ -365,213 +717,6 @@ def repair_prices_from_status_OLD(
                 else:
                     logging.getLogger(__name__).info(
                         f" No missing prices found for {network}"
-                    )
-
-                # progress
-                progress_bar.update(1)
-
-
-def repair_prices_from_status(
-    batch_size: int = 100000, max_repair_per_network: int | None = None
-):
-    """Check prices not present in database but present in hypervisors and rewards status and add them to the QUEUE to be processed"""
-
-    logging.getLogger(__name__).info(
-        f">Check prices not present in database but present in hypervisors and rewards status and add them to the queue to be processed"
-    )
-    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-
-    for protocol in CONFIGURATION["script"]["protocols"]:
-        # override networks if specified in cml
-        networks = (
-            CONFIGURATION["_custom_"]["cml_parameters"].networks
-            or CONFIGURATION["script"]["protocols"][protocol]["networks"]
-        )
-
-        with tqdm.tqdm(total=len(networks)) as progress_bar:
-            for network in networks:
-                try:
-                    # database name
-                    db_name = f"{network}_{protocol}"
-
-                    # database helper
-                    def _db():
-                        return database_local(mongo_url=mongo_url, db_name=db_name)
-
-                    # prices to get = all token0 and token1 addresses from hypervisor status + rewarder status blocks
-                    # price id = network_block_address
-                    price_ids_shouldBe = set()
-                    blocks_shouldBe = set()
-                    # progress
-                    progress_bar.set_description(
-                        f" {network} should be prices: {len(price_ids_shouldBe)}"
-                    )
-                    progress_bar.update(0)
-
-                    # get all token addressess + block from status hypervisors
-                    logging.getLogger(__name__).info(
-                        f" Getting hypervisor status token addresses and blocks for {network}"
-                    )
-                    for hype_status in _db().get_items_from_database(
-                        collection_name="status",
-                        find={},
-                        batch_size=batch_size,
-                        projection={"pool": 1, "block": 1},
-                    ):
-                        # add token addresses
-                        price_ids_shouldBe.add(
-                            f"{network}_{hype_status['block']}_{hype_status['pool']['token0']['address']}"
-                        )
-                        price_ids_shouldBe.add(
-                            f"{network}_{hype_status['block']}_{hype_status['pool']['token1']['address']}"
-                        )
-
-                        # add block
-                        blocks_shouldBe.add(hype_status["block"])
-
-                        # progress
-                        progress_bar.set_description(
-                            f" {network} should be prices: {len(price_ids_shouldBe)}"
-                        )
-                        progress_bar.update(0)
-
-                    logging.getLogger(__name__).info(
-                        f" Getting rewarder status token addresses and blocks for {network}"
-                    )
-                    for rewarder_status in _db().get_items_from_database(
-                        collection_name="rewards_status",
-                        find={"blocks": {"$nin": list(blocks_shouldBe)}},
-                        batch_size=batch_size,
-                        projection={"rewardToken": 1, "block": 1},
-                    ):
-                        # add token addresses
-                        price_ids_shouldBe.add(
-                            f"{network}_{rewarder_status['block']}_{rewarder_status['rewardToken']}"
-                        )
-
-                        # add block
-                        blocks_shouldBe.add(rewarder_status["block"])
-
-                        # progress
-                        progress_bar.set_description(
-                            f" {network} should be prices: {len(price_ids_shouldBe)}"
-                        )
-                        progress_bar.update(0)
-
-                    logging.getLogger(__name__).info(
-                        f" Checking if there are {len(price_ids_shouldBe)} prices for {network} in the price database"
-                    )
-
-                    if price_ids_diffs := price_ids_shouldBe - set(
-                        [
-                            id["id"]
-                            for id in database_global(
-                                mongo_url=mongo_url
-                            ).get_items_from_database(
-                                collection_name="usd_prices",
-                                find={"network": network},
-                                batch_size=batch_size,
-                                projection={"_id": 0, "id": 1},
-                            )
-                        ]
-                    ):
-                        logging.getLogger(__name__).info(
-                            f" Found {len(price_ids_diffs)} missing prices for {network}"
-                        )
-
-                        try:
-                            # check if those prices are already in the queue to be processed
-                            # price id : {network}_{block}_{address}
-                            if price_ids_in_queue := set(
-                                [
-                                    f"{network}_{x['block']}_{x['address']}"
-                                    for x in _db().get_items_from_database(
-                                        collection_name="queue",
-                                        find={"type": queueItemType.PRICE},
-                                        batch_size=batch_size,
-                                        projection={
-                                            "_id": 0,
-                                            "type": 1,
-                                            "block": 1,
-                                            "address": 1,
-                                        },
-                                    )
-                                ]
-                            ):
-                                # remove prices already in queue from price_ids_diffs
-                                logging.getLogger(__name__).info(
-                                    f" Found {len(price_ids_in_queue)} prices already in queue for {network}. Removing them from the process list"
-                                )
-                                price_ids_diffs = price_ids_diffs - price_ids_in_queue
-
-                        except Exception as e:
-                            logging.getLogger(__name__).exception(
-                                f" Error getting queued prices for {network}"
-                            )
-
-                        # do not repair more than max_repair_per_network prices at once to avoid being too much time in the same network
-                        if (
-                            max_repair_per_network
-                            and len(price_ids_diffs) > max_repair_per_network
-                        ):
-                            logging.getLogger(__name__).info(
-                                f" Selecting a random sample of {max_repair_per_network} prices due to maximum repair limit set. Next loop will repair the next ones."
-                            )
-                            # choose to repair the first max_repair_per_network
-                            price_ids_diffs = random.sample(
-                                price_ids_diffs, max_repair_per_network
-                            )
-
-                        # progress_bar.total += len(price_ids_diffs)
-
-                        def create_queue_item(price_id):
-                            network, block, address = price_id.split("_")
-                            return QueueItem(
-                                type=queueItemType.PRICE,
-                                block=block,
-                                address=address,
-                                data={},
-                            ).as_dict
-
-                        # create a list of queue items tobe added to database
-                        to_queue_items = [
-                            create_queue_item(price_id) for price_id in price_ids_diffs
-                        ]
-
-                        # add to queue
-                        if result := _db().replace_items_to_database(
-                            data=to_queue_items, collection_name="queue"
-                        ):
-                            logging.getLogger(__name__).debug(
-                                f" Added {len(to_queue_items)} prices to queue collection for {network}. result: {result.bulk_api_result}"
-                            )
-
-                            # # add prices to QUEUE
-                            # for price_id in price_ids_diffs:
-                            #     network, block, address = price_id.split("_")
-
-                            #     # add to queue
-                            #     _db().set_queue_item(
-                            #         data=QueueItem(
-                            #             type=queueItemType.PRICE,
-                            #             block=block,
-                            #             address=address,
-                            #             data={},
-                            #         ).as_dict
-                            #     )
-
-                            # progress
-                            # progress_bar.set_description(f" {network} {address} {block}")
-                        progress_bar.update(1)
-
-                    else:
-                        logging.getLogger(__name__).info(
-                            f" No missing prices found for {network}"
-                        )
-
-                except Exception as e:
-                    logging.getLogger(__name__).exception(
-                        f" error in {network} while repairing prices from hype status  {e} "
                     )
 
                 # progress

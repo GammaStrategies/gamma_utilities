@@ -139,6 +139,7 @@ class price_scraper:
             logging.getLogger(__name__).exception(
                 f" Error while trying to evaluate a change of token address while getting price {e}"
             )
+
         # follow the source order
         for source in source_order or self.source_order or self.create_source_order():
             if source == databaseSource.CACHE:
