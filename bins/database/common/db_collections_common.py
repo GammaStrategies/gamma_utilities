@@ -25,19 +25,24 @@ class db_collections_common:
         self._db_name = db_name
         self._db_collections = db_collections
 
-    def delete_item(self, collection_name: str, item_id: str):
+    def delete_item(self, collection_name: str, item_id: str) -> DeleteResult:
         """Delete an item from a collection
 
         Args:
             collection_name (str): _description_
             item_id (str): _description_
         """
+        db_result = None
         with MongoDbManager(
             url=self._db_mongo_url,
             db_name=self._db_name,
             collections=self._db_collections,
         ) as _db_manager:
-            _db_manager.del_item(coll_name=collection_name, dbFilter={"id": item_id})
+            db_result = _db_manager.del_item(
+                coll_name=collection_name, dbFilter={"id": item_id}
+            )
+
+        return db_result
 
     def delete_items(
         self,
@@ -411,7 +416,7 @@ class database_global(db_collections_common):
         token_address: str,
         price_usd: float,
         source: str,
-    ):
+    ) -> UpdateResult:
         data = {
             "id": f"{network}_{block}_{token_address}",
             "network": network,
@@ -421,7 +426,7 @@ class database_global(db_collections_common):
             "source": source,
         }
 
-        self.save_item_to_database(data=data, collection_name="usd_prices")
+        return self.save_item_to_database(data=data, collection_name="usd_prices")
 
     def set_current_price_usd(
         self,
@@ -441,14 +446,16 @@ class database_global(db_collections_common):
 
         self.save_item_to_database(data=data, collection_name="current_usd_prices")
 
-    def set_block(self, network: str, block: int, timestamp: datetime.timestamp):
+    def set_block(
+        self, network: str, block: int, timestamp: datetime.timestamp
+    ) -> UpdateResult:
         data = {
             "id": f"{network}_{block}",
             "network": network,
             "block": block,
             "timestamp": timestamp,
         }
-        self.save_item_to_database(data=data, collection_name="blocks")
+        return self.save_item_to_database(data=data, collection_name="blocks")
 
     def get_unique_prices_addressBlock(self, network: str) -> list:
         """get addresses and blocks already present in database
@@ -797,10 +804,10 @@ class database_local(db_collections_common):
         ):
             return db_queue_item
 
-    def del_queue_item(self, id: str):
-        self.delete_item(collection_name="queue", item_id=id)
+    def del_queue_item(self, id: str) -> DeleteResult:
+        return self.delete_item(collection_name="queue", item_id=id)
 
-    def free_queue_item(self, db_queue_item: dict):
+    def free_queue_item(self, db_queue_item: dict) -> UpdateResult:
         """set queue object free to be processed again
 
         Args:
@@ -810,7 +817,9 @@ class database_local(db_collections_common):
             f" freeing {db_queue_item['type']}:  {db_queue_item['id']} from queue"
         )
         db_queue_item["processing"] = 0
-        self.replace_item_to_database(data=db_queue_item, collection_name="queue")
+        return self.replace_item_to_database(
+            data=db_queue_item, collection_name="queue"
+        )
 
     # static
 
@@ -1240,7 +1249,7 @@ class database_local(db_collections_common):
         return self.get_items_from_database(collection_name="rewards_static", find=find)
 
     # rewards status
-    def set_rewards_status(self, data: dict):
+    def set_rewards_status(self, data: dict) -> UpdateResult:
         """Save rewarder status data to db
 
         Args:
@@ -1268,7 +1277,7 @@ class database_local(db_collections_common):
         data[
             "id"
         ] = f"{data['hypervisor_address']}_{data['rewarder_address']}_{data['block']}"
-        self.save_item_to_database(data=data, collection_name="rewards_status")
+        return self.save_item_to_database(data=data, collection_name="rewards_status")
 
     # hypervisor returns
     def set_hypervisor_returns(self, data: dict) -> UpdateResult:
