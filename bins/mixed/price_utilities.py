@@ -456,17 +456,18 @@ class price_scraper:
         # try thegraph
         try:
             if network in self.thegraph_block_connector._URLS.keys():
-                block_data = self.thegraph_block_connector.get_all_results(
+                if block_data := self.thegraph_block_connector.get_all_results(
                     network=network,
                     query_name="blocks",
                     where=f""" number: "{block}" """,
-                )[0]
+                ):
+                    block_data = block_data[0]
 
-                logging.getLogger(__name__).error(
-                    f"     --> {network}'s block {block} found in subgraph"
-                )
+                    logging.getLogger(__name__).error(
+                        f"     --> {network}'s block {block} found in subgraph"
+                    )
 
-                return block_data["timestamp"]
+                    return block_data["timestamp"]
             else:
                 logging.getLogger(__name__).debug(
                     f" No {network} thegraph block connector found. Can't get block {block} timestamp from thegraph"
