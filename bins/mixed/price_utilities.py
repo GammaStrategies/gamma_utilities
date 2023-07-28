@@ -127,7 +127,7 @@ class price_scraper:
         # HARDCODED: change token address if manually specified in configuration
         try:
             chain = text_to_chain(network)
-            if token_id in TOKEN_ADDRESS_CONVERSION[chain]:
+            if token_id in TOKEN_ADDRESS_CONVERSION.get(chain, {}):
                 # change token address
                 logging.getLogger(__name__).debug(
                     f"  {network} token address {token_id} has changed to {TOKEN_ADDRESS_CONVERSION[chain][token_id]} as set in configuration to gather price of"

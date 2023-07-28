@@ -91,6 +91,39 @@ def repair_prices_from_logs(min_count: int = 1):
         for log_file in get_all_logfiles():
             network_token_blocks.update(get_failed_prices_from_log(log_file=log_file))
 
+        # setup database managers
+        mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+        global_db_manager = database_global(mongo_url=mongo_url)
+        # create ids to query database with
+        price_ids_to_search = [
+            f"{network}_{block}_{address}"
+            for network, addresses in network_token_blocks.items()
+            for address, blocks_data in addresses.items()
+            for block, counter in blocks_data.items()
+        ]
+        # get those same prices from database
+        price_ids_in_database = global_db_manager.get_items_from_database(
+            collection_name="usd_prices",
+            find={"id": {"$in": price_ids_to_search}},
+            projection={"id": 1},
+        )
+        # remove those prices from network_token_blocks
+        for price_id in price_ids_in_database:
+            try:
+                if "polygon_zkevm" in price_id:
+                    network, network2, block, address = price_id["id"].split("_")
+                    network = f"{network}_{network2}"
+                else:
+                    network, block, address = price_id["id"].split("_")
+
+                if address in network_token_blocks[network]:
+                    if len(network_token_blocks[network][address]) == 0:
+                        network_token_blocks[network].pop(address)
+                    else:
+                        network_token_blocks[network][address].pop(block)
+            except Exception as e:
+                pass
+
         with tqdm.tqdm(total=len(network_token_blocks)) as progress_bar:
             for network, addresses in network_token_blocks.items():
                 logging.getLogger(__name__).info(
@@ -103,18 +136,6 @@ def repair_prices_from_logs(min_count: int = 1):
                     for block, counter in blocks_data.items():
                         # block is string
                         block = int(block)
-
-                        # check if price isnot already in database
-                        if (
-                            get_price_of_token(
-                                network=network, token_address=address, block=block
-                            )
-                            != 0
-                        ):
-                            logging.getLogger(__name__).debug(
-                                f" Price for {network}'s {address} at block {block} is already in database..."
-                            )
-                            continue
 
                         progress_bar.set_description(
                             f" Check & solve {network}'s price error log entries for {address[-4:]} at block {block}"
@@ -1323,6 +1344,56 @@ def repair_queue_failed_items(
                     logging.getLogger(__name__).warning(
                         f"Queue item {queue_item.id} could not be processed"
                     )
+
+
+def repair_hypervisor_static():
+    logging.getLogger(__name__).info(
+        f">Repair hypervisor static database ... remove disabled hypes and add missing hypes"
+    )
+
+    # get all 1st rewarder status from database
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_collection = "static"
+    batch_size = 100000
+
+    # override networks if specified in cml
+    networks = (
+        CONFIGURATION["_custom_"]["cml_parameters"].networks
+        or CONFIGURATION["script"]["protocols"]["gamma"]["networks"]
+    )
+    for network in networks:
+        logging.getLogger(__name__).info(f"          processing {network} ...")
+        # get a list of queue items with count > 10
+        db_name = f"{network}_gamma"
+        find = {}
+
+        # get queue items
+        for db_hypervisor_static in tqdm.tqdm(
+            database_local(
+                mongo_url=mongo_url, db_name=db_name
+            ).get_items_from_database(
+                collection_name=db_collection, find=find, batch_size=batch_size
+            )
+        ):
+            # convert database queue item to class
+            hypervisor_static = HypervisorStatic(**db_hypervisor_static)
+
+            # get hypervisor
+            hypervisor = get_hypervisor(
+                network=network, hypervisor_address=hypervisor_static.address
+            )
+
+            # get hypervisor static
+            hypervisor_static = hypervisor.get_hypervisor_static()
+
+            # update hypervisor static
+            database_local(
+                mongo_url=mongo_url, db_name=db_name
+            ).replace_items_to_database(
+                data=[hypervisor_static.dict()],
+                collection_name=db_collection,
+                key="address",
+            )
 
 
 # one time utils
