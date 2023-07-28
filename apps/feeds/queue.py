@@ -310,25 +310,38 @@ def process_queue_item_type(network: str, queue_item: QueueItem) -> bool:
     )
 
     if queue_item.type == queueItemType.HYPERVISOR_STATUS:
-        return pull_from_queue_hypervisor_status(network=network, queue_item=queue_item)
+        return pull_common_processing_work(
+            network=network,
+            queue_item=queue_item,
+            pull_func=pull_from_queue_hypervisor_status,
+        )
+        # return pull_from_queue_hypervisor_status(network=network, queue_item=queue_item)
     elif queue_item.type == queueItemType.REWARD_STATUS:
-        return pull_from_queue_reward_status(network=network, queue_item=queue_item)
+        return pull_common_processing_work(
+            network=network,
+            queue_item=queue_item,
+            pull_func=pull_from_queue_reward_status,
+        )
+        # return pull_from_queue_reward_status(network=network, queue_item=queue_item)
     elif queue_item.type == queueItemType.PRICE:
-        return pull_from_queue_price(network=network, queue_item=queue_item)
+        return pull_common_processing_work(
+            network=network, queue_item=queue_item, pull_func=pull_from_queue_price
+        )
+        # return pull_from_queue_price(network=network, queue_item=queue_item)
     elif queue_item.type == queueItemType.BLOCK:
-        return pull_from_queue_block(network=network, queue_item=queue_item)
+        return pull_common_processing_work(
+            network=network, queue_item=queue_item, pull_func=pull_from_queue_block
+        )
+        # return pull_from_queue_block(network=network, queue_item=queue_item)
     else:
         # reset queue item
 
-        # variables
-        mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-        # set local database name and create manager
-        local_db = database_local(mongo_url=mongo_url, db_name=f"{network}_gamma")
         # set queue item as not being processed
-        queue_item.processing = 0
-        local_db.replace_item_to_database(
-            data=queue_item.as_dict, collection_name="queue"
-        )
+        # queue_item.processing = 0
+        database_local(
+            mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
+            db_name=f"{network}_gamma",
+        ).replace_item_to_database(data=queue_item.as_dict, collection_name="queue")
         # raise error
         raise ValueError(
             f" Unknown queue item type {queue_item.type} at network {network}"
@@ -336,6 +349,49 @@ def process_queue_item_type(network: str, queue_item: QueueItem) -> bool:
 
 
 # processing types
+
+
+# -----------------
+def pull_common_processing_work(
+    network: str, queue_item: QueueItem, pull_func: callable
+):
+    # build a result variable
+    result = pull_func(network=network, queue_item=queue_item)
+
+    # benchmark
+    if result:
+        # remove item from queue
+        if db_return := database_local(
+            mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
+            db_name=f"{network}_gamma",
+        ).del_queue_item(queue_item.id):
+            if db_return.deleted_count:
+                logging.getLogger(__name__).debug(
+                    f" {network}'s queue item {queue_item.id} has been removed from queue"
+                )
+            else:
+                logging.getLogger(__name__).warning(
+                    f" {network}'s queue item {queue_item.id} has not been removed from queue. database returned {db_return.raw_result}"
+                )
+        else:
+            logging.getLogger(__name__).error(
+                f"  No database return received when deleting {network}'s queue item {queue_item.id}."
+            )
+
+        # log total process
+        curr_time = time.time()
+        logging.getLogger("benchmark").info(
+            f" {network} queue item {queue_item.type}  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
+        )
+    else:
+        # free item ?
+        to_free_or_not_to_free_item(network=network, queue_item=queue_item)
+
+    # return result
+    return result
+
+
+# ------------------
 
 
 def pull_from_queue_hypervisor_status(network: str, queue_item: QueueItem) -> bool:
@@ -360,23 +416,27 @@ def pull_from_queue_hypervisor_status(network: str, queue_item: QueueItem) -> bo
                 force_rpcType="private",
             ):
                 # save hype
-                local_db.set_status(data=hypervisor)
+                if db_return := local_db.set_status(data=hypervisor):
+                    # evaluate if price has been saved
+                    if db_return.upserted_id or db_return.modified_count:
+                        logging.getLogger(__name__).debug(
+                            f" {network} queue item {queue_item.id} hypervisor status saved to database"
+                        )
+                        # set queue from hype status operation
+                        build_and_save_queue_from_hypervisor_status(
+                            hypervisor_status=hypervisor, network=network
+                        )
+                        # set result
+                        return True
+                    else:
+                        logging.getLogger(__name__).error(
+                            f" {network} queue item {queue_item.id} reward status not saved to database. database returned: {db_return.raw_result}"
+                        )
+                else:
+                    logging.getLogger(__name__).error(
+                        f" No database return received while trying to save results for {network} queue item {queue_item.id}"
+                    )
 
-                # remove item from queue
-                local_db.del_queue_item(queue_item.id)
-
-                # log total process
-                curr_time = time.time()
-                logging.getLogger("benchmark").info(
-                    f" {network} queue item {queue_item.type}  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
-                )
-
-                # set queue from hype status operation
-                build_and_save_queue_from_hypervisor_status(
-                    hypervisor_status=hypervisor, network=network
-                )
-
-                return True
             else:
                 logging.getLogger(__name__).error(
                     f"Error building {network}'s hypervisor status for {queue_item.address}. Can't continue queue item {queue_item.id}"
@@ -391,9 +451,7 @@ def pull_from_queue_hypervisor_status(network: str, queue_item: QueueItem) -> bo
             f"Error processing {network}'s hypervisor status queue item: {e}"
         )
 
-    # free item ?
-    to_free_or_not_to_free_item(queue_item=queue_item, local_db=local_db)
-
+    # return result
     return False
 
 
@@ -408,47 +466,48 @@ def pull_from_queue_reward_status(network: str, queue_item: QueueItem) -> bool:
         logging.getLogger(__name__).error(
             f" {network} queue item {queue_item.id} block {queue_item.block} is lower than reward creation block {queue_item.data['reward_static']['block']}.Skipping and removing from queue"
         )
-        # remove item from queue
-        local_db.del_queue_item(queue_item.id)
         return True
+    else:
+        try:
+            if reward_status_list := create_reward_status_from_hype_status(
+                hypervisor_status=queue_item.data["hypervisor_status"],
+                rewarder_static=queue_item.data["reward_static"],
+                network=network,
+            ):
+                for reward_status in reward_status_list:
+                    # only save status if rewards per second are greater than 0
+                    if int(reward_status["rewards_perSecond"]) > 0:
+                        if db_return := local_db.set_rewards_status(data=reward_status):
+                            # evaluate if price has been saved
+                            if db_return.upserted_id or db_return.modified_count:
+                                logging.getLogger(__name__).debug(
+                                    f" {network} queue item {queue_item.id} reward status saved to database"
+                                )
+                                # define result
+                                return True
+                            else:
+                                logging.getLogger(__name__).error(
+                                    f" {network} queue item {queue_item.id} reward status not saved to database. database returned: {db_return.raw_result}"
+                                )
+                        else:
+                            logging.getLogger(__name__).error(
+                                f" No database return received while trying to save results for {network} queue item {queue_item.id}"
+                            )
+                    else:
+                        logging.getLogger(__name__).debug(
+                            f" {queue_item.id} has 0 rewards per second. Not saving it to database"
+                        )
+                        # define result
+                        return True
 
-    try:
-        if reward_status_list := create_reward_status_from_hype_status(
-            hypervisor_status=queue_item.data["hypervisor_status"],
-            rewarder_static=queue_item.data["reward_static"],
-            network=network,
-        ):
-            for reward_status in reward_status_list:
-                # only save status if rewards per second are greater than 0
-                if int(reward_status["rewards_perSecond"]) > 0:
-                    local_db.set_rewards_status(data=reward_status)
-                else:
-                    logging.getLogger(__name__).debug(
-                        f" {queue_item.id} has 0 rewards per second. Not saving it to database"
-                    )
-
-            # remove item from queue
-            local_db.del_queue_item(queue_item.id)
-
-            # log total process
-            curr_time = time.time()
-            logging.getLogger("benchmark").info(
-                f" {network} queue item {queue_item.type}  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
+            else:
+                logging.getLogger(__name__).debug(
+                    f" Cant get any reward status data for {network}'s {queue_item.address} rewarder"
+                )
+        except Exception as e:
+            logging.getLogger(__name__).error(
+                f"Error processing {network}'s rewards status queue item: {e}"
             )
-
-            return True
-
-        else:
-            logging.getLogger(__name__).debug(
-                f" Cant get any reward status data for {network}'s {queue_item.address} rewarder"
-            )
-    except Exception as e:
-        logging.getLogger(__name__).error(
-            f"Error processing {network}'s rewards status queue item: {e}"
-        )
-
-    # free item ?
-    to_free_or_not_to_free_item(queue_item=queue_item, local_db=local_db)
 
     return False
 
@@ -456,39 +515,39 @@ def pull_from_queue_reward_status(network: str, queue_item: QueueItem) -> bool:
 def pull_from_queue_price(network: str, queue_item: QueueItem) -> bool:
     # debug variables
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-    # set local database name and create manager
-    local_db = database_local(mongo_url=mongo_url, db_name=f"{network}_gamma")
-
     try:
-        # TODO: currently, thegraph is disabled bc some prices are super deviated from reality ( to check conversions)
+        # set price gatherer
         price_helper = price_scraper(
             cache=False, thegraph=False, geckoterminal_sleepNretry=True
         )
-
+        # get price
         price, source = price_helper.get_price(
             network=network, token_id=queue_item.address, block=queue_item.block
         )
 
         if price:
             # save price into database
-            database_global(mongo_url=mongo_url).set_price_usd(
+            if db_return := database_global(mongo_url=mongo_url).set_price_usd(
                 network=network,
                 block=queue_item.block,
                 token_address=queue_item.address,
                 price_usd=price,
                 source=source,
-            )
+            ):
+                # evaluate if price has been saved
+                if db_return.upserted_id or db_return.modified_count:
+                    logging.getLogger(__name__).debug(f" {network} price saved")
 
-            # remove item from queue
-            local_db.del_queue_item(queue_item.id)
+                    return True
 
-            # log total process
-            curr_time = time.time()
-            logging.getLogger("benchmark").info(
-                f" {network} queue item {queue_item.type}  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
-            )
-
-            return True
+                else:
+                    logging.getLogger(__name__).error(
+                        f" {network} price not saved. Database returned :{db_return.raw_result}"
+                    )
+            else:
+                logging.getLogger(__name__).error(
+                    f" No database return received while trying to save results for {network} queue item {queue_item.id}"
+                )
         else:
             logging.getLogger(__name__).debug(
                 f" Cant get price for {network}'s {queue_item.address} token"
@@ -499,9 +558,7 @@ def pull_from_queue_price(network: str, queue_item: QueueItem) -> bool:
             f"Error processing {network}'s price queue item: {e}"
         )
 
-    # free item ?
-    to_free_or_not_to_free_item(queue_item=queue_item, local_db=local_db)
-
+    # return result
     return False
 
 
@@ -522,20 +579,24 @@ def pull_from_queue_block(network: str, queue_item: QueueItem) -> bool:
 
         if dummy._timestamp:
             # save block into database
-            database_global(mongo_url=mongo_url).set_block(
+            if db_return := database_global(mongo_url=mongo_url).set_block(
                 network=network, block=dummy.block, timestamp=dummy._timestamp
-            )
-
-            # remove item from queue
-            local_db.del_queue_item(queue_item.id)
-
-            # log total process
-            curr_time = time.time()
-            logging.getLogger("benchmark").info(
-                f" {network} queue item {queue_item.type}  processing time: {seconds_to_time_passed(curr_time - queue_item.processing)}  total lifetime: {seconds_to_time_passed(curr_time - queue_item.creation)}"
-            )
-
-            return True
+            ):
+                # evaluate if price has been saved
+                if db_return.upserted_id or db_return.modified_count:
+                    logging.getLogger(__name__).debug(
+                        f" {network} queue item {queue_item.id} block saved to database"
+                    )
+                    # define result
+                    return True
+                else:
+                    logging.getLogger(__name__).error(
+                        f" {network} queue item {queue_item.id} block not saved to database. database returned: {db_return.raw_result}"
+                    )
+            else:
+                logging.getLogger(__name__).error(
+                    f" No database return received while trying to save results for {network} queue item {queue_item.id}"
+                )
         else:
             logging.getLogger(__name__).debug(
                 f" Cant get timestamp for {network}'s block {queue_item.block}"
@@ -546,9 +607,7 @@ def pull_from_queue_block(network: str, queue_item: QueueItem) -> bool:
             f"Error processing {network}'s block queue item: {e}"
         )
 
-    # free item ?
-    to_free_or_not_to_free_item(queue_item=queue_item, local_db=local_db)
-
+    # return result
     return False
 
 
@@ -556,7 +615,8 @@ def pull_from_queue_block(network: str, queue_item: QueueItem) -> bool:
 
 
 def to_free_or_not_to_free_item(
-    queue_item: QueueItem, local_db: database_local
+    network: str,
+    queue_item: QueueItem,
 ) -> bool:
     """Free item from processing if count is lower than 5,
         so that after 5 fails, next time will need an unlock before processing, taking longer
@@ -571,10 +631,26 @@ def to_free_or_not_to_free_item(
     #
     #
     if queue_item.count < 5:
-        local_db.free_queue_item(db_queue_item=queue_item.as_dict)
-        return True
+        if db_return := database_local(
+            mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
+            db_name=f"{network}_gamma",
+        ).free_queue_item(db_queue_item=queue_item.as_dict):
+            if db_return.modified_count or db_return.upserted_id:
+                logging.getLogger(__name__).debug(
+                    f" Freed {queue_item.type} {queue_item.id} from queue"
+                )
+                return True
+            else:
+                logging.getLogger(__name__).error(
+                    f" Could not free {queue_item.type} {queue_item.id} from queue. Database returned: {db_return.raw_result}"
+                )
+        else:
+            logging.getLogger(__name__).error(
+                f" No database return received while trying to free queue item {queue_item.id}"
+            )
     else:
         logging.getLogger(__name__).debug(
             f" Not freeing {queue_item.type} {queue_item.id} from queue because it failed {queue_item.count} times. Will need to be unlocked by a 'check' command"
         )
-        return False
+
+    return False
