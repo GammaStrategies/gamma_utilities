@@ -535,7 +535,11 @@ def pull_from_queue_price(network: str, queue_item: QueueItem) -> bool:
                 source=source,
             ):
                 # evaluate if price has been saved
-                if db_return.upserted_id or db_return.modified_count:
+                if (
+                    db_return.upserted_id
+                    or db_return.modified_count
+                    or db_return.matched_count
+                ):
                     logging.getLogger(__name__).debug(f" {network} price saved")
 
                     return True
