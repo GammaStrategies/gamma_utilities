@@ -6,16 +6,6 @@ from bins.general.enums import (
     rewarderType,
 )
 
-# tokens with no value to be discarded
-REWARD_TEST_TOKEN_ADDRESS = {
-    Chain.POLYGON: {
-        "0xd8ef817FFb926370dCaAb8F758DDb99b03591A5e".lower(): "AnglaMerkl",
-    },
-    Chain.ARBITRUM: {
-        "0xe0688a2fe90d0f93f17f273235031062a210d691".lower(): "AnglaMerkl",
-    },
-}
-
 
 ADDRESSES = {
     Chain.ETHEREUM: {

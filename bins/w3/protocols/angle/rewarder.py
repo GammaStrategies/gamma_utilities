@@ -1,7 +1,8 @@
 import logging
 from web3 import Web3
+from bins.configuration import TOKEN_ADDRESS_EXCLUDE
 from bins.general.enums import rewarderType, text_to_chain
-from bins.w3.protocols.angle.addresses import REWARD_TEST_TOKEN_ADDRESS
+
 from bins.w3.protocols.gamma.rewarder import gamma_rewarder
 
 
@@ -776,7 +777,7 @@ class angle_merkle_distributor_creator(gamma_rewarder):
         # check if dummy
         if (
             reward_address.lower()
-            in REWARD_TEST_TOKEN_ADDRESS.get(text_to_chain(self._network), {}).keys()
+            in TOKEN_ADDRESS_EXCLUDE.get(text_to_chain(self._network), {}).keys()
         ):
             # return is not valid
             return False

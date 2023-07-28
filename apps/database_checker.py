@@ -9,7 +9,7 @@ import re
 
 from apps.feeds.queue import QueueItem, process_queue_item_type
 
-from bins.configuration import CONFIGURATION
+from bins.configuration import CONFIGURATION, TOKEN_ADDRESS_EXCLUDE
 from bins.general.enums import databaseSource, queueItemType
 from bins.general.general_utilities import differences
 
@@ -435,33 +435,18 @@ def shouldBe_price_ids_from_status_rewards(
         {"$sort": {"block": 1}},
     ]
 
+    # build a list of token addresses to exclude from this network
+    addresses_to_exclude = list(TOKEN_ADDRESS_EXCLUDE.get(network, {}).keys())
+
     price_ids.update(
         [
             f"{network}_{item['block']}_{item['rewardToken']}"
             for item in local_db.get_items_from_database(
                 collection_name="rewards_static", aggregate=query, batch_size=batch_size
             )
+            if item["rewardToken"] not in addresses_to_exclude
         ]
     )
-
-    # # loop
-    # for reward_static in local_db.get_items_from_database(
-    #     collection_name="rewards_static",
-    #     find={},
-    #     batch_size=batch_size,
-    #     projection={"block": 1, "rewardToken": 1, "hypervisor_address": 1},
-    # ):
-    #     # get all hypervisor status blocks and build a price id for each one
-    #     price_ids.update(
-    #         [
-    #             f"{network}_{hype_status['block']}_{reward_static['rewardToken']}"
-    #             for hype_status in local_db.get_items_from_database(
-    #                 collection_name="status",
-    #                 find={"address": reward_static["hypervisor_address"]},
-    #                 projection={"block": 1},
-    #             )
-    #         ]
-    #     )
 
     return price_ids
 

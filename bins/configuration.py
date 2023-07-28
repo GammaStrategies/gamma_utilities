@@ -555,3 +555,14 @@ TOKEN_ADDRESS_CONVERSION = {
         "0xaaa1ee8dc1864ae49185c368e8c64dd780a50fb7".lower(): "0xaaa6c1e32c55a7bfa8066a6fae9b42650f262418".lower()
     },
 }
+
+
+# exclude list of token addresses
+TOKEN_ADDRESS_EXCLUDE = {
+    Chain.POLYGON: {
+        "0xd8ef817FFb926370dCaAb8F758DDb99b03591A5e".lower(): "AnglaMerkl",
+    },
+    Chain.ARBITRUM: {
+        "0xe0688a2fe90d0f93f17f273235031062a210d691".lower(): "AnglaMerkl",
+    },
+}
