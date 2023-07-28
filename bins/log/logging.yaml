@@ -117,7 +117,7 @@ loggers:
         propagate: False
     price:
         level: INFO
-        handlers: [price_file_handler]
+        handlers: [price_file_handler,debug_file_handler]
         propagate: False
     benchmark:
         level: INFO
