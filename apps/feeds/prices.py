@@ -80,6 +80,14 @@ def feed_prices(
             cache_filename="uniswapv3_price_cache",
             coingecko=coingecko,
             thegraph=False,
+            geckoterminal_sleepNretry=True,
+            source_order=[
+                databaseSource.ONCHAIN,
+                databaseSource.GECKOTERMINAL,
+                databaseSource.COINGECKO,
+            ]
+            if coingecko
+            else [databaseSource.ONCHAIN, databaseSource.GECKOTERMINAL],
         )
         # log errors
         _errors = 0

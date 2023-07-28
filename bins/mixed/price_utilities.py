@@ -54,6 +54,8 @@ class price_scraper:
         self.thegraph = thegraph
         self.onchain = onchain
 
+        self.source_order = source_order
+
         # create price helpers
         self.init_apis(cache, cache_folderName)
 
@@ -137,7 +139,8 @@ class price_scraper:
             logging.getLogger(__name__).exception(
                 f" Error while trying to evaluate a change of token address while getting price {e}"
             )
-        for source in source_order or self.create_source_order():
+        # follow the source order
+        for source in source_order or self.source_order or self.create_source_order():
             if source == databaseSource.CACHE:
                 _price, _source = self._get_price_from_cache(
                     network, token_id, block, of

@@ -1594,9 +1594,16 @@ def get_price(
     """get price of token at block
     Will return a tuple with price and source
     """
-    return price_scraper(cache=False, thegraph=False).get_price(
-        network=network, token_id=token_address, block=block
-    )
+    return price_scraper(
+        cache=False,
+        thegraph=False,
+        geckoterminal_sleepNretry=True,
+        source_order=[
+            databaseSource.ONCHAIN,
+            databaseSource.GECKOTERMINAL,
+            databaseSource.COINGECKO,
+        ],
+    ).get_price(network=network, token_id=token_address, block=block)
 
 
 def auto_get_prices():

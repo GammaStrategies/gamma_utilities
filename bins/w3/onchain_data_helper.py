@@ -27,6 +27,7 @@ class onchain_data_helper:
             cache=CONFIGURATION["cache"]["enabled"],
             cache_filename="uniswapv3_price_cache",
             thegraph=False,
+            geckoterminal_sleepNretry=True,
         )
 
     #

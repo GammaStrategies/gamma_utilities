@@ -461,7 +461,9 @@ def pull_from_queue_price(network: str, queue_item: QueueItem) -> bool:
 
     try:
         # TODO: currently, thegraph is disabled bc some prices are super deviated from reality ( to check conversions)
-        price_helper = price_scraper(cache=False, thegraph=False)
+        price_helper = price_scraper(
+            cache=False, thegraph=False, geckoterminal_sleepNretry=True
+        )
 
         price, source = price_helper.get_price(
             network=network, token_id=queue_item.address, block=queue_item.block
