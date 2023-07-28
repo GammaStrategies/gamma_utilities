@@ -47,12 +47,16 @@ def test_protocols(
                 "error_address_list": [],
             }
 
-            # get hypervisor addresses to process
-            for hypervisor_address in addresses or (
-                _get_static_hypervisor_addresses_to_process(
+            if not addresses:
+                (
+                    addresses,
+                    addresses_disabled,
+                ) = _get_static_hypervisor_addresses_to_process(
                     protocol="gamma", network=network, dex=dex, rewrite=True
                 )
-            ):
+
+            # get hypervisor addresses to process
+            for hypervisor_address in addresses:
                 logging.getLogger(__name__).debug(
                     f" Testing hypervisor {hypervisor_address} {network} {dex}"
                 )

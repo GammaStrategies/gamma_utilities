@@ -77,16 +77,18 @@ class gamma_hypervisor_registry(web3wrap):
         )
 
     # CUSTOM FUNCTIONS
-    def get_hypervisors_addresses(self, force_count: int = 10) -> list[str]:
-        """Retrieve hypervisors all addresses from registry
+    def get_hypervisors_addresses(self) -> tuple[list[str], list[str]]:
+        """Retrieve all hypervisors addresses from registry
 
         Returns:
-           list of addresses
+           list of addresses, applying blacklist
+           list of addresses disabled by contract (index 0)
         """
 
         #
         total_hypervisors_qtty = self.counter
         result = []
+        disabled = []
         # retrieve all valid hypervisors addresses
         # loop until all hypervisors have been retrieved ( no while loop to avoid infinite loop)
         for i in range(10000):
@@ -99,6 +101,8 @@ class gamma_hypervisor_registry(web3wrap):
 
                 if idx:
                     result.append(hypervisor_id)
+                else:
+                    disabled.append(hypervisor_id)
 
             except TypeError as e:
                 # hype index is out of bounds
@@ -126,7 +130,7 @@ class gamma_hypervisor_registry(web3wrap):
                 # address is blacklisted
                 result.remove(address)
 
-        return result
+        return result, disabled
 
     def apply_blacklist(self, blacklist: list[str]):
         """Save filters to be applied to the registry

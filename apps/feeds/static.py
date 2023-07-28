@@ -54,7 +54,10 @@ def feed_hypervisor_static(
     local_db = database_local(mongo_url=mongo_url, db_name=f"{network}_{protocol}")
 
     # hypervisor addresses to process
-    hypervisor_addresses_to_process = _get_static_hypervisor_addresses_to_process(
+    (
+        hypervisor_addresses_to_process,
+        hypervisor_addresses_disabled,
+    ) = _get_static_hypervisor_addresses_to_process(
         protocol=protocol, network=network, dex=dex, rewrite=rewrite
     )
 
@@ -158,6 +161,102 @@ def _create_hypervisor_static_dbObject(
         hypervisor_data["timestamp"] = creation_data["timestamp"]
 
     return hypervisor_data
+
+
+def remove_disabled_hypervisors(chain: Chain, hypervisor_addresses: list[str]):
+    """If any of the addresses are present in the static database,
+        remove any trace of em from queue, status and static ( in that order )
+
+    Args:
+        chain (Chain):
+        hypervisor_addresses (list[str]): list of addresses to remove
+    """
+    local_db = database_local(
+        mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
+        db_name=f"{chain.database_name}_gamma",
+    )
+
+    # convert addresses to lower case
+    hypervisor_addresses = [x.lower() for x in hypervisor_addresses]
+
+    # only execute when found
+    if local_db.get_items_from_database(
+        collection_name="static", find={"id": {"$in": hypervisor_addresses}}
+    ):
+        logging.getLogger(__name__).debug(
+            f" {len(result)} {chain.database_name} hypervisors where disabled from the hypervisor registry contract. Trying to remove their traces from database"
+        )
+        # remove from queue
+        collection_name = "queue"
+        try:
+            # create bulk data object
+            bulk_data = [{"filter": {"address": item}} for item in hypervisor_addresses]
+
+            with local_db.db_manager as _db_manager:
+                # add to mongodb
+                if result := _db_manager.del_items_in_bulk(
+                    coll_name=collection_name, data=bulk_data
+                ):
+                    # log removed items
+                    logging.getLogger(__name__).debug(
+                        f"      {result.deleted_count} of {len(result)} {chain.database_name} queued items were removed from {collection_name} database collection"
+                    )
+                else:
+                    logging.getLogger(__name__).error(
+                        f" Unable to remove multiple items from mongo's {collection_name} collection.  Items qtty: {len(hypervisor_addresses)}  mongodb returned-> {result.bulk_api_result}"
+                    )
+        except Exception as e:
+            logging.getLogger(__name__).error(
+                f" Unable to remove multiple items from mongo's {collection_name} collection.  Items qtty: {len(hypervisor_addresses)}    error-> {e}"
+            )
+
+        # remove from status collection
+        collection_name = "status"
+        try:
+            # create bulk data object
+            bulk_data = [{"filter": {"address": item}} for item in hypervisor_addresses]
+
+            with local_db.db_manager as _db_manager:
+                # remove from db
+                if result := _db_manager.del_items_in_bulk(
+                    coll_name=collection_name, data=bulk_data
+                ):
+                    # log removed items
+                    logging.getLogger(__name__).debug(
+                        f"      {result.deleted_count} of {len(result)} {chain.database_name} hypervisors were removed from {collection_name} database collection"
+                    )
+                else:
+                    logging.getLogger(__name__).error(
+                        f" Unable to remove multiple items from mongo's {collection_name} collection.  Items qtty: {len(hypervisor_addresses)}  mongodb returned-> {result.bulk_api_result}"
+                    )
+        except Exception as e:
+            logging.getLogger(__name__).error(
+                f" Unable to remove multiple items from mongo's {collection_name} collection.  Items qtty: {len(hypervisor_addresses)}    error-> {e}"
+            )
+
+        # remove from static collection
+        collection_name = "static"
+        try:
+            # create bulk data object
+            bulk_data = [{"filter": {"id": item}} for item in hypervisor_addresses]
+
+            with local_db.db_manager as _db_manager:
+                # add to mongodb
+                if result := _db_manager.del_items_in_bulk(
+                    coll_name=collection_name, data=bulk_data
+                ):
+                    # log removed items
+                    logging.getLogger(__name__).debug(
+                        f"      {result.deleted_count} of {len(result)} {chain.database_name} hypervisors were removed from {collection_name} database collection"
+                    )
+                else:
+                    logging.getLogger(__name__).error(
+                        f" Unable to remove multiple items from mongo's {collection_name} collection.  Items qtty: {len(hypervisor_addresses)}  mongodb returned-> {result.bulk_api_result}"
+                    )
+        except Exception as e:
+            logging.getLogger(__name__).error(
+                f" Unable to remove multiple items from mongo's {collection_name} collection.  Items qtty: {len(hypervisor_addresses)}    error-> {e}"
+            )
 
 
 # rewards static data
@@ -702,15 +801,15 @@ def _get_static_hypervisor_addresses_to_process(
     network: str,
     dex: str,
     rewrite: bool = False,
-) -> list:
+) -> tuple[list[str], list[str]]:
     """Create a list of hypervisor addresses to be scraped to feed static database collection
 
     Args:
-        local_db (database_local): _description_
-        rewrite (bool, optional): _description_. Defaults to False.
+        local_db (database_local):
+        rewrite (bool, optional): . Defaults to False.
 
     Returns:
-        list:
+       tuple[ list[str], list[str] ]:  hypervisor addresses, disabled list of hypervisor addresses
     """
     # get hyp addresses from database
     logging.getLogger(__name__).debug(
@@ -746,7 +845,20 @@ def _get_filtered_hypervisor_addresses_from_registry(
     protocol: str = "gamma",
     block: int = 0,
     exclude_addresses: list = [],
-) -> list:
+) -> tuple[list[str], list[str]]:
+    """get filtered hypervisor addresses from registry
+
+    Args:
+        network (str): _description_
+        dex (str): _description_
+        protocol (str, optional): _description_. Defaults to "gamma".
+        block (int, optional): _description_. Defaults to 0.
+        exclude_addresses (list, optional): _description_. Defaults to [].
+
+    Returns:
+        tuple[list[str],list[str]]:  list of addresses to be processed, list of addresses disabled by contract
+
+    """
     try:
         # create registry
         registry_address = (
