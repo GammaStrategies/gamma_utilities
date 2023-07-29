@@ -1273,10 +1273,12 @@ class database_local(db_collections_common):
                                 "rewardToken_price"
 
         """
-        # define database id-->  hypervisorAddress_rewarderAddress_block
+        # define database id-->
+        #           OLD= hypervisorAddress_rewarderAddress_block
+        #           NEW = hypervisorAddress_rewarderAddress_tokenAddress_block
         data[
             "id"
-        ] = f"{data['hypervisor_address']}_{data['rewarder_address']}_{data['block']}"
+        ] = f"{data['hypervisor_address']}_{data['rewarder_address']}_{data['rewardToken']}_{data['block']}"
         return self.save_item_to_database(data=data, collection_name="rewards_status")
 
     # hypervisor returns
