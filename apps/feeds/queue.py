@@ -31,7 +31,14 @@ class QueueItem:
 
     def __post_init__(self):
         if type == "reward_status":
-            self.id = f"{self.type}_{self.block}_{self.address}_{self.data['hypervisor_status']['address']}"
+            # reward status should have rewardToken as id
+            if "reward_static" in self.data:
+                self.id = f"{self.type}_{self.block}_{self.data['reward_static']['hypervisor_address']}_{self.data['reward_static']['rewarder_address']}{self.data['reward_static']['rewardToken']}"
+            else:
+                self.id = f"{self.type}_{self.block}_{self.address}_{self.data['hypervisor_status']['address']}"
+                logging.getLogger(__name__).error(
+                    f" {self.data} is missing reward_static. using id: {self.id}"
+                )
         else:
             self.id = f"{self.type}_{self.block}_{self.address}"
 
@@ -225,7 +232,7 @@ def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network
             if not local_db.get_items_from_database(
                 collection_name="rewards_status",
                 find={
-                    "id": f"{hypervisor_status['address']}_{reward_static['rewarder_address']}_{hypervisor_status['block']}"
+                    "id": f"{reward_static['hypervisor_address']}_{reward_static['rewarder_address']}_{reward_static['rewardToken']}_{hypervisor_status['block']}"
                 },
             ):
                 # add to queue
