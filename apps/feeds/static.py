@@ -8,6 +8,7 @@ from bins.configuration import (
     CONFIGURATION,
     STATIC_REGISTRY_ADDRESSES,
 )
+from bins.database.common.database_ids import create_id_rewards_static
 from bins.database.common.db_collections_common import database_local
 from bins.general.enums import Chain, Protocol, rewarderType, text_to_chain
 from bins.w3.builders import build_erc20_helper, build_hypervisor, convert_dex_protocol
@@ -383,9 +384,11 @@ def create_n_add_reward_static(
 
     # build ids
     for data in rewards_static_lst:
-        data[
-            "id"
-        ] = f"{data['hypervisor_address']}_{data['rewarder_address']}_{data['rewardToken']}"
+        data["id"] = create_id_rewards_static(
+            hypervisor_address=data["hypervisor_address"],
+            rewarder_address=data["rewarder_address"],
+            rewardToken_address=data["rewardToken"],
+        )
 
     # save all items to the database at once
     if rewards_static_lst:
@@ -434,7 +437,11 @@ def create_rewards_static_zyberswap(
                     reward_data["block"] = contract_data["creation_block"]
                 if (
                     rewrite
-                    or f"{reward_data['hypervisor_address']}_{reward_data['rewarder_address']}"
+                    or create_id_rewards_static(
+                        hypervisor_address=reward_data["hypervisor_address"],
+                        rewarder_address=reward_data["rewarder_address"],
+                        rewardToken_address=reward_data["rewardToken"],
+                    )
                     not in already_processed
                 ):
                     # save to database
@@ -478,7 +485,11 @@ def create_rewards_static_beamswap(
                 reward_data["block"] = contract_data["creation_block"]
             if (
                 rewrite
-                or f"{reward_data['hypervisor_address']}_{reward_data['rewarder_address']}"
+                or create_id_rewards_static(
+                    hypervisor_address=reward_data["hypervisor_address"],
+                    rewarder_address=reward_data["rewarder_address"],
+                    rewardToken_address=reward_data["rewardToken"],
+                )
                 not in already_processed
             ):
                 # save to database
@@ -520,7 +531,11 @@ def create_rewards_static_thena(
                 reward_data["block"] = contract_data["creation_block"]
             if (
                 rewrite
-                or f"{reward_data['hypervisor_address']}_{reward_data['rewarder_address']}"
+                or create_id_rewards_static(
+                    hypervisor_address=reward_data["hypervisor_address"],
+                    rewarder_address=reward_data["rewarder_address"],
+                    rewardToken_address=reward_data["rewardToken"],
+                )
                 not in already_processed
             ):
                 result.append(reward_data)
@@ -601,7 +616,11 @@ def create_rewards_static_merkl(
                     # save later to database
                     if (
                         rewrite
-                        or f"{reward_data['hypervisor_address']}_{reward_data['rewarder_address']}"
+                        or create_id_rewards_static(
+                            hypervisor_address=reward_data["hypervisor_address"],
+                            rewarder_address=reward_data["rewarder_address"],
+                            rewardToken_address=reward_data["rewardToken"],
+                        )
                         not in already_processed
                     ):
                         # add block creation data

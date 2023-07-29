@@ -9,6 +9,14 @@ from apps.feeds.status import (
     create_reward_status_from_hype_status,
 )
 from bins.configuration import CONFIGURATION
+from bins.database.common.database_ids import (
+    create_id_block,
+    create_id_hypervisor_status,
+    create_id_price,
+    create_id_queue,
+    create_id_rewards_static,
+    create_id_rewards_status,
+)
 from bins.database.common.db_collections_common import database_global, database_local
 from bins.general.enums import Chain, queueItemType
 from bins.general.general_utilities import seconds_to_time_passed
@@ -30,17 +38,33 @@ class QueueItem:
     count: int = 0
 
     def __post_init__(self):
-        if type == "reward_status":
+        if type == queueItemType.REWARD_STATUS:
             # reward status should have rewardToken as id
             if "reward_static" in self.data:
-                self.id = f"{self.type}_{self.block}_{self.data['reward_static']['hypervisor_address']}_{self.data['reward_static']['rewarder_address']}{self.data['reward_static']['rewardToken']}"
+                self.id = create_id_queue(
+                    type=self.type,
+                    block=self.block,
+                    hypervisor_address=self.data["reward_static"]["hypervisor_address"],
+                    rewarder_address=self.data["reward_static"]["rewarder_address"],
+                    rewardToken_address=self.data["reward_static"]["rewardToken"],
+                )
             else:
-                self.id = f"{self.type}_{self.block}_{self.address}_{self.data['hypervisor_status']['address']}"
-                logging.getLogger(__name__).error(
+                raise ValueError(
                     f" {self.data} is missing reward_static. using id: {self.id}"
                 )
+                # self.id = create_id_queue(
+                #     type=self.type,
+                #     block=self.block,
+                #     hypervisor_address=self.data['hypervisor_status']['address'],
+                #     )
+                # self.id = f"{self.type}_{self.block}_{self.address}_{self.data['hypervisor_status']['address']}"
+                # logging.getLogger(__name__).error(
+                #     f" {self.data} is missing reward_static. using id: {self.id}"
+                # )
         else:
-            self.id = f"{self.type}_{self.block}_{self.address}"
+            self.id = create_id_queue(
+                type=self.type, block=self.block, hypervisor_address=self.address
+            )
 
         # add creation time when object is created for the first time (not when it is loaded from database)
         if self.creation == 0:
@@ -101,12 +125,16 @@ def build_and_save_queue_from_operation(operation: dict, network: str):
     )
     # 1) create new hypervisor status at block and block -1 if operation["topic"] in ["deposit", "withdraw", "rebalance", "zeroBurn"]
     for block in blocks:
+        # build id
+        hypervisor_id = create_id_hypervisor_status(
+            hypervisor_address=operation["address"], block=block
+        )
         if found_status := local_db.get_items_from_database(
-            collection_name="status", find={"id": f"{operation['address']}_{block}"}
+            collection_name="status", find={"id": hypervisor_id}
         ):
             # already in database
             logging.getLogger(__name__).debug(
-                f" {network}'s {operation['address']} hype at block {operation['blockNumber']} is already in database"
+                f" {network}'s {operation['address']} hypervisor at block {operation['blockNumber']} is already in database"
             )
             # check if rewards should be updated
             build_and_save_queue_from_hypervisor_status(
@@ -154,11 +182,14 @@ def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network
     items = []
 
     # token 0 price
+    price0_id = create_id_price(
+        network=network,
+        block=hypervisor_status["block"],
+        address=hypervisor_status["pool"]["token0"]["address"],
+    )
     if not database_global(mongo_url=mongo_url).get_items_from_database(
         collection_name="usd_prices",
-        find={
-            "id": f"{network}_{hypervisor_status['block']}_{hypervisor_status['pool']['token0']['address']}"
-        },
+        find={"id": price0_id},
     ):
         # add to queue
         items.append(
@@ -175,11 +206,14 @@ def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network
         )
 
     # token 1 price
+    price1_id = create_id_price(
+        network=network,
+        block=hypervisor_status["block"],
+        address=hypervisor_status["pool"]["token1"]["address"],
+    )
     if not database_global(mongo_url=mongo_url).get_items_from_database(
         collection_name="usd_prices",
-        find={
-            "id": f"{network}_{hypervisor_status['block']}_{hypervisor_status['pool']['token1']['address']}"
-        },
+        find={"id": price1_id},
     ):
         # add to queue
         items.append(
@@ -208,11 +242,14 @@ def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network
             },
         ):
             # Reward price
+            reward_price_id = create_id_price(
+                network=network,
+                block=hypervisor_status["block"],
+                token_address=reward_static["rewardToken"],
+            )
             if not database_global(mongo_url=mongo_url).get_items_from_database(
                 collection_name="usd_prices",
-                find={
-                    "id": f"{network}_{hypervisor_status['block']}_{reward_static['rewardToken']}"
-                },
+                find={"id": reward_price_id},
             ):
                 # add price
                 items.append(
@@ -229,11 +266,15 @@ def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network
                 )
 
             # add reward_status
+            reward_status_id = create_id_rewards_status(
+                hypervisor_address=reward_static["hypervisor_address"],
+                rewarder_address=reward_static["rewarder_address"],
+                rewardToken_address=reward_static["rewardToken"],
+                block=hypervisor_status["block"],
+            )
             if not local_db.get_items_from_database(
                 collection_name="rewards_status",
-                find={
-                    "id": f"{reward_static['hypervisor_address']}_{reward_static['rewarder_address']}_{reward_static['rewardToken']}_{hypervisor_status['block']}"
-                },
+                find={"id": reward_status_id},
             ):
                 # add to queue
                 items.append(

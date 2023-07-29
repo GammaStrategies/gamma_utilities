@@ -14,6 +14,7 @@ from apps.feeds.queue import (
 )
 
 from bins.configuration import CONFIGURATION, TOKEN_ADDRESS_EXCLUDE
+from bins.database.common.database_ids import create_id_block, create_id_price
 from bins.general.enums import Chain, Protocol, databaseSource, queueItemType
 from bins.general.general_utilities import differences
 
@@ -81,7 +82,7 @@ def repair_prices_from_logs(min_count: int = 1, add_to_queue: bool = False):
         global_db_manager = database_global(mongo_url=mongo_url)
         # create ids to query database with
         price_ids_to_search = [
-            f"{network}_{block}_{address}"
+            create_id_price(network, block, address)
             for network, addresses in network_token_blocks.items()
             for address, blocks_data in addresses.items()
             for block, counter in blocks_data.items()
@@ -254,56 +255,6 @@ def repair_prices_from_status(
                     )
                     progress_bar.update(0)
 
-                    # # get all token addressess + block from status hypervisors
-                    # logging.getLogger(__name__).info(
-                    #     f" Getting hypervisor status token addresses and blocks for {network}"
-                    # )
-                    # for hype_status in _db().get_items_from_database(
-                    #     collection_name="status",
-                    #     find={},
-                    #     batch_size=batch_size,
-                    #     projection={"pool": 1, "block": 1},
-                    # ):
-                    #     # add token addresses
-                    #     price_ids_shouldBe.add(
-                    #         f"{network}_{hype_status['block']}_{hype_status['pool']['token0']['address']}"
-                    #     )
-                    #     price_ids_shouldBe.add(
-                    #         f"{network}_{hype_status['block']}_{hype_status['pool']['token1']['address']}"
-                    #     )
-
-                    #     # add block
-                    #     blocks_shouldBe.add(hype_status["block"])
-
-                    #     # progress
-                    #     progress_bar.set_description(
-                    #         f" {network} should be prices: {len(price_ids_shouldBe)}"
-                    #     )
-                    #     progress_bar.update(0)
-
-                    # logging.getLogger(__name__).info(
-                    #     f" Getting rewarder status token addresses and blocks for {network}"
-                    # )
-                    # for rewarder_status in _db().get_items_from_database(
-                    #     collection_name="rewards_status",
-                    #     find={"blocks": {"$nin": list(blocks_shouldBe)}},
-                    #     batch_size=batch_size,
-                    #     projection={"rewardToken": 1, "block": 1},
-                    # ):
-                    #     # add token addresses
-                    #     price_ids_shouldBe.add(
-                    #         f"{network}_{rewarder_status['block']}_{rewarder_status['rewardToken']}"
-                    #     )
-
-                    #     # add block
-                    #     blocks_shouldBe.add(rewarder_status["block"])
-
-                    #     # progress
-                    #     progress_bar.set_description(
-                    #         f" {network} should be prices: {len(price_ids_shouldBe)}"
-                    #     )
-                    #     progress_bar.update(0)
-
                     logging.getLogger(__name__).info(
                         f" Checking if there are {len(price_ids_shouldBe)} prices for {network} in the price database"
                     )
@@ -327,10 +278,10 @@ def repair_prices_from_status(
 
                         try:
                             # check if those prices are already in the queue to be processed
-                            # price id : {network}_{block}_{address}
+                            # price id : create_id_price(network, block, address)
                             if price_ids_in_queue := set(
                                 [
-                                    f"{network}_{x['block']}_{x['address']}"
+                                    create_id_price(network, x["block"], x["address"])
                                     for x in _db().get_items_from_database(
                                         collection_name="queue",
                                         find={"type": queueItemType.PRICE},
@@ -492,7 +443,7 @@ def shouldBe_price_ids_from_status_rewards(
 
     price_ids.update(
         [
-            f"{network}_{item['block']}_{item['rewardToken']}"
+            create_id_price(network, item["block"], item["rewardToken"])
             for item in local_db.get_items_from_database(
                 collection_name="rewards_static", aggregate=query, batch_size=batch_size
             )
@@ -541,10 +492,14 @@ def shouldBe_price_ids_from_status_hypervisors(
     ):
         # get all hypervisor status blocks and build a price id for each one
         price_ids.add(
-            f"{network}_{hype_status['block']}_{hype_status['pool']['token0']['address']}"
+            create_id_price(
+                network, hype_status["block"], hype_status["pool"]["token0"]["address"]
+            )
         )
         price_ids.add(
-            f"{network}_{hype_status['block']}_{hype_status['pool']['token0']['address']}"
+            create_id_price(
+                network, hype_status["block"], hype_status["pool"]["token1"]["address"]
+            )
         )
         # add block to block_ids
         block_ids.add(hype_status["block"])
@@ -619,10 +574,18 @@ def repair_prices_from_status_OLD(
                 ):
                     # add token addresses
                     price_ids_shouldBe.add(
-                        f"{network}_{hype_status['block']}_{hype_status['pool']['token0']['address']}"
+                        create_id_price(
+                            network=network,
+                            block=hype_status["block"],
+                            token_address=hype_status["pool"]["token0"]["address"],
+                        )
                     )
                     price_ids_shouldBe.add(
-                        f"{network}_{hype_status['block']}_{hype_status['pool']['token1']['address']}"
+                        create_id_price(
+                            network=network,
+                            block=hype_status["block"],
+                            token_address=hype_status["pool"]["token1"]["address"],
+                        )
                     )
                     # add block
                     blocks_shouldBe.add(hype_status["block"])
@@ -644,7 +607,11 @@ def repair_prices_from_status_OLD(
                 ):
                     # add token addresses
                     price_ids_shouldBe.add(
-                        f"{network}_{rewarder_status['block']}_{rewarder_status['rewardToken']}"
+                        create_id_price(
+                            network=network,
+                            block=rewarder_status["block"],
+                            token_address=rewarder_status["rewardToken"],
+                        )
                     )
 
                     # add block
@@ -679,10 +646,14 @@ def repair_prices_from_status_OLD(
 
                     try:
                         # check if those prices are already in the queue to be processed
-                        # price id : {network}_{block}_{address}
+                        # price id : create_id_price(network=network, block=x['block'], token_address=x['address'])
                         if price_ids_in_queue := set(
                             [
-                                f"{network}_{x['block']}_{x['address']}"
+                                create_id_price(
+                                    network=network,
+                                    block=x["block"],
+                                    token_address=x["address"],
+                                )
                                 for x in _db().get_items_from_database(
                                     collection_name="queue",
                                     find={"type": queueItemType.PRICE},
@@ -1448,7 +1419,7 @@ def repair_missing_blocks(protocol: str, network: str, batch_size: int = 100000)
     # get a list of status blocks from local database
     todo_blocks = {
         x["block"]: {
-            "id": f"{network}_{x['block']}",
+            "id": create_id_block(network=network, block=x["block"]),
             "network": network,
             "block": x["block"],
             "timestamp": x["timestamp"],
@@ -1468,7 +1439,7 @@ def repair_missing_blocks(protocol: str, network: str, batch_size: int = 100000)
     todo_blocks.update(
         {
             x["block"]: {
-                "id": f"{network}_{x['block']}",
+                "id": create_id_block(network=network, block=x["block"]),
                 "network": network,
                 "block": x["block"],
                 "timestamp": x["timestamp"],
@@ -2099,9 +2070,14 @@ def check_status_prices(
 
     # get tokens and blocks present in database
     prices_todo = set()
+
     for x in local_db_manager.get_items_from_database(collection_name="status"):
         for i in [0, 1]:
-            db_id = f'{network}_{x["pool"][f"token{i}"]["block"]}_{x["pool"][f"token{i}"]["address"]}'
+            db_id = create_id_price(
+                network=network,
+                block=x["pool"][f"token{i}"]["block"],
+                token_address=x["pool"][f"token{i}"]["address"],
+            )
 
             if db_id not in prices:
                 prices_todo.add(db_id)

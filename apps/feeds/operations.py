@@ -8,6 +8,10 @@ from apps.feeds.queue import build_and_save_queue_from_operation
 # from croniter import croniter
 
 from bins.configuration import CONFIGURATION
+from bins.database.common.database_ids import (
+    create_id_hypervisor_status,
+    create_id_operation,
+)
 from bins.general.general_utilities import (
     convert_string_datetime,
     differences,
@@ -305,7 +309,9 @@ def feed_operations_hypervisors(
 
 def task_process_operation(operation: dict, local_db: database_local, network: str):
     # set operation id (same hash has multiple operations)
-    operation["id"] = f"""{operation["logIndex"]}_{operation["transactionHash"]}"""
+    operation["id"] = create_id_operation(
+        logIndex=operation["logIndex"], transactionHash=operation["transactionHash"]
+    )
     # lower case address ( to ease comparison )
     operation["address"] = operation["address"].lower()
     # save operation to database
@@ -314,7 +320,11 @@ def task_process_operation(operation: dict, local_db: database_local, network: s
     # make sure hype is not in status collection already
     if not local_db.get_items_from_database(
         collection_name="status",
-        find={"id": f"{operation['address'].lower()}_{operation['blockNumber']}"},
+        find={
+            "id": create_id_hypervisor_status(
+                hypervisor_address=operation["address"], block=operation["blockNumber"]
+            )
+        },
         limit=1,
         projection={"id": 1},
     ):
@@ -370,71 +380,3 @@ def get_db_last_operation_block(protocol: str, network: str) -> int:
         )
 
     return None
-
-
-# OLD: replaced by feed_operations_hypervisors
-# def feed_operations_hypervisors_OLD(
-#     network: str,
-#     protocol: str,
-#     hypervisor_addresses: list,
-#     block_ini: int,
-#     block_end: int,
-#     local_db: database_local,
-# ):
-#     # set global protocol helper
-#     onchain_helper = onchain_data_helper(protocol=protocol)
-
-#     logging.getLogger(__name__).info(
-#         "   Feeding database with {}'s {} operations of {} hypervisors from blocks {} to {}".format(
-#             network, protocol, len(hypervisor_addresses), block_ini, block_end
-#         )
-#     )
-#     with tqdm.tqdm(total=100) as progress_bar:
-#         # create callback progress funtion
-#         def _update_progress(text, remaining=None, total=None):
-#             progress_bar.set_description(text)
-#             # set total
-#             if total:
-#                 progress_bar.total = total
-#             # update current
-#             if remaining:
-#                 progress_bar.update(((total - remaining) - progress_bar.n))
-#             else:
-#                 progress_bar.update(1)
-#             # refresh
-#             progress_bar.refresh()
-
-#         for operation in onchain_helper.operations_generator(
-#             addresses=hypervisor_addresses,
-#             network=network,
-#             block_ini=block_ini,
-#             block_end=block_end,
-#             progress_callback=_update_progress,
-#             max_blocks=1000,
-#         ):
-#             # set operation id (same hash has multiple operations)
-#             operation[
-#                 "id"
-#             ] = f"""{operation["logIndex"]}_{operation["transactionHash"]}"""
-#             # lower case address ( to ease comparison )
-#             operation["address"] = operation["address"].lower()
-#             local_db.set_operation(data=operation)
-
-#             # make sure hype is not in status collection already
-#             if not local_db.get_items_from_database(
-#                 collection_name="status",
-#                 find={
-#                     "id": f"{operation['address'].lower()}_{operation['blockNumber']}"
-#                 },
-#                 limit=1,
-#                 projection={"id": 1},
-#             ):
-#                 # fire scrape event on block regarding hypervisor and rewarders snapshots (status) and token prices
-#                 # build queue events from operation
-#                 build_and_save_queue_from_operation(
-#                     operation=operation, network=network
-#                 )
-#             else:
-#                 logging.getLogger(__name__).debug(
-#                     f"  Not pushing {operation['address']} hypervisor status queue item bcause its already in the database"
-#                 )

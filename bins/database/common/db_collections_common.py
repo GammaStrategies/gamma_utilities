@@ -6,6 +6,17 @@ from decimal import Decimal, localcontext
 from datetime import datetime
 from pymongo.errors import ConnectionFailure, BulkWriteError
 from pymongo import DESCENDING, ASCENDING
+from bins.database.common.database_ids import (
+    create_id_block,
+    create_id_current_price,
+    create_id_hypervisor_returns,
+    create_id_hypervisor_status,
+    create_id_price,
+    create_id_rewards_static,
+    create_id_rewards_status,
+    create_id_user_operation,
+    create_id_user_status,
+)
 from bins.database.common.db_managers import MongoDbManager
 from bins.general.enums import queueItemType
 from pymongo.results import (
@@ -423,7 +434,9 @@ class database_global(db_collections_common):
         source: str,
     ) -> UpdateResult:
         data = {
-            "id": f"{network}_{block}_{token_address}",
+            "id": create_id_price(
+                network=network, block=block, token_address=token_address
+            ),
             "network": network,
             "block": int(block),
             "address": token_address,
@@ -441,7 +454,7 @@ class database_global(db_collections_common):
         source: str,
     ):
         data = {
-            "id": f"{network}_{token_address}",
+            "id": create_id_current_price(network=network, token_address=token_address),
             "network": network,
             "timestamp": int(datetime.now().timestamp()),
             "address": token_address,
@@ -455,7 +468,7 @@ class database_global(db_collections_common):
         self, network: str, block: int, timestamp: datetime.timestamp
     ) -> UpdateResult:
         data = {
-            "id": f"{network}_{block}",
+            "id": create_id_block(network=network, block=block),
             "network": network,
             "block": block,
             "timestamp": timestamp,
@@ -494,7 +507,11 @@ class database_global(db_collections_common):
         """
         return self.get_items_from_database(
             collection_name="usd_prices",
-            find={"id": f"{network}_{block}_{address}"},
+            find={
+                "id": create_id_price(
+                    network=network, block=block, token_address=address
+                )
+            },
         )
 
     def get_prices_usd_last(self, network: str) -> list[dict]:
@@ -796,18 +813,20 @@ class database_local(db_collections_common):
         # save to db
         return self.replace_item_to_database(data=data, collection_name="queue")
 
-    def get_queue_item(self, types: list[queueItemType] | None = None) -> dict | None:
-        find = {"processing": 0}
+    def get_queue_item(
+        self, types: list[queueItemType] | None = None, find: dict | None = None
+    ) -> dict | None:
+        if not find:
+            find = {"processing": 0}
         if types:
             find["type"] = {"$in": types}
-        # get one item from queue
 
-        if db_queue_item := self.find_one_and_update(
+        # get one item from queue
+        return self.find_one_and_update(
             collection_name="queue",
             find=find,
             update={"$set": {"processing": time.time()}},
-        ):
-            return db_queue_item
+        )
 
     def del_queue_item(self, id: str) -> DeleteResult:
         return self.delete_item(collection_name="queue", item_id=id)
@@ -1011,7 +1030,9 @@ class database_local(db_collections_common):
 
     def set_status(self, data: dict):
         # define database id
-        data["id"] = f"{data['address']}_{data['block']}"
+        data["id"] = create_id_hypervisor_status(
+            hypervisor_address=data["address"], block=data["block"]
+        )
         return self.save_item_to_database(data=data, collection_name="status")
 
     def get_all_status(self, hypervisor_address: str) -> list:
@@ -1116,9 +1137,12 @@ class database_local(db_collections_common):
             data (dict):
         """
         # define database id
-        data[
-            "id"
-        ] = f"{data['address']}_{data['block']}_{data['logIndex']}_{data['hypervisor_address']}"
+        data["id"] = create_id_user_status(
+            user_address=data["address"],
+            block=data["block"],
+            logIndex=data["logIndex"],
+            hypervisor_address=data["hypervisor_address"],
+        )
 
         # convert decimal to bson compatible and save
         self.replace_item_to_database(data=data, collection_name="user_status")
@@ -1131,9 +1155,12 @@ class database_local(db_collections_common):
         """
         # define database ids
         for item in data:
-            item[
-                "id"
-            ] = f"{item['address']}_{item['block']}_{item['logIndex']}_{item['hypervisor_address']}"
+            item["id"] = create_id_user_status(
+                user_address=item["address"],
+                block=item["block"],
+                logIndex=item["logIndex"],
+                hypervisor_address=item["hypervisor_address"],
+            )
 
         # convert decimal to bson compatible and save
         self.replace_items_to_database(data=data, collection_name="user_status")
@@ -1159,9 +1186,12 @@ class database_local(db_collections_common):
             data (dict):
         """
         # define database id
-        data[
-            "id"
-        ] = f"{data['user_address']}_{data['block']}_{data['logIndex']}_{data['hypervisor_address']}"
+        data["id"] = create_id_user_operation(
+            user_address=data["user_address"],
+            block=data["block"],
+            logIndex=data["logIndex"],
+            hypervisor_address=data["hypervisor_address"],
+        )
 
         # convert decimal to bson compatible and save
         return self.replace_item_to_database(
@@ -1176,9 +1206,12 @@ class database_local(db_collections_common):
         """
         # define database ids
         for item in data:
-            item[
-                "id"
-            ] = f"{item['user_address']}_{item['block']}_{item['logIndex']}_{item['hypervisor_address']}"
+            item["id"] = create_id_user_operation(
+                user_address=data["user_address"],
+                block=data["block"],
+                logIndex=data["logIndex"],
+                hypervisor_address=data["hypervisor_address"],
+            )
 
         # convert decimal to bson compatible and save
         self.replace_items_to_database(data=data, collection_name="user_operations")
@@ -1229,9 +1262,11 @@ class database_local(db_collections_common):
         # define database id using the first refid if present ( being pid or any other info to identify the hypervisor inside the rewarder)
         # dbid = data["rewarder_refIds"][0] if data["rewarder_refIds"] else 0
         # define database id-->  hypervisorAddress_rewarderAddress
-        data[
-            "id"
-        ] = f"{data['hypervisor_address']}_{data['rewarder_address']}_{data['rewardToken']}"
+        data["id"] = create_id_rewards_static(
+            hypervisor_address=data["hypervisor_address"],
+            rewarder_address=data["rewarder_address"],
+            rewardToken_address=data["rewardToken"],
+        )
         self.save_item_to_database(data=data, collection_name="rewards_static")
 
     def get_rewards_static(
@@ -1283,15 +1318,22 @@ class database_local(db_collections_common):
         # define database id-->
         #           OLD= hypervisorAddress_rewarderAddress_block
         #           NEW = hypervisorAddress_rewarderAddress_tokenAddress_block
-        data[
-            "id"
-        ] = f"{data['hypervisor_address']}_{data['rewarder_address']}_{data['rewardToken']}_{data['block']}"
+        data["id"] = create_id_rewards_status(
+            hypervisor_address=data["hypervisor_address"],
+            rewarder_address=data["rewarder_address"],
+            rewardToken_address=data["rewardToken"],
+            block=data["block"],
+        )
         return self.save_item_to_database(data=data, collection_name="rewards_status")
 
     # hypervisor returns
     def set_hypervisor_returns(self, data: dict) -> UpdateResult:
         # create id
-        data["id"] = f"{data['address']}_{data['ini_block']}_{data['end_block']}"
+        data["id"] = create_id_hypervisor_returns(
+            hypervisor_address=data["address"],
+            ini_block=data["ini_block"],
+            end_block=data["end_block"],
+        )
 
         # save
         return self.replace_item_to_database(

@@ -7,6 +7,7 @@ from bins.apis.angle_merkle import angle_merkle_wraper
 
 
 from bins.configuration import CONFIGURATION
+from bins.database.common.database_ids import create_id_hypervisor_status
 from bins.database.common.db_collections_common import database_global, database_local
 from bins.database.helpers import get_price_from_db
 from bins.formulas.apr import calculate_rewards_apr
@@ -81,13 +82,22 @@ def feed_hypervisor_status(
         topics=["deposit", "withdraw", "zeroBurn", "rebalance"]
     ):
         # add operation addressBlock to be processed
-        toProcess_block_address[f"""{x["address"]}_{x["block"]}"""] = {
+
+        toProcess_block_address[
+            create_id_hypervisor_status(
+                hypervisor_address=x["address"], block=x["block"]
+            )
+        ] = {
             "address": x["address"],
             "block": x["block"],
             "fees_metadata": "ini",
         }
         # add block -1
-        toProcess_block_address[f"""{x["address"]}_{x["block"]-1}"""] = {
+        toProcess_block_address[
+            create_id_hypervisor_status(
+                hypervisor_address=x["address"], block=x["block"] - 1
+            )
+        ] = {
             "address": x["address"],
             "block": x["block"] - 1,
             "fees_metadata": "end",
@@ -113,7 +123,11 @@ def feed_hypervisor_status(
             )
 
             for address in static_info:
-                toProcess_block_address[f"""{address}_{latest_block}"""] = {
+                toProcess_block_address[
+                    create_id_hypervisor_status(
+                        hypervisor_address=address, block=latest_block
+                    )
+                ] = {
                     "address": address,
                     "block": latest_block,
                     "fees_metadata": "mid",
@@ -133,7 +147,9 @@ def feed_hypervisor_status(
     else:
         # get a list of blocks already processed
         processed_blocks = {
-            f"""{x["address"]}_{x["block"]}""": x
+            create_id_hypervisor_status(
+                hypervisor_address=x["address"], block=x["block"]
+            ): x
             for x in local_db.get_unique_status_addressBlock()
         }
 

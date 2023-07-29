@@ -7,6 +7,7 @@ import concurrent.futures
 from bins.apis.coingecko_utilities import coingecko_price_helper
 
 from bins.configuration import CONFIGURATION, add_to_memory, get_from_memory
+from bins.database.common.database_ids import create_id_price
 from bins.database.common.db_collections_common import database_global, database_local
 from bins.formulas.dex_formulas import sqrtPriceX96_to_price_float
 from bins.general.enums import Chain, databaseSource
@@ -226,7 +227,11 @@ def get_already_processed_prices(network: str, limit: int | None = None) -> set[
 
     # get zero sqrtPriceX96 ( unsalvable errors found in the past)
     _processed_prices += [
-        f'{network}_{x["block"]}_{x["pool"]["token0"]["address"]}'
+        create_id_price(
+            network=network,
+            block=x["block"],
+            token_address=x["pool"]["token0"]["address"],
+        )
         for x in get_from_memory(key="zero_sqrtPriceX96")
     ]
 
@@ -268,7 +273,11 @@ def create_tokenBlocks_allHypervisorTokens(
         ):
             result = set(
                 [
-                    f'{network}_{status["pool"]["block"]}_{status["pool"][f"token{i}"]["address"]}'
+                    create_id_price(
+                        network=network,
+                        block=status["pool"]["block"],
+                        token_address=status["pool"][f"token{i}"]["address"],
+                    )
                     for status in hypervisor_status
                     for i in [0, 1]
                 ]
@@ -300,7 +309,9 @@ def create_tokenBlocks_allRewardsTokens(network: str, limit: int | None = None) 
 
     return set(
         [
-            f'{network}_{item["block"]}_{item["rewardToken"]}'
+            create_id_price(
+                network=network, block=item["block"], token_address=item["rewardToken"]
+            )
             for item in local_db_manager.get_items_from_database(
                 collection_name="rewards_status",
                 find={},
@@ -576,7 +587,11 @@ def create_tokenBlocks_allTokensButWeth(protocol: str, network: str) -> set:
     try:
         return set(
             [
-                f'{network}_{status["pool"]["block"]}_{status["pool"][f"token{i}"]["address"]}'
+                create_id_price(
+                    network=network,
+                    block=status["pool"]["block"],
+                    token_address=status["pool"][f"token{i}"]["address"],
+                )
                 for status in local_db_manager.get_items_from_database(
                     collection_name="status",
                     find={
@@ -621,7 +636,11 @@ def create_tokenBlocks_allTokens(protocol: str, network: str) -> set:
         ):
             result = set(
                 [
-                    f'{network}_{status["pool"]["block"]}_{status["pool"][f"token{i}"]["address"]}'
+                    create_id_price(
+                        network=network,
+                        block=status["pool"]["block"],
+                        token_address=status["pool"][f"token{i}"]["address"],
+                    )
                     for status in hypervisor_status
                     for i in [0, 1]
                 ]
@@ -660,7 +679,11 @@ def create_tokenBlocks_topTokens(protocol: str, network: str, limit: int = 5) ->
     # get a list of all status with those top tokens + blocks
     return set(
         [
-            f'{network}_{x["pool"]["token1"]["block"]}_{x["pool"]["token1"]["address"]}'
+            create_id_price(
+                network=network,
+                block=x["pool"]["token1"]["block"],
+                token_address=x["pool"]["token1"]["address"],
+            )
             for x in local_db_manager.get_items(
                 collection_name="status",
                 find={
@@ -674,29 +697,6 @@ def create_tokenBlocks_topTokens(protocol: str, network: str, limit: int = 5) ->
             )
         ]
     )
-
-    # return set(
-    #     (
-    #         [
-    #             f'{network}_{x["pool"]["token1"]["block"]}_{x["pool"]["token1"]["address"]}'
-    #             for x in local_db_manager.get_items(
-    #                 collection_name="status",
-    #                 find={"pool.token1.symbol": {"$in": top_token_symbols}},
-    #                 projection={"pool": 1, "_id": 0},
-    #                 sort=[("block", 1)],
-    #             )
-    #         ]
-    #         + [
-    #             f'{network}_{x["pool"]["token0"]["block"]}_{x["pool"]["token0"]["address"]}'
-    #             for x in local_db_manager.get_items(
-    #                 collection_name="status",
-    #                 find={"pool.token0.symbol": {"$in": top_token_symbols}},
-    #                 projection={"pool": 1, "_id": 0},
-    #                 sort=[("block", 1)],
-    #             )
-    #         ]
-    #     )
-    # )
 
 
 def create_tokenBlocks_rewards_DELETEME(protocol: str, network: str) -> set:
@@ -766,7 +766,11 @@ def create_tokenBlocks_rewards_DELETEME(protocol: str, network: str) -> set:
 
     result = set(
         [
-            f'{network}_{block}_{reward_block_todo["rewardToken"]}'
+            create_id_price(
+                network=network,
+                block=block,
+                token_address=reward_block_todo["rewardToken"],
+            )
             for reward_block_todo in local_db_manager.query_items_from_database(
                 collection_name="rewards_static", query=_query
             )
@@ -797,7 +801,9 @@ def create_tokenBlocks_rewards(protocol: str, network: str) -> set:
 
     return set(
         [
-            f'{network}_{item["block"]}_{item["rewardToken"]}'
+            create_id_price(
+                network=network, block=item["block"], token_address=item["rewardToken"]
+            )
             for item in local_db_manager.get_items_from_database(
                 collection_name="rewards_status",
                 find={},
@@ -852,7 +858,11 @@ def feed_prices_force_sqrtPriceX96(
             projection={"block": 1, "pool": 1, "_id": 0},
             sort=[("block", 1)],
         )
-        if "{}_{}_{}".format(network, x["block"], x["pool"]["token0"]["address"])
+        if create_id_price(
+            network=network,
+            block=x["block"],
+            token_address=x["pool"]["token0"]["address"],
+        )
         not in already_processed_prices
     ]
 

@@ -4,6 +4,7 @@ from decimal import Decimal
 import logging
 
 from bins.configuration import CONFIGURATION
+from bins.database.common.database_ids import create_id_hypervisor_returns
 from bins.database.common.db_collections_common import database_local
 from bins.database.helpers import get_price_from_db
 from bins.general.enums import Chain
@@ -468,10 +469,11 @@ def feed_hypervisor_returns(chain: Chain, hypervisor_addresses: list[str]):
                     current_period = current_period.to_dict()
 
                     # create id
-                    current_period[
-                        "id"
-                    ] = f"{current_period['address']}_{current_period['ini_block']}_{current_period['end_block']}"
-
+                    current_period["id"] = create_id_hypervisor_returns(
+                        hypervisor_address=current_period["address"],
+                        ini_block=current_period["ini_block"],
+                        end_block=current_period["end_block"],
+                    )
                     # convert to bson compatible and save to database
                     up_result = local_db.set_hypervisor_returns(
                         data=local_db.convert_decimal_to_d128(current_period)
