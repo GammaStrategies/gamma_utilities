@@ -365,7 +365,7 @@ def pull_common_processing_work(
             mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
             db_name=f"{network}_gamma",
         ).del_queue_item(queue_item.id):
-            if db_return.deleted_count:
+            if db_return.deleted_count or db_return.acknowledged:
                 logging.getLogger(__name__).debug(
                     f" {network}'s queue item {queue_item.id} has been removed from queue"
                 )
@@ -418,7 +418,11 @@ def pull_from_queue_hypervisor_status(network: str, queue_item: QueueItem) -> bo
                 # save hype
                 if db_return := local_db.set_status(data=hypervisor):
                     # evaluate if price has been saved
-                    if db_return.upserted_id or db_return.modified_count:
+                    if (
+                        db_return.upserted_id
+                        or db_return.modified_count
+                        or db_return.matched_count
+                    ):
                         logging.getLogger(__name__).debug(
                             f" {network} queue item {queue_item.id} hypervisor status saved to database"
                         )
@@ -479,7 +483,11 @@ def pull_from_queue_reward_status(network: str, queue_item: QueueItem) -> bool:
                     if int(reward_status["rewards_perSecond"]) > 0:
                         if db_return := local_db.set_rewards_status(data=reward_status):
                             # evaluate if price has been saved
-                            if db_return.upserted_id or db_return.modified_count:
+                            if (
+                                db_return.upserted_id
+                                or db_return.modified_count
+                                or db_return.matched_count
+                            ):
                                 logging.getLogger(__name__).debug(
                                     f" {network} queue item {queue_item.id} reward status saved to database"
                                 )
@@ -587,7 +595,11 @@ def pull_from_queue_block(network: str, queue_item: QueueItem) -> bool:
                 network=network, block=dummy.block, timestamp=dummy._timestamp
             ):
                 # evaluate if price has been saved
-                if db_return.upserted_id or db_return.modified_count:
+                if (
+                    db_return.upserted_id
+                    or db_return.modified_count
+                    or db_return.matched_count
+                ):
                     logging.getLogger(__name__).debug(
                         f" {network} queue item {queue_item.id} block saved to database"
                     )
