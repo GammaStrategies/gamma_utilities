@@ -185,7 +185,7 @@ def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network
     price0_id = create_id_price(
         network=network,
         block=hypervisor_status["block"],
-        address=hypervisor_status["pool"]["token0"]["address"],
+        token_address=hypervisor_status["pool"]["token0"]["address"],
     )
     if not database_global(mongo_url=mongo_url).get_items_from_database(
         collection_name="usd_prices",
@@ -209,7 +209,7 @@ def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network
     price1_id = create_id_price(
         network=network,
         block=hypervisor_status["block"],
-        address=hypervisor_status["pool"]["token1"]["address"],
+        token_address=hypervisor_status["pool"]["token1"]["address"],
     )
     if not database_global(mongo_url=mongo_url).get_items_from_database(
         collection_name="usd_prices",
