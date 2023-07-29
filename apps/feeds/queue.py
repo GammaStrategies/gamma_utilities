@@ -668,5 +668,13 @@ def to_free_or_not_to_free_item(
         logging.getLogger(__name__).debug(
             f" Not freeing {queue_item.type} {queue_item.id} from queue because it failed {queue_item.count} times. Will need to be unlocked by a 'check' command"
         )
+        # save item with count
+        if db_return := database_local(
+            mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
+            db_name=f"{network}_gamma",
+        ).set_queue_item(data=queue_item.as_dict):
+            logging.getLogger(__name__).debug(
+                f" Saved {queue_item.type} {queue_item.id} with count {queue_item.count} to queue"
+            )
 
     return False
