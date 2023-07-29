@@ -383,7 +383,9 @@ def create_n_add_reward_static(
 
     # build ids
     for data in rewards_static_lst:
-        data["id"] = f"{data['hypervisor_address']}_{data['rewarder_address']}"
+        data[
+            "id"
+        ] = f"{data['hypervisor_address']}_{data['rewarder_address']}_{data['rewardToken']}"
 
     # save all items to the database at once
     if rewards_static_lst:

@@ -1229,7 +1229,9 @@ class database_local(db_collections_common):
         # define database id using the first refid if present ( being pid or any other info to identify the hypervisor inside the rewarder)
         # dbid = data["rewarder_refIds"][0] if data["rewarder_refIds"] else 0
         # define database id-->  hypervisorAddress_rewarderAddress
-        data["id"] = f"{data['hypervisor_address']}_{data['rewarder_address']}"
+        data[
+            "id"
+        ] = f"{data['hypervisor_address']}_{data['rewarder_address']}_{data['rewardToken']}"
         self.save_item_to_database(data=data, collection_name="rewards_static")
 
     def get_rewards_static(
