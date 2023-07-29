@@ -7,10 +7,14 @@ import concurrent.futures
 import contextlib
 import re
 
-from apps.feeds.queue import QueueItem, process_queue_item_type
+from apps.feeds.queue import (
+    QueueItem,
+    build_and_save_queue_from_hypervisor_status,
+    process_queue_item_type,
+)
 
 from bins.configuration import CONFIGURATION, TOKEN_ADDRESS_EXCLUDE
-from bins.general.enums import databaseSource, queueItemType
+from bins.general.enums import Chain, Protocol, databaseSource, queueItemType
 from bins.general.general_utilities import differences
 
 from bins.w3.protocols.general import erc20_cached
@@ -49,7 +53,7 @@ def repair_all():
 
 
 def repair_prices(min_count: int = 1):
-    repair_prices_from_logs(min_count=min_count)
+    repair_prices_from_logs(min_count=min_count, add_to_queue=True)
 
     repair_prices_from_status(
         max_repair_per_network=CONFIGURATION["_custom_"]["cml_parameters"].maximum
@@ -61,7 +65,7 @@ def repair_prices(min_count: int = 1):
     )
 
 
-def repair_prices_from_logs(min_count: int = 1):
+def repair_prices_from_logs(min_count: int = 1, add_to_queue: bool = False):
     """Check price errors from debug and price logs and try to scrape again"""
 
     logging.getLogger(__name__).info(
@@ -86,6 +90,7 @@ def repair_prices_from_logs(min_count: int = 1):
         price_ids_in_database = global_db_manager.get_items_from_database(
             collection_name="usd_prices",
             find={"id": {"$in": price_ids_to_search}},
+            batch_size=100000,
             projection={"id": 1},
         )
 
@@ -108,6 +113,9 @@ def repair_prices_from_logs(min_count: int = 1):
 
         with tqdm.tqdm(total=len(network_token_blocks)) as progress_bar:
             for network, addresses in network_token_blocks.items():
+                # create a queue item list to add to queue when enabled
+                to_queue_items = []
+
                 logging.getLogger(__name__).info(
                     f" > Trying to repair {len(addresses)} tokens price from {network}"
                 )
@@ -126,24 +134,36 @@ def repair_prices_from_logs(min_count: int = 1):
 
                         # counter = number of times found in logs
                         if counter >= min_count:
-                            price, source = get_price(
-                                network=network, token_address=address, block=block
-                            )
-                            if price:
-                                logging.getLogger(__name__).debug(
-                                    f" Added {price} as price for {network}'s {address} at block {block}  (found {counter} times in log) source: {source}"
-                                )
-                                add_price_to_token(
-                                    network=network,
-                                    token_address=address,
-                                    block=block,
-                                    price=price,
-                                    source=source,
+                            # add to queue
+                            if add_to_queue:
+                                to_queue_items.append(
+                                    QueueItem(
+                                        type=queueItemType.PRICE,
+                                        block=block,
+                                        address=address,
+                                        data={},
+                                    ).as_dict
                                 )
                             else:
-                                logging.getLogger(__name__).debug(
-                                    f" Could not find price for {network}'s {address} at block {block}  (found {counter} times in log)"
+                                price, source = get_price(
+                                    network=network, token_address=address, block=block
                                 )
+                                if price:
+                                    logging.getLogger(__name__).debug(
+                                        f" Added {price} as price for {network}'s {address} at block {block}  (found {counter} times in log) source: {source}"
+                                    )
+                                    add_price_to_token(
+                                        network=network,
+                                        token_address=address,
+                                        block=block,
+                                        price=price,
+                                        source=source,
+                                    )
+                                else:
+                                    logging.getLogger(__name__).debug(
+                                        f" Could not find price for {network}'s {address} at block {block}  (found {counter} times in log)"
+                                    )
+
                         else:
                             logging.getLogger(__name__).debug(
                                 f" Not procesing price for {network}'s {address} at block {block} bc it has been found only {counter} times in log."
@@ -162,6 +182,28 @@ def repair_prices_from_logs(min_count: int = 1):
         logging.getLogger(__name__).exception(
             " unexpected error checking prices from log"
         )
+
+    # add all items to queue, when enabled
+    if add_to_queue and len(to_queue_items):
+        if db_return := database_local(
+            mongo_url=mongo_url, db_name=f"{network}_gamma"
+        ).replace_items_to_database(data=to_queue_items, collection_name="queue"):
+            if (
+                db_return.inserted_count
+                or db_return.upserted_count
+                or db_return.modified_count
+            ):
+                logging.getLogger(__name__).debug(
+                    f" Added {len(to_queue_items)} prices to the queue for {network}."
+                )
+            else:
+                logging.getLogger(__name__).warning(
+                    f" No prices added to the queue for {network}. Database returned:  {db_return.bulk_api_result}"
+                )
+        else:
+            logging.getLogger(__name__).error(
+                f" No database return while adding prices to the queue for {network}."
+            )
 
 
 def repair_prices_from_status(
@@ -345,6 +387,16 @@ def repair_prices_from_status(
                         to_queue_items = [
                             create_queue_item(price_id) for price_id in price_ids_diffs
                         ]
+
+                        # TODO: create a list of blocks to be added to database
+                        # to_queue_items += [
+                        #   QueueItem(
+                        #        type=queueItemType.BLOCK,
+                        #        block=block,
+                        #        address="0x0000000000000000000000000000000000000000",
+                        #        data={},
+                        #    ).as_dict for block in blocks_shouldBe
+                        # ]
 
                         # add to queue
                         if result := _db().replace_items_to_database(
@@ -1156,6 +1208,103 @@ def repair_missing_hypervisor_status(
         else:
             logging.getLogger(__name__).debug(
                 f" No missing status blocks found for {network}'s {hype['address']}"
+            )
+
+
+def repair_missing_rewards_status(chain: Chain, max_repair: int = None):
+    """ """
+    batch_size = 100000
+    logging.getLogger(__name__).info(
+        f"> Finding missing {chain.database_name}'s rewards status in database"
+    )
+    # get all operation blocks from database
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_name = f"{chain.database_name}_gamma"
+
+    # loop thru all static rewards in database
+    for reward_static in tqdm.tqdm(
+        database_local(mongo_url=mongo_url, db_name=db_name).get_items_from_database(
+            collection_name="rewards_static",
+            find={},
+            batch_size=batch_size,
+            sort=[("_id", -1)],
+        )
+    ):
+        # do not process excluded tokens
+        if reward_static["rewardToken"] in TOKEN_ADDRESS_EXCLUDE.get(chain, {}):
+            continue
+
+        # get rewards_status from hype
+        rewards_status_blocks = [
+            int(x["block"])
+            for x in database_local(
+                mongo_url=mongo_url, db_name=db_name
+            ).get_items_from_database(
+                collection_name="rewards_status",
+                find={
+                    "hypervisor_address": reward_static["hypervisor_address"],
+                    "rewardToken": reward_static["rewardToken"],
+                    # "block": {"$gte": reward_static["block"]},
+                },
+                projection={"block": 1},
+                batch_size=batch_size,
+            )
+        ]
+
+        hypervisors_status_lits = database_local(
+            mongo_url=mongo_url, db_name=db_name
+        ).get_items_from_database(
+            collection_name="status",
+            find={
+                "address": reward_static["hypervisor_address"],
+                "$and": [
+                    # {"block": {"$gte": reward_static["block"]}},
+                    {"block": {"$nin": rewards_status_blocks}},
+                ],
+            },
+            batch_size=batch_size,
+        )
+
+        if hypervisors_status_lits:
+            logging.getLogger(__name__).debug(
+                f" Found {len(hypervisors_status_lits)} missing rewards status blocks for {chain.database_name}'s {reward_static['hypervisor_address']}"
+            )
+            if max_repair and len(hypervisors_status_lits) > max_repair:
+                logging.getLogger(__name__).info(
+                    f"  Selecting a random sample of {max_repair} rewards status missing due to max_repair limit set."
+                )
+                hypervisors_status_lits = random.sample(
+                    hypervisors_status_lits, max_repair
+                )
+
+            logging.getLogger(__name__).info(
+                f" A total of {len(hypervisors_status_lits)} rewards status will be added to the queue (prices may also get queued when needed)"
+            )
+
+            # prepare arguments for paralel scraping
+            args = (
+                (
+                    hype_status,
+                    chain.database_name,
+                )
+                for hype_status in hypervisors_status_lits
+            )
+
+            # get hypervisor status gte reward_static block
+            with concurrent.futures.ThreadPoolExecutor() as ex:
+                for result in ex.map(
+                    lambda p: build_and_save_queue_from_hypervisor_status(*p), args
+                ):
+                    pass
+
+        # for hype_status in tqdm.tqdm(hypervisors_status_lits):
+        #     # create queue items
+        #     build_and_save_queue_from_hypervisor_status(
+        #         hypervisor_status=hype_status, network=chain.network
+        #     )
+        else:
+            logging.getLogger(__name__).debug(
+                f" No missing rewards status found for {chain.database_name}'s {reward_static['hypervisor_address']}"
             )
 
 
