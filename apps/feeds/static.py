@@ -328,66 +328,72 @@ def create_n_add_reward_static(
     # get hypervisors addresses to process
     hypervisor_addresses = [x["address"] for x in hypervisors]
 
-    # zyberswap masterchef
+    rewards_static_lst = []
+
+    # select reward type to process
     if dex == Protocol.ZYBERSWAP.database_name:
-        for rewards_static in create_rewards_static_zyberswap(
+        rewards_static_lst = create_rewards_static_zyberswap(
             network=network,
             hypervisor_addresses=hypervisor_addresses,
             already_processed=already_processed,
             rewrite=rewrite,
             block=block,
-        ):
-            # save to database
-            local_db.set_rewards_static(data=rewards_static)
+        )
 
     elif dex == Protocol.THENA.database_name:
         # thena gauges
-        for rewards_static in create_rewards_static_thena(
+        rewards_static_lst = create_rewards_static_thena(
             network=network,
             hypervisor_addresses=hypervisor_addresses,
             already_processed=already_processed,
             rewrite=rewrite,
             block=block,
-        ):
-            # save to database
-            local_db.set_rewards_static(data=rewards_static)
+        )
 
     elif dex == Protocol.BEAMSWAP.database_name:
-        for rewards_static in create_rewards_static_beamswap(
+        rewards_static_lst = create_rewards_static_beamswap(
             network=network,
             hypervisor_addresses=hypervisor_addresses,
             already_processed=already_processed,
             rewrite=rewrite,
             block=block,
-        ):
-            # save to database
-            local_db.set_rewards_static(data=rewards_static)
+        )
 
     elif dex in [Protocol.SUSHI.database_name, Protocol.RETRO.database_name]:
-        for rewards_static in create_rewards_static_merkl(
+        rewards_static_lst = create_rewards_static_merkl(
             chain=text_to_chain(network),
             hypervisors=hypervisors,
             already_processed=already_processed,
             rewrite=rewrite,
             block=block,
-        ):
-            # save to database
-            local_db.set_rewards_static(data=rewards_static)
+        )
 
     elif dex == Protocol.RAMSES.database_name:
-        for rewards_static in create_rewards_static_ramses(
+        rewards_static_lst = create_rewards_static_ramses(
             chain=text_to_chain(network),
             hypervisors=hypervisors,
             already_processed=already_processed,
             rewrite=rewrite,
             block=block,
-        ):
-            # save to database
-            local_db.set_rewards_static(data=rewards_static)
+        )
 
     else:
         # raise NotImplementedError(f"{network} {dex} not implemented")
-        pass
+        return
+
+    # build ids
+    for data in rewards_static_lst:
+        data["id"] = f"{data['hypervisor_address']}_{data['rewarder_address']}"
+
+    # save all items to the database at once
+    if rewards_static_lst:
+        db_result = local_db.replace_items_to_database(
+            data=rewards_static_lst, collection_name="rewards_static"
+        )
+
+        logging.getLogger(__name__).debug(
+            f"   database result-> ins: {db_result.inserted_count} mod: {db_result.modified_count} ups: {db_result.upserted_count} del: {db_result.deleted_count}"
+        )
 
 
 def create_rewards_static_zyberswap(
@@ -396,7 +402,8 @@ def create_rewards_static_zyberswap(
     already_processed: list,
     rewrite: bool = False,
     block: int = 0,
-):
+) -> list[dict]:
+    result = []
     # TODO: zyberswap masterchef duo -> 0x72E4CcEe48fB8FEf18D99aF2965Ce6d06D55C8ba  creation_block: 80073186
     to_process_contract_addresses = {
         "0x9BA666165867E916Ee7Ed3a3aE6C19415C2fBDDD".lower(): {
@@ -429,7 +436,9 @@ def create_rewards_static_zyberswap(
                     not in already_processed
                 ):
                     # save to database
-                    yield reward_data
+                    result.append(reward_data)
+
+    return result
 
 
 def create_rewards_static_beamswap(
@@ -438,7 +447,9 @@ def create_rewards_static_beamswap(
     already_processed: list,
     rewrite: bool = False,
     block: int = 0,
-):
+) -> list[dict]:
+    result = []
+
     to_process_contract_addresses = {
         "0x9d48141B234BB9528090E915085E0e6Af5Aad42c".lower(): {
             "creation_block": 3665586,
@@ -469,7 +480,9 @@ def create_rewards_static_beamswap(
                 not in already_processed
             ):
                 # save to database
-                yield reward_data
+                result.append(reward_data)
+
+    return result
 
 
 def create_rewards_static_thena(
@@ -478,7 +491,8 @@ def create_rewards_static_thena(
     already_processed: list,
     rewrite: bool = False,
     block: int = 0,
-):
+) -> list[dict]:
+    result = []
     to_process_contract_addresses = {
         "0x3a1d0952809f4948d15ebce8d345962a282c4fcb".lower(): {
             "creation_block": 27114632,
@@ -507,7 +521,9 @@ def create_rewards_static_thena(
                 or f"{reward_data['hypervisor_address']}_{reward_data['rewarder_address']}"
                 not in already_processed
             ):
-                yield reward_data
+                result.append(reward_data)
+
+    return result
 
 
 def create_rewards_static_merkl(
@@ -516,7 +532,8 @@ def create_rewards_static_merkl(
     already_processed: list[str],
     rewrite: bool = False,
     block: int = 0,
-):
+) -> list[dict]:
+    result = []
     if (
         distributor_creator_address := STATIC_REGISTRY_ADDRESSES.get(
             chain.database_name, {}
@@ -593,7 +610,8 @@ def create_rewards_static_merkl(
                             reward_data["block"] = creation_data["block"]
 
                         # save to database
-                        yield reward_data
+                        result.append(reward_data)
+    return result
 
 
 def create_rewards_static_ramses(
@@ -602,7 +620,8 @@ def create_rewards_static_ramses(
     already_processed: list[str],
     rewrite: bool = False,
     block: int = 0,
-):
+) -> list[dict]:
+    result = []
     for hype_static in hypervisors:
         if rewrite or hype_static["address"].lower() not in already_processed:
             # create ramses hypervisor
@@ -610,53 +629,47 @@ def create_rewards_static_ramses(
                 address=hype_static["address"], network=chain.database_name, block=block
             )
 
-            for reward_data in hype_status.gauge.get_rewards(convert_bint=True):
-                # build erc20 helper
-                erc20_helper = build_erc20_helper(
-                    chain=chain, address=reward_data["rewardToken"], cached=True
+            if hype_rewards := hype_status.gauge.get_rewards(convert_bint=True):
+                logging.getLogger(__name__).debug(
+                    f" Found {len(hype_rewards)} static rewards for the hypervisor {hype_static['address']}"
                 )
-                reward_data["hypervisor_address"] = hype_status.address.lower()
-                reward_data["rewardToken_symbol"] = erc20_helper.symbol
-                reward_data["rewardToken_decimals"] = erc20_helper.decimals
-                reward_data["total_hypervisorToken_qtty"] = str(hype_status.totalSupply)
 
-                yield reward_data
+                # all rewards will have the same rewarder_address thus contract creation
+                creation_block = hype_static["block"]
+                if creation_data := _get_contract_creation_block(
+                    network=chain.database_name,
+                    contract_address=hype_rewards[0]["rewarder_address"],
+                ):
+                    # logging.getLogger(__name__).debug(
+                    #     f"  Setting creation block for ramses {chain.database_name}'s {hype_rewards[0]['rewarder_address']} static rewarder to {creation_data['block']}"
+                    # )
+                    creation_block = creation_data["block"]
 
-            # # get gauge rewardsRate
-            # for reward_token in hype_status.gauge.getRewardTokens:
-            #     # setup basics
-            #     reward_token = reward_token.lower()
-            #     # build erc20 helper
-            #     erc20_helper = build_erc20_helper(
-            #         chain=chain, address=reward_token, cached=True
-            #     )
-            #     reward_token_symbol = erc20_helper.symbol
-            #     reward_token_decimals = erc20_helper.decimals
+                else:
+                    logging.getLogger(__name__).debug(
+                        f"  No contract creation date found for ramses reward static {hype_rewards[0]['rewarder_address']}. Using Hypervisor's {hype_static['address']} block {creation_block} "
+                    )
 
-            #     reward_rate = str(
-            #         hype_status.gauge.rewardRate(token_address=reward_token)
-            #     )
+                for reward_data in hype_rewards:
+                    # build erc20 helper
+                    erc20_helper = build_erc20_helper(
+                        chain=chain, address=reward_data["rewardToken"], cached=True
+                    )
+                    reward_data["hypervisor_address"] = hype_status.address.lower()
+                    reward_data["rewardToken_symbol"] = erc20_helper.symbol
+                    reward_data["rewardToken_decimals"] = erc20_helper.decimals
+                    reward_data["total_hypervisorToken_qtty"] = str(
+                        hype_status.totalSupply
+                    )
 
-            #     # build static reward data object
-            #     reward_data = {
-            #         "block": hype_static["block"],  # creation
-            #         "timestamp": hype_static["timestamp"],  # creation
-            #         "hypervisor_address": hype_status.address.lower(),
-            #         "rewarder_address": hype_status.gauge.address.lower(),
-            #         "rewarder_type": rewarderType.RAMSES_v2,
-            #         "rewarder_refIds": [],
-            #         "rewarder_registry": hype_status.gauge.gaugeFactory.lower(),
-            #         "rewardToken": reward_token.lower(),
-            #         "rewardToken_symbol": reward_token_symbol,
-            #         "rewardToken_decimals": reward_token_decimals,
-            #         "rewards_perSecond": reward_rate,  # TODO: remove this field from all static rewards
-            #         "total_hypervisorToken_qtty": str(
-            #             hype_status.totalSupply
-            #         ),  # TODO: remove this field from all static rewards
-            #     }
-            #
-            #    # save to database
-            #    yield reward_data
+                    # add block creation data
+                    reward_data["block"] = creation_block
+                    logging.getLogger(__name__).debug(
+                        f"  Processed ramses {chain.database_name}'s {reward_data['rewarder_address']} {reward_data['rewardToken_symbol']} static rewarder at {reward_data['block']}"
+                    )
+                    # add to result
+                    result.append(reward_data)
+    return result
 
 
 def create_rewards_static_gamma(
@@ -665,7 +678,8 @@ def create_rewards_static_gamma(
     already_processed: list,
     rewrite: bool = False,
     block: int = 0,
-):
+) -> list[dict]:
+    result = []
     for dex in (
         [dex]
         if dex
@@ -691,6 +705,8 @@ def create_rewards_static_gamma(
             reward_registry = gamma_masterchef_v1(
                 address=registry_address, network=chain.database_name
             )
+
+    return result
 
 
 # def feed_gamma_masterchef_static(
