@@ -1258,7 +1258,7 @@ def repair_missing_rewards_status(chain: Chain, max_repair: int = None):
             find={
                 "address": reward_static["hypervisor_address"],
                 "$and": [
-                    # {"block": {"$gte": reward_static["block"]}},
+                    {"block": {"$gte": reward_static["block"]}},
                     {"block": {"$nin": rewards_status_blocks}},
                 ],
             },
