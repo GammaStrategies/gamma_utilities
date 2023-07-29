@@ -48,13 +48,14 @@ class db_collections_common:
         self,
         data: list[dict],
         collection_name: str,
-    ):
+    ) -> BulkWriteResult:
         """Delete multiple items at once ( in bulk)
 
         Args:
             data (list[dict]):
             collection_name (str):
         """
+        result = None
         try:
             # create bulk data object
             bulk_data = [{"filter": {"id": item["id"]}, "data": item} for item in data]
@@ -65,7 +66,9 @@ class db_collections_common:
                 collections=self._db_collections,
             ) as _db_manager:
                 # add to mongodb
-                _db_manager.del_items_in_bulk(coll_name=collection_name, data=bulk_data)
+                result = _db_manager.del_items_in_bulk(
+                    coll_name=collection_name, data=bulk_data
+                )
         except BulkWriteError as bwe:
             logging.getLogger(__name__).error(
                 f"  Error while replacing multiple items in {collection_name} collection database. Items qtty: {len(data)}  error-> {bwe.details}"
@@ -74,6 +77,8 @@ class db_collections_common:
             logging.getLogger(__name__).error(
                 f" Unable to replace multiple items in mongo's {collection_name} collection.  Items qtty: {len(data)}    error-> {e}"
             )
+
+        return result
 
     # actual db saving
     def save_items_to_database(
