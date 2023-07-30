@@ -231,6 +231,55 @@ def feed_operations_hypervisors(
         )
     )
 
+    with tqdm.tqdm(total=100) as progress_bar:
+        # create callback progress funtion
+        def _update_progress(text=None, remaining=None, total=None):
+            # set text
+            if text:
+                progress_bar.set_description(text)
+            # set total
+            if total:
+                progress_bar.total = total
+            # update current
+            if remaining:
+                progress_bar.update(((total - remaining) - progress_bar.n))
+            else:
+                progress_bar.update(1)
+            # refresh
+            progress_bar.refresh()
+
+        for operation in onchain_helper.operations_generator(
+            addresses=hypervisor_addresses,
+            network=network,
+            block_ini=block_ini,
+            block_end=block_end,
+            progress_callback=_update_progress,
+            max_blocks=1000,
+        ):
+            # process operation
+            task_process_operation(
+                operation=operation, local_db=local_db, network=network
+            )
+
+
+# TODO: hangs on some cases
+def feed_operations_hypervisors_task(
+    network: str,
+    protocol: str,
+    hypervisor_addresses: list,
+    block_ini: int,
+    block_end: int,
+    local_db: database_local,
+):
+    # set global protocol helper
+    onchain_helper = onchain_data_helper(protocol=protocol)
+
+    logging.getLogger(__name__).info(
+        "   Feeding database with {}'s {} operations of {} hypervisors from blocks {} to {}".format(
+            network, protocol, len(hypervisor_addresses), block_ini, block_end
+        )
+    )
+
     # create a task pool to handle operations
     tasks = []
 
@@ -315,7 +364,8 @@ def task_process_operation(operation: dict, local_db: database_local, network: s
     # lower case address ( to ease comparison )
     operation["address"] = operation["address"].lower()
     # save operation to database
-    local_db.set_operation(data=operation)
+    if db_return := local_db.set_operation(data=operation):
+        logging.getLogger(__name__).debug(f" Saved operation {db_return['id']}")
 
     # make sure hype is not in status collection already
     if not local_db.get_items_from_database(
@@ -325,7 +375,6 @@ def task_process_operation(operation: dict, local_db: database_local, network: s
                 hypervisor_address=operation["address"], block=operation["blockNumber"]
             )
         },
-        limit=1,
         projection={"id": 1},
     ):
         # fire scrape event on block regarding hypervisor and rewarders snapshots (status) and token prices
