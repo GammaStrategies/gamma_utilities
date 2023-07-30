@@ -15,7 +15,13 @@ from apps.feeds.queue import (
 
 from bins.configuration import CONFIGURATION, TOKEN_ADDRESS_EXCLUDE
 from bins.database.common.database_ids import create_id_block, create_id_price
-from bins.general.enums import Chain, Protocol, databaseSource, queueItemType
+from bins.general.enums import (
+    Chain,
+    Protocol,
+    databaseSource,
+    queueItemType,
+    text_to_chain,
+)
 from bins.general.general_utilities import differences
 
 from bins.w3.protocols.general import erc20_cached
@@ -51,6 +57,10 @@ def repair_all():
 
     # repair prices not found in logs
     repair_prices()
+
+    # repair missing rewards status
+    # TODO: this is too time intensive right now. Need to find a better way to do it
+    # repair_rewards_status()
 
 
 def repair_prices(min_count: int = 1):
@@ -1182,6 +1192,21 @@ def repair_missing_hypervisor_status(
             )
 
 
+def repair_rewards_status():
+    for protocol in CONFIGURATION["script"]["protocols"]:
+        # override networks if specified in cml
+        networks = (
+            CONFIGURATION["_custom_"]["cml_parameters"].networks
+            or CONFIGURATION["script"]["protocols"][protocol]["networks"]
+        )
+
+        for network in networks:
+            repair_missing_rewards_status(
+                chain=text_to_chain(network),
+                max_repair=CONFIGURATION["_custom_"]["cml_parameters"].maximum,
+            )
+
+
 def repair_missing_rewards_status(chain: Chain, max_repair: int = None):
     """ """
     batch_size = 100000
@@ -1205,23 +1230,24 @@ def repair_missing_rewards_status(chain: Chain, max_repair: int = None):
         if reward_static["rewardToken"] in TOKEN_ADDRESS_EXCLUDE.get(chain, {}):
             continue
 
-        # get rewards_status from hype
-        rewards_status_blocks = [
-            int(x["block"])
-            for x in database_local(
-                mongo_url=mongo_url, db_name=db_name
-            ).get_items_from_database(
-                collection_name="rewards_status",
-                find={
-                    "hypervisor_address": reward_static["hypervisor_address"],
-                    "rewardToken": reward_static["rewardToken"],
-                    # "block": {"$gte": reward_static["block"]},
-                },
-                projection={"block": 1},
-                batch_size=batch_size,
-            )
-        ]
+        # get rewards_status ids and blocks from database
+        rewards_status_ids = []
+        rewards_status_blocks = []
+        for item in database_local(
+            mongo_url=mongo_url, db_name=db_name
+        ).get_items_from_database(
+            collection_name="rewards_status",
+            find={
+                "hypervisor_address": reward_static["hypervisor_address"],
+                "rewardToken": reward_static["rewardToken"],
+            },
+            projection={"id": 1, "_id": 0, "block": 1},
+            batch_size=batch_size,
+        ):
+            rewards_status_ids.append(item["id"])
+            rewards_status_blocks.append(int(item["block"]))
 
+        # sort by block desc so that newer items can be seen first
         hypervisors_status_lits = database_local(
             mongo_url=mongo_url, db_name=db_name
         ).get_items_from_database(
@@ -1232,7 +1258,9 @@ def repair_missing_rewards_status(chain: Chain, max_repair: int = None):
                     {"block": {"$gte": reward_static["block"]}},
                     {"block": {"$nin": rewards_status_blocks}},
                 ],
+                "totalSupply": {"$ne": "0"},
             },
+            sort=[("block", -1)],
             batch_size=batch_size,
         )
 
@@ -1241,18 +1269,24 @@ def repair_missing_rewards_status(chain: Chain, max_repair: int = None):
                 f" Found {len(hypervisors_status_lits)} missing rewards status blocks for {chain.database_name}'s {reward_static['hypervisor_address']}"
             )
             if max_repair and len(hypervisors_status_lits) > max_repair:
+                # select the most recent
                 logging.getLogger(__name__).info(
-                    f"  Selecting a random sample of {max_repair} rewards status missing due to max_repair limit set."
+                    f"  Selecting the most recent {max_repair} rewards status missing due to max_repair limit set."
                 )
-                hypervisors_status_lits = random.sample(
-                    hypervisors_status_lits, max_repair
-                )
+                hypervisors_status_lits = hypervisors_status_lits[:max_repair]
+                # make a random selection
+                # logging.getLogger(__name__).info(
+                #     f"  Selecting a random sample of {max_repair} rewards status missing due to max_repair limit set."
+                # )
+                # hypervisors_status_lits = random.sample(
+                #     hypervisors_status_lits, max_repair
+                # )
 
             logging.getLogger(__name__).info(
                 f" A total of {len(hypervisors_status_lits)} rewards status will be added to the queue (prices may also get queued when needed)"
             )
 
-            # prepare arguments for paralel scraping
+            # prepare arguments for treaded function
             args = (
                 (
                     hype_status,
@@ -1266,17 +1300,175 @@ def repair_missing_rewards_status(chain: Chain, max_repair: int = None):
                 for result in ex.map(
                     lambda p: build_and_save_queue_from_hypervisor_status(*p), args
                 ):
+                    # progress_bar.update(0)
                     pass
 
-        # for hype_status in tqdm.tqdm(hypervisors_status_lits):
-        #     # create queue items
-        #     build_and_save_queue_from_hypervisor_status(
-        #         hypervisor_status=hype_status, network=chain.network
-        #     )
         else:
             logging.getLogger(__name__).debug(
                 f" No missing rewards status found for {chain.database_name}'s {reward_static['hypervisor_address']}"
             )
+
+
+def repair_missing_rewards_status_TODOSPEED(chain: Chain, max_repair: int = None):
+    """ """
+    batch_size = 100000
+    logging.getLogger(__name__).info(
+        f"> Finding missing {chain.database_name}'s rewards status in database"
+    )
+    # get all operation blocks from database
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_name = f"{chain.database_name}_gamma"
+
+    # get all rewards static grouped by hypervisor address
+    # _id = hypervisor_address and data = list of rewards_static
+    hype_rewards_static = database_local(mongo_url=mongo_url, db_name=db_name).get_items_from_database(
+            collection_name="rewards_static",
+            aggregate=[
+                {"$group":{
+                    "_id":"$hypervisor_address",
+                    "data":{"$push":"$$ROOT"}
+                }}
+                ],
+            batch_size=batch_size
+        )
+    
+    # for each hypervisor address 
+    for hypervisor_address, rewards_static_list in tqdm.tqdm(hype_rewards_static):
+        # create a common hype list for all this hype <-> rewards static
+        hypervisors_status_list = []
+
+        for reward_static in rewards_static_list:
+        
+            # do not process excluded tokens
+            if reward_static["rewardToken"] in TOKEN_ADDRESS_EXCLUDE.get(chain, {}):
+                continue
+            
+             # get this reward status ids and blocks from database
+            rewards_status_ids = []
+            rewards_status_blocks = []
+            for item in database_local(
+                mongo_url=mongo_url, db_name=db_name
+            ).get_items_from_database(
+                collection_name="rewards_status",
+                find={
+                    "hypervisor_address": hypervisor_address,
+                    "rewardToken": reward_static["rewardToken"],
+                },
+                projection={"id": 1, "_id": 0, "block": 1},
+                batch_size=batch_size,
+            ):
+                rewards_status_ids.append(item["id"])
+                rewards_status_blocks.append(int(item["block"]))
+
+            # build hypervisor list when needed
+            if hypervisors_status_list is None:
+                hypervisors_status_list= database_local(
+                    mongo_url=mongo_url, db_name=db_name
+                ).get_items_from_database(
+                    collection_name="status",
+                    find={
+                        "address": hypervisor_address,
+                        "$and": [
+                            {"block": {"$gte": reward_static["block"]}},
+                            {"block": {"$nin": rewards_status_blocks}},
+                        ],
+                        "totalSupply": {"$ne": "0"},
+                    },
+                    sort=[("block", -1)],
+                    batch_size=batch_size,
+                )
+
+    # loop thru all static rewards in database
+    for reward_static in tqdm.tqdm(
+        database_local(mongo_url=mongo_url, db_name=db_name).get_items_from_database(
+            collection_name="rewards_static",
+            find={},
+            batch_size=batch_size,
+            sort=[("_id", -1)],
+        )
+    ):
+        # do not process excluded tokens
+        if reward_static["rewardToken"] in TOKEN_ADDRESS_EXCLUDE.get(chain, {}):
+            continue
+
+        # get rewards_status ids and blocks from database
+        rewards_status_ids = []
+        rewards_status_blocks = []
+        for item in database_local(
+            mongo_url=mongo_url, db_name=db_name
+        ).get_items_from_database(
+            collection_name="rewards_status",
+            find={
+                "hypervisor_address": reward_static["hypervisor_address"],
+                "rewardToken": reward_static["rewardToken"],
+            },
+            projection={"id": 1, "_id": 0, "block": 1},
+            batch_size=batch_size,
+        ):
+            rewards_status_ids.append(item["id"])
+            rewards_status_blocks.append(int(item["block"]))
+
+        # sort by block desc so that newer items can be seen first
+        hypervisors_status_lits = database_local(
+            mongo_url=mongo_url, db_name=db_name
+        ).get_items_from_database(
+            collection_name="status",
+            find={
+                "address": reward_static["hypervisor_address"],
+                "$and": [
+                    {"block": {"$gte": reward_static["block"]}},
+                    {"block": {"$nin": rewards_status_blocks}},
+                ],
+                "totalSupply": {"$ne": "0"},
+            },
+            sort=[("block", -1)],
+            batch_size=batch_size,
+        )
+
+        if hypervisors_status_lits:
+            logging.getLogger(__name__).debug(
+                f" Found {len(hypervisors_status_lits)} missing rewards status blocks for {chain.database_name}'s {reward_static['hypervisor_address']}"
+            )
+            if max_repair and len(hypervisors_status_lits) > max_repair:
+                # select the most recent
+                logging.getLogger(__name__).info(
+                    f"  Selecting the most recent {max_repair} rewards status missing due to max_repair limit set."
+                )
+                hypervisors_status_lits = hypervisors_status_lits[:max_repair]
+                # make a random selection
+                # logging.getLogger(__name__).info(
+                #     f"  Selecting a random sample of {max_repair} rewards status missing due to max_repair limit set."
+                # )
+                # hypervisors_status_lits = random.sample(
+                #     hypervisors_status_lits, max_repair
+                # )
+
+            logging.getLogger(__name__).info(
+                f" A total of {len(hypervisors_status_lits)} rewards status will be added to the queue (prices may also get queued when needed)"
+            )
+
+            # prepare arguments for treaded function
+            args = (
+                (
+                    hype_status,
+                    chain.database_name,
+                )
+                for hype_status in hypervisors_status_lits
+            )
+
+            # get hypervisor status gte reward_static block
+            with concurrent.futures.ThreadPoolExecutor() as ex:
+                for result in ex.map(
+                    lambda p: build_and_save_queue_from_hypervisor_status(*p), args
+                ):
+                    # progress_bar.update(0)
+                    pass
+
+        else:
+            logging.getLogger(__name__).debug(
+                f" No missing rewards status found for {chain.database_name}'s {reward_static['hypervisor_address']}"
+            )
+
 
 
 def repair_hype_status_from_user(min_count: int = 1):
@@ -1466,24 +1658,6 @@ def repair_missing_blocks(protocol: str, network: str, batch_size: int = 100000)
         ).replace_items_to_database(data=todo_blocks.values(), collection_name="blocks")
     else:
         logging.getLogger(__name__).info(f" No missing blocks found in {network}.")
-
-    # _errors = 0
-    # with tqdm.tqdm(total=len(todo_blocks)) as progress_bar:
-    #     for block, timestamp in todo_blocks.items():
-    #         try:
-    #             database_global(
-    #                 mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"]
-    #             ).set_block(network=network, block=block, timestamp=timestamp)
-    #         except Exception as e:
-    #             logging.getLogger(__name__).error(
-    #                 f" Error adding block {block} to global database {e}"
-    #             )
-    #             _errors += 1
-
-    #         progress_bar.set_description(
-    #             f" Check & solve {network}'s block num. {block}"
-    #         )
-    #         progress_bar.update(1)
 
 
 def repair_queue():
@@ -2231,6 +2405,8 @@ def main(option: str, **kwargs):
         repair_all()
     if option == "queue":
         repair_queue()
+    if option == "reward_status":
+        repair_rewards_status()
     if option == "special":
         # used to check for special cases
         reScrape_database_prices(

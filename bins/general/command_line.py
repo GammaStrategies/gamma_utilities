@@ -84,6 +84,7 @@ def parse_commandLine_args():
             "repair",
             "hypervisor_status",
             "queue",
+            "reward_status",
             "special",
         ],
         help=" execute checks & repairs",
