@@ -12,8 +12,8 @@ def create_id_queue(
     type: queueItemType,
     block: int,
     hypervisor_address: str,
-    rewarder_address: str | None,
-    rewardToken_address: str | None,
+    rewarder_address: str | None = None,
+    rewardToken_address: str | None = None,
 ) -> str:
     # base id
     result_id = f"{type}_{block}_{hypervisor_address}"
