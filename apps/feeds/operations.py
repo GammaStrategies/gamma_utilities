@@ -365,7 +365,7 @@ def task_process_operation(operation: dict, local_db: database_local, network: s
     operation["address"] = operation["address"].lower()
     # save operation to database
     if db_return := local_db.set_operation(data=operation):
-        logging.getLogger(__name__).debug(f" Saved operation {db_return['id']}")
+        logging.getLogger(__name__).debug(f" Saved operation {operation['id']}")
 
     # make sure hype is not in status collection already
     if not local_db.get_items_from_database(
