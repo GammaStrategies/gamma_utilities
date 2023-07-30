@@ -1,4 +1,4 @@
-from bins.apis import (
+from . import (
     etherscan_utilities,
     thegraph_utilities,
     coingecko_utilities,

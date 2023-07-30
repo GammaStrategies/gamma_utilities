@@ -7,7 +7,7 @@ import concurrent.futures
 import contextlib
 import re
 
-from apps.feeds.queue import (
+from .feeds.queue import (
     QueueItem,
     build_and_save_queue_from_hypervisor_status,
     process_queue_item_type,

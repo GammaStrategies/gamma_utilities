@@ -1,12 +1,12 @@
 from decimal import Decimal
 from web3 import Web3
 
-from bins.configuration import WEB3_CHAIN_IDS
-from bins.cache import cache_utilities
-from bins.general.enums import Protocol
-from bins.w3.protocols.general import bep20, erc20, erc20_cached, bep20_cached
+from ....configuration import WEB3_CHAIN_IDS
+from ....cache import cache_utilities
+from ....general.enums import Protocol
+from ..general import bep20, erc20, erc20_cached, bep20_cached
 
-from bins.w3.protocols.uniswap.pool import (
+from ..uniswap.pool import (
     poolv3,
     poolv3_bep20,
     poolv3_cached,

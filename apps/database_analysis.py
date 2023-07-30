@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 from datetime import timezone
 from decimal import Decimal
-from apps.database_checker import get_all_logfiles
+from .database_checker import get_all_logfiles
 
 if __name__ == "__main__":
     # append parent directory pth

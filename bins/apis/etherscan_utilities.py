@@ -1,5 +1,5 @@
 import logging
-from bins.general import net_utilities
+from ..general import net_utilities
 
 
 class etherscan_helper:

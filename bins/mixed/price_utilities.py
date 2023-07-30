@@ -5,21 +5,21 @@ import logging
 import time
 
 from ratelimit.exception import RateLimitException
-from bins.cache import cache_utilities
-from bins.apis import thegraph_utilities, coingecko_utilities
-from bins.apis.geckoterminal_helper import geckoterminal_price_helper
+from ..cache import cache_utilities
+from ..apis import thegraph_utilities, coingecko_utilities
+from ..apis.geckoterminal_helper import geckoterminal_price_helper
 
-from bins.configuration import (
+from ..configuration import (
     CONFIGURATION,
     DEX_POOLS_PRICE_PATHS,
     TOKEN_ADDRESS_CONVERSION,
     USDC_TOKEN_ADDRESSES,
 )
-from bins.database.common.db_collections_common import database_global
-from bins.formulas.dex_formulas import sqrtPriceX96_to_price_float
-from bins.general import file_utilities
-from bins.general.enums import Chain, Protocol, databaseSource, text_to_chain
-from bins.w3.builders import build_protocol_pool
+from ..database.common.db_collections_common import database_global
+from ..formulas.dex_formulas import sqrtPriceX96_to_price_float
+from ..general import file_utilities
+from ..general.enums import Chain, Protocol, databaseSource, text_to_chain
+from ..w3.builders import build_protocol_pool
 
 
 LOG_NAME = "price"

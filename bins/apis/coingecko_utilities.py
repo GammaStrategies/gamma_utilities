@@ -1,12 +1,7 @@
 import sys
-from time import sleep
 from pycoingecko import CoinGeckoAPI
 import datetime as dt
 import logging
-
-from bins.general import net_utilities, enums
-
-from ratelimit import limits, sleep_and_retry
 
 
 class coingecko_price_helper:

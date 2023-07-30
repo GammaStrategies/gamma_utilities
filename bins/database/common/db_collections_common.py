@@ -6,7 +6,7 @@ from decimal import Decimal, localcontext
 from datetime import datetime
 from pymongo.errors import ConnectionFailure, BulkWriteError
 from pymongo import DESCENDING, ASCENDING
-from bins.database.common.database_ids import (
+from ...database.common.database_ids import (
     create_id_block,
     create_id_current_price,
     create_id_hypervisor_returns,
@@ -17,8 +17,8 @@ from bins.database.common.database_ids import (
     create_id_user_operation,
     create_id_user_status,
 )
-from bins.database.common.db_managers import MongoDbManager
-from bins.general.enums import queueItemType
+from ...database.common.db_managers import MongoDbManager
+from ...general.enums import queueItemType
 from pymongo.results import (
     BulkWriteResult,
     DeleteResult,

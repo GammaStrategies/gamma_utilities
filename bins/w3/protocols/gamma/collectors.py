@@ -7,9 +7,9 @@ from hexbytes import HexBytes
 from web3 import Web3
 from web3.middleware import geth_poa_middleware, simple_cache_middleware
 
-from bins.configuration import CONFIGURATION
-from bins.w3.protocols.general import erc20, bep20
-from bins.w3.protocols.gamma.hypervisor import (
+from ....configuration import CONFIGURATION
+from ..general import erc20, bep20
+from .hypervisor import (
     gamma_hypervisor,
     gamma_hypervisor_bep20,
 )

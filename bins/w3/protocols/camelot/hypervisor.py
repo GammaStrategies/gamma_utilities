@@ -1,7 +1,7 @@
-from bins.general.enums import Protocol
-from bins.w3.protocols import algebra
+from ....general.enums import Protocol
+from .. import algebra
 
-from bins.w3.protocols.camelot.pool import pool, pool_cached
+from ..camelot.pool import pool, pool_cached
 
 
 class gamma_hypervisor(algebra.hypervisor.gamma_hypervisor):

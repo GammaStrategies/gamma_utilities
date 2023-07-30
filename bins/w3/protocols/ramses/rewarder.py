@@ -1,7 +1,7 @@
 from web3 import Web3
-from bins.general.enums import rewarderType
-from bins.w3.protocols.general import web3wrap
-from bins.w3.protocols.ramses.pool import pool
+from ....general.enums import rewarderType
+from ..general import web3wrap
+from .pool import pool
 
 # [position_token0_amount, position_token1_amount] = token_amounts_from_current_price(pool['sqrtPrice'], range_delta, pool['liquidity'])
 

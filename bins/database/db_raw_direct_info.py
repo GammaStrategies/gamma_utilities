@@ -1,11 +1,10 @@
 import datetime
 import logging
-import sys
 
 from decimal import Decimal, getcontext
-from bins.configuration import CONFIGURATION
-from bins.database.common.db_collections_common import database_local, database_global
-from bins.converters.onchain import convert_hypervisor_fromDict
+from ..configuration import CONFIGURATION
+from ..database.common.db_collections_common import database_local, database_global
+from ..converters.onchain import convert_hypervisor_fromDict
 
 from datetime import datetime, timedelta
 

@@ -1,11 +1,11 @@
 import logging
 from web3 import Web3
-from bins.general.enums import Protocol
-from bins.w3.protocols import gamma
-from bins.w3.protocols.general import erc20
+from ....general.enums import Protocol
+from .. import gamma
+from ..general import erc20
 
-from bins.w3.protocols.ramses.pool import pool, pool_cached
-from bins.w3.protocols.ramses.rewarder import gauge, multiFeeDistribution
+from ..ramses.pool import pool, pool_cached
+from ..ramses.rewarder import gauge, multiFeeDistribution
 
 WEEK = 60 * 60 * 24 * 7
 

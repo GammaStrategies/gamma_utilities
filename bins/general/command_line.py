@@ -1,7 +1,7 @@
 import sys
 import argparse
 
-from bins.general.enums import Chain, queueItemType
+from ..general.enums import Chain, queueItemType
 
 
 # validations

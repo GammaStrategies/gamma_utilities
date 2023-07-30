@@ -1,8 +1,8 @@
 from hexbytes import HexBytes
 from web3 import Web3
-from bins.formulas import dex_formulas
-from bins.general.enums import Protocol
-from bins.w3.protocols import uniswap
+from ....formulas import dex_formulas
+from ....general.enums import Protocol
+from .. import uniswap
 
 
 class pool(uniswap.pool.poolv3):

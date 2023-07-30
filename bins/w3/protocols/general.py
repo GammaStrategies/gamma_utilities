@@ -8,10 +8,10 @@ from web3 import Web3, exceptions, types
 from web3.contract import Contract
 from web3.middleware import geth_poa_middleware, simple_cache_middleware
 
-from bins.configuration import CONFIGURATION, WEB3_CHAIN_IDS
-from bins.general import file_utilities
-from bins.cache import cache_utilities
-from bins.general.enums import Chain
+from ...configuration import CONFIGURATION, WEB3_CHAIN_IDS
+from ...general import file_utilities
+from ...cache import cache_utilities
+from ...general.enums import Chain
 
 
 # main base class
@@ -121,6 +121,12 @@ class web3wrap:
         )
 
     # CUSTOM PROPERTIES
+
+    @property
+    def abi_root_path(self) -> str:
+        # where to find the abi files
+        return "data/abi"
+
     @property
     def address(self) -> str:
         return self._address
@@ -593,7 +599,7 @@ class erc20(web3wrap):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "erc20"
-        self._abi_path = abi_path or "data/abi"
+        self._abi_path = abi_path or self.abi_root_path
 
         super().__init__(
             address=address,
@@ -762,7 +768,7 @@ class bep20(erc20):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "bep20"
-        self._abi_path = abi_path or "data/abi"
+        self._abi_path = abi_path or self.abi_root_path
 
         super().__init__(
             address=address,

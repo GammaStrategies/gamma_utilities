@@ -1,6 +1,6 @@
-from bins.general.enums import Protocol
-from bins.w3.protocols.beamswap.pool import pool, pool_cached
-from bins.w3.protocols import uniswap
+from ....general.enums import Protocol
+from .pool import pool, pool_cached
+from .. import uniswap
 
 
 class gamma_hypervisor(uniswap.hypervisor.gamma_hypervisor):

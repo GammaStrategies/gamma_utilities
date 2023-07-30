@@ -2,7 +2,7 @@ import contextlib
 import logging
 
 from web3 import Web3
-from bins.w3.protocols.general import erc20_cached, web3wrap
+from ..general import erc20_cached, web3wrap
 
 
 class gamma_rewarder(web3wrap):

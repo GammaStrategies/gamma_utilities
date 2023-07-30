@@ -1,1 +1,1 @@
-from bins.w3 import protocols, builders, onchain_data_helper
+from ..w3 import protocols, builders, onchain_data_helper

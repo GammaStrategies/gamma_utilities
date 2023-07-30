@@ -1,7 +1,7 @@
 from web3 import Web3
-from bins.general.enums import rewarderType
-from bins.w3.protocols.general import erc20_cached, web3wrap
-from bins.w3.protocols.gamma.rewarder import gamma_rewarder
+from ....general.enums import rewarderType
+from ..general import erc20_cached, web3wrap
+from ..gamma.rewarder import gamma_rewarder
 
 
 class thena_voter_v3(web3wrap):

@@ -1,6 +1,5 @@
-from enum import Enum
-from bins.general.enums import Chain
-from bins.general.net_utilities import get_request
+from ..general.enums import Chain
+from ..general.net_utilities import get_request
 
 
 # TODO: for static    rewarder Address, refIDs, rewarder_registry, rewarder_type, rewards_perSecond,...

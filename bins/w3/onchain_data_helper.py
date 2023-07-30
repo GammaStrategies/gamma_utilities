@@ -7,13 +7,13 @@ from web3.middleware import async_geth_poa_middleware, geth_poa_middleware
 from pathlib import Path
 import math
 
-from bins.w3.protocols.gamma.collectors import data_collector
-from bins.w3.protocols.general import erc20, bep20
+from ..w3.protocols.gamma.collectors import data_collector
+from ..w3.protocols.general import erc20, bep20
 
-from bins.general import general_utilities
-from bins.mixed import price_utilities
+from ..general import general_utilities
+from ..mixed import price_utilities
 
-from bins.configuration import CONFIGURATION
+from ..configuration import CONFIGURATION
 
 
 class onchain_data_helper:

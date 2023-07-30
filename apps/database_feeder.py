@@ -4,8 +4,8 @@ import tqdm
 import concurrent.futures
 import contextlib
 from datetime import datetime, timezone
-from apps.feeds.operations import feed_operations
-from apps.feeds.queue import pull_from_queue
+from .feeds.operations import feed_operations
+from .feeds.queue import pull_from_queue
 
 from bins.configuration import CONFIGURATION
 
@@ -16,10 +16,10 @@ from bins.database.common.db_collections_common import (
     database_global,
 )
 
-from apps.feeds.static import feed_hypervisor_static, feed_rewards_static
-from apps.feeds.users import feed_user_operations
-from apps.feeds.status import feed_hypervisor_status, feed_rewards_status
-from apps.feeds.prices import feed_all_prices
+from .feeds.static import feed_hypervisor_static, feed_rewards_static
+from .feeds.users import feed_user_operations
+from .feeds.status import feed_hypervisor_status, feed_rewards_status
+from .feeds.prices import feed_all_prices
 
 
 ### Blocks Timestamp #####################

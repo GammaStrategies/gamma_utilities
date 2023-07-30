@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field, asdict, InitVar
-from bins.database.common.db_general_models import (
+from ...database.common.db_general_models import (
     tool_mongodb_general,
     tool_database_id,
 )

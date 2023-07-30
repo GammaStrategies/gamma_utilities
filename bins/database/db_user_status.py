@@ -9,11 +9,11 @@ from bson.decimal128 import Decimal128
 from decimal import Decimal, getcontext
 from datetime import datetime, timedelta
 
-from bins.configuration import CONFIGURATION
-from bins.general.general_utilities import log_execution_time
-from bins.database.common.db_collections_common import database_local, database_global
+from ..configuration import CONFIGURATION
+from ..general.general_utilities import log_execution_time
+from ..database.common.db_collections_common import database_local, database_global
 
-from bins.converters.onchain import convert_hypervisor_fromDict
+from ..converters.onchain import convert_hypervisor_fromDict
 from datetime import timezone
 
 # getcontext().prec = 40

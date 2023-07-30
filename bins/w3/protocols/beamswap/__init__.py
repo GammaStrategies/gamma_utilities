@@ -1,1 +1,1 @@
-from bins.w3.protocols.beamswap import hypervisor, pool, rewarder
+from . import hypervisor, pool, rewarder

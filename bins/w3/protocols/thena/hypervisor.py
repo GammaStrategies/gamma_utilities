@@ -1,8 +1,8 @@
 from web3 import Web3
-from bins.general.enums import Protocol
-from bins.w3.protocols import algebra
-from bins.w3.protocols.general import bep20_cached
-from bins.w3.protocols.thena.pool import pool, pool_cached
+from ....general.enums import Protocol
+from .. import algebra
+from ..general import bep20_cached
+from ..thena.pool import pool, pool_cached
 
 
 class gamma_hypervisor(algebra.hypervisor.gamma_hypervisor_bep20):

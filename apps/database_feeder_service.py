@@ -9,32 +9,31 @@ import logging
 # import signal
 import multiprocessing as mp
 from datetime import datetime, timedelta, timezone
-import threading
 import time
 
-from apps.parallel_feed import process_all_queues
+from .parallel_feed import process_all_queues
 
 from bins.configuration import CONFIGURATION
 
-from apps.feeds.operations import feed_operations
-from apps.database_feeder import (
+from .feeds.operations import feed_operations
+from .database_feeder import (
     feed_timestamp_blocks,
     feed_blocks_timestamp,
 )
 
-from apps.feeds.users import feed_user_operations
-from apps.feeds.status import (
+from .feeds.users import feed_user_operations
+from .feeds.status import (
     feed_rewards_status,
     feed_hypervisor_status,
 )
-from apps.feeds.prices import (
+from .feeds.prices import (
     create_current_usd_prices_address_json,
     feed_current_usd_prices,
     feed_prices,
     create_tokenBlocks_all,
 )
 
-from apps.database_checker import repair_all
+from .database_checker import repair_all
 
 
 def network_sequence_loop(

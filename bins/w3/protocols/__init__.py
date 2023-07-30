@@ -1,4 +1,4 @@
-from bins.w3.protocols import (
+from ..protocols import (
     general,
     uniswap,
     algebra,

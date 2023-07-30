@@ -1,7 +1,7 @@
 from web3 import Web3
-from bins.general.enums import Protocol
-from bins.w3.protocols import algebra
-from bins.w3.protocols.general import erc20_cached
+from ....general.enums import Protocol
+from .. import algebra
+from ..general import erc20_cached
 
 
 class pool(algebra.pool.poolv3):

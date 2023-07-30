@@ -1,6 +1,6 @@
 import logging
 from web3 import Web3
-from bins.w3.protocols.general import web3wrap
+from ..general import web3wrap
 
 
 class gamma_hypervisor_registry(web3wrap):

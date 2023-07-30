@@ -1,4 +1,4 @@
-from bins.general.enums import (
+from ....general.enums import (
     Chain,
     Family_type,
     Protocol,

@@ -1,7 +1,7 @@
 import logging
-from bins.configuration import CONFIGURATION
-from bins.database.common.db_collections_common import database_global, database_local
-from bins.general.enums import Chain
+from ..configuration import CONFIGURATION
+from ..database.common.db_collections_common import database_global, database_local
+from ..general.enums import Chain
 
 
 def get_price_from_db(

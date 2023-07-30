@@ -4,7 +4,7 @@ import logging
 import time
 import concurrent.futures
 
-from apps.feeds.status import (
+from .status import (
     create_and_save_hypervisor_status,
     create_reward_status_from_hype_status,
 )

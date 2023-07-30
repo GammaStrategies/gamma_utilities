@@ -1,10 +1,10 @@
 import logging
 
 from web3 import Web3
-from bins.general.enums import Chain, Protocol
+from ..general.enums import Chain, Protocol
 
-from bins.w3 import protocols
-from bins.w3.protocols.general import bep20, bep20_cached, erc20, erc20_cached
+from ..w3 import protocols
+from ..w3.protocols.general import bep20, bep20_cached, erc20, erc20_cached
 
 
 # build instances of classes

@@ -1,6 +1,6 @@
 from web3 import Web3
-from bins.general.enums import Protocol
-from bins.w3.protocols import algebra
+from ....general.enums import Protocol
+from .. import algebra
 
 
 class pool(algebra.pool.poolv3_bep20):

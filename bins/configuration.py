@@ -1,12 +1,12 @@
 import os
-from bins.general.enums import Chain, Protocol
+from .general.enums import Chain, Protocol
 
-from bins.general.general_utilities import (
+from .general.general_utilities import (
     load_configuration,
     check_configuration_file,
 )
-from bins.general.command_line import parse_commandLine_args
-from bins.log import log_helper
+from .general.command_line import parse_commandLine_args
+from .log import log_helper
 
 CONFIGURATION = {}
 

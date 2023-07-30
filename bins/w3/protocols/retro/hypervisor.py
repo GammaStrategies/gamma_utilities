@@ -1,5 +1,5 @@
-from bins.general.enums import Protocol
-from bins.w3.protocols import uniswap
+from ....general.enums import Protocol
+from .. import uniswap
 
 
 class gamma_hypervisor(uniswap.hypervisor.gamma_hypervisor):

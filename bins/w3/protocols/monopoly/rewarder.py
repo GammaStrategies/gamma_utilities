@@ -1,5 +1,5 @@
 from web3 import Web3
-from bins.w3.protocols.gamma.rewarder import gamma_rewarder
+from ..gamma.rewarder import gamma_rewarder
 
 
 # Duo-> https://monopoly.finance/

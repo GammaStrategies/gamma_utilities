@@ -3,7 +3,7 @@ from multiprocessing import Pool
 import threading
 import tqdm
 from datetime import datetime
-from apps.feeds.queue import build_and_save_queue_from_operation
+from .queue import build_and_save_queue_from_operation
 
 # from croniter import croniter
 

@@ -2,8 +2,7 @@ import os
 import yaml
 import logging.config
 import logging
-from bins.log import telegram_logger
-from datetime import datetime
+from . import telegram_logger
 
 
 def setup_logging(customconf, default_level=logging.INFO, env_key="LOG_CFG"):

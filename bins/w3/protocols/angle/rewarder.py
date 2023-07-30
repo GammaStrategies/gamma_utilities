@@ -1,9 +1,9 @@
 import logging
 from web3 import Web3
-from bins.configuration import TOKEN_ADDRESS_EXCLUDE
-from bins.general.enums import rewarderType, text_to_chain
+from ....configuration import TOKEN_ADDRESS_EXCLUDE
+from ....general.enums import rewarderType, text_to_chain
 
-from bins.w3.protocols.gamma.rewarder import gamma_rewarder
+from ..gamma.rewarder import gamma_rewarder
 
 
 class angle_merkle_distributor_v2(gamma_rewarder):

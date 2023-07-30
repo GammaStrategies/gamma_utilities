@@ -1,6 +1,6 @@
 from web3 import Web3
-from bins.general.enums import Protocol
-from bins.w3.protocols import uniswap
+from ....general.enums import Protocol
+from .. import uniswap
 
 # TODO: https://polygonscan.com/address/0x8486881bcbda4f6f494e9a4e7dfa37f24aa80cb0#readContract
 

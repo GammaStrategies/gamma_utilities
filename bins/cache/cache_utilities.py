@@ -5,8 +5,8 @@ import os
 import logging
 import threading
 
-from bins.general import file_utilities, net_utilities
-from bins.database.common.db_collections_common import db_collections_common
+from ..general import file_utilities, net_utilities
+from ..database.common.db_collections_common import db_collections_common
 
 CACHE_LOCK = threading.Lock()  ##threading.RLock
 

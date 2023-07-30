@@ -1,9 +1,9 @@
 import logging
 import time
 import re
-from bins.cache.cache_utilities import pool_token_cache
+from ..cache.cache_utilities import pool_token_cache
 
-from bins.general import net_utilities
+from ..general import net_utilities
 
 from ratelimit import RateLimitException, limits, sleep_and_retry
 

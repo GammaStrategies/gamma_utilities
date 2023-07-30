@@ -5,17 +5,17 @@ from decimal import Decimal
 from hexbytes import HexBytes
 from web3 import Web3
 
-from bins.configuration import WEB3_CHAIN_IDS
-from bins.formulas import dex_formulas
-from bins.general.enums import Protocol
-from bins.w3.protocols.general import (
+from ....configuration import WEB3_CHAIN_IDS
+from ....formulas import dex_formulas
+from ....general.enums import Protocol
+from ..general import (
     bep20,
     bep20_cached,
     web3wrap,
     erc20,
     erc20_cached,
 )
-from bins.cache import cache_utilities
+from ....cache import cache_utilities
 
 
 # ALGEBRA POOL

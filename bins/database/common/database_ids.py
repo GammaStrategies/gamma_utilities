@@ -1,7 +1,7 @@
 # database ids
 
 ### QUEUE id is build in the class itself
-from bins.general.enums import queueItemType
+from ...general.enums import queueItemType
 
 
 def create_id_operation(logIndex, transactionHash) -> str:

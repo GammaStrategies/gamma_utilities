@@ -1,13 +1,13 @@
 from web3 import Web3
-from bins.w3.protocols.algebra.pool import (
+from .pool import (
     poolv3,
     poolv3_bep20,
     poolv3_cached,
     poolv3_bep20_cached,
 )
-from bins.w3.protocols.general import bep20, bep20_cached, erc20_cached
+from ..general import bep20, bep20_cached, erc20_cached
 
-from bins.w3.protocols import gamma
+from .. import gamma
 
 
 class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):

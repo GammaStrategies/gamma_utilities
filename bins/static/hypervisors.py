@@ -1,4 +1,4 @@
-from bins.static.static_gamma import hypervisor, rewarder
+from ..static.static_gamma import hypervisor, rewarder
 
 #######################################################
 __network = "arbitrum"

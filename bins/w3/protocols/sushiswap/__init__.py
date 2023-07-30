@@ -1,1 +1,1 @@
-from bins.w3.protocols.sushiswap import hypervisor
+from . import hypervisor

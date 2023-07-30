@@ -1,1 +1,1 @@
-from bins.formulas import dex_formulas
+from . import dex_formulas

@@ -1,8 +1,8 @@
 import logging
 from web3 import Web3
-from bins.general.enums import rewarderType
+from ....general.enums import rewarderType
 
-from bins.w3.protocols.gamma.rewarder import gamma_rewarder
+from ..gamma.rewarder import gamma_rewarder
 
 
 class zyberswap_masterchef_rewarder(gamma_rewarder):

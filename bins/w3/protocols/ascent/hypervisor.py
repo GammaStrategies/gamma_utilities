@@ -1,9 +1,9 @@
 from web3 import Web3
-from bins.general.enums import Protocol
-from bins.w3.protocols import uniswap
-from bins.w3.protocols.general import erc20
+from ....general.enums import Protocol
+from .. import uniswap
+from ..general import erc20
 
-from bins.w3.protocols.ascent.pool import pool, pool_cached
+from .pool import pool, pool_cached
 
 
 class gamma_hypervisor(uniswap.hypervisor.gamma_hypervisor):

@@ -1,10 +1,8 @@
 import contextlib
 from functools import wraps
-import getopt
 import logging
 from logging import Logger, getLogger
 import os
-import sys
 import yaml
 import datetime as dt
 from pathlib import Path
