@@ -2,10 +2,10 @@ from decimal import Decimal
 from web3 import Web3
 from hexbytes import HexBytes
 
-from bins.configuration import WEB3_CHAIN_IDS
-from bins.cache import cache_utilities
-from bins.general.enums import Protocol
-from bins.formulas import dex_formulas
+from ....configuration import WEB3_CHAIN_IDS
+from ....cache import cache_utilities
+from ....general.enums import Protocol
+from ....formulas import dex_formulas
 
 from bins.w3.protocols.general import bep20, web3wrap, erc20, erc20_cached, bep20_cached
 
