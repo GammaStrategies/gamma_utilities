@@ -1,12 +1,12 @@
-from bins.general.enums import Protocol
-from bins.w3.protocols.general import erc20_cached, bep20_cached
+from ....general.enums import Protocol
+from ..general import erc20_cached, bep20_cached
 
-from bins.w3.protocols.uniswap.pool import (
+from ..uniswap.pool import (
     poolv3_cached,
     poolv3_bep20_cached,
 )
 
-from bins.w3.protocols import gamma
+from .. import gamma
 
 
 class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
