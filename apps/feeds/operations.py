@@ -3,7 +3,9 @@ from multiprocessing import Pool
 import threading
 import tqdm
 from datetime import datetime
-from .queue import build_and_save_queue_from_operation
+
+from bins.general.enums import queueItemType
+from .queue import QueueItem, build_and_save_queue_from_operation
 
 # from croniter import croniter
 
@@ -199,7 +201,7 @@ def feed_operations(
             )
 
         # feed operations
-        feed_operations_hypervisors(
+        feed_operations_hypervisors_taskedQueue(
             network=network,
             protocol=protocol,
             hypervisor_addresses=hypervisor_addresses,
@@ -214,7 +216,8 @@ def feed_operations(
         )
 
 
-def feed_operations_hypervisors(
+################################################################################################
+def feed_operations_hypervisors_classic(
     network: str,
     protocol: str,
     hypervisor_addresses: list,
@@ -263,7 +266,7 @@ def feed_operations_hypervisors(
 
 
 # TODO: hangs on some cases
-def feed_operations_hypervisors_task(
+def feed_operations_hypervisors_task1(
     network: str,
     protocol: str,
     hypervisor_addresses: list,
@@ -281,7 +284,9 @@ def feed_operations_hypervisors_task(
     )
 
     # create a task pool to handle operations
-    tasks = []
+    running_tasks = []
+    queued_tasks = []
+    max_paralel_tasks = 5
 
     # control var
     _waiting = False
@@ -304,16 +309,119 @@ def feed_operations_hypervisors_task(
 
         # build task handler
         def task_handler():
-            loopme = True
-            while loopme:
+            while True:
                 # exit
-                if _waiting and len(tasks) == 0:
-                    loopme = False
-                    return
-                # process tasks
-                for task in tasks[:]:
+                if len(queued_tasks) + len(running_tasks) == 0:
+                    break
+
+                # remove tasks from running
+                for task in running_tasks[:]:
                     if task.ready():
-                        tasks.remove(task)
+                        running_tasks.remove(task)
+                        if _waiting:
+                            # update progress
+                            _update_progress(text=" processing queued items")
+
+                # add tasks from queue
+                if len(queued_tasks):
+                    # define how many tasks can be added to be ran
+                    toadd_tasks = max_paralel_tasks - len(running_tasks)
+                    logging.getLogger(__name__).debug(
+                        f"  Adding {toadd_tasks} operation tasks to the processing pool "
+                    )
+                    if toadd_tasks > 0:
+                        for i in range(toadd_tasks):
+                            running_tasks.append(
+                                p.apply_async(
+                                    task_process_operation,
+                                    queued_tasks.pop(0),
+                                )
+                            )
+
+            return
+
+        # start task handler
+        task_thread = threading.Thread(target=task_handler)
+        task_thread.start()
+
+        # inside a pool
+        with Pool() as p:
+            for operation in onchain_helper.operations_generator(
+                addresses=hypervisor_addresses,
+                network=network,
+                block_ini=block_ini,
+                block_end=block_end,
+                progress_callback=_update_progress,
+                max_blocks=1000,
+            ):
+                # add parameters to taks
+                queued_tasks.append((operation, local_db, network))
+
+            # continue progress if there are tasks to complete
+            if len(running_tasks):
+                logging.getLogger(__name__).info(
+                    f"  Finished finding {network} operations, waiting for {len(running_tasks)} tasks to finish..."
+                )
+                # log
+
+                _update_progress(
+                    text=" processing queued items",
+                    total=len(running_tasks) + len(queued_tasks),
+                    remaining=len(running_tasks) + len(queued_tasks),
+                )
+
+            # join thread to close
+            task_thread.join()
+
+
+def feed_operations_hypervisors_task2(
+    network: str,
+    protocol: str,
+    hypervisor_addresses: list,
+    block_ini: int,
+    block_end: int,
+    local_db: database_local,
+):
+    # set global protocol helper
+    onchain_helper = onchain_data_helper(protocol=protocol)
+
+    logging.getLogger(__name__).info(
+        "   Feeding database with {}'s {} operations of {} hypervisors from blocks {} to {}".format(
+            network, protocol, len(hypervisor_addresses), block_ini, block_end
+        )
+    )
+
+    # create a task pool to handle operations
+    running_tasks = []
+    queued_tasks = []
+    max_paralel_tasks = 5
+
+    # control var
+    _waiting = False
+    with tqdm.tqdm(total=100) as progress_bar:
+        # create callback progress funtion
+        def _update_progress(text=None, remaining=None, total=None):
+            # set text
+            if text:
+                progress_bar.set_description(text)
+            # set total
+            if total:
+                progress_bar.total = total
+            # update current
+            if remaining:
+                progress_bar.update(((total - remaining) - progress_bar.n))
+            else:
+                progress_bar.update(1)
+            # refresh
+            progress_bar.refresh()
+
+        # build task handler
+        def task_handler():
+            while True:
+                # remove tasks from running
+                for task in running_tasks[:]:
+                    if task.ready():
+                        running_tasks.remove(task)
                         if _waiting:
                             # update progress
                             _update_progress(text=" processing queued items")
@@ -332,28 +440,181 @@ def feed_operations_hypervisors_task(
                 progress_callback=_update_progress,
                 max_blocks=1000,
             ):
-                # add task
-                tasks.append(
-                    p.apply_async(
-                        task_process_operation,
-                        (operation, local_db, network),
-                    )
-                )
-            # continue progress if there are tasks to complete
-            if len(tasks):
-                logging.getLogger(__name__).info(
-                    f"  Finished finding {network} operations, waiting for {len(tasks)} tasks to finish..."
-                )
-                # log
-                _waiting = True
-                _update_progress(
-                    text=" processing queued items",
-                    total=len(tasks),
-                    remaining=len(tasks),
-                )
+                # add parameters to taks
+                queued_tasks.append((operation, local_db, network))
 
+                # define how many tasks can be added to be ran
+                toadd_tasks = max_paralel_tasks - len(running_tasks)
+
+                if toadd_tasks > 0 and len(queued_tasks) > 0:  # add tasks from queue
+                    logging.getLogger(__name__).debug(
+                        f"  Adding {toadd_tasks} operation tasks to the processing pool "
+                    )
+                    for i in range(toadd_tasks):
+                        try:
+                            running_tasks.append(
+                                p.apply_async(
+                                    task_process_operation,
+                                    queued_tasks.pop(0),
+                                )
+                            )
+                        except Exception as e:
+                            # manage this in a better way
+                            pass
+
+            # update progress
+            _update_progress(
+                text=" processing queued items",
+                total=len(running_tasks) + len(queued_tasks),
+                remaining=len(running_tasks) + len(queued_tasks),
+            )
+
+            logging.getLogger(__name__).info(
+                f"  Finished finding {network} operations, waiting for {len(running_tasks)+len(queued_tasks)} tasks to finish..."
+            )
+            _waiting = True
+            # continue progress if there are tasks to complete
+            while len(running_tasks) + len(queued_tasks) > 0:
+                # define how many tasks can be added to be ran
+                toadd_tasks = max_paralel_tasks - len(running_tasks)
+                logging.getLogger(__name__).debug(
+                    f"  Adding {toadd_tasks} operation tasks to the processing pool "
+                )
+                for i in range(toadd_tasks):
+                    try:
+                        running_tasks.append(
+                            p.apply_async(
+                                task_process_operation,
+                                queued_tasks.pop(0),
+                            )
+                        )
+                    except Exception as e:
+                        # manage this in a better way
+                        pass
             # join thread to close
-            task_thread.join()
+            # task_thread.join()
+
+
+def feed_operations_hypervisors_taskedQueue(
+    network: str,
+    protocol: str,
+    hypervisor_addresses: list,
+    block_ini: int,
+    block_end: int,
+    local_db: database_local,
+):
+    # set global protocol helper
+    onchain_helper = onchain_data_helper(protocol=protocol)
+
+    logging.getLogger(__name__).info(
+        "   Feeding database with {}'s {} operations of {} hypervisors from blocks {} to {}".format(
+            network, protocol, len(hypervisor_addresses), block_ini, block_end
+        )
+    )
+
+    # create a task pool to handle operations
+    running_tasks = []
+    queued_tasks = []
+    max_paralel_tasks = 20
+
+    # control var
+    _waiting = False
+    with tqdm.tqdm(total=100) as progress_bar:
+        # create callback progress funtion
+        def _update_progress(text=None, remaining=None, total=None):
+            # set text
+            if text:
+                progress_bar.set_description(text)
+            # set total
+            if total:
+                progress_bar.total = total
+            # update current
+            if remaining:
+                progress_bar.update(((total - remaining) - progress_bar.n))
+            else:
+                progress_bar.update(1)
+            # refresh
+            progress_bar.refresh()
+
+        # build task handler
+        def task_handler():
+            while True:
+                # remove tasks from running
+                for task in running_tasks[:]:
+                    if task.ready():
+                        running_tasks.remove(task)
+                        if _waiting:
+                            # update progress
+                            _update_progress(text=" processing queued items")
+
+        # start task handler
+        task_thread = threading.Thread(target=task_handler)
+        task_thread.start()
+
+        # inside a pool
+        with Pool() as p:
+            for operation in onchain_helper.operations_generator(
+                addresses=hypervisor_addresses,
+                network=network,
+                block_ini=block_ini,
+                block_end=block_end,
+                progress_callback=_update_progress,
+                max_blocks=1000,
+            ):
+                # add parameters to taks
+                queued_tasks.append((operation, local_db, network))
+
+                # define how many tasks can be added to be ran
+                toadd_tasks = max_paralel_tasks - len(running_tasks)
+
+                if toadd_tasks > 0 and len(queued_tasks) > 0:  # add tasks from queue
+                    logging.getLogger(__name__).debug(
+                        f"  Adding {toadd_tasks} operation tasks to the processing pool "
+                    )
+                    for i in range(toadd_tasks):
+                        try:
+                            running_tasks.append(
+                                p.apply_async(
+                                    task_enqueue_operation,
+                                    queued_tasks.pop(0),
+                                )
+                            )
+                        except Exception as e:
+                            # manage this in a better way
+                            pass
+
+            # update progress
+            _update_progress(
+                text=" processing queued items",
+                total=len(running_tasks) + len(queued_tasks),
+                remaining=len(running_tasks) + len(queued_tasks),
+            )
+
+            logging.getLogger(__name__).info(
+                f"  Finished finding {network} operations, waiting for {len(running_tasks)+len(queued_tasks)} tasks to finish..."
+            )
+            _waiting = True
+            # continue progress if there are tasks to complete
+            while len(running_tasks) + len(queued_tasks) > 0:
+                # define how many tasks can be added to be ran
+                toadd_tasks = max_paralel_tasks - len(running_tasks)
+                logging.getLogger(__name__).debug(
+                    f"  Adding {toadd_tasks} operation tasks to the processing pool "
+                )
+                for i in range(toadd_tasks):
+                    try:
+                        running_tasks.append(
+                            p.apply_async(
+                                task_enqueue_operation,
+                                queued_tasks.pop(0),
+                            )
+                        )
+                    except Exception as e:
+                        # manage this in a better way
+                        pass
+
+
+############################################################################################################
 
 
 def task_process_operation(operation: dict, local_db: database_local, network: str):
@@ -361,6 +622,12 @@ def task_process_operation(operation: dict, local_db: database_local, network: s
     operation["id"] = create_id_operation(
         logIndex=operation["logIndex"], transactionHash=operation["transactionHash"]
     )
+
+    # log
+    logging.getLogger(__name__).debug(
+        f"  -> Processing {network}'s operation {operation['id']}"
+    )
+
     # lower case address ( to ease comparison )
     operation["address"] = operation["address"].lower()
     # save operation to database
@@ -383,6 +650,32 @@ def task_process_operation(operation: dict, local_db: database_local, network: s
     else:
         logging.getLogger(__name__).debug(
             f"  Not pushing {operation['address']} hypervisor status queue item bcause its already in the database"
+        )
+
+    # log
+    logging.getLogger(__name__).debug(
+        f"  <- Done processing {network}'s operation {operation['id']}"
+    )
+
+
+def task_enqueue_operation(operation: dict, local_db: database_local, network: str):
+    # lower op address just in case ..
+    operation["address"] = operation["address"].lower()
+
+    queueItem = QueueItem(
+        type=queueItemType.OPERATION,
+        block=int(operation["blockNumber"]),
+        address=operation["address"].lower(),
+        data=operation,
+    )
+    # item should not be already in the queue
+    if not local_db.get_items_from_database(
+        collection_name="queue", find={"id": queueItem.id}
+    ):
+        local_db.set_queue_item(data=queueItem.as_dict)
+    else:
+        logging.getLogger(__name__).debug(
+            f"  operation queue item {queueItem.id} already in queue"
         )
 
 

@@ -12,6 +12,7 @@ from bins.configuration import CONFIGURATION
 from bins.database.common.database_ids import (
     create_id_block,
     create_id_hypervisor_status,
+    create_id_operation,
     create_id_price,
     create_id_queue,
     create_id_rewards_static,
@@ -385,6 +386,10 @@ def process_queue_item_type(network: str, queue_item: QueueItem) -> bool:
             network=network, queue_item=queue_item, pull_func=pull_from_queue_block
         )
         # return pull_from_queue_block(network=network, queue_item=queue_item)
+    elif queue_item.type == queueItemType.OPERATION:
+        return pull_common_processing_work(
+            network=network, queue_item=queue_item, pull_func=pull_from_queue_operation
+        )
     else:
         # reset queue item
 
@@ -673,6 +678,69 @@ def pull_from_queue_block(network: str, queue_item: QueueItem) -> bool:
     except Exception as e:
         logging.getLogger(__name__).error(
             f"Error processing {network}'s block queue item: {e}"
+        )
+
+    # return result
+    return False
+
+
+def pull_from_queue_operation(network: str, queue_item: QueueItem) -> bool:
+    # debug variables
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    # set local database name and create manager
+    local_db = database_local(mongo_url=mongo_url, db_name=f"{network}_gamma")
+
+    try:
+        # the operation is in the 'data' field...
+        operation = queue_item.data
+
+        # set operation id (same hash has multiple operations)
+        operation["id"] = create_id_operation(
+            logIndex=operation["logIndex"], transactionHash=operation["transactionHash"]
+        )
+
+        # log
+        logging.getLogger(__name__).debug(
+            f"  -> Processing {network}'s operation {operation['id']}"
+        )
+
+        # lower case address ( to ease comparison )
+        operation["address"] = operation["address"].lower()
+
+        # save operation to database
+        if db_return := local_db.set_operation(data=operation):
+            logging.getLogger(__name__).debug(f" Saved operation {operation['id']}")
+
+        # make sure hype is not in status collection already
+        if not local_db.get_items_from_database(
+            collection_name="status",
+            find={
+                "id": create_id_hypervisor_status(
+                    hypervisor_address=operation["address"],
+                    block=operation["blockNumber"],
+                )
+            },
+            projection={"id": 1},
+        ):
+            # fire scrape event on block regarding hypervisor and rewarders snapshots (status) and token prices
+            # build queue events from operation
+            build_and_save_queue_from_operation(operation=operation, network=network)
+
+        else:
+            logging.getLogger(__name__).debug(
+                f"  Not pushing {operation['address']} hypervisor status queue item bcause its already in the database"
+            )
+
+        # log
+        logging.getLogger(__name__).debug(
+            f"  <- Done processing {network}'s operation {operation['id']}"
+        )
+
+        return True
+
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            f"Error processing {network}'s operation queue item: {e}"
         )
 
     # return result

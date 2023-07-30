@@ -202,6 +202,7 @@ class queueItemType(str, Enum):
     HYPERVISOR_STATIC = "hypervisor_static"
     PRICE = "price"
     BLOCK = "block"
+    OPERATION = "operation"
 
     # TODO: implement database_name and ...
 
