@@ -55,7 +55,7 @@ class gauge(web3wrap):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "RamsesGaugeV2"
-        self._abi_path = abi_path or "data/abi/ramses"
+        self._abi_path = abi_path or f"{self.abi_root_path}/ramses"
 
         self._pool: pool | None = None
 
@@ -287,7 +287,7 @@ class multiFeeDistribution(web3wrap):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "multiFeeDistribution"
-        self._abi_path = abi_path or "data/abi/ramses"
+        self._abi_path = abi_path or f"{self.abi_root_path}/ramses"
 
         super().__init__(
             address=address,

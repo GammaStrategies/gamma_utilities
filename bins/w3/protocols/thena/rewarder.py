@@ -18,7 +18,7 @@ class thena_voter_v3(web3wrap):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "voterV3"
-        self._abi_path = abi_path or "data/abi/thena/binance"
+        self._abi_path = abi_path or f"{self.abi_root_path}/thena/binance"
 
         super().__init__(
             address=address,
@@ -511,7 +511,7 @@ class thena_gauge_v2(gamma_rewarder):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "gaugeV2_CL"
-        self._abi_path = abi_path or "data/abi/thena/binance"
+        self._abi_path = abi_path or f"{self.abi_root_path}/thena/binance"
 
         super().__init__(
             address=address,

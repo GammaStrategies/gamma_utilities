@@ -21,7 +21,7 @@ class duo_masterchef_v1(gamma_rewarder):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "duoMaster_rewarder"
-        self._abi_path = abi_path or "data/abi/duo/masterchef"
+        self._abi_path = abi_path or f"{self.abi_root_path}/duo/masterchef"
 
         super().__init__(
             address=address,

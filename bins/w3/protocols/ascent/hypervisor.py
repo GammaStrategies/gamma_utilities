@@ -20,7 +20,7 @@ class gamma_hypervisor(uniswap.hypervisor.gamma_hypervisor):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "hypervisor"
-        self._abi_path = abi_path or "data/abi/gamma"
+        self._abi_path = abi_path or f"{self.abi_root_path}/gamma"
 
         self._pool: pool | None = None
         self._token0: erc20 | None = None

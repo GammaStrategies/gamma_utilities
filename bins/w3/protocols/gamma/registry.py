@@ -17,7 +17,7 @@ class gamma_hypervisor_registry(web3wrap):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "registry"
-        self._abi_path = abi_path or "data/abi/gamma/ethereum"
+        self._abi_path = abi_path or f"{self.abi_root_path}/gamma/ethereum"
 
         super().__init__(
             address=address,

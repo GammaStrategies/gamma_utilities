@@ -35,7 +35,7 @@ class dataStorageOperator(web3wrap):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "dataStorageOperator"
-        self._abi_path = abi_path or "data/abi/algebra/v3"
+        self._abi_path = abi_path or f"{self.abi_root_path}/algebra/v3"
 
         super().__init__(
             address=address,
@@ -92,7 +92,7 @@ class poolv3(web3wrap):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "algebrav3pool"
-        self._abi_path = abi_path or "data/abi/algebra/v3"
+        self._abi_path = abi_path or f"{self.abi_root_path}/algebra/v3"
 
         self._token0: erc20 = None
         self._token1: erc20 = None
@@ -650,7 +650,7 @@ class poolv3_bep20(poolv3):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "algebrav3pool"
-        self._abi_path = abi_path or "data/abi/algebra/v3"
+        self._abi_path = abi_path or f"{self.abi_root_path}/algebra/v3"
 
         self._token0: bep20 = None
         self._token1: bep20 = None

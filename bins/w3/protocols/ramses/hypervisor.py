@@ -25,7 +25,7 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "hypervisor"
-        self._abi_path = abi_path or "data/abi/ramses"
+        self._abi_path = abi_path or f"{self.abi_root_path}/ramses"
 
         self._pool: pool | None = None
         self._token0: erc20 | None = None
@@ -252,7 +252,7 @@ class gamma_hypervisor_cached(gamma.hypervisor.gamma_hypervisor_cached):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "hypervisor"
-        self._abi_path = abi_path or "data/abi/ramses"
+        self._abi_path = abi_path or f"{self.abi_root_path}/ramses"
 
         self._pool: pool | None = None
         self._token0: erc20 | None = None

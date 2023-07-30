@@ -18,7 +18,7 @@ class pool(algebra.pool.poolv3):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "camelot_pool"
-        self._abi_path = abi_path or "data/abi/camelot"
+        self._abi_path = abi_path or f"{self.abi_root_path}/camelot"
 
         super().__init__(
             address=address,

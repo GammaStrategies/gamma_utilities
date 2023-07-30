@@ -19,7 +19,7 @@ class angle_merkle_distributor_v2(gamma_rewarder):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "MerkleRootDistributorV2"
-        self._abi_path = abi_path or "data/abi/angle"
+        self._abi_path = abi_path or f"{self.abi_root_path}/angle"
 
         super().__init__(
             address=address,
@@ -136,7 +136,7 @@ class angle_merkle_distributor_creator(gamma_rewarder):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "DistributionCreator"
-        self._abi_path = abi_path or "data/abi/angle"
+        self._abi_path = abi_path or f"{self.abi_root_path}/angle"
 
         super().__init__(
             address=address,

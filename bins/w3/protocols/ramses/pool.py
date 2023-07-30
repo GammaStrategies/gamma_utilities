@@ -19,7 +19,7 @@ class pool(uniswap.pool.poolv3):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "RamsesV2Pool"
-        self._abi_path = abi_path or "data/abi/ramses"
+        self._abi_path = abi_path or f"{self.abi_root_path}/ramses"
 
         super().__init__(
             address=address,
@@ -199,7 +199,7 @@ class pool_cached(uniswap.pool.poolv3_cached):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "RamsesV2Pool"
-        self._abi_path = abi_path or "data/abi/ramses"
+        self._abi_path = abi_path or f"{self.abi_root_path}/ramses"
 
         super().__init__(
             address=address,

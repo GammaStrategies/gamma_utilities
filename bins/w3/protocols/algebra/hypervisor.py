@@ -23,7 +23,7 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "algebra_hypervisor"
-        self._abi_path = abi_path or "data/abi/gamma"
+        self._abi_path = abi_path or f"{self.abi_root_path}/gamma"
 
         super().__init__(
             address=address,

@@ -18,7 +18,7 @@ class beamswap_masterchef_v2_rewarder(gamma_rewarder):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "zyberchef_rewarder"
-        self._abi_path = abi_path or "data/abi/zyberswap/masterchef"
+        self._abi_path = abi_path or f"{self.abi_root_path}/zyberswap/masterchef"
 
         super().__init__(
             address=address,
@@ -233,7 +233,7 @@ class beamswap_masterchef_v2(gamma_rewarder):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "BeamChefV2"
-        self._abi_path = abi_path or "data/abi/beamswap/masterchef"
+        self._abi_path = abi_path or f"{self.abi_root_path}/beamswap/masterchef"
 
         super().__init__(
             address=address,

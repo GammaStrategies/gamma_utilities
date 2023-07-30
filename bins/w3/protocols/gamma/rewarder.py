@@ -43,7 +43,7 @@ class gamma_masterchef_rewarder(gamma_rewarder):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "masterchef_rewarder"
-        self._abi_path = abi_path or "data/abi/gamma/masterchef"
+        self._abi_path = abi_path or f"{self.abi_root_path}/gamma/masterchef"
 
         super().__init__(
             address=address,
@@ -193,7 +193,7 @@ class gamma_masterchef_v1(gamma_rewarder):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "masterchef_v1"
-        self._abi_path = abi_path or "data/abi/gamma/masterchef"
+        self._abi_path = abi_path or f"{self.abi_root_path}/gamma/masterchef"
 
         super().__init__(
             address=address,
@@ -294,7 +294,7 @@ class gamma_masterchef_v2(gamma_rewarder):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "masterchef_v2"
-        self._abi_path = abi_path or "data/abi/gamma/masterchef"
+        self._abi_path = abi_path or f"{self.abi_root_path}/gamma/masterchef"
 
         super().__init__(
             address=address,
@@ -544,7 +544,7 @@ class gamma_masterchef_registry(web3wrap):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "masterchef_registry_v1"
-        self._abi_path = abi_path or "data/abi/gamma/masterchef"
+        self._abi_path = abi_path or f"{self.abi_root_path}/gamma/masterchef"
 
         super().__init__(
             address=address,

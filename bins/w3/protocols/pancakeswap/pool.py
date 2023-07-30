@@ -17,7 +17,7 @@ class pool(uniswap.pool.poolv3_bep20):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "pancakeswapv3_pool"
-        self._abi_path = abi_path or "data/abi/pancakeswap/binance"
+        self._abi_path = abi_path or f"{self.abi_root_path}/pancakeswap/binance"
 
         super().__init__(
             address=address,
@@ -48,7 +48,7 @@ class pool_cached(uniswap.pool.poolv3_bep20_cached):
         custom_web3Url: str | None = None,
     ):
         self._abi_filename = abi_filename or "pancakeswapv3_pool"
-        self._abi_path = abi_path or "data/abi/pancakeswap/binance"
+        self._abi_path = abi_path or f"{self.abi_root_path}/pancakeswap/binance"
 
         super().__init__(
             address=address,
