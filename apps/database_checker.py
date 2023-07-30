@@ -1309,168 +1309,6 @@ def repair_missing_rewards_status(chain: Chain, max_repair: int = None):
             )
 
 
-def repair_missing_rewards_status_TODOSPEED(chain: Chain, max_repair: int = None):
-    """ """
-    batch_size = 100000
-    logging.getLogger(__name__).info(
-        f"> Finding missing {chain.database_name}'s rewards status in database"
-    )
-    # get all operation blocks from database
-    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-    db_name = f"{chain.database_name}_gamma"
-
-    # get all rewards static grouped by hypervisor address
-    # _id = hypervisor_address and data = list of rewards_static
-    hype_rewards_static = database_local(mongo_url=mongo_url, db_name=db_name).get_items_from_database(
-            collection_name="rewards_static",
-            aggregate=[
-                {"$group":{
-                    "_id":"$hypervisor_address",
-                    "data":{"$push":"$$ROOT"}
-                }}
-                ],
-            batch_size=batch_size
-        )
-    
-    # for each hypervisor address 
-    for hypervisor_address, rewards_static_list in tqdm.tqdm(hype_rewards_static):
-        # create a common hype list for all this hype <-> rewards static
-        hypervisors_status_list = []
-
-        for reward_static in rewards_static_list:
-        
-            # do not process excluded tokens
-            if reward_static["rewardToken"] in TOKEN_ADDRESS_EXCLUDE.get(chain, {}):
-                continue
-            
-             # get this reward status ids and blocks from database
-            rewards_status_ids = []
-            rewards_status_blocks = []
-            for item in database_local(
-                mongo_url=mongo_url, db_name=db_name
-            ).get_items_from_database(
-                collection_name="rewards_status",
-                find={
-                    "hypervisor_address": hypervisor_address,
-                    "rewardToken": reward_static["rewardToken"],
-                },
-                projection={"id": 1, "_id": 0, "block": 1},
-                batch_size=batch_size,
-            ):
-                rewards_status_ids.append(item["id"])
-                rewards_status_blocks.append(int(item["block"]))
-
-            # build hypervisor list when needed
-            if hypervisors_status_list is None:
-                hypervisors_status_list= database_local(
-                    mongo_url=mongo_url, db_name=db_name
-                ).get_items_from_database(
-                    collection_name="status",
-                    find={
-                        "address": hypervisor_address,
-                        "$and": [
-                            {"block": {"$gte": reward_static["block"]}},
-                            {"block": {"$nin": rewards_status_blocks}},
-                        ],
-                        "totalSupply": {"$ne": "0"},
-                    },
-                    sort=[("block", -1)],
-                    batch_size=batch_size,
-                )
-
-    # loop thru all static rewards in database
-    for reward_static in tqdm.tqdm(
-        database_local(mongo_url=mongo_url, db_name=db_name).get_items_from_database(
-            collection_name="rewards_static",
-            find={},
-            batch_size=batch_size,
-            sort=[("_id", -1)],
-        )
-    ):
-        # do not process excluded tokens
-        if reward_static["rewardToken"] in TOKEN_ADDRESS_EXCLUDE.get(chain, {}):
-            continue
-
-        # get rewards_status ids and blocks from database
-        rewards_status_ids = []
-        rewards_status_blocks = []
-        for item in database_local(
-            mongo_url=mongo_url, db_name=db_name
-        ).get_items_from_database(
-            collection_name="rewards_status",
-            find={
-                "hypervisor_address": reward_static["hypervisor_address"],
-                "rewardToken": reward_static["rewardToken"],
-            },
-            projection={"id": 1, "_id": 0, "block": 1},
-            batch_size=batch_size,
-        ):
-            rewards_status_ids.append(item["id"])
-            rewards_status_blocks.append(int(item["block"]))
-
-        # sort by block desc so that newer items can be seen first
-        hypervisors_status_lits = database_local(
-            mongo_url=mongo_url, db_name=db_name
-        ).get_items_from_database(
-            collection_name="status",
-            find={
-                "address": reward_static["hypervisor_address"],
-                "$and": [
-                    {"block": {"$gte": reward_static["block"]}},
-                    {"block": {"$nin": rewards_status_blocks}},
-                ],
-                "totalSupply": {"$ne": "0"},
-            },
-            sort=[("block", -1)],
-            batch_size=batch_size,
-        )
-
-        if hypervisors_status_lits:
-            logging.getLogger(__name__).debug(
-                f" Found {len(hypervisors_status_lits)} missing rewards status blocks for {chain.database_name}'s {reward_static['hypervisor_address']}"
-            )
-            if max_repair and len(hypervisors_status_lits) > max_repair:
-                # select the most recent
-                logging.getLogger(__name__).info(
-                    f"  Selecting the most recent {max_repair} rewards status missing due to max_repair limit set."
-                )
-                hypervisors_status_lits = hypervisors_status_lits[:max_repair]
-                # make a random selection
-                # logging.getLogger(__name__).info(
-                #     f"  Selecting a random sample of {max_repair} rewards status missing due to max_repair limit set."
-                # )
-                # hypervisors_status_lits = random.sample(
-                #     hypervisors_status_lits, max_repair
-                # )
-
-            logging.getLogger(__name__).info(
-                f" A total of {len(hypervisors_status_lits)} rewards status will be added to the queue (prices may also get queued when needed)"
-            )
-
-            # prepare arguments for treaded function
-            args = (
-                (
-                    hype_status,
-                    chain.database_name,
-                )
-                for hype_status in hypervisors_status_lits
-            )
-
-            # get hypervisor status gte reward_static block
-            with concurrent.futures.ThreadPoolExecutor() as ex:
-                for result in ex.map(
-                    lambda p: build_and_save_queue_from_hypervisor_status(*p), args
-                ):
-                    # progress_bar.update(0)
-                    pass
-
-        else:
-            logging.getLogger(__name__).debug(
-                f" No missing rewards status found for {chain.database_name}'s {reward_static['hypervisor_address']}"
-            )
-
-
-
 def repair_hype_status_from_user(min_count: int = 1):
     protocol = "gamma"
 
@@ -1770,54 +1608,54 @@ def repair_queue_failed_items(
                     )
 
 
-def repair_hypervisor_static():
-    logging.getLogger(__name__).info(
-        f">Repair hypervisor static database ... remove disabled hypes and add missing hypes"
-    )
+# def repair_hypervisor_static():
+#     logging.getLogger(__name__).info(
+#         f">Repair hypervisor static database ... remove disabled hypes and add missing hypes"
+#     )
 
-    # get all 1st rewarder status from database
-    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-    db_collection = "static"
-    batch_size = 100000
+#     # get all 1st rewarder status from database
+#     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+#     db_collection = "static"
+#     batch_size = 100000
 
-    # override networks if specified in cml
-    networks = (
-        CONFIGURATION["_custom_"]["cml_parameters"].networks
-        or CONFIGURATION["script"]["protocols"]["gamma"]["networks"]
-    )
-    for network in networks:
-        logging.getLogger(__name__).info(f"          processing {network} ...")
-        # get a list of queue items with count > 10
-        db_name = f"{network}_gamma"
-        find = {}
+#     # override networks if specified in cml
+#     networks = (
+#         CONFIGURATION["_custom_"]["cml_parameters"].networks
+#         or CONFIGURATION["script"]["protocols"]["gamma"]["networks"]
+#     )
+#     for network in networks:
+#         logging.getLogger(__name__).info(f"          processing {network} ...")
+#         # get a list of queue items with count > 10
+#         db_name = f"{network}_gamma"
+#         find = {}
 
-        # get queue items
-        for db_hypervisor_static in tqdm.tqdm(
-            database_local(
-                mongo_url=mongo_url, db_name=db_name
-            ).get_items_from_database(
-                collection_name=db_collection, find=find, batch_size=batch_size
-            )
-        ):
-            # convert database queue item to class
-            hypervisor_static = HypervisorStatic(**db_hypervisor_static)
+#         # get queue items
+#         for db_hypervisor_static in tqdm.tqdm(
+#             database_local(
+#                 mongo_url=mongo_url, db_name=db_name
+#             ).get_items_from_database(
+#                 collection_name=db_collection, find=find, batch_size=batch_size
+#             )
+#         ):
+#             # convert database queue item to class
+#             hypervisor_static = HypervisorStatic(**db_hypervisor_static)
 
-            # get hypervisor
-            hypervisor = get_hypervisor(
-                network=network, hypervisor_address=hypervisor_static.address
-            )
+#             # get hypervisor
+#             hypervisor = get_hypervisor(
+#                 network=network, hypervisor_address=hypervisor_static.address
+#             )
 
-            # get hypervisor static
-            hypervisor_static = hypervisor.get_hypervisor_static()
+#             # get hypervisor static
+#             hypervisor_static = hypervisor.get_hypervisor_static()
 
-            # update hypervisor static
-            database_local(
-                mongo_url=mongo_url, db_name=db_name
-            ).replace_items_to_database(
-                data=[hypervisor_static.dict()],
-                collection_name=db_collection,
-                key="address",
-            )
+#             # update hypervisor static
+#             database_local(
+#                 mongo_url=mongo_url, db_name=db_name
+#             ).replace_items_to_database(
+#                 data=[hypervisor_static.dict()],
+#                 collection_name=db_collection,
+#                 key="address",
+#             )
 
 
 # one time utils
