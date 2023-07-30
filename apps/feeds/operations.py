@@ -566,11 +566,9 @@ def feed_operations_hypervisors_taskedQueue(
 
                 # define how many tasks can be added to be ran
                 toadd_tasks = max_paralel_tasks - len(running_tasks)
+                added_tasks = 0
 
                 if toadd_tasks > 0 and len(queued_tasks) > 0:  # add tasks from queue
-                    logging.getLogger(__name__).debug(
-                        f"  Adding {toadd_tasks} operation tasks to the processing pool "
-                    )
                     for i in range(toadd_tasks):
                         try:
                             running_tasks.append(
@@ -579,9 +577,13 @@ def feed_operations_hypervisors_taskedQueue(
                                     queued_tasks.pop(0),
                                 )
                             )
+                            added_tasks += 1
                         except Exception as e:
                             # manage this in a better way
                             pass
+                    logging.getLogger(__name__).debug(
+                        f"  Added {added_tasks} operation tasks to the processing pool "
+                    )
 
             # update progress
             _update_progress(
@@ -598,9 +600,7 @@ def feed_operations_hypervisors_taskedQueue(
             while len(running_tasks) + len(queued_tasks) > 0:
                 # define how many tasks can be added to be ran
                 toadd_tasks = max_paralel_tasks - len(running_tasks)
-                logging.getLogger(__name__).debug(
-                    f"  Adding {toadd_tasks} operation tasks to the processing pool "
-                )
+                added_tasks = 0
                 for i in range(toadd_tasks):
                     try:
                         running_tasks.append(
@@ -609,9 +609,13 @@ def feed_operations_hypervisors_taskedQueue(
                                 queued_tasks.pop(0),
                             )
                         )
+                        added_tasks += 1
                     except Exception as e:
                         # manage this in a better way
                         pass
+                logging.getLogger(__name__).debug(
+                    f"  Added {added_tasks} operation tasks to the processing pool "
+                )
 
 
 ############################################################################################################
@@ -672,7 +676,10 @@ def task_enqueue_operation(operation: dict, local_db: database_local, network: s
     if not local_db.get_items_from_database(
         collection_name="queue", find={"id": queueItem.id}
     ):
-        local_db.set_queue_item(data=queueItem.as_dict)
+        db_return = local_db.set_queue_item(data=queueItem.as_dict)
+        logging.getLogger(__name__).debug(
+            f" operation queue item {queueItem.id} added to the queue-> db: {db_return.raw_result}"
+        )
     else:
         logging.getLogger(__name__).debug(
             f"  operation queue item {queueItem.id} already in queue"

@@ -316,7 +316,6 @@ def main(option="operations"):
                     feed_hypervisor_static(protocol=protocol, network=network, dex=dex)
 
                 # feed database with all operations from static hyprervisor addresses
-                # TODO: create a force_back_time cml parameter
                 feed_operations(
                     protocol=protocol,
                     network=network,

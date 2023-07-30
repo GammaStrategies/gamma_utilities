@@ -39,9 +39,10 @@ class QueueItem:
     count: int = 0
 
     def __post_init__(self):
-        if type == queueItemType.REWARD_STATUS:
+        if self.type == queueItemType.REWARD_STATUS:
             # reward status should have rewardToken as id
             if "reward_static" in self.data:
+                # TODO: change for a combination of queue id + reward id
                 self.id = create_id_queue(
                     type=self.type,
                     block=self.block,
@@ -62,6 +63,15 @@ class QueueItem:
                 # logging.getLogger(__name__).error(
                 #     f" {self.data} is missing reward_static. using id: {self.id}"
                 # )
+
+        elif self.type == queueItemType.OPERATION:
+            self.id = create_id_queue(
+                type=self.type, block=self.block, hypervisor_address=self.address
+            )
+            # add operation id
+            if "logIndex" in self.data and "transactionHash" in self.data:
+                self.id = f"{self.id}_{create_id_operation(logIndex=self.data['logIndex'], transactionHash=self.data['transactionHash'])}"
+
         else:
             self.id = create_id_queue(
                 type=self.type, block=self.block, hypervisor_address=self.address
