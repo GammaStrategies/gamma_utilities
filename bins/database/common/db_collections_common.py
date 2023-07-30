@@ -895,8 +895,8 @@ class database_local(db_collections_common):
 
     # operation
 
-    def set_operation(self, data: dict):
-        self.replace_item_to_database(data=data, collection_name="operations")
+    def set_operation(self, data: dict) -> UpdateResult:
+        return self.replace_item_to_database(data=data, collection_name="operations")
 
     def get_all_operations(self, hypervisor_address: str) -> list:
         """find all hypervisor operations from db

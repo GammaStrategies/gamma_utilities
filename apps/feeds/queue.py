@@ -109,6 +109,10 @@ def build_and_save_queue_from_operation(operation: dict, network: str):
         # approval operations do not need a hype status nor prices, etc..
         return
 
+    logging.getLogger(__name__).debug(
+        f"  Building queue items related to a {operation['topic']} operation on {network}'s {operation['address']} hype at block {operation['blockNumber']}"
+    )
+
     # create local database manager
     db_name = f"{network}_gamma"
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
