@@ -4,6 +4,10 @@
 from ...general.enums import queueItemType
 
 
+def combine_ids(*args) -> str:
+    return "_".join(args)
+
+
 def create_id_operation(logIndex, transactionHash) -> str:
     return f"{logIndex}_{transactionHash}"
 
