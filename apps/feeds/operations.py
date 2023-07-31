@@ -562,7 +562,12 @@ def feed_operations_hypervisors_taskedQueue(
                     # remove tasks from running
                     for task in running_tasks[:]:
                         if task.ready():
-                            running_tasks.remove(task)
+                            try:
+                                running_tasks.remove(task)
+                            except Exception as e:
+                                logging.getLogger(__name__).error(
+                                    f"  Error removing task from running tasks: {e}"
+                                )
                             if _waiting:
                                 # update progress
                                 _update_progress(text=" processing queued items")
