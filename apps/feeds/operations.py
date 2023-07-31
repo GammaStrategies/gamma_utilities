@@ -7,7 +7,10 @@ from datetime import datetime
 from web3 import Web3
 
 from bins.general.enums import queueItemType
-from bins.w3.protocols.gamma.collectors import create_data_collector
+from bins.w3.protocols.gamma.collectors import (
+    create_data_collector_alternative,
+    create_data_collector,
+)
 from .queue import QueueItem, build_and_save_queue_from_operation
 
 # from croniter import croniter
@@ -204,7 +207,7 @@ def feed_operations(
             )
 
         # feed operations
-        feed_operations_hypervisors_taskedQueue(
+        feed_operations_hypervisors(
             network=network,
             protocol=protocol,
             hypervisor_addresses=hypervisor_addresses,
@@ -219,7 +222,154 @@ def feed_operations(
         )
 
 
+def feed_operations_hypervisors(
+    network: str,
+    protocol: str,
+    hypervisor_addresses: list,
+    block_ini: int,
+    block_end: int,
+    local_db: database_local,
+):
+    # set global protocol helper
+    data_collector = create_data_collector(network=network)
+
+    logging.getLogger(__name__).info(
+        "   Feeding database with {}'s {} operations of {} hypervisors from blocks {} to {}".format(
+            network,
+            protocol,
+            len(hypervisor_addresses),
+            block_ini,
+            block_end,
+        )
+    )
+
+    with tqdm.tqdm(total=100) as progress_bar:
+        # create callback progress funtion
+        def _update_progress(text=None, remaining=None, total=None):
+            # set text
+            if text:
+                progress_bar.set_description(text)
+            # set total
+            if total:
+                progress_bar.total = total
+            # update current
+            if remaining:
+                progress_bar.update(((total - remaining) - progress_bar.n))
+            else:
+                progress_bar.update(1)
+            # refresh
+            progress_bar.refresh()
+
+        # set progress callback to data collector
+        data_collector.progress_callback = _update_progress
+
+        for operations in data_collector.operations_generator(
+            block_ini=block_ini,
+            block_end=block_end,
+            contracts=[Web3.toChecksumAddress(x) for x in hypervisor_addresses],
+            max_blocks=1000,
+        ):
+            # process operation
+            task_enqueue_operations(
+                operations=operations, local_db=local_db, network=network
+            )
+
+
+def task_enqueue_operations(
+    operations: list[dict], local_db: database_local, network: str
+):
+    # build a list of operations to be added to the queue
+    to_add = [
+        QueueItem(
+            type=queueItemType.OPERATION,
+            block=int(operation["blockNumber"]),
+            address=operation["address"].lower(),
+            data=operation,
+        ).as_dict
+        for operation in operations
+    ]
+
+    if db_return := local_db.replace_items_to_database(
+        data=to_add, collection_name="queue"
+    ):
+        logging.getLogger(__name__).debug(
+            f"     db return-> del: {db_return.deleted_count}  ins: {db_return.inserted_count}  mod: {db_return.modified_count}  ups: {db_return.upserted_count} matched: {db_return.matched_count}"
+        )
+    else:
+        logging.getLogger(__name__).error(
+            f"  database did not return anything while saving operations to queue"
+        )
+
+
+def get_db_last_operation_block(protocol: str, network: str) -> int:
+    """Get the last operation block from database
+        using operations collection and queue collection
+
+    Args:
+        protocol (str):
+        network (str):
+
+    Returns:
+        int: last block number or None if not found or error
+    """
+    # read last blocks from database
+    try:
+        # setup database manager
+        mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+        db_name = f"{network}_{protocol}"
+        local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
+        batch_size = 100000
+
+        max_operations_block = local_db_manager.get_items_from_database(
+            collection_name="operations",
+            aggregate=[
+                {"$group": {"_id": "none", "max_block": {"$max": "$blockNumber"}}},
+            ],
+            batch_size=batch_size,
+        )
+
+        max_queue_block = local_db_manager.get_items_from_database(
+            collection_name="queue",
+            aggregate=[
+                {"$match": {"type": "operation"}},
+                {"$group": {"_id": "none", "max_block": {"$max": "$block"}}},
+            ],
+            batch_size=batch_size,
+        )
+
+        return max([max_queue_block, max_operations_block])
+
+        # block_list = sorted(
+        #         [
+        #             int(operation["blockNumber"])
+        #             for operation in local_db_manager.get_items_from_database(
+        #                 collection_name="operations",
+        #                 find={},
+        #                 projection={"blockNumber": 1},
+        #                 batch_size=batch_size,
+        #             )
+        #         ],
+        #         reverse=False,
+        #     )
+
+        #     return block_list[-1]
+    except IndexError:
+        logging.getLogger(__name__).debug(
+            f" Unable to get last operation block bc no operations have been found for {network}'s {protocol} in db"
+        )
+
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            f" Unexpected error while quering db operations for latest block  error:{e}"
+        )
+
+    return None
+
+
 ################################################################################################
+# TO REMOVE - DEPRECATED -< ( check all dependencies)
+
+
 def feed_operations_hypervisors_classic(
     network: str,
     protocol: str,
@@ -516,7 +666,7 @@ def feed_operations_hypervisors_taskedQueue(
     )
     for hype_addresses in hypervisor_addresses_chunks:
         # set global protocol helper
-        data_collector = create_data_collector(network=network)
+        data_collector = create_data_collector_alternative(network=network)
 
         logging.getLogger(__name__).info(
             "   Feeding database with {}'s {} operations of {}/{} hypervisors from blocks {} to {}".format(
@@ -536,7 +686,7 @@ def feed_operations_hypervisors_taskedQueue(
 
         # control var
         _waiting = False
-        with tqdm.tqdm(total=100) as progress_bar:
+        with tqdm.tqdm(total=block_end - block_ini) as progress_bar:
             # create callback progress funtion
             def _update_progress(text=None, remaining=None, total=None):
                 # set text
@@ -624,9 +774,11 @@ def feed_operations_hypervisors_taskedQueue(
                     remaining=len(running_tasks) + len(queued_tasks),
                 )
 
-                logging.getLogger(__name__).info(
-                    f"  Finished finding {network} operations, waiting for {len(running_tasks)+len(queued_tasks)} tasks to finish..."
-                )
+                if len(running_tasks) + len(queued_tasks) > 0:
+                    logging.getLogger(__name__).info(
+                        f"  Finished finding {network} operations, waiting for {len(running_tasks)+len(queued_tasks)} tasks to finish..."
+                    )
+
                 _waiting = True
                 # continue progress if there are tasks to complete
                 while len(running_tasks) + len(queued_tasks) > 0:
@@ -645,9 +797,6 @@ def feed_operations_hypervisors_taskedQueue(
                         except Exception as e:
                             # manage this in a better way
                             pass
-
-
-############################################################################################################
 
 
 def task_process_operation(operation: dict, local_db: database_local, network: str):
@@ -715,46 +864,4 @@ def task_enqueue_operation(operation: dict, local_db: database_local, network: s
         )
 
 
-def get_db_last_operation_block(protocol: str, network: str) -> int:
-    """Get the last operation block from database
-
-    Args:
-        protocol (str):
-        network (str):
-
-    Returns:
-        int: last block number or None if not found or error
-    """
-    # read last blocks from database
-    try:
-        # setup database manager
-        mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-        db_name = f"{network}_{protocol}"
-        local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
-        batch_size = 100000
-
-        block_list = sorted(
-            [
-                int(operation["blockNumber"])
-                for operation in local_db_manager.get_items_from_database(
-                    collection_name="operations",
-                    find={},
-                    projection={"blockNumber": 1},
-                    batch_size=batch_size,
-                )
-            ],
-            reverse=False,
-        )
-
-        return block_list[-1]
-    except IndexError:
-        logging.getLogger(__name__).debug(
-            f" Unable to get last operation block bc no operations have been found for {network}'s {protocol} in db"
-        )
-
-    except Exception as e:
-        logging.getLogger(__name__).exception(
-            f" Unexpected error while quering db operations for latest block  error:{e}"
-        )
-
-    return None
+############################################################################################################

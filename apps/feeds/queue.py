@@ -4,6 +4,8 @@ import logging
 import time
 import concurrent.futures
 
+from bins.w3.protocols.gamma.hypervisor import gamma_hypervisor_bep20
+
 from .status import (
     create_and_save_hypervisor_status,
     create_reward_status_from_hype_status,
@@ -11,6 +13,7 @@ from .status import (
 from bins.configuration import CONFIGURATION
 from bins.database.common.database_ids import (
     create_id_block,
+    create_id_hypervisor_static,
     create_id_hypervisor_status,
     create_id_operation,
     create_id_price,
@@ -19,9 +22,9 @@ from bins.database.common.database_ids import (
     create_id_rewards_status,
 )
 from bins.database.common.db_collections_common import database_global, database_local
-from bins.general.enums import Chain, queueItemType
+from bins.general.enums import Chain, queueItemType, text_to_chain
 from bins.general.general_utilities import seconds_to_time_passed
-from bins.w3.builders import build_db_hypervisor
+from bins.w3.builders import build_db_hypervisor, build_erc20_helper
 from bins.mixed.price_utilities import price_scraper
 from bins.w3.protocols.general import erc20, bep20
 
@@ -695,6 +698,97 @@ def pull_from_queue_block(network: str, queue_item: QueueItem) -> bool:
 
 
 def pull_from_queue_operation(network: str, queue_item: QueueItem) -> bool:
+    # debug variables
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    # set local database name and create manager
+    local_db = database_local(mongo_url=mongo_url, db_name=f"{network}_gamma")
+
+    dumb_erc20 = build_erc20_helper(chain=text_to_chain(network))
+
+    try:
+        # the operation is in the 'data' field...
+        operation = queue_item.data
+
+        # set operation id (same hash has multiple operations)
+        operation["id"] = create_id_operation(
+            logIndex=operation["logIndex"], transactionHash=operation["transactionHash"]
+        )
+        # lower case address ( to ease comparison )
+        operation["address"] = operation["address"].lower()
+
+        # log
+        logging.getLogger(__name__).debug(
+            f"  -> Processing {network}'s operation {operation['id']}"
+        )
+
+        # set timestamp
+        operation["timestamp"] = dumb_erc20.timestampFromBlockNumber(
+            block=int(operation["blockNumber"])
+        )
+
+        # get hype from db
+        if hypervisor := local_db.get_items_from_database(
+            collection_name="static",
+            find={
+                "id": create_id_hypervisor_static(
+                    hypervisor_address=operation["address"]
+                )
+            },
+        ):
+            hypervisor = hypervisor[0]
+
+        else:
+            raise ValueError(
+                f" No static hypervisor found for {operation['address']} while processing operation {operation['id']}"
+            )
+
+        # set tokens data
+        operation["decimals_token0"] = hypervisor["pool"]["token0"]["decimals"]
+        operation["decimals_token1"] = hypervisor["pool"]["token1"]["decimals"]
+        operation["decimals_contract"] = hypervisor["decimals"]
+
+        # save operation to database
+        if db_return := local_db.set_operation(data=operation):
+            logging.getLogger(__name__).debug(f" Saved operation {operation['id']}")
+
+        # make sure hype is not in status collection already
+        if not local_db.get_items_from_database(
+            collection_name="status",
+            find={
+                "id": create_id_hypervisor_status(
+                    hypervisor_address=operation["address"],
+                    block=operation["blockNumber"],
+                )
+            },
+            projection={"id": 1},
+        ):
+            # fire scrape event on block regarding hypervisor and rewarders snapshots (status) and token prices
+            # build queue events from operation
+            build_and_save_queue_from_operation(operation=operation, network=network)
+
+        else:
+            logging.getLogger(__name__).debug(
+                f"  Not pushing {operation['address']} hypervisor status queue item bcause its already in the database"
+            )
+
+        # log
+        logging.getLogger(__name__).debug(
+            f"  <- Done processing {network}'s operation {operation['id']}"
+        )
+
+        return True
+
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            f"Error processing {network}'s operation queue item: {e}"
+        )
+
+    # return result
+    return False
+
+
+# DEPRECATED
+def pull_from_queue_operation_OLD(network: str, queue_item: QueueItem) -> bool:
     # debug variables
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     # set local database name and create manager

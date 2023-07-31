@@ -7,7 +7,7 @@ from web3.middleware import async_geth_poa_middleware, geth_poa_middleware
 from pathlib import Path
 import math
 
-from ..w3.protocols.gamma.collectors import data_collector
+from ..w3.protocols.gamma.collectors import data_collector_OLD
 from ..w3.protocols.general import erc20, bep20
 
 from ..general import general_utilities
@@ -66,7 +66,7 @@ class onchain_data_helper:
             )
         )
 
-    def create_data_collector(self, network: str) -> data_collector:
+    def create_data_collector(self, network: str) -> data_collector_OLD:
         """Create a data collector class
 
         Args:
@@ -77,7 +77,7 @@ class onchain_data_helper:
         """
         result = None
         if self.protocol == "gamma":
-            result = data_collector(
+            result = data_collector_OLD(
                 topics={
                     "gamma_transfer": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",  # event_signature_hash = web3.keccak(text="transfer(uint32...)").hex()
                     "gamma_rebalance": "0xbc4c20ad04f161d631d9ce94d27659391196415aa3c42f6a71c62e905ece782d",
@@ -110,7 +110,7 @@ class onchain_data_helper:
                 network=network,
             )
         elif self.protocol == "uniswapv3":
-            result = data_collector(
+            result = data_collector_OLD(
                 topics={
                     "uniswapv3_collect": "0x40d0efd1a53d60ecbf40971b9daf7dc90178c3aadc7aab1765632738fa8b8f01",
                 },

@@ -39,6 +39,261 @@ class data_collector:
         self._data = dict()
 
         # setup Web3
+        # self.setup_w3(network=network)
+
+        # set topics vars
+        self.setup_topics(topics=topics, topics_data_decoders=topics_data_decoders)
+
+        # define helper
+        self._web3_helper = (
+            bep20(address="0x0000000000000000000000000000000000000000", network=network)
+            if network == "binance"
+            else erc20(
+                address="0x0000000000000000000000000000000000000000", network=network
+            )
+        )
+
+    def setup_topics(self, topics: dict, topics_data_decoders: dict):
+        if not topics is None and len(topics.keys()) > 0:
+            # set topics
+            self._topics = topics
+            # create a reversed topic list to be used to process topics
+            self._topics_reversed = {v: k for k, v in self._topics.items()}
+
+        if not topics_data_decoders is None and len(topics_data_decoders.keys()) > 0:
+            # set data decoders
+            self._topics_data_decoders = topics_data_decoders
+
+    # PROPS
+    @property
+    def progress_callback(self):
+        return self._progress_callback
+
+    @progress_callback.setter
+    def progress_callback(self, value):
+        self._progress_callback = value
+        self._web3_helper._progress_callback = value
+
+    def operations_generator(
+        self,
+        block_ini: int,
+        block_end: int,
+        contracts: list,
+        topics: dict = {},
+        topics_data_decoders: dict = {},
+        max_blocks: int = 5000,
+    ) -> list[dict]:
+        """operation item generator
+
+        Args:
+            block_ini (int): _description_
+            block_end (int): _description_
+            contracts (list): _description_
+            topics (dict, optional): _description_. Defaults to {}.
+            topics_data_decoders (dict, optional): _description_. Defaults to {}.
+            max_blocks (int, optional): _description_. Defaults to 5000.
+
+        Returns:
+            dict: includes topic operation like deposits, withdraws, transfers...
+
+        Yields:
+            Iterator[dict]:
+        """
+        # set topics vars ( if set )
+        self.setup_topics(topics=topics, topics_data_decoders=topics_data_decoders)
+
+        # get a list of events
+        filter_chunks = self._web3_helper.create_eventFilter_chunks(
+            eventfilter={
+                "fromBlock": block_ini,
+                "toBlock": block_end,
+                "address": contracts,
+                "topics": [[v for k, v in self._topics.items()]],
+            },
+            max_blocks=max_blocks,
+        )
+
+        for filter in filter_chunks:
+            if entries := self._web3_helper.get_all_entries(
+                filter=filter, rpcKey_names=["private"]
+            ):
+                chunk_result = []
+                for event in entries:
+                    # get topic name found
+                    topic = self._topics_reversed[event.topics[0].hex()]
+                    # first topic is topic id
+                    custom_abi_data = self._topics_data_decoders[topic]
+                    # decode
+                    data = abi.decode(custom_abi_data, HexBytes(event.data))
+
+                    # show progress
+                    if self._progress_callback:
+                        self._progress_callback(
+                            text="processing {} at block:{}".format(
+                                topic, event.blockNumber
+                            ),
+                            remaining=block_end - event.blockNumber,
+                            total=block_end - block_ini,
+                        )
+
+                    # convert data
+                    result_item = self._convert_topic(topic, event, data)
+                    # add topic to result item
+                    result_item["topic"] = "{}".format(topic.split("_")[1])
+                    result_item["logIndex"] = event.logIndex
+
+                    chunk_result.append(result_item)
+
+                yield chunk_result
+
+    # HELPERS
+    def _convert_topic(self, topic: str, event, data) -> dict:
+        # init result
+        itm = dict()
+
+        # common vars
+        itm["transactionHash"] = event.transactionHash.hex()
+        itm["blockHash"] = event.blockHash.hex()
+        itm["blockNumber"] = event.blockNumber
+        itm["address"] = event.address
+
+        itm["timestamp"] = ""
+        itm["decimals_token0"] = ""
+        itm["decimals_token1"] = ""
+        itm["decimals_contract"] = ""
+
+        # specific vars
+        if topic in ["gamma_deposit", "gamma_withdraw"]:
+            itm["sender"] = event.topics[1][-20:].hex()
+            itm["to"] = event.topics[2][-20:].hex()
+            itm["shares"] = str(data[0])
+            itm["qtty_token0"] = str(data[1])
+            itm["qtty_token1"] = str(data[2])
+
+        elif topic == "gamma_rebalance":
+            # rename topic to fee
+            # topic = "gamma_fee"
+            itm["tick"] = data[0]
+            itm["totalAmount0"] = str(data[1])
+            itm["totalAmount1"] = str(data[2])
+            itm["qtty_token0"] = str(data[3])
+            itm["qtty_token1"] = str(data[4])
+
+        elif topic == "gamma_zeroBurn":
+            itm["fee"] = data[0]
+            itm["qtty_token0"] = str(data[1])
+            itm["qtty_token1"] = str(data[2])
+
+        elif topic in ["gamma_transfer", "arrakis_transfer"]:
+            itm["src"] = event.topics[1][-20:].hex()
+            itm["dst"] = event.topics[2][-20:].hex()
+            itm["qtty"] = str(data[0])
+
+        elif topic in ["arrakis_deposit", "arrakis_withdraw"]:
+            itm["sender"] = data[0] if topic == "arrakis_deposit" else event.address
+            itm["to"] = data[0] if topic == "arrakis_withdraw" else event.address
+            itm["qtty_token0"] = str(data[2])  # amount0
+            itm["qtty_token1"] = str(data[3])  # amount1
+            itm["shares"] = str(data[1])  # mintAmount
+
+        elif topic == "arrakis_fee":
+            itm["qtty_token0"] = str(data[0])
+            itm["qtty_token1"] = str(data[1])
+
+        elif topic == "arrakis_rebalance":
+            itm["lowerTick"] = str(data[0])
+            itm["upperTick"] = str(data[1])
+            # data[2] #liquidityBefore
+            # data[2] #liquidityAfter
+        elif topic in ["gamma_approval"]:
+            itm["value"] = str(data[0])
+
+        elif topic in ["gamma_setFee"]:
+            itm["fee"] = data[0]
+
+        elif topic == "uniswapv3_collect":
+            itm["recipient"] = data[0]
+            itm["amount0"] = str(data[1])
+            itm["amount1"] = str(data[2])
+        else:
+            logging.getLogger(__name__).warning(
+                f" Can't find topic [{topic}] converter. Discarding  event [{event}]  with data [{data}] "
+            )
+
+        return itm
+
+
+def create_data_collector(network: str) -> data_collector:
+    """Create a data collector class
+
+    Args:
+       network (str):
+
+    Returns:
+       data_collector:
+    """
+    result = data_collector(
+        topics={
+            "gamma_transfer": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",  # event_signature_hash = web3.keccak(text="transfer(uint32...)").hex()
+            "gamma_rebalance": "0xbc4c20ad04f161d631d9ce94d27659391196415aa3c42f6a71c62e905ece782d",
+            "gamma_deposit": "0x4e2ca0515ed1aef1395f66b5303bb5d6f1bf9d61a353fa53f73f8ac9973fa9f6",
+            "gamma_withdraw": "0xebff2602b3f468259e1e99f613fed6691f3a6526effe6ef3e768ba7ae7a36c4f",
+            "gamma_approval": "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925",
+            "gamma_setFee": "0x91f2ade82ab0e77bb6823899e6daddc07e3da0e3ad998577e7c09c2f38943c43",
+            "gamma_zeroBurn": "0x4606b8a47eb284e8e80929101ece6ab5fe8d4f8735acc56bd0c92ca872f2cfe7",
+        },
+        topics_data_decoders={
+            "gamma_transfer": ["uint256"],
+            "gamma_rebalance": [
+                "int24",
+                "uint256",
+                "uint256",
+                "uint256",
+                "uint256",
+                "uint256",
+            ],
+            "gamma_deposit": ["uint256", "uint256", "uint256"],
+            "gamma_withdraw": ["uint256", "uint256", "uint256"],
+            "gamma_approval": ["uint256"],
+            "gamma_setFee": ["uint8"],
+            "gamma_zeroBurn": [
+                "uint8",  # fee
+                "uint256",  # fees0
+                "uint256",  # fees1
+            ],
+        },
+        network=network,
+    )
+    return result
+
+
+############################################################################################################
+
+
+class data_collector_OLD:
+    """Scrapes the chain once to gather
+    all configured topics from the contracts addresses supplied (hypervisor list)
+    main func being <get_all_operations>
+
+    IMPORTANT: data has no decimal conversion
+    """
+
+    # SETUP
+    def __init__(
+        self,
+        topics: dict,
+        topics_data_decoders: dict,
+        network: str,
+    ):
+        self.network = network
+
+        self._progress_callback = None  # log purp
+        # univ3_pool helpers simulating contract functionality just to be able to use the tokenX decimal part
+        self._token_helpers = dict()
+        # all data retrieved will be saved here. { <contract_address>: {<topic>: <topic defined content> } }
+        self._data = dict()
+
+        # setup Web3
         self.setup_w3(network=network)
 
         # set topics vars
@@ -609,7 +864,7 @@ class data_collector_alternative:
         return itm
 
 
-def create_data_collector(network: str) -> data_collector_alternative:
+def create_data_collector_alternative(network: str) -> data_collector_alternative:
     """Create a data collector class
 
     Args:
