@@ -1,6 +1,10 @@
 import logging
 
 from web3 import Web3
+
+from ..configuration import STATIC_REGISTRY_ADDRESSES
+
+from ..w3.protocols.gamma.registry import gamma_hypervisor_registry
 from ..general.enums import Chain, Protocol
 
 from ..w3 import protocols
@@ -388,6 +392,30 @@ def build_hypervisor(
         raise NotImplementedError(f" {protocol} has not been implemented yet")
 
     return hypervisor
+
+
+def build_hypervisor_registry(
+    network: str,
+    protocol: Protocol,
+    block: int,
+    custom_web3Url: str | None = None,
+) -> gamma_hypervisor_registry:
+    # get the list of registry addresses
+
+    if registry_address := (
+        STATIC_REGISTRY_ADDRESSES.get(network, {})
+        .get("hypervisors", {})
+        .get(protocol.database_name, None)
+    ):
+        # build hype
+        registry = gamma_hypervisor_registry(
+            address=registry_address,
+            network=network,
+            block=block,
+            custom_web3Url=custom_web3Url,
+        )
+
+        return registry
 
 
 def build_protocol_pool(
