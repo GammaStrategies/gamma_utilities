@@ -395,22 +395,7 @@ class web3wrap:
         for _filter in self.create_eventFilter_chunks(
             eventfilter=eventfilter, max_blocks=max_blocks
         ):
-            entries = []
-            # execute query till it works
-            for rpcUrl in self.get_rpcUrls(rpcKey_names):
-                # set rpc
-                self._w3 = self.setup_w3(network=self._network, web3Url=rpcUrl)
-                # get chunk entries
-                try:
-                    if entries := self._w3.eth.filter(_filter).get_all_entries():
-                        # exit rpc loop
-                        break
-                except (requests.exceptions.HTTPError, ValueError) as e:
-                    logging.getLogger(__name__).debug(
-                        f" Could not get {self._network}'s events usig {rpcUrl} from filter  -> {e}"
-                    )
-                    # try changing the rpcURL and retry
-                    continue
+            entries = self.get_all_entries(filter=_filter, rpcKey_names=rpcKey_names)
 
             # progress if no data found
             if self._progress_callback and len(entries) == 0:
@@ -422,6 +407,34 @@ class web3wrap:
 
             # filter blockchain data
             yield from entries
+
+    def get_all_entries(
+        self,
+        filter,
+        rpcKey_names: list[str] | None = None,
+    ) -> list:
+        entries = []
+        # execute query till it works
+        for rpcUrl in self.get_rpcUrls(rpcKey_names):
+            # set rpc
+            self._w3 = self.setup_w3(network=self._network, web3Url=rpcUrl)
+            logging.getLogger(__name__).debug(
+                f"   Using {rpcUrl} to gather {self._network}'s events"
+            )
+            # get chunk entries
+            try:
+                if entries := self._w3.eth.filter(filter).get_all_entries():
+                    # exit rpc loop
+                    break
+            except (requests.exceptions.HTTPError, ValueError) as e:
+                logging.getLogger(__name__).debug(
+                    f" Could not get {self._network}'s events usig {rpcUrl} from filter  -> {e}"
+                )
+                # try changing the rpcURL and retry
+                continue
+
+        # return all found
+        return entries
 
     def identify_dex_name(self) -> str:
         """Return dex name using the calling object's type"""
