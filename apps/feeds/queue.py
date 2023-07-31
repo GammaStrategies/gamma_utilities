@@ -421,7 +421,7 @@ def process_queue_item_type(network: str, queue_item: QueueItem) -> bool:
 # processing types
 
 
-# -----------------
+# Main processing function
 def pull_common_processing_work(
     network: str, queue_item: QueueItem, pull_func: callable
 ):
@@ -461,9 +461,7 @@ def pull_common_processing_work(
     return result
 
 
-# ------------------
-
-
+# Specific processing functions
 def pull_from_queue_hypervisor_status(network: str, queue_item: QueueItem) -> bool:
     # debug variables
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
