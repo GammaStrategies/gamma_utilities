@@ -320,24 +320,27 @@ def get_db_last_operation_block(protocol: str, network: str) -> int:
         local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
         batch_size = 100000
 
-        max_operations_block = local_db_manager.get_items_from_database(
+        max_block = 0
+        if max_operations_block := local_db_manager.get_items_from_database(
             collection_name="operations",
             aggregate=[
                 {"$group": {"_id": "none", "max_block": {"$max": "$blockNumber"}}},
             ],
             batch_size=batch_size,
-        )
+        ):
+            max_block = max(max_block, max_operations_block[0]["max_block"])
 
-        max_queue_block = local_db_manager.get_items_from_database(
+        if max_queue_block := local_db_manager.get_items_from_database(
             collection_name="queue",
             aggregate=[
                 {"$match": {"type": "operation"}},
                 {"$group": {"_id": "none", "max_block": {"$max": "$block"}}},
             ],
             batch_size=batch_size,
-        )
+        ):
+            max_block = max(max_block, max_queue_block[0]["max_block"])
 
-        return max([max_queue_block, max_operations_block])
+        return max_block
 
         # block_list = sorted(
         #         [
