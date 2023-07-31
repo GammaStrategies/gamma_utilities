@@ -8,7 +8,7 @@ from web3 import Web3, exceptions, types
 from web3.contract import Contract
 from web3.middleware import geth_poa_middleware, simple_cache_middleware
 
-from ...configuration import CONFIGURATION, WEB3_CHAIN_IDS
+from ...configuration import CONFIGURATION, WEB3_CHAIN_IDS, rpcUrl_list
 from ...general import file_utilities
 from ...cache import cache_utilities
 from ...general.enums import Chain
@@ -79,9 +79,11 @@ class web3wrap:
 
     def setup_w3(self, network: str, web3Url: str | None = None) -> Web3:
         # create Web3 helper
+        rpcProvider = self.get_rpcUrls(rpcKey_names=["private"])[0]
+
         result = Web3(
             Web3.HTTPProvider(
-                web3Url or CONFIGURATION["sources"]["web3Providers"][network],
+                web3Url or rpcProvider,
                 request_kwargs={"timeout": 60},
             )
         )
@@ -526,25 +528,10 @@ class web3wrap:
         Returns:
             list[str]: RPC urls
         """
-        result = []
-        # load configured rpc url's
-        for key_name in rpcKey_names or CONFIGURATION["sources"].get(
-            "w3Providers_default_order", ["public", "private"]
-        ):
-            if (
-                rpcUrls := CONFIGURATION["sources"]
-                .get("w3Providers", {})
-                .get(key_name, {})
-                .get(self._network, [])
-            ):
-                # shuffle if needed
-                if shuffle:
-                    random.shuffle(rpcUrls)
 
-                # add to result
-                result.extend([x for x in rpcUrls])
-        #
-        return result
+        return rpcUrl_list(
+            network=self._network, rpcKey_names=rpcKey_names, shuffle=shuffle
+        )
 
     def _getTransactionReceipt(self, txHash: str):
         """Get transaction receipt

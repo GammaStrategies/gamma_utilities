@@ -7,7 +7,7 @@ from hexbytes import HexBytes
 from web3 import Web3
 from web3.middleware import geth_poa_middleware, simple_cache_middleware
 
-from ....configuration import CONFIGURATION
+from ....configuration import CONFIGURATION, rpcUrl_list
 from ..general import erc20, bep20
 from .hypervisor import (
     gamma_hypervisor,
@@ -321,9 +321,12 @@ class data_collector_OLD:
 
     def setup_w3(self, network: str):
         # create Web3 helper
+
+        rpcProvider = rpcUrl_list(network=network, rpcKey_names=["private"])[0]
+
         self._w3 = Web3(
             Web3.HTTPProvider(
-                CONFIGURATION["sources"]["web3Providers"][network],
+                rpcProvider,
                 request_kwargs={"timeout": 120},
             )
         )
@@ -656,21 +659,6 @@ class data_collector_alternative:
         if not topics_data_decoders is None and len(topics_data_decoders.keys()) > 0:
             # set data decoders
             self._topics_data_decoders = topics_data_decoders
-
-    # def setup_w3(self, network: str):
-    #     # create Web3 helper
-    #     self._w3 = Web3(
-    #         Web3.HTTPProvider(
-    #             CONFIGURATION["sources"]["web3Providers"][network],
-    #             request_kwargs={"timeout": 60},
-    #         )
-    #     )
-    #     # add simple cache module
-    #     self._w3.middleware_onion.add(simple_cache_middleware)
-
-    #     # add middleware as needed
-    #     if network != "ethereum":
-    #         self._w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
     # PROPS
     @property

@@ -1,4 +1,5 @@
 import os
+import random
 from .general.enums import Chain, Protocol
 
 from .general.general_utilities import (
@@ -58,6 +59,40 @@ def get_from_memory(key) -> list:
         return CONFIGURATION["_custom_"]["temporal_memory"][key]
     except KeyError:
         return []
+
+
+def rpcUrl_list(
+    network: str, rpcKey_names: list[str] | None = None, shuffle: bool = True
+) -> list[str]:
+    """Get a list of rpc urls from configuration file
+
+    Args:
+        network (str): network name
+        rpcKey_names (list[str] | None, optional): private or public or whatever is placed in config w3Providers. Defaults to None.
+        shuffle (bool, optional): shuffle configured order. Defaults to True.
+
+    Returns:
+        list[str]: RPC urls
+    """
+    result = []
+    # load configured rpc url's
+    for key_name in rpcKey_names or CONFIGURATION["sources"].get(
+        "w3Providers_default_order", ["public", "private"]
+    ):
+        if (
+            rpcUrls := CONFIGURATION["sources"]
+            .get("w3Providers", {})
+            .get(key_name, {})
+            .get(network, [])
+        ):
+            # shuffle if needed
+            if shuffle:
+                random.shuffle(rpcUrls)
+
+            # add to result
+            result.extend([x for x in rpcUrls])
+    #
+    return result
 
 
 #### ADD STATIC CONFIG HERE ####

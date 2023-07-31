@@ -13,7 +13,7 @@ from ..w3.protocols.general import erc20, bep20
 from ..general import general_utilities
 from ..mixed import price_utilities
 
-from ..configuration import CONFIGURATION
+from ..configuration import CONFIGURATION, rpcUrl_list
 
 
 class onchain_data_helper:
@@ -43,9 +43,11 @@ class onchain_data_helper:
            Web3:
         """
 
+        rpcProvider = rpcUrl_list(network=network, rpcKey_names=["private"])[0]
+
         w3 = Web3(
             Web3.HTTPProvider(
-                CONFIGURATION["sources"]["web3Providers"][network],
+                rpcProvider,
                 request_kwargs={"timeout": 60},
             )
         )
