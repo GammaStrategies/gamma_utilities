@@ -368,8 +368,8 @@ def process_queue_item_type(network: str, queue_item: QueueItem) -> bool:
         )
         return False
 
-    logging.getLogger(__name__).debug(
-        f"Processing {network}'s {queue_item.type} queue item {queue_item.address} at block {queue_item.block}"
+    logging.getLogger(__name__).info(
+        f"Processing {network}'s {queue_item.type} queue item id {queue_item.id} at block {queue_item.block}"
     )
 
     if queue_item.type == queueItemType.HYPERVISOR_STATUS:
