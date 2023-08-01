@@ -11,6 +11,8 @@ import multiprocessing as mp
 from datetime import datetime, timedelta, timezone
 import time
 
+from bins.general.general_utilities import identify_me
+
 from .parallel_feed import process_all_queues
 
 from bins.configuration import CONFIGURATION
@@ -132,8 +134,11 @@ def price_sequence_loop(network: str):
 # services
 def local_db_service():
     """feed all local database collections in an infinite loop"""
+    identity = identify_me()
     # send eveyone service ON
-    logging.getLogger("telegram").info(" Local database feeding loop started")
+    logging.getLogger("telegram").info(
+        f" Local database feeding loop started at {identity}"
+    )
     try:
         while True:
             for protocol in CONFIGURATION["script"]["protocols"]:
@@ -161,14 +166,18 @@ def local_db_service():
             f" Unexpected error while loop-feeding local database data. error {sys.exc_info()[0]}"
         )
     # send eveyone not updating anymore
-    logging.getLogger("telegram").info(" Local database feeding loop stoped")
+    logging.getLogger("telegram").info(
+        f" Local database feeding loop stoped at {identity}"
+    )
 
 
 def global_db_service():
     """feed global database collections in an infinite loop"""
-
+    identity = identify_me()
     # send eveyone service ON
-    logging.getLogger("telegram").info(" Global database feeding loop started")
+    logging.getLogger("telegram").info(
+        f" Global database feeding loop started at {identity}"
+    )
     try:
         while True:
             for protocol in CONFIGURATION["script"]["protocols"]:
@@ -189,7 +198,9 @@ def global_db_service():
             f" Unexpected error while loop-feeding global database data. error {e}"
         )
     # send eveyone not updating anymore
-    logging.getLogger("telegram").info(" Global database feeding loop stoped")
+    logging.getLogger("telegram").info(
+        f" Global database feeding loop stoped at {identity}"
+    )
 
 
 def network_db_service(
@@ -200,9 +211,9 @@ def network_db_service(
     do_repairs: bool = False,
 ):
     """feed one local database collection in an infinite loop"""
-
+    identity = identify_me()
     logging.getLogger("telegram").info(
-        f" {protocol}'s {network} database feeding loop started"
+        f" {protocol}'s {network} database feeding loop started at {identity}"
     )
     # get minimum time between loops ( defaults to 5 minutes)
     min_loop_time = 60 * (
@@ -238,14 +249,18 @@ def network_db_service(
 
     # telegram messaging
     logging.getLogger("telegram").info(
-        f" {protocol}'s {network} database feeding loop stoped"
+        f" {protocol}'s {network} database feeding loop stoped at {identity}"
     )
 
 
 def queue_db_service():
     """Process all database queue in an infinite loop"""
+    # identify srvr
+    identity = identify_me()
     # send eveyone service ON
-    logging.getLogger("telegram").info(" Database queue processing loop started")
+    logging.getLogger("telegram").info(
+        f" Database queue processing loop started at {identity}"
+    )
     logging.getLogger(__name__).info(" Database queue processing loop started")
     try:
         process_all_queues(
@@ -259,13 +274,16 @@ def queue_db_service():
             f" Unexpected error while loop-processing database queue. error {sys.exc_info()[0]}"
         )
     # send eveyone not updating anymore
-    logging.getLogger("telegram").info(" Database queue loop stoped")
+    logging.getLogger("telegram").info(f" Database queue loop stoped at {identity}")
 
 
 def operations_db_service():
     """feed all database collections with operations in an infinite loop"""
+    identity = identify_me()
     # send eveyone service ON
-    logging.getLogger("telegram").info(" Operations database feeding loop started")
+    logging.getLogger("telegram").info(
+        f" Operations database feeding loop started as {identity}"
+    )
 
     # get minimum time between loops ( defaults to 5 minutes)
     min_loop_time = 60 * (
@@ -303,12 +321,17 @@ def operations_db_service():
             f" Unexpected error while loop-feeding database with operations. error {sys.exc_info()[0]}"
         )
     # send eveyone not updating anymore
-    logging.getLogger("telegram").info(" Operations database feeding loop stoped")
+    logging.getLogger("telegram").info(
+        f" Operations database feeding loop stoped at {identity}"
+    )
 
 
 def current_prices_db_service():
+    identity = identify_me()
     # send eveyone service ON
-    logging.getLogger("telegram").info(" Current prices database feeding loop started")
+    logging.getLogger("telegram").info(
+        f" Current prices database feeding loop started at {identity}"
+    )
 
     # control var to recreate the price list json file used as source for this service
     _create_file_startime = datetime.now(timezone.utc)
@@ -373,7 +396,9 @@ def current_prices_db_service():
             f" Unexpected error while loop-feeding database with current prices. error {e}"
         )
     # send eveyone not updating anymore
-    logging.getLogger("telegram").info(" Current prices database feeding loop stoped")
+    logging.getLogger("telegram").info(
+        f" Current prices database feeding loop stoped at {identity}"
+    )
 
 
 def main(option: str, **kwargs):
