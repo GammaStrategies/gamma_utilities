@@ -127,7 +127,7 @@ class web3wrap:
     @property
     def abi_root_path(self) -> str:
         # where to find the abi files
-        return "data/abi"
+        return CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
 
     @property
     def address(self) -> str:
