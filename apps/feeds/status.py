@@ -290,7 +290,8 @@ def create_and_save_hypervisor_status(
     return False
 
 
-## Rewards status
+## Rewards status:
+# TODO: embed into classes
 
 
 def feed_rewards_status(network: str | None = None, protocol: str = "gamma"):

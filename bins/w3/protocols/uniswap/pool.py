@@ -7,7 +7,7 @@ from ....cache import cache_utilities
 from ....general.enums import Protocol
 from ....formulas import dex_formulas
 
-from bins.w3.protocols.general import bep20, web3wrap, erc20, erc20_cached, bep20_cached
+from ..general import bep20, web3wrap, erc20, erc20_cached, bep20_cached
 
 
 # UNISWAP POOL
