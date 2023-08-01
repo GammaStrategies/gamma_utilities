@@ -82,6 +82,22 @@ def load_configuration(cfg_name="config.yaml"):
     raise FileNotFoundError(f" {cfg_name} configuration file not found")
 
 
+def identify_me() -> str:
+    """Identify this computer with any info available"""
+
+    try:
+        return os.path.expanduser("~")
+    except Exception as e:
+        pass
+
+    try:
+        return os.getlogin()
+    except Exception as e:
+        pass
+
+    return "unknown"
+
+
 ## LIST STUFF
 def differences(list1: list, list2: list) -> list:
     """Return differences between lists
