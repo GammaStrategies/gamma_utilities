@@ -421,6 +421,11 @@ class database_global(db_collections_common):
                     ],
                 },
             }
+        else:
+            logging.getLogger(__name__).warning(
+                f" using custom db_collections on local dbatabase class for {db_name}:  {db_collections} "
+            )
+
         super().__init__(
             mongo_url=mongo_url, db_name=db_name, db_collections=db_collections
         )
@@ -802,6 +807,11 @@ class database_local(db_collections_common):
                     "multi_indexes": [],
                 },
             }
+
+        else:
+            logging.getLogger(__name__).warning(
+                f" using custom db_collections on local dbatabase class for {db_name}:  {db_collections} "
+            )
 
         super().__init__(
             mongo_url=mongo_url, db_name=db_name, db_collections=db_collections
