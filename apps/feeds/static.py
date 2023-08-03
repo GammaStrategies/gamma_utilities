@@ -416,6 +416,9 @@ def create_rewards_static_zyberswap(
             "type": rewarderType.ZYBERSWAP_masterchef_v1,
         }
     }
+    ephemeral_cache = {
+        "creation_block": {},
+    }
     for masterchef_address, contract_data in to_process_contract_addresses.items():
         if contract_data["type"] == rewarderType.ZYBERSWAP_masterchef_v1:
             # create masterchef object
@@ -427,14 +430,29 @@ def create_rewards_static_zyberswap(
             )
 
             for reward_data in rewards_data:
-                # add block creation data
-                if creation_data := _get_contract_creation_block(
-                    network=network, contract_address=reward_data["rewarder_address"]
+                # add block creation data to cache
+                if (
+                    not reward_data["rewarder_address"]
+                    in ephemeral_cache["creation_block"]
                 ):
-                    reward_data["block"] = creation_data["block"]
-                else:
-                    # modify block number manually -> block num. is later used to update rewards_status from
-                    reward_data["block"] = contract_data["creation_block"]
+                    # add block creation data
+                    if creation_data := _get_contract_creation_block(
+                        network=network,
+                        contract_address=reward_data["rewarder_address"],
+                    ):
+                        ephemeral_cache["creation_block"][
+                            reward_data["rewarder_address"]
+                        ] = creation_data["block"]
+                    else:
+                        # modify block number manually -> block num. is later used to update rewards_status from
+                        ephemeral_cache["creation_block"][
+                            reward_data["rewarder_address"]
+                        ] = contract_data["creation_block"]
+
+                # set creation block
+                reward_data["block"] = ephemeral_cache["creation_block"][
+                    reward_data["rewarder_address"]
+                ]
                 if (
                     rewrite
                     or create_id_rewards_static(
@@ -465,6 +483,9 @@ def create_rewards_static_beamswap(
             "type": rewarderType.BEAMSWAP_masterchef_v2,
         }
     }
+    ephemeral_cache = {
+        "creation_block": {},
+    }
     for masterchef_address, contract_data in to_process_contract_addresses.items():
         if contract_data["type"] == rewarderType.BEAMSWAP_masterchef_v2:
             # create masterchef object
@@ -472,28 +493,43 @@ def create_rewards_static_beamswap(
                 address=masterchef_address, network=network, block=block
             )
 
-        for reward_data in masterchef.get_rewards(
-            hypervisor_addresses=hypervisor_addresses, convert_bint=True
-        ):
-            # add block creation data
-            if creation_data := _get_contract_creation_block(
-                network=network, contract_address=reward_data["rewarder_address"]
+            for reward_data in masterchef.get_rewards(
+                hypervisor_addresses=hypervisor_addresses, convert_bint=True
             ):
-                reward_data["block"] = creation_data["block"]
-            else:
-                # modify block number manually -> block num. is later used to update rewards_status from
-                reward_data["block"] = contract_data["creation_block"]
-            if (
-                rewrite
-                or create_id_rewards_static(
-                    hypervisor_address=reward_data["hypervisor_address"],
-                    rewarder_address=reward_data["rewarder_address"],
-                    rewardToken_address=reward_data["rewardToken"],
-                )
-                not in already_processed
-            ):
-                # save to database
-                result.append(reward_data)
+                # add block creation data to cache
+                if (
+                    not reward_data["rewarder_address"]
+                    in ephemeral_cache["creation_block"]
+                ):
+                    # add block creation data
+                    if creation_data := _get_contract_creation_block(
+                        network=network,
+                        contract_address=reward_data["rewarder_address"],
+                    ):
+                        ephemeral_cache["creation_block"][
+                            reward_data["rewarder_address"]
+                        ] = creation_data["block"]
+                    else:
+                        # modify block number manually -> block num. is later used to update rewards_status from
+                        ephemeral_cache["creation_block"][
+                            reward_data["rewarder_address"]
+                        ] = contract_data["creation_block"]
+
+                # set creation block
+                reward_data["block"] = ephemeral_cache["creation_block"][
+                    reward_data["rewarder_address"]
+                ]
+                if (
+                    rewrite
+                    or create_id_rewards_static(
+                        hypervisor_address=reward_data["hypervisor_address"],
+                        rewarder_address=reward_data["rewarder_address"],
+                        rewardToken_address=reward_data["rewardToken"],
+                    )
+                    not in already_processed
+                ):
+                    # save to database
+                    result.append(reward_data)
 
     return result
 
@@ -512,6 +548,10 @@ def create_rewards_static_thena(
             "type": rewarderType.THENA_voter_v3,
         }
     }
+    ephemeral_cache = {
+        "creation_block": {},
+    }
+
     for thenaVoter_address, contract_data in to_process_contract_addresses.items():
         # create thena voter object
         thena_voter = thena_voter_v3(
@@ -521,14 +561,25 @@ def create_rewards_static_thena(
             hypervisor_addresses=hypervisor_addresses, convert_bint=True
         )
         for reward_data in rewards_data:
-            # add block creation data
-            if creation_data := _get_contract_creation_block(
-                network=network, contract_address=reward_data["rewarder_address"]
-            ):
-                reward_data["block"] = creation_data["block"]
-            else:
-                # modify block number manually -> block num. is later used to update rewards_status from
-                reward_data["block"] = contract_data["creation_block"]
+            # add block creation data to cache
+            if not reward_data["rewarder_address"] in ephemeral_cache["creation_block"]:
+                # add block creation data
+                if creation_data := _get_contract_creation_block(
+                    network=network, contract_address=reward_data["rewarder_address"]
+                ):
+                    ephemeral_cache["creation_block"][
+                        reward_data["rewarder_address"]
+                    ] = creation_data["block"]
+                else:
+                    # modify block number manually -> block num. is later used to update rewards_status from
+                    ephemeral_cache["creation_block"][
+                        reward_data["rewarder_address"]
+                    ] = contract_data["creation_block"]
+
+            # set creation block
+            reward_data["block"] = ephemeral_cache["creation_block"][
+                reward_data["rewarder_address"]
+            ]
             if (
                 rewrite
                 or create_id_rewards_static(
@@ -575,6 +626,16 @@ def create_rewards_static_merkl(
         # get distributor address
         # distributor_address = distributor_creator.distributor.lower()
 
+        ephemeral_cache = {
+            "tokens": {},
+            "creation_block": {},
+            "rewarder": {
+                "block": distributor_creator.block,
+                "timestamp": distributor_creator._timestamp,
+                "address": distributor_creator_address.lower(),
+            },
+        }
+
         # get all distributions from distribution list that match configured hype addresses
         for index, distribution in enumerate(distributor_creator.getAllDistributions):
             # check reward token validity
@@ -588,12 +649,21 @@ def create_rewards_static_merkl(
                 continue
 
             if distribution["pool"] in hype_pools:
-                # bc there is no token info in allDistributions, we need to get it from chain
-                tokenHelper = build_erc20_helper(
-                    chain=chain, address=distribution["token"].lower(), cached=True
-                )
-                token_symbol = tokenHelper.symbol
-                token_decimals = tokenHelper.decimals
+                # check token in ephemeral cache
+                if not distribution["token"].lower() in ephemeral_cache["tokens"]:
+                    logging.getLogger(__name__).debug(
+                        f" adding token {distribution['token']} in ephemeral cache"
+                    )
+                    # bc there is no token info in allDistributions, we need to get it from chain
+                    tokenHelper = build_erc20_helper(
+                        chain=chain, address=distribution["token"].lower(), cached=True
+                    )
+                    token_symbol = tokenHelper.symbol
+                    token_decimals = tokenHelper.decimals
+                    ephemeral_cache["tokens"][distribution["token"].lower()] = {
+                        "symbol": token_symbol,
+                        "decimals": token_decimals,
+                    }
 
                 # add rewards for each hype
                 for hype_address in hype_pools[distribution["pool"]]:
@@ -607,8 +677,12 @@ def create_rewards_static_merkl(
                         "rewarder_refIds": [index],
                         "rewarder_registry": distributor_creator_address.lower(),
                         "rewardToken": distribution["token"].lower(),
-                        "rewardToken_symbol": token_symbol,
-                        "rewardToken_decimals": token_decimals,
+                        "rewardToken_symbol": ephemeral_cache["tokens"][
+                            distribution["token"].lower()
+                        ]["symbol"],
+                        "rewardToken_decimals": ephemeral_cache["tokens"][
+                            distribution["token"].lower()
+                        ]["decimals"],
                         "rewards_perSecond": 0,  # TODO: remove this field from all static rewards
                         "total_hypervisorToken_qtty": 0,  # TODO: remove this field from all static rewards
                     }
@@ -623,15 +697,39 @@ def create_rewards_static_merkl(
                         )
                         not in already_processed
                     ):
-                        # add block creation data
-                        if creation_data := _get_contract_creation_block(
-                            network=chain.database_name,
-                            contract_address=reward_data["rewarder_registry"],
+                        # add block creation data to cache
+                        if (
+                            not reward_data["rewarder_registry"]
+                            in ephemeral_cache["creation_block"]
                         ):
-                            reward_data["block"] = creation_data["block"]
+                            # add block creation data
+                            if creation_block := _get_contract_creation_block(
+                                network=chain.database_name,
+                                contract_address=reward_data["rewarder_registry"],
+                            ):
+                                logging.getLogger(__name__).debug(
+                                    f" Found contract creation data for {reward_data['rewarder_registry']} at block {creation_block['block']}."
+                                )
+                                ephemeral_cache["creation_block"][
+                                    reward_data["rewarder_registry"]
+                                ] = creation_block["block"]
+                            else:
+                                # modify block number manually -> block num. is later used to update rewards_status from
+                                logging.getLogger(__name__).debug(
+                                    f" No contract creation data found for {reward_data['rewarder_registry']}."
+                                )
+                                ephemeral_cache["creation_block"][
+                                    reward_data["rewarder_registry"]
+                                ] = distributor_creator.block
+
+                        reward_data["block"] = ephemeral_cache["creation_block"][
+                            reward_data["rewarder_registry"]
+                        ]
 
                         # save to database
                         result.append(reward_data)
+
+    # return list of rewards
     return result
 
 
@@ -643,6 +741,11 @@ def create_rewards_static_ramses(
     block: int = 0,
 ) -> list[dict]:
     result = []
+
+    ephemeral_cache = {
+        "tokens": {},
+        "creation_block": {},
+    }
     for hype_static in hypervisors:
         if rewrite or hype_static["address"].lower() not in already_processed:
             # create ramses hypervisor
@@ -655,30 +758,57 @@ def create_rewards_static_ramses(
                     f" Found {len(hype_rewards)} static rewards for the hypervisor {hype_static['address']}"
                 )
 
-                # all rewards will have the same rewarder_address thus contract creation
-                creation_block = hype_static["block"]
-                if creation_data := _get_contract_creation_block(
-                    network=chain.database_name,
-                    contract_address=hype_rewards[0]["rewarder_address"],
+                # add block creation data to cache
+                if (
+                    not hype_rewards[0]["rewarder_address"]
+                    in ephemeral_cache["creation_block"]
                 ):
-                    # logging.getLogger(__name__).debug(
-                    #     f"  Setting creation block for ramses {chain.database_name}'s {hype_rewards[0]['rewarder_address']} static rewarder to {creation_data['block']}"
-                    # )
-                    creation_block = creation_data["block"]
-
-                else:
-                    logging.getLogger(__name__).debug(
-                        f"  No contract creation date found for ramses reward static {hype_rewards[0]['rewarder_address']}. Using Hypervisor's {hype_static['address']} block {creation_block} "
-                    )
+                    if creation_data := _get_contract_creation_block(
+                        network=chain.database_name,
+                        contract_address=hype_rewards[0]["rewarder_address"],
+                    ):
+                        ephemeral_cache["creation_block"][
+                            hype_rewards[0]["rewarder_address"]
+                        ] = creation_data["block"]
+                    else:
+                        logging.getLogger(__name__).debug(
+                            f"  No contract creation date found for ramses reward static {hype_rewards[0]['rewarder_address']}. Using Hypervisor's {hype_static['address']} block {creation_block} "
+                        )
+                        ephemeral_cache["creation_block"][
+                            hype_rewards[0]["rewarder_address"]
+                        ] = hype_static["block"]
+                # set contract creation block
+                creation_block = ephemeral_cache["creation_block"][
+                    hype_rewards[0]["rewarder_address"]
+                ]
 
                 for reward_data in hype_rewards:
-                    # build erc20 helper
-                    erc20_helper = build_erc20_helper(
-                        chain=chain, address=reward_data["rewardToken"], cached=True
-                    )
+                    # check token in ephemeral cache
+                    if (
+                        not reward_data["rewardToken"].lower()
+                        in ephemeral_cache["tokens"]
+                    ):
+                        logging.getLogger(__name__).debug(
+                            f" adding token {reward_data['rewardToken']} in ephemeral cache"
+                        )
+                        # build erc20 helper
+                        erc20_helper = build_erc20_helper(
+                            chain=chain, address=reward_data["rewardToken"], cached=True
+                        )
+                        ephemeral_cache["tokens"][
+                            reward_data["rewardToken"].lower()
+                        ] = {
+                            "symbol": erc20_helper.symbol,
+                            "decimals": erc20_helper.decimals,
+                        }
+
                     reward_data["hypervisor_address"] = hype_status.address.lower()
-                    reward_data["rewardToken_symbol"] = erc20_helper.symbol
-                    reward_data["rewardToken_decimals"] = erc20_helper.decimals
+                    reward_data["rewardToken_symbol"] = ephemeral_cache["tokens"][
+                        reward_data["rewardToken"].lower()
+                    ]["symbol"]
+                    reward_data["rewardToken_decimals"] = ephemeral_cache["tokens"][
+                        reward_data["rewardToken"].lower()
+                    ]["decimals"]
                     reward_data["total_hypervisorToken_qtty"] = str(
                         hype_status.totalSupply
                     )
@@ -693,6 +823,7 @@ def create_rewards_static_ramses(
     return result
 
 
+# TODO: complete gamma rewards
 def create_rewards_static_gamma(
     chain: Chain,
     hypervisors: list[dict],
