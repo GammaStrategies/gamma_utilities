@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
 import logging
+import time
 
 from bins.configuration import CONFIGURATION
 from bins.database.common.database_ids import create_id_hypervisor_returns
@@ -424,65 +425,132 @@ def feed_hypervisor_returns(chain: Chain, hypervisor_addresses: list[str]):
         {"$match": {"address": {"$in": hypervisor_addresses}}},
         {"$group": {"_id": "$address", "end_block": {"$max": "$end_block"}}},
     ]
-    hype_block_data = local_db.get_items_from_database(
+    if hype_block_data := local_db.get_items_from_database(
         collection_name="hypervisor_returns", aggregate=query, batch_size=batch_size
-    )
-    # get query_locs_apr_hypervisor_data_calculation ( block_ini = block_end +1 )
-    for item in hype_block_data:
-        hype_address = item["_id"]
-        hype_ini_block = item["end_block"] + 1
+    ):
+        # get query_locs_apr_hypervisor_data_calculation ( block_ini = block_end +1 )
+        for item in hype_block_data:
+            hype_address = item["_id"]
+            hype_ini_block = item["end_block"] + 1
 
-        # create control vars
-        last_item = None
-
-        # build query (ease debuging)
-        query = local_db.query_locs_apr_hypervisor_data_calculation(
-            hypervisor_address=hype_address,
-            block_ini=hype_ini_block,
+            # create control vars
+            save_hypervisor_returns_to_database(
+                chain=chain, hypervisor_address=hype_address, block_ini=hype_ini_block
+            )
+    else:
+        logging.getLogger(__name__).info(
+            f" No hypervisor returns found in database. Staring from scratch."
         )
-        # get a list of custom ordered hype status
-        for hype_status in local_db.get_items_from_database(
-            collection_name="operations",
-            aggregate=query,
-            batch_size=batch_size,
-        ):
-            # hypervisor address is hype_status["_id"]
-            for idx, data in enumerate(hype_status["status"]):
-                if not last_item:
-                    # this is the first item
-                    last_item = data
-                    continue
+        # get a list of hypes to feed
+        hypervisors_static = local_db.get_items_from_database(
+            collection_name="static",
+            find={},
+            projection={"address": 1, "timestamp": 1, "_id": 0},
+        )
 
-                # zero and par indexes refer to initial values
-                if idx == 0 or idx % 2 == 0:
-                    # this is an initial value
-                    pass
-                else:
-                    # this is an end value
-                    # create yield data and fill from hype status
-                    current_period = period_yield_data()
-                    current_period.fill_from_hypervisors_data(
-                        ini_hype=last_item, end_hype=data, network=chain.database_name
-                    )
+        # create chunks of timeframes to feed data so that we don't overload the database
+        #
+        # get the lowest timestamp from static data
+        min_timestamp = min([hype["timestamp"] for hype in hypervisors_static])
 
-                    # convert to dict
-                    current_period = current_period.to_dict()
+        # define highest timestamp
+        max_timestamp = int(time.time())
 
-                    # create id
-                    current_period["id"] = create_id_hypervisor_returns(
-                        hypervisor_address=current_period["address"],
-                        ini_block=current_period["ini_block"],
-                        end_block=current_period["end_block"],
-                    )
-                    # convert to bson compatible and save to database
-                    up_result = local_db.set_hypervisor_returns(
-                        data=local_db.convert_decimal_to_d128(current_period)
-                    )
-                    # check if replacement upsert has been done
-                    if not up_result.modified_count:
-                        logging.getLogger(__name__).error(
-                            f" hypervisor return {current_period['id']} has not been saved/updated in the database: {up_result.raw_result}"
-                        )
+        # define chunk size
+        chunk_size = 86400 * 7  # 1 week
 
-                # set lastitem
+        # create chunks
+        chunks = [
+            (i, i + chunk_size) for i in range(min_timestamp, max_timestamp, chunk_size)
+        ]
+
+        logging.getLogger(__name__).info(
+            f" {len(chunks)} chunks created to feed each hypervisor returns data so that the database is not overloaded"
+        )
+
+        # get hypervisor returns for each chunk
+        for chunk in chunks:
+            for item in hypervisors_static:
+                logging.getLogger(__name__).info(
+                    f" Feeding chunk {chunk[0]} to {chunk[1]} for {chain.database_name}'s {item['address']} hypervisor"
+                )
+                save_hypervisor_returns_to_database(
+                    chain=chain,
+                    hypervisor_addresses=item["address"],
+                    timestamp_ini=chunk[0],
+                    timestamp_end=chunk[1],
+                )
+
+
+def save_hypervisor_returns_to_database(
+    chain: Chain,
+    hypervisor_address: str,
+    timestamp_ini: int | None = None,
+    timestamp_end: int | None = None,
+    block_ini: int | None = None,
+    block_end: int | None = None,
+):
+    # create database manager
+    local_db = database_local(
+        mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
+        db_name=f"{chain.database_name}_gamma",
+    )
+    batch_size = 80000
+
+    # create control vars
+    last_item = None
+
+    # build query (ease debuging)
+    query = local_db.query_locs_apr_hypervisor_data_calculation(
+        hypervisor_address=hypervisor_address,
+        timestamp_ini=timestamp_ini,
+        timestamp_end=timestamp_end,
+        block_ini=block_ini,
+        block_end=block_end,
+    )
+    # get a list of custom ordered hype status
+    for hypervisor_status in local_db.get_items_from_database(
+        collection_name="operations",
+        aggregate=query,
+        batch_size=batch_size,
+    ):
+        # hypervisor_status["_id"] = hypervisor_address
+        for idx, data in enumerate(hypervisor_status["status"]):
+            if not last_item:
+                # this is the first item
                 last_item = data
+                continue
+
+            # zero and par indexes refer to initial values
+            if idx == 0 or idx % 2 == 0:
+                # this is an initial value
+                pass
+            else:
+                # this is an end value
+                # create yield data and fill from hype status
+                current_period = period_yield_data()
+                current_period.fill_from_hypervisors_data(
+                    ini_hype=last_item, end_hype=data, network=chain.database_name
+                )
+
+                # convert to dict
+                current_period = current_period.to_dict()
+
+                # create id
+                current_period["id"] = create_id_hypervisor_returns(
+                    hypervisor_address=current_period["address"],
+                    ini_block=current_period["ini_block"],
+                    end_block=current_period["end_block"],
+                )
+                # convert to bson compatible and save to database
+                up_result = local_db.set_hypervisor_returns(
+                    data=local_db.convert_decimal_to_d128(current_period)
+                )
+                # check if replacement upsert has been done
+                if not up_result.modified_count:
+                    logging.getLogger(__name__).error(
+                        f" hypervisor return {current_period['id']} has not been saved/updated in the database: {up_result.raw_result}"
+                    )
+
+            # set lastitem
+            last_item = data
