@@ -331,6 +331,12 @@ DEX_POOLS = {
             "token0": "0x2791bca1f2de4661ed88a30c99a7a9449aa84174".lower(),
             "token1": "0x8bae3f5eb10f39663e57be19741fd9ccef0e113a".lower(),
         },
+        "oRETRO_RETRO": {
+            "protocol": Protocol.RETRO,
+            "address": "0x387FBcE5E2933Bd3a7243D0be2aAC8fD9Ab3D55d".lower(),
+            "token0": "0x3a29cab2e124919d14a6f735b6033a3aad2b260f".lower(),
+            "token1": "0xbfa35599c7aebb0dace9b5aa3ca5f2a79624d8eb".lower(),
+        },
     },
     Chain.POLYGON_ZKEVM: {
         "WETH_USDC": {
