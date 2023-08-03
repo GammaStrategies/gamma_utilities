@@ -2455,6 +2455,48 @@ class database_local(db_collections_common):
                 }
             },
             {"$unwind": "$status"},
+            # find hype's reward static
+            {
+                "$lookup": {
+                    "from": "rewards_static",
+                    "let": {"op_address": "$hypervisor_address"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$eq": ["$hypervisor_address", "$$op_address"],
+                                }
+                            }
+                        },
+                    ],
+                    "as": "rewards_static",
+                }
+            },
+            # find hype's reward status
+            {
+                "$lookup": {
+                    "from": "rewards_status",
+                    "let": {"op_block": "$block", "op_address": "$hypervisor_address"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$and": [
+                                        {
+                                            "$eq": [
+                                                "$hypervisor_address",
+                                                "$$op_address",
+                                            ]
+                                        },
+                                        {"$eq": ["$block", "$$op_block"]},
+                                    ],
+                                }
+                            }
+                        },
+                    ],
+                    "as": "rewards_status",
+                }
+            },
             {
                 "$group": {
                     "_id": "$hypervisor_address",
