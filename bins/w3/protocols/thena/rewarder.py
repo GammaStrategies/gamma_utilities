@@ -836,7 +836,6 @@ class thena_gauge_v2(gamma_rewarder):
 
         return [
             {
-                "network": self._network,
                 "block": self.block,
                 "timestamp": self._timestamp,
                 "hypervisor_address": self.token.lower(),
