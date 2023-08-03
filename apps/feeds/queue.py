@@ -28,6 +28,22 @@ from bins.w3.builders import build_db_hypervisor, build_erc20_helper
 from bins.mixed.price_utilities import price_scraper
 from bins.w3.protocols.general import erc20, bep20
 
+# 0 )  from OPERATIONS SCRAPING SERVICE
+# 1 )    OPERATION queue item
+# 1.1 )      BLOCK queue item  ( and block -1 on custom topics)
+# 1.2 )      HYPERVISOR STATUS queue item
+# 1.2.1 )        TOKEN PRICES queue items ( token 0 and 1)
+# 1.2.2 )        REWARDS STATUS queue items ( rewardTokens )
+
+# 0 )  from STATIC SCRAPING
+# 1 )    HYPERVISOR STATIC queue item
+# 2 )    REWARDS STATIC queue item
+
+# 0 )  from REPAIR SERVICE ( check)
+# 1 )    HYPERVISOR STATUS queue item
+# 2 )    TOKEN PRICES
+# 3 )    REWARDS STATUS queue items
+
 
 @dataclass
 class QueueItem:

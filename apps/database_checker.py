@@ -7,6 +7,8 @@ import concurrent.futures
 import contextlib
 import re
 
+from apps.feeds.status import create_reward_status_from_hype_status
+
 from .feeds.queue import (
     QueueItem,
     build_and_save_queue_from_hypervisor_status,
@@ -827,6 +829,161 @@ def reScrape_database_prices(
                     )
                 # update progress
                 progress_bar.update(1)
+
+
+def reScrape_rewards_status(
+    chain: Chain, find: dict = {}, threaded: bool = True
+):
+    """  Rescrape rewards status for the given chain
+
+    Args:
+        chain (Chain): network to scrape
+        find (dict, optional): find database query to lead to items to mod . Defaults to {}.
+
+    """
+    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    db_collection = "rewards_status"
+    db_name = f"{chain.database_name}_gamma"
+    batch_size = 100000
+
+    logging.getLogger(__name__).info(
+        f" Starting a manual rescraping of rewards for {chain} {f'using filter: {find}' if find else ''}"
+    )
+
+    def loop_work(rewarder_status: dict) -> bool:
+        try:
+            # get hypervisor static data from database
+            if hypervisor_status := database_local(
+                mongo_url=mongo_url, db_name=db_name
+            ).get_items_from_database(
+                collection_name="status",
+                find={
+                    "address": rewarder_status["hypervisor_address"],
+                    "block": rewarder_status["block"],
+                },
+                limit=1,
+            ):
+                # get the only result item
+                hypervisor_status = hypervisor_status[0]
+
+                # get rewarder static
+                if rewarder_static := database_local(
+                    mongo_url=mongo_url, db_name=db_name
+                ).get_items_from_database(
+                    collection_name="rewards_static",
+                    find={
+                        "hypervisor_address": rewarder_status["hypervisor_address"],
+                        "rewarder_registry": rewarder_status["rewarder_registry"],
+                    },
+                ):
+                    rewarder_static = rewarder_static[0]
+                else:
+                    logging.getLogger(__name__).error(
+                        f" No rewarder static found for hypervisor {rewarder_status['hypervisor_address']} rewarder {rewarder_status['rewarder_address']} "
+                    )
+                    return False
+
+                # create rewarder status from hype
+                for new_rewarder_status in create_reward_status_from_hype_status(
+                    hypervisor_status=hypervisor_status,
+                    rewarder_static=rewarder_static,
+                    network=chain.database_name,
+                ):
+                    # save to database
+                    if int(new_rewarder_status["rewards_perSecond"]) > 0:
+                        err = False
+                        # compare main differences
+                        if rewarder_status["block"] != new_rewarder_status["block"]:
+                            logging.getLogger(__name__).error(
+                                f" Blocks differ for hype {rewarder_status['hypervisor_address']} rewarder {rewarder_status['rewarder_address']} original: {rewarder_status['block']} -> new: {new_rewarder_status['block']}"
+                            )
+                            err = True
+                        if (
+                            rewarder_status["rewards_perSecond"]
+                            != new_rewarder_status["rewards_perSecond"]
+                        ):
+                            logging.getLogger(__name__).error(
+                                f" rewards_perSecond differ for hype {rewarder_status['hypervisor_address']} rewarder {rewarder_status['rewarder_address']} block {rewarder_status['block']} original: {rewarder_status['rewards_perSecond']} -> new: {new_rewarder_status['rewards_perSecond']}"
+                            )
+                        if (
+                            rewarder_status["rewardToken_price_usd"]
+                            != new_rewarder_status["rewardToken_price_usd"]
+                        ):
+                            logging.getLogger(__name__).debug(
+                                f" rewardToken_price_usd differ for hype {rewarder_status['hypervisor_address']} rewarder {rewarder_status['rewarder_address']} block {rewarder_status['block']} original: {rewarder_status['rewardToken_price_usd']} -> new: {new_rewarder_status['rewardToken_price_usd']}"
+                            )
+                        if (
+                            rewarder_status["token0_price_usd"]
+                            != new_rewarder_status["token0_price_usd"]
+                        ):
+                            logging.getLogger(__name__).debug(
+                                f" token0_price_usd differ for hype {rewarder_status['hypervisor_address']} rewarder {rewarder_status['rewarder_address']} block {rewarder_status['block']} original: {rewarder_status['token0_price_usd']} -> new: {new_rewarder_status['token0_price_usd']}"
+                            )
+                        if (
+                            rewarder_status["token1_price_usd"]
+                            != new_rewarder_status["token1_price_usd"]
+                        ):
+                            logging.getLogger(__name__).debug(
+                                f" token1_price_usd differ for hype {rewarder_status['hypervisor_address']} rewarder {rewarder_status['rewarder_address']} block {rewarder_status['block']} original: {rewarder_status['token1_price_usd']} -> new: {new_rewarder_status['token1_price_usd']}"
+                            )
+                        if rewarder_status["apr"] != new_rewarder_status["apr"]:
+                            logging.getLogger(__name__).debug(
+                                f" apr differ for hype {rewarder_status['hypervisor_address']} rewarder {rewarder_status['rewarder_address']} block {rewarder_status['block']} original: {rewarder_status['apr']} -> new: {new_rewarder_status['apr']}"
+                            )
+
+                        if not err:
+                            # add to database
+                            if db_return := database_local(
+                                mongo_url=mongo_url, db_name=db_name
+                            ).set_rewards_status(data=new_rewarder_status):
+                                logging.getLogger(__name__).debug(
+                                    f" match {db_return.matched_count}  modified {db_return.modified_count}  upsert_id {db_return.upserted_id} "
+                                )
+
+                            return True
+                    else:
+                        logging.getLogger(__name__).debug(
+                            f" {chain.database_name}'s hypervisor {new_rewarder_status['hypervisor_address']} at block {new_rewarder_status['block']} not saved bc has 0 rewards per second"
+                        )
+                        return True
+
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f" Unexpected error while processing rewarder status {rewarder_status['id']} -> error {e}"
+            )
+
+        return False
+
+    if database_items := database_local(
+        mongo_url=mongo_url, db_name=db_name
+    ).get_items_from_database(
+        collection_name=db_collection,
+        find=find,
+        batch_size=batch_size,
+        sort=[("block", 1)],
+    ):
+        error = 0
+        ok = 0
+        with tqdm.tqdm(total=len(database_items)) as progress_bar:
+            if threaded:
+                with concurrent.futures.ThreadPoolExecutor() as ex:
+                    for result in ex.map(loop_work, database_items):
+                        if result:
+                            ok += 1
+                        else:
+                            error += 1
+
+                        progress_bar.set_description(f" ok: {ok} error: {error}")
+                        progress_bar.update(1)
+            else:
+                for item in database_items:
+                    if result := loop_work(item):
+                        ok += 1
+                    else:
+                        error += 1
+
+                    progress_bar.set_description(f" ok: {ok} error: {error}")
+                    progress_bar.update(1)
 
 
 def repair_hypervisor_status():
@@ -2248,9 +2405,10 @@ def main(option: str, **kwargs):
         repair_rewards_status()
     if option == "special":
         # used to check for special cases
-        reScrape_database_prices(
-            network_limit=CONFIGURATION["_custom_"]["cml_parameters"].maximum
-        )
+        # reScrape_database_prices(
+        #     network_limit=CONFIGURATION["_custom_"]["cml_parameters"].maximum
+        # )
+        reScrape_rewards_status(chain=Chain.ARBITRUM, find={"dex":"ramses"}, threaded=False)
     # else:
     #     raise NotImplementedError(
     #         f" Can't find any action to be taken from {option} checks option"
