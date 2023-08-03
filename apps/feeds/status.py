@@ -590,26 +590,36 @@ def reward_add_status_fields(
     return reward_data
 
 
-def add_apr_process01(network: str, hypervisor_status: dict, reward_data: dict) -> dict:
+def add_apr_process01(
+    network: str,
+    hypervisor_status: dict,
+    reward_data: dict,
+    rewardToken_price: float | None = None,
+    hype_token0_price: float | None = None,
+    hype_token1_price: float | None = None,
+    hype_price_per_share: float | None = None,
+) -> dict:
     # token_prices
-    (
-        rewardToken_price,
-        hype_token0_price,
-        hype_token1_price,
-    ) = get_reward_pool_prices(
-        network=network,
-        block=hypervisor_status["block"],
-        reward_token=reward_data["rewardToken"],
-        token0=hypervisor_status["pool"]["token0"]["address"],
-        token1=hypervisor_status["pool"]["token1"]["address"],
-    )
+    if not rewardToken_price or not hype_token0_price or not hype_token1_price:
+        (
+            rewardToken_price,
+            hype_token0_price,
+            hype_token1_price,
+        ) = get_reward_pool_prices(
+            network=network,
+            block=hypervisor_status["block"],
+            reward_token=reward_data["rewardToken"],
+            token0=hypervisor_status["pool"]["token0"]["address"],
+            token1=hypervisor_status["pool"]["token1"]["address"],
+        )
 
     # hypervisor price per share
-    hype_price_per_share = get_hypervisor_price_per_share(
-        hypervisor_status=hypervisor_status,
-        token0_price=hype_token0_price,
-        token1_price=hype_token1_price,
-    )
+    if not hype_price_per_share:
+        hype_price_per_share = get_hypervisor_price_per_share(
+            hypervisor_status=hypervisor_status,
+            token0_price=hype_token0_price,
+            token1_price=hype_token1_price,
+        )
 
     if int(reward_data["total_hypervisorToken_qtty"]) and hype_price_per_share:
         # if there is hype qtty staked and price per share
@@ -966,6 +976,9 @@ def create_rewards_status_ramses(
 
     result = []
     for reward_token in hype_status.gauge.getRewardTokens:
+        # lower case address
+        reward_token = reward_token.lower()
+
         # build erc20 helper
         erc20_helper = build_erc20_helper(
             chain=chain, address=reward_token, cached=True
@@ -980,6 +993,9 @@ def create_rewards_status_ramses(
             # get LP staked
             total_hypervisorToken_qtty = totalStaked or hype_status.totalSupply
         else:
+            logging.getLogger(__name__).debug(
+                f" Using Ramses max rewards per second for hype {hype_status.symbol} {hype_status.address.lower()} because it has no real rewards at block {hype_status.block}. rewarder address: {hype_status.gauge.address.lower()}"
+            )
             gamma_rewards_per_second = real_rewards["max_rewards_per_second"]
             # xtrapolate gamma hype supply to approach pool value
             if gamma_liquidity:
@@ -987,8 +1003,48 @@ def create_rewards_status_ramses(
                     hypervisor_totalSupply * (pool_liquidity / gamma_liquidity)
                 )
             else:
+                logging.getLogger(__name__).warning(
+                    f" No liquidity for hype {hypervisor_status['address']} found at block {hypervisor_status['block']}."
+                )
                 total_hypervisorToken_qtty = 0
 
+        # when available, get last known reward status from database to be able to calculate staked
+        local_db = database_local(
+            mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
+            db_name=f"{chain.database_name}_gamma",
+        )
+        batch_size = 80000
+        if last_reward_status := local_db.get_items_from_database(
+            collection_name="rewards_status",
+            find={
+                "hypervisor_address": hypervisor_status["address"],
+                "rewarder_address": hype_status.gauge.address.lower(),
+                "rewardToken": reward_token.lower(),
+                "block": {"$lt": hypervisor_status["block"]},
+            },
+            sort=[("block", -1)],
+            limit=1,
+        ):
+            last_reward_status = last_reward_status[0]
+
+            if int(last_reward_status["total_hypervisorToken_qtty"]) > 0:
+                logging.getLogger(__name__).debug(
+                    f"    ...chainging total hype {hypervisor_status['address']} qtty from {total_hypervisorToken_qtty} to last known {last_reward_status['total_hypervisorToken_qtty']} {hypervisor_status['block']-last_reward_status['block']} blocks in the past [curr:{hypervisor_status['block']} last: {last_reward_status['block']}]"
+                )
+                total_hypervisorToken_qtty = int(
+                    last_reward_status["total_hypervisorToken_qtty"]
+                )
+            else:
+                logging.getLogger(__name__).debug(
+                    f"    ...no past rewards_status found for hypervisor {hypervisor_status['address']} {hypervisor_status['symbol']} at block {hypervisor_status['block']}. Using current {total_hypervisorToken_qtty}"
+                )
+
+        else:
+            logging.getLogger(__name__).debug(
+                f"  ...no past rewards found for hypervisor {hypervisor_status['address']} {hypervisor_status['symbol']}"
+            )
+
+        # build reward data
         reward_data = {
             # "network": self._network,
             "block": hype_status.block,
@@ -1012,6 +1068,7 @@ def create_rewards_status_ramses(
                 hypervisor_status=hypervisor_status,
                 reward_data=reward_data,
             )
+
             result.append(reward_data)
         except Exception as e:
             logging.getLogger(__name__).error(
