@@ -742,9 +742,13 @@ def create_rewards_static_ramses(
 ) -> list[dict]:
     result = []
 
+    # rewarder_address = gauge
+    # rewarder_registry = receiver address
+
     ephemeral_cache = {
         "tokens": {},
         "creation_block": {},
+        "receiver_address": {},
     }
     for hype_static in hypervisors:
         if rewrite or hype_static["address"].lower() not in already_processed:
@@ -783,7 +787,7 @@ def create_rewards_static_ramses(
                 ]
 
                 for reward_data in hype_rewards:
-                    # check token in ephemeral cache
+                    # token ephemeral cache
                     if (
                         not reward_data["rewardToken"].lower()
                         in ephemeral_cache["tokens"]
@@ -801,6 +805,14 @@ def create_rewards_static_ramses(
                             "symbol": erc20_helper.symbol,
                             "decimals": erc20_helper.decimals,
                         }
+                    # receiver address ephemeral cache
+                    if (
+                        not hype_status.address.lower()
+                        in ephemeral_cache["receiver_address"]
+                    ):
+                        ephemeral_cache["receiver_address"][
+                            hype_status.address.lower()
+                        ] = hype_status.receiver.address.lower()
 
                     reward_data["hypervisor_address"] = hype_status.address.lower()
                     reward_data["rewardToken_symbol"] = ephemeral_cache["tokens"][
@@ -812,6 +824,11 @@ def create_rewards_static_ramses(
                     reward_data["total_hypervisorToken_qtty"] = str(
                         hype_status.totalSupply
                     )
+
+                    # HACK: set rewarder_registry as the 'receiver' -> MultiFeeDistribution contract address
+                    reward_data["rewarder_registry"] = ephemeral_cache[
+                        "receiver_address"
+                    ][hype_status.address.lower()]
 
                     # add block creation data
                     reward_data["block"] = creation_block

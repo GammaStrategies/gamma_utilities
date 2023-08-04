@@ -257,7 +257,7 @@ class gauge(web3wrap):
                     "rewarder_address": self.address.lower(),
                     "rewarder_type": rewarderType.RAMSES_v2,
                     "rewarder_refIds": [],
-                    "rewarder_registry": self.gaugeFactory.lower(),
+                    "rewarder_registry": "",  # should be hypervisor receiver address
                     "rewardToken": reward_token.lower(),
                     "rewardToken_symbol": None,
                     "rewardToken_decimals": None,

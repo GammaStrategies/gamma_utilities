@@ -1013,7 +1013,7 @@ def create_rewards_status_ramses(
             mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
             db_name=f"{chain.database_name}_gamma",
         )
-        batch_size = 80000
+        # batch_size = 80000
         if last_reward_status := local_db.get_items_from_database(
             collection_name="rewards_status",
             find={
@@ -1053,7 +1053,7 @@ def create_rewards_status_ramses(
             "rewarder_address": hype_status.gauge.address.lower(),
             "rewarder_type": rewarderType.RAMSES_v2,
             "rewarder_refIds": [],
-            "rewarder_registry": hype_status.gauge.gaugeFactory.lower(),
+            "rewarder_registry": hype_status.receiver.lower(),
             "rewardToken": reward_token.lower(),
             "rewardToken_symbol": erc20_helper.symbol,
             "rewardToken_decimals": erc20_helper.decimals,
@@ -1077,50 +1077,6 @@ def create_rewards_status_ramses(
             logging.getLogger(__name__).debug(
                 f" Ramses Rewards last err debug data -> rewarder_static {rewarder_static}    hype status {hypervisor_status}"
             )
-
-    # for reward_data in hype_status.gauge.get_rewards(convert_bint=True):
-    #     # build erc20 helper
-    #     erc20_helper = build_erc20_helper(
-    #         chain=chain, address=reward_data["rewardToken"], cached=True
-    #     )
-
-    #     # sqrt_price = hype_status.pool.slot0["sqrtPriceX96"]
-    #     # deviation = select_ramses_apr_calc_deviation(
-    #     #     token0_address=hype_status.pool.token0.address,
-    #     #     token1_address=hype_status.pool.token1.address,
-    #     #     token0_symbol=hype_status.pool.token0.symbol,
-    #     #     token1_symbol=hype_status.pool.token1.symbol,
-    #     # )
-    #     # [
-    #     #     pool_token0_amount_rewarded,
-    #     #     pool_token1_amount_rewarded,
-    #     # ] = pool_token_amounts_from_current_price(
-    #     #     sqrt_price=sqrt_price, deviation=deviation, liquidity=hype_status.pool.liquidity
-    #     # )
-
-    #     # add missing fields
-    #     reward_data["hypervisor_address"] = hypervisor_status["address"].lower()
-    #     reward_data["rewardToken_symbol"] = erc20_helper.symbol
-    #     reward_data["rewardToken_decimals"] = erc20_helper.decimals
-    #     reward_data["total_hypervisorToken_qtty"] = str(
-    #         hypervisor_status["totalSupply"]
-    #     )
-
-    #     # add apr
-    #     try:
-    #         reward_data = add_apr_process01(
-    #             network=chain.database_name,
-    #             hypervisor_status=hypervisor_status,
-    #             reward_data=reward_data,
-    #         )
-    #         result.append(reward_data)
-    #     except Exception as e:
-    #         logging.getLogger(__name__).error(
-    #             f" Ramses Rewards-> {chain.database_name}'s {rewarder_static.get('rewardToken','None')} price at block {hypervisor_status['block']} could not be calculated. Error: {e}"
-    #         )
-    #         logging.getLogger(__name__).debug(
-    #             f" Ramses Rewards last err debug data -> rewarder_static {rewarder_static}    hype status {hypervisor_status}"
-    #         )
 
     # empty result means no rewards at this block
     if not result:
