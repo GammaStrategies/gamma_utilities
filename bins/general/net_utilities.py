@@ -1,3 +1,5 @@
+import json
+from websocket import create_connection, WebSocketConnectionClosedException
 import sys
 from datetime import datetime, timezone, timedelta
 import requests
@@ -171,3 +173,99 @@ class rate_limit:
 
         # keep track
         self.hit()
+
+
+# ws client
+class WebsocketClient(object):
+    def __init__(self, url: str, subscription_params: dict):
+        #
+        self.url = url
+        self.subscription_params = subscription_params
+        #
+        self.stop = True
+        self.error = None
+        self.ws = None
+        self.thread = None
+
+    def start(self):
+        def _go():
+            self._connect()
+            self._listen()
+            self._disconnect()
+
+        self.stop = False
+        self.on_open()
+        self.thread = threading.Thread(target=_go)
+        self.keepalive = threading.Thread(target=self._keepalive)
+        self.thread.start()
+
+    def _connect(self):
+        # set url appropriately
+        if self.url[-1] == "/":
+            self.url = self.url[:-1]
+
+        # TODO: add authorization functionality
+        if self.auth:
+            timestamp = str(time.time())
+            message = timestamp + "GET" + "/users/self/verify"
+            raise NotImplementedError(" Auth functionality not implemented yet.")
+
+        # create connection
+        self.ws = create_connection(self.url)
+
+        # subscribe
+        self.ws.send(json.dumps(self.subscription_params))
+
+    def _keepalive(self, interval=30):
+        while self.ws.connected:
+            self.ws.ping("keepalive")
+            time.sleep(interval)
+
+    def _listen(self):
+        self.keepalive.start()
+        while not self.stop:
+            try:
+                data = self.ws.recv()
+                msg = json.loads(data)
+            except ValueError as e:
+                self.on_error(e)
+            except Exception as e:
+                self.on_error(e)
+            else:
+                self.on_message(msg)
+
+    def _disconnect(self):
+        try:
+            if self.ws:
+                self.ws.close()
+        except WebSocketConnectionClosedException as e:
+            pass
+        finally:
+            self.keepalive.join()
+
+        self.on_close()
+
+    def close(self):
+        self.stop = True  # will only disconnect after next msg recv
+        self._disconnect()  # force disconnect
+        self.thread.join()
+
+    def on_open(self):
+        logging.getLogger().debug(f" Socket subscribed at {self.url}")
+
+    def on_close(self):
+        logging.getLogger().debug(f" Socket closed from {self.url}")
+
+    def on_message(self, msg):
+        logging.getLogger().debug(
+            f" Socket message received from {self.url} message: {msg} \n"
+        )
+
+    def on_error(self, e, data=None):
+        self.error = e
+        self.stop = True
+        logging.getLogger().error(
+            " Socket error encountered. stopping client.  error: {}   data: {}".format(
+                e, data
+            )
+        )
