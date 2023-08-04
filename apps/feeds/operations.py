@@ -5,9 +5,10 @@ import tqdm
 from datetime import datetime
 
 from web3 import Web3
-from bins.database.helpers import get_default_localdb
+from bins.database.helpers import get_default_localdb, get_from_localdb
 
 from bins.general.enums import Chain, Protocol, queueItemType
+from bins.w3.builders import build_erc20_helper
 from bins.w3.protocols.gamma.collectors import (
     create_data_collector_alternative,
     create_data_collector,
@@ -279,79 +280,6 @@ def feed_operations_hypervisors(
             )
 
 
-def feed_operations_multiFeeDistribution(
-    chain: Chain,
-    addresses: list[str],
-    block_ini: int,
-    block_end: int,
-):
-    """Scrape and process logs from the multiFee distribution contracts ( rewards for liquidity providers when staking )
-
-    Args:
-        chain (Chain):
-        protocol (Protocol):
-        addresses (list[str]): multiFee distribution contract addresses
-        block_ini (int ):
-        block_end (int ):
-    """
-    logging.getLogger(__name__).info(
-        f">Feeding {chain.database_name}' {len(addresses)} multiFeeDistribution contract addresses operations from block {block_ini} to {block_end}"
-    )
-
-    # # create local database manager
-    # mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-    # db_name = f"{chain.database_name}_gamma"
-    # batch_size = 100000
-    # local_db = database_local(mongo_url=mongo_url, db_name=db_name)
-
-    # # maximum block in db = last scraped block
-    # query = [{"$group": {"_id": "none", "block": {"$max": "$block"}}}]
-    # if max_block :=local_db.get_items_from_database(
-    #     collection_name="multifeedistribution_status", aggregate=query, batch_size=batch_size
-    # ):
-    #     max_block = max_block[0]["block"]
-    # else:
-    #     max_block = 0
-
-    # create collector
-    data_collector = create_multiFeeDistribution_data_collector(
-        network=chain.database_name
-    )
-
-    with tqdm.tqdm(total=100) as progress_bar:
-        # create callback progress funtion
-        def _update_progress(text=None, remaining=None, total=None):
-            # set text
-            if text:
-                progress_bar.set_description(text)
-            # set total
-            if total:
-                progress_bar.total = total
-            # update current
-            if remaining:
-                progress_bar.update(((total - remaining) - progress_bar.n))
-            else:
-                progress_bar.update(1)
-            # refresh
-            progress_bar.refresh()
-
-        # set progress callback to data collector
-        data_collector.progress_callback = _update_progress
-
-        for operations in data_collector.operations_generator(
-            block_ini=block_ini,
-            block_end=block_end,
-            contracts=[Web3.toChecksumAddress(x) for x in addresses],
-            max_blocks=5000,
-        ):
-            # process operation
-            task_enqueue_operations(
-                operations=operations,
-                network=chain.database_name,
-                operation_type=queueItemType.MULTIFEEDISTRIBUTION_STATUS,
-            )
-
-
 def task_enqueue_operations(
     operations: list[dict], network: str, operation_type: queueItemType
 ):
@@ -392,9 +320,7 @@ def get_db_last_operation_block(protocol: str, network: str) -> int:
     # read last blocks from database
     try:
         # setup database manager
-        mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-        db_name = f"{network}_{protocol}"
-        local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
+        local_db_manager = get_default_localdb(network=network)
         batch_size = 100000
 
         max_block = 0
@@ -419,20 +345,6 @@ def get_db_last_operation_block(protocol: str, network: str) -> int:
 
         return max_block
 
-        # block_list = sorted(
-        #         [
-        #             int(operation["blockNumber"])
-        #             for operation in local_db_manager.get_items_from_database(
-        #                 collection_name="operations",
-        #                 find={},
-        #                 projection={"blockNumber": 1},
-        #                 batch_size=batch_size,
-        #             )
-        #         ],
-        #         reverse=False,
-        #     )
-
-        #     return block_list[-1]
     except IndexError:
         logging.getLogger(__name__).debug(
             f" Unable to get last operation block bc no operations have been found for {network}'s {protocol} in db"
@@ -444,6 +356,143 @@ def get_db_last_operation_block(protocol: str, network: str) -> int:
         )
 
     return None
+
+
+def feed_mutiFeeDistribution_operations(
+    chain: Chain,
+    addresses: list[str] | None = None,
+    block_ini: int | None = None,
+    block_end: int | None = None,
+):
+    block_ini_static = 99999999999999999999999999999999999999999999999
+
+    logging.getLogger(__name__).info(
+        f">Feeding {chain.database_name} multiFeeDistributor contracts operations information"
+    )
+
+    if not addresses:
+        addresses = []
+
+        # TODO: solve the 'rewarder_type' manual reference to ramses_v2
+        #
+        # get addresses to scrape and its minimum block
+        for reward in get_from_localdb(
+            network=chain.database_name,
+            collection="rewards_static",
+            find={"rewarder_type": "ramses_v2"},
+        ):
+            block_ini_static = min([reward["block"], block_ini_static])
+            if reward["rewarder_registry"] not in addresses:
+                addresses.append(reward["rewarder_registry"])
+
+    if not block_ini:
+        # get last block from database
+        block_ini = (
+            get_db_last_multiFeeDistributionStatus_block(network=chain.database_name)
+            or block_ini_static
+        )
+
+    if not block_end:
+        # get last block from database
+        block_end = (
+            build_erc20_helper(chain.database_name)._getBlockData("latest").number
+        )
+
+    # proceed to feed
+    feed_queue_with_multiFeeDistribution_operations(
+        chain=chain,
+        addresses=addresses,
+        block_ini=block_ini,
+        block_end=block_end,
+    )
+
+
+def feed_queue_with_multiFeeDistribution_operations(
+    chain: Chain,
+    addresses: list[str],
+    block_ini: int,
+    block_end: int,
+):
+    """Scrape and process logs from the multiFee distribution contracts ( rewards for liquidity providers when staking )
+
+    Args:
+        chain (Chain):
+        protocol (Protocol):
+        addresses (list[str]): multiFee distribution contract addresses
+        block_ini (int ):
+        block_end (int ):
+    """
+    logging.getLogger(__name__).info(
+        f">Feeding {chain.database_name}' {len(addresses)} multiFeeDistribution contract addresses operations from block {block_ini} to {block_end}"
+    )
+
+    # create collector
+    data_collector = create_multiFeeDistribution_data_collector(
+        network=chain.database_name
+    )
+
+    with tqdm.tqdm(total=100) as progress_bar:
+        # create callback progress funtion
+        def _update_progress(text=None, remaining=None, total=None):
+            # set text
+            if text:
+                progress_bar.set_description(text)
+            # set total
+            if total:
+                progress_bar.total = total
+            # update current
+            if remaining:
+                progress_bar.update(((total - remaining) - progress_bar.n))
+            else:
+                progress_bar.update(1)
+            # refresh
+            progress_bar.refresh()
+
+        # set progress callback to data collector
+        data_collector.progress_callback = _update_progress
+
+        for operations in data_collector.operations_generator(
+            block_ini=block_ini,
+            block_end=block_end,
+            contracts=[Web3.toChecksumAddress(x) for x in addresses],
+            max_blocks=5000,
+        ):
+            # process operation
+            task_enqueue_operations(
+                operations=operations,
+                network=chain.database_name,
+                operation_type=queueItemType.MULTIFEEDISTRIBUTION_STATUS,
+            )
+
+
+def get_db_last_multiFeeDistributionStatus_block(network: str) -> int:
+    """Get the last multiFeeDistribution status block from database"""
+
+    # get it from the collection
+    if max_block := get_from_localdb(
+        network=network,
+        collection="multifeedistribution_status",
+        query=[{"$group": {"_id": "none", "block": {"$max": "$block"}}}],
+    ):
+        max_block = max_block[0]["block"]
+    else:
+        logging.getLogger(__name__).debug(
+            f" there are no multiFeeDistribution status in db for {network} choose last block from"
+        )
+        max_block = 0
+
+    # get it from the queue
+    if max_queue_block := get_from_localdb(
+        network=network,
+        collection="queue",
+        query=[
+            {"$match": {"type": queueItemType.MULTIFEEDISTRIBUTION_STATUS}},
+            {"$group": {"_id": "none", "block": {"$max": "$block"}}},
+        ],
+    ):
+        max_block = max(max_block, max_queue_block[0]["block"])
+
+    return max_block
 
 
 ################################################################################################

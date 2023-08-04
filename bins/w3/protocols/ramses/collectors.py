@@ -170,7 +170,7 @@ class multiFeeDistribution_data_collector:
             # topic_hash =  event.topics[0][-20:].hex()
             itm["user"] = event.topics[1][-20:].hex()
             itm["qtty"] = str(data[0])
-        elif topic == "mdf_allRewards":
+        elif topic == "mdf_getAllRewards":
             itm["user"] = event.topics[1][-20:].hex()
             itm["reward_token"] = event.topics[2][-20:].hex()
 
@@ -204,7 +204,7 @@ def create_multiFeeDistribution_data_collector(
     """
     result = multiFeeDistribution_data_collector(
         topics={
-            "mdf_allRewards": "0x540798df468d7b23d11f156fdb954cb19ad414d150722a7b6d55ba369dea792e",  # event_signature_hash = web3.keccak(text="transfer(uint32...)").hex()
+            "mdf_getAllRewards": "0x540798df468d7b23d11f156fdb954cb19ad414d150722a7b6d55ba369dea792e",  # event_signature_hash = web3.keccak(text="transfer(uint32...)").hex()
             "mdf_unstake": "0x85082129d87b2fe11527cb1b3b7a520aeb5aa6913f88a3d8757fe40d1db02fdd",
             "mdf_stake": "0xebedb8b3c678666e7f36970bc8f57abf6d8fa2e828c0da91ea5b75bf68ed101a",
             "mdf_adminChanged": "0x7e644d79422f17c01e4894b5f4f588d331ebfa28653d42ae832dc59e38c9798f",
@@ -214,7 +214,7 @@ def create_multiFeeDistribution_data_collector(
         },
         topics_data_decoders={
             # index_topic_1 address user, index_topic_2 address rewardToken, uint256 amount
-            "mdf_allRewards": ["uint256"],
+            "mdf_getAllRewards": ["uint256"],
             # index_topic_1 address owner, uint256 tokens
             "mdf_unstake": ["uint256"],
             # index_topic_1 address owner, uint256 tokens

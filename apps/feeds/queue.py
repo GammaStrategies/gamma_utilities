@@ -23,7 +23,13 @@ from bins.database.common.database_ids import (
     create_id_rewards_status,
 )
 from bins.database.common.db_collections_common import database_global, database_local
-from bins.general.enums import Chain, Protocol, queueItemType, text_to_chain
+from bins.general.enums import (
+    Chain,
+    Protocol,
+    queueItemType,
+    text_to_chain,
+    text_to_protocol,
+)
 from bins.general.general_utilities import seconds_to_time_passed
 from bins.w3.builders import build_db_hypervisor, build_erc20_helper, build_hypervisor
 from bins.mixed.price_utilities import price_scraper
@@ -98,6 +104,16 @@ class QueueItem:
                 # )
 
         elif self.type == queueItemType.OPERATION:
+            # create the basic id
+            self.id = create_id_queue(
+                type=self.type, block=self.block, hypervisor_address=self.address
+            )
+            # add operation id
+            if "logIndex" in self.data and "transactionHash" in self.data:
+                self.id = f"{self.id}_{create_id_operation(logIndex=self.data['logIndex'], transactionHash=self.data['transactionHash'])}"
+
+        elif self.type == queueItemType.MULTIFEEDISTRIBUTION_STATUS:
+            # create the basic id
             self.id = create_id_queue(
                 type=self.type, block=self.block, hypervisor_address=self.address
             )
@@ -428,13 +444,11 @@ def process_queue_item_type(network: str, queue_item: QueueItem) -> bool:
         )
 
     elif queue_item.type == queueItemType.MULTIFEEDISTRIBUTION_STATUS:
-        # TODO: remove temporary False return
-        return False
-        # return pull_common_processing_work(
-        #     network=network,
-        #     queue_item=queue_item,
-        #     pull_func=pull_from_queue_multiFeeDistribution_status,
-        # )
+        return pull_common_processing_work(
+            network=network,
+            queue_item=queue_item,
+            pull_func=pull_from_queue_multiFeeDistribution_status,
+        )
     else:
         # reset queue item
 
@@ -850,9 +864,9 @@ def pull_from_queue_multiFeeDistribution_status(
             "address": queue_item.data["address"].lower(),
             "dex": "",
             "hypervisor_address": "",
+            "rewardToken": "",
+            "rewardToken_decimals": 0,
             "topic": queue_item.data["topic"],
-            "period_rewards_earned": 0,
-            "period_seconds_passed": 0,
             "total_staked": 0,
         }
 
@@ -875,7 +889,7 @@ def pull_from_queue_multiFeeDistribution_status(
             aggregate=[
                 {
                     "$match": {
-                        "rewarder_address": mfd_status["address"],
+                        "rewarder_registry": mfd_status["address"],
                     }
                 },
                 # // find hype's reward status
@@ -898,12 +912,12 @@ def pull_from_queue_multiFeeDistribution_status(
             limit=1,
             batch_size=100000,
         ):
-            # get first result
-            reward_static = reward_static[0]
-
             # set mfd status hypervisor address and dex ( protocol)
             mfd_status["hypervisor_address"] = reward_static["hypervisor"]["address"]
             mfd_status["dex"] = reward_static["hypervisor"]["dex"]
+
+            mfd_status["rewardToken"] = reward_static["rewardToken"]
+            mfd_status["rewardToken_decimals"] = reward_static["rewardToken_decimals"]
 
             # try to not calculate things just for the sake of it
             if (
@@ -912,19 +926,22 @@ def pull_from_queue_multiFeeDistribution_status(
             ):
                 # build hypervisor at block with private rpc
                 if hypervisor := build_hypervisor(
-                    address=mfd_status["hypervisor_address"],
                     network=network,
+                    protocol=text_to_protocol(reward_static["hypervisor"]["dex"]),
                     block=queue_item.block,
-                    dex=reward_static["hypervisor"]["dex"],
+                    hypervisor_address=mfd_status["hypervisor_address"],
                     cached=False,
-                    force_rpcType="private",
                 ):
+                    # set custom rpc type
+                    hypervisor.custom_rpcType = "private"
+
                     # set timestamp
                     ephemeral_cache["hypervisor_timestamp"][
                         mfd_status["hypervisor_address"]
                     ] = hypervisor._timestamp
 
                     # calculate current real rewards
+                    # logging.getLogger(__name__).debug(f" Calculating rewards... ")
                     ephemeral_cache["hypervisor_rewards"][
                         mfd_status["hypervisor_address"]
                     ] = hypervisor.calculate_rewards(
@@ -953,7 +970,7 @@ def pull_from_queue_multiFeeDistribution_status(
 
         # save to multifeedistribution_status collection database
         if db_return := get_default_localdb(network=network).save_items_to_database(
-            data=save_todb, collection="multifeedistribution_status"
+            data=save_todb, collection_name="multifeedistribution_status"
         ):
             logging.getLogger(__name__).debug(
                 f"       db return-> del: {db_return.deleted_count}  ins: {db_return.inserted_count}  mod: {db_return.modified_count}  ups: {db_return.upserted_count} matched: {db_return.matched_count}"
