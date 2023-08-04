@@ -204,6 +204,11 @@ class queueItemType(str, Enum):
     BLOCK = "block"
     OPERATION = "operation"
 
+    # special
+    MULTIFEEDISTRIBUTION_STATUS = (
+        "multifeedistribution_status"  # multiFeeDistribution operation
+    )
+
     # TODO: implement database_name and ...
 
 

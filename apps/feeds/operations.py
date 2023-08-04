@@ -7,10 +7,13 @@ from datetime import datetime
 from web3 import Web3
 from bins.database.helpers import get_default_localdb
 
-from bins.general.enums import queueItemType
+from bins.general.enums import Chain, Protocol, queueItemType
 from bins.w3.protocols.gamma.collectors import (
     create_data_collector_alternative,
     create_data_collector,
+)
+from bins.w3.protocols.ramses.collectors import (
+    create_multiFeeDistribution_data_collector,
 )
 from .queue import QueueItem, build_and_save_queue_from_operation
 
@@ -270,17 +273,92 @@ def feed_operations_hypervisors(
         ):
             # process operation
             task_enqueue_operations(
-                operations=operations, local_db=local_db, network=network
+                operations=operations,
+                network=network,
+                operation_type=queueItemType.OPERATION,
+            )
+
+
+def feed_operations_multiFeeDistribution(
+    chain: Chain,
+    addresses: list[str],
+    block_ini: int,
+    block_end: int,
+):
+    """Scrape and process logs from the multiFee distribution contracts ( rewards for liquidity providers when staking )
+
+    Args:
+        chain (Chain):
+        protocol (Protocol):
+        addresses (list[str]): multiFee distribution contract addresses
+        block_ini (int ):
+        block_end (int ):
+    """
+    logging.getLogger(__name__).info(
+        f">Feeding {chain.database_name}' {len(addresses)} multiFeeDistribution contract addresses operations from block {block_ini} to {block_end}"
+    )
+
+    # # create local database manager
+    # mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    # db_name = f"{chain.database_name}_gamma"
+    # batch_size = 100000
+    # local_db = database_local(mongo_url=mongo_url, db_name=db_name)
+
+    # # maximum block in db = last scraped block
+    # query = [{"$group": {"_id": "none", "block": {"$max": "$block"}}}]
+    # if max_block :=local_db.get_items_from_database(
+    #     collection_name="multifeedistribution_status", aggregate=query, batch_size=batch_size
+    # ):
+    #     max_block = max_block[0]["block"]
+    # else:
+    #     max_block = 0
+
+    # create collector
+    data_collector = create_multiFeeDistribution_data_collector(
+        network=chain.database_name
+    )
+
+    with tqdm.tqdm(total=100) as progress_bar:
+        # create callback progress funtion
+        def _update_progress(text=None, remaining=None, total=None):
+            # set text
+            if text:
+                progress_bar.set_description(text)
+            # set total
+            if total:
+                progress_bar.total = total
+            # update current
+            if remaining:
+                progress_bar.update(((total - remaining) - progress_bar.n))
+            else:
+                progress_bar.update(1)
+            # refresh
+            progress_bar.refresh()
+
+        # set progress callback to data collector
+        data_collector.progress_callback = _update_progress
+
+        for operations in data_collector.operations_generator(
+            block_ini=block_ini,
+            block_end=block_end,
+            contracts=[Web3.toChecksumAddress(x) for x in addresses],
+            max_blocks=5000,
+        ):
+            # process operation
+            task_enqueue_operations(
+                operations=operations,
+                network=chain.database_name,
+                operation_type=queueItemType.MULTIFEEDISTRIBUTION_STATUS,
             )
 
 
 def task_enqueue_operations(
-    operations: list[dict], local_db: database_local, network: str
+    operations: list[dict], network: str, operation_type: queueItemType
 ):
     # build a list of operations to be added to the queue
     to_add = [
         QueueItem(
-            type=queueItemType.OPERATION,
+            type=operation_type,
             block=int(operation["blockNumber"]),
             address=operation["address"].lower(),
             data=operation,
@@ -296,7 +374,7 @@ def task_enqueue_operations(
         )
     else:
         logging.getLogger(__name__).error(
-            f"  database did not return anything while saving operations to queue"
+            f"  database did not return anything while saving {operation_type}s to queue"
         )
 
 

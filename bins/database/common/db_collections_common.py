@@ -806,6 +806,15 @@ class database_local(db_collections_common):
                     },
                     "multi_indexes": [],
                 },
+                "multifeedistribution_status": {
+                    "mono_indexes": {
+                        "id": True,
+                        "block": False,
+                        "timestamp": False,
+                        "address": False,
+                    },
+                    "multi_indexes": [],
+                },
             }
 
         else:

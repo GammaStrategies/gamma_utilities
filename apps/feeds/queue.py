@@ -23,9 +23,9 @@ from bins.database.common.database_ids import (
     create_id_rewards_status,
 )
 from bins.database.common.db_collections_common import database_global, database_local
-from bins.general.enums import Chain, queueItemType, text_to_chain
+from bins.general.enums import Chain, Protocol, queueItemType, text_to_chain
 from bins.general.general_utilities import seconds_to_time_passed
-from bins.w3.builders import build_db_hypervisor, build_erc20_helper
+from bins.w3.builders import build_db_hypervisor, build_erc20_helper, build_hypervisor
 from bins.mixed.price_utilities import price_scraper
 from bins.w3.protocols.general import erc20, bep20
 
@@ -59,6 +59,19 @@ class QueueItem:
     count: int = 0
 
     def __post_init__(self):
+        # setup id
+        self._setup_id()
+
+        # add creation time when object is created for the first time (not when it is loaded from database)
+        if self.creation == 0:
+            self.creation = time.time()
+            # self.count = 0 # not needed because it is set to 0 by default
+        else:
+            # add a counter to avoid infinite info gathering loops on errors
+            self.count += 1
+
+    def _setup_id(self):
+        # setup id
         if self.type == queueItemType.REWARD_STATUS:
             # reward status should have rewardToken as id
             if "reward_static" in self.data:
@@ -97,14 +110,6 @@ class QueueItem:
                 type=self.type, block=self.block, hypervisor_address=self.address
             )
 
-        # add creation time when object is created for the first time (not when it is loaded from database)
-        if self.creation == 0:
-            self.creation = time.time()
-            # self.count = 0 # not needed because it is set to 0 by default
-        else:
-            # add a counter to avoid infinite info gathering loops on errors
-            self.count += 1
-
     @property
     def as_dict(self) -> dict:
         return {
@@ -129,6 +134,7 @@ def build_and_save_queue_from_operation(operation: dict, network: str):
         operation (dict): _description_
         network (str): _description_
     """
+
     # discard approval operations ( they are >10% of all operations)
     if operation["topic"] not in [
         "deposit",
@@ -419,6 +425,13 @@ def process_queue_item_type(network: str, queue_item: QueueItem) -> bool:
     elif queue_item.type == queueItemType.OPERATION:
         return pull_common_processing_work(
             network=network, queue_item=queue_item, pull_func=pull_from_queue_operation
+        )
+
+    elif queue_item.type == queueItemType.MULTIFEEDISTRIBUTION_STATUS:
+        return pull_common_processing_work(
+            network=network,
+            queue_item=queue_item,
+            pull_func=pull_from_queue_multiFeeDistribution_status,
         )
     else:
         # reset queue item
@@ -802,57 +815,153 @@ def pull_from_queue_operation(network: str, queue_item: QueueItem) -> bool:
     return False
 
 
-# DEPRECATED
-def pull_from_queue_operation_OLD(network: str, queue_item: QueueItem) -> bool:
-    # debug variables
-    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-    # set local database name and create manager
-    local_db = database_local(mongo_url=mongo_url, db_name=f"{network}_gamma")
+#   hypervisor.block
+#   hypervisor.timestamp
+#   hypervisor.receiver.totalStakes
+#   hypervisor.gauge.periodEarned(
+#                   period=period,
+#                   token_address=reward_token,
+#                   owner=hypervisor address,
+#                   index=0,
+#                   tickLower=hypervisor….Lower,
+#                   tickUpper=hypervisor….Upper,
+#                   )
+#   earned_since_last_event =  calculate qtty earned since last event
+
+
+def pull_from_queue_multiFeeDistribution_status(
+    network: str, queue_item: QueueItem
+) -> bool:
+    # build a list of itmes to be saved to the database
+    save_todb = []
 
     try:
-        # the operation is in the 'data' field...
-        operation = queue_item.data
+        # build mdf base structure ( to be saved to database later)
+        # the mdf operation is in the 'data' field...
+        mfd_status = {
+            "id": create_id_operation(
+                logIndex=queue_item.data["logIndex"],
+                transactionHash=queue_item.data["transactionHash"],
+            ),
+            "block": queue_item.block,
+            "timestamp": queue_item.data["timestamp"],
+            "address": queue_item.data["address"].lower(),
+            "dex": "",
+            "hypervisor_address": "",
+            "topic": queue_item.data["topic"],
+            "period_rewards_earned": 0,
+            "period_seconds_passed": 0,
+            "total_staked": 0,
+        }
 
-        # set operation id (same hash has multiple operations)
-        operation["id"] = create_id_operation(
-            logIndex=operation["logIndex"], transactionHash=operation["transactionHash"]
-        )
-
-        # log
+        # log operation processing
         logging.getLogger(__name__).debug(
-            f"  -> Processing {network}'s operation {operation['id']}"
+            f"  -> Processing queue's {network} {queue_item.type} {queue_item.id}"
         )
 
-        # lower case address ( to ease comparison )
-        operation["address"] = operation["address"].lower()
+        ephemeral_cache = {
+            "hypervisor_rewards": {},
+            "hypervisor_timestamp": {},
+            "mfd_total_staked": {},
+        }
 
-        # save operation to database
-        if db_return := local_db.set_operation(data=operation):
-            logging.getLogger(__name__).debug(f" Saved operation {operation['id']}")
-
-        # make sure hype is not in status collection already
-        if not local_db.get_items_from_database(
-            collection_name="status",
-            find={
-                "id": create_id_hypervisor_status(
-                    hypervisor_address=operation["address"],
-                    block=operation["blockNumber"],
-                )
-            },
-            projection={"id": 1},
+        # get static rewards related to mfd and its linked hypervisor, (so that we know this hype's protocol)
+        # this will be used as tokenReward also
+        for reward_static in get_from_localdb(
+            network=network,
+            collection="rewards_static",
+            aggregate=[
+                {
+                    "$match": {
+                        "rewarder_address": mdf_status["address"],
+                    }
+                },
+                # // find hype's reward status
+                {
+                    "$lookup": {
+                        "from": "static",
+                        "let": {"op_address": "$hypervisor_address"},
+                        "pipeline": [
+                            {
+                                "$match": {
+                                    "$expr": {"$eq": ["$address", "$$op_address"]}
+                                }
+                            },
+                        ],
+                        "as": "hypervisor",
+                    }
+                },
+                {"$unwind": "$hypervisor"},
+            ],
+            limit=1,
+            batch_size=100000,
         ):
-            # fire scrape event on block regarding hypervisor and rewarders snapshots (status) and token prices
-            # build queue events from operation
-            build_and_save_queue_from_operation(operation=operation, network=network)
+            # get first result
+            reward_static = reward_static[0]
 
-        else:
+            # set mfd status hypervisor address and dex ( protocol)
+            mfd_status["hypervisor_address"] = reward_static["hypervisor"]["address"]
+            mfd_status["dex"] = reward_static["hypervisor"]["dex"]
+
+            # try to not calculate things just for the sake of it
+            if (
+                mfd_status["hypervisor_address"]
+                not in ephemeral_cache["hypervisor_timestamp"]
+            ):
+                # build hypervisor at block with private rpc
+                if hypervisor := build_hypervisor(
+                    address=mfd_status["hypervisor_address"],
+                    network=network,
+                    block=queue_item.block,
+                    dex=reward_static["hypervisor"]["dex"],
+                    cached=False,
+                    force_rpcType="private",
+                ):
+                    # set timestamp
+                    ephemeral_cache["hypervisor_timestamp"][
+                        mfd_status["hypervisor_address"]
+                    ] = hypervisor._timestamp
+
+                    # calculate current real rewards
+                    ephemeral_cache["hypervisor_rewards"][
+                        mfd_status["hypervisor_address"]
+                    ] = hypervisor.calculate_rewards(
+                        period=hypervisor.current_period,
+                        reward_token=reward_static["rewardToken"],
+                    )
+
+                    # get current total staked qtty from multifeedistributor contract
+                    ephemeral_cache["mfd_total_staked"][
+                        mfd_status["hypervisor_address"]
+                    ] = hypervisor.receiver.totalStakes
+
+            # use cached info
+            mfd_status["timestamp"] = ephemeral_cache["hypervisor_timestamp"][
+                mfd_status["hypervisor_address"]
+            ]
+            mfd_status["real_rewards"] = ephemeral_cache["hypervisor_rewards"][
+                mfd_status["hypervisor_address"]
+            ]
+            mfd_status["total_staked"] = ephemeral_cache["mfd_total_staked"][
+                mfd_status["hypervisor_address"]
+            ]
+
+            # add item to be saved
+            save_todb.append(mfd_status.copy())
+
+        # save to multifeedistribution_status collection database
+        if db_return := get_default_localdb(network=network).save_items_to_database(
+            data=save_todb, collection="multifeedistribution_status"
+        ):
             logging.getLogger(__name__).debug(
-                f"  Not pushing {operation['address']} hypervisor status queue item bcause its already in the database"
+                f"       db return-> del: {db_return.deleted_count}  ins: {db_return.inserted_count}  mod: {db_return.modified_count}  ups: {db_return.upserted_count} matched: {db_return.matched_count}"
             )
+        else:
+            raise ValueError(" Database has not returned anything on writeBulk")
 
         # log
         logging.getLogger(__name__).debug(
-            f"  <- Done processing {network}'s operation {operation['id']}"
+            f"  <- Done processing {network}'s {queue_item.type} {queue_item.id}"
         )
 
         return True
