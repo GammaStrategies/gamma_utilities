@@ -158,16 +158,21 @@ class multiFeeDistribution_data_collector:
 
         itm["timestamp"] = ""
 
+        # do not process if removed ( chain reorg )
+        if event.removed:
+            logging.getLogger(__name__).debug(
+                f"  topic {topic} txhash {itm['transactionHash']} was tagged as removed. Not processing"
+            )
+            return None
+
         # specific vars
         if topic in ["mdf_unstake", "mdf_stake"]:
-            # itm["sender"] = event.topics[1][-20:].hex()
-            # itm["to"] = event.topics[2][-20:].hex()
-            # itm["shares"] = str(data[0])
-            # itm["qtty_token0"] = str(data[1])
-            # itm["qtty_token1"] = str(data[2])
-            pass
+            # topic_hash =  event.topics[0][-20:].hex()
+            itm["user"] = event.topics[1][-20:].hex()
+            itm["qtty"] = str(data[0])
         elif topic == "mdf_allRewards":
-            pass
+            itm["user"] = event.topics[1][-20:].hex()
+            itm["reward_token"] = event.topics[2][-20:].hex()
 
         elif topic in [
             "mdf_adminChanged",
@@ -209,21 +214,19 @@ def create_multiFeeDistribution_data_collector(
         },
         topics_data_decoders={
             # index_topic_1 address user, index_topic_2 address rewardToken, uint256 amount
-            "mdf_allRewards": ["address", "address", "uint256"],
+            "mdf_allRewards": ["uint256"],
             # index_topic_1 address owner, uint256 tokens
-            "mdf_unstake": ["address", "uint256"],
+            "mdf_unstake": ["uint256"],
             # index_topic_1 address owner, uint256 tokens
-            "mdf_stake": ["address", "uint256"],
+            "mdf_stake": ["uint256"],
             # address previousAdmin, address newAdmin
             "mdf_adminChanged": ["address", "address"],
             # uint8 version
             "mdf_initialized": ["uint8"],
             # index_topic_1 address previousOwner, index_topic_2 address newOwner
-            "mdf_ownershipTransfer": ["address", "address"],
+            "mdf_ownershipTransfer": [],
             # index_topic_1 address implementation
-            "mdf_upgraded": [
-                "address",
-            ],
+            "mdf_upgraded": [],
         },
         network=network,
     )
