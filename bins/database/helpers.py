@@ -4,6 +4,28 @@ from ..database.common.db_collections_common import database_global, database_lo
 from ..general.enums import Chain
 
 
+def get_default_localdb(network: str) -> database_local:
+    return database_local(
+        mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
+        db_name=f"{network}_gamma",
+    )
+
+
+def get_from_localdb(network: str, collection: str, **kwargs) -> list:
+    """get data from a local database type
+
+    Args:
+        network (str):
+        collection (str):
+
+    Returns:
+        list: result
+    """
+    return get_default_localdb(network=network).get_items_from_database(
+        collection_name=collection, **kwargs
+    )
+
+
 def get_price_from_db(
     network: str,
     block: int,

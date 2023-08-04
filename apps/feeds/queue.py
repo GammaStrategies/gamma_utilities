@@ -3,6 +3,7 @@ from dataclasses import dataclass, asdict
 import logging
 import time
 import concurrent.futures
+from bins.database.helpers import get_default_localdb, get_from_localdb
 
 from bins.w3.protocols.gamma.hypervisor import gamma_hypervisor_bep20
 

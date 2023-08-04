@@ -5,6 +5,7 @@ import tqdm
 from datetime import datetime
 
 from web3 import Web3
+from bins.database.helpers import get_default_localdb
 
 from bins.general.enums import queueItemType
 from bins.w3.protocols.gamma.collectors import (
@@ -213,7 +214,6 @@ def feed_operations(
             hypervisor_addresses=hypervisor_addresses,
             block_ini=block_ini,
             block_end=block_end,
-            local_db=local_db,
         )
 
     except Exception as e:
@@ -228,7 +228,6 @@ def feed_operations_hypervisors(
     hypervisor_addresses: list,
     block_ini: int,
     block_end: int,
-    local_db: database_local,
 ):
     # set global protocol helper
     data_collector = create_data_collector(network=network)
@@ -289,7 +288,7 @@ def task_enqueue_operations(
         for operation in operations
     ]
 
-    if db_return := local_db.replace_items_to_database(
+    if db_return := get_default_localdb(network=network).replace_items_to_database(
         data=to_add, collection_name="queue"
     ):
         logging.getLogger(__name__).debug(

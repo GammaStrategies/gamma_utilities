@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 
 from datetime import timezone
 from decimal import Decimal
+
+from bins.database.helpers import get_default_localdb
 from .database_checker import get_all_logfiles
 
 if __name__ == "__main__":
@@ -341,9 +343,7 @@ def get_hypervisor_addresses(
         blacklisted = []
 
     # retrieve all addresses from database
-    local_db_manager: database_local = database_local(
-        mongo_url=mongo_url, db_name=db_name
-    )
+    local_db_manager: database_local = get_default_localdb(network=network)
 
     if user_address:
         result = local_db_manager.get_distinct_items_from_database(

@@ -8,6 +8,7 @@ import contextlib
 import re
 
 from apps.feeds.status import create_reward_status_from_hype_status
+from bins.database.helpers import get_default_localdb, get_from_localdb
 
 from .feeds.queue import (
     QueueItem,
@@ -198,9 +199,9 @@ def repair_prices_from_logs(min_count: int = 1, add_to_queue: bool = False):
 
     # add all items to queue, when enabled
     if add_to_queue and len(to_queue_items):
-        if db_return := database_local(
-            mongo_url=mongo_url, db_name=f"{network}_gamma"
-        ).replace_items_to_database(data=to_queue_items, collection_name="queue"):
+        if db_return := get_default_localdb(network).replace_items_to_database(
+            data=to_queue_items, collection_name="queue"
+        ):
             if (
                 db_return.inserted_count
                 or db_return.upserted_count
@@ -416,11 +417,6 @@ def shouldBe_price_ids_from_status_rewards(
     # create a result price ids
     price_ids = set()
 
-    # database helper
-    local_db = database_local(
-        mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
-        db_name=f"{network}_gamma",
-    )
     # special query to get the list
     query = [
         {
@@ -456,8 +452,11 @@ def shouldBe_price_ids_from_status_rewards(
     price_ids.update(
         [
             create_id_price(network, item["block"], item["rewardToken"])
-            for item in local_db.get_items_from_database(
-                collection_name="rewards_static", aggregate=query, batch_size=batch_size
+            for item in get_from_localdb(
+                network=network,
+                collection="rewards_static",
+                aggregate=query,
+                batch_size=batch_size,
             )
             if item["rewardToken"] not in addresses_to_exclude
         ]
@@ -491,8 +490,9 @@ def shouldBe_price_ids_from_status_hypervisors(
         db_name=f"{network}_gamma",
     )
 
-    for hype_status in local_db.get_items_from_database(
-        collection_name="status",
+    for hype_status in get_from_localdb(
+        network=network,
+        collection="status",
         find={},
         batch_size=batch_size,
         projection={
