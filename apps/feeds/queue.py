@@ -873,7 +873,7 @@ def pull_from_queue_multiFeeDistribution_status(
             aggregate=[
                 {
                     "$match": {
-                        "rewarder_address": mdf_status["address"],
+                        "rewarder_address": mfd_status["address"],
                     }
                 },
                 # // find hype's reward status
