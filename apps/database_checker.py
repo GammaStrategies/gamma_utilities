@@ -831,10 +831,8 @@ def reScrape_database_prices(
                 progress_bar.update(1)
 
 
-def reScrape_rewards_status(
-    chain: Chain, find: dict = {}, threaded: bool = True
-):
-    """  Rescrape rewards status for the given chain
+def reScrape_rewards_status(chain: Chain, find: dict = {}, threaded: bool = True):
+    """Rescrape rewards status for the given chain
 
     Args:
         chain (Chain): network to scrape
@@ -2408,7 +2406,9 @@ def main(option: str, **kwargs):
         # reScrape_database_prices(
         #     network_limit=CONFIGURATION["_custom_"]["cml_parameters"].maximum
         # )
-        reScrape_rewards_status(chain=Chain.ARBITRUM, find={"dex":"ramses"}, threaded=False)
+        reScrape_rewards_status(
+            chain=Chain.ARBITRUM, find={"dex": "ramses"}, threaded=False
+        )
     # else:
     #     raise NotImplementedError(
     #         f" Can't find any action to be taken from {option} checks option"
