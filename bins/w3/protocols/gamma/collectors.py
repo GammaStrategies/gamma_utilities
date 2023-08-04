@@ -144,7 +144,17 @@ class data_collector:
 
                     chunk_result.append(result_item)
 
-                yield chunk_result
+                # yield when there is data
+                if chunk_result:
+                    yield chunk_result
+
+            elif self._progress_callback:
+                # no data found at current filter
+                self._progress_callback(
+                    text=f" no match from {filter['fromBlock']} to {filter['toBlock']}",
+                    total=block_end - block_ini,
+                    remaining=block_end - filter["toBlock"],
+                )
 
     # HELPERS
     def _convert_topic(self, topic: str, event, data) -> dict:
