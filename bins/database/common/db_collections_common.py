@@ -242,12 +242,12 @@ class db_collections_common:
             db_name=self._db_name,
             collections=self._db_collections,
         ) as _db_manager:
-            return [
-                x
-                for x in self.get_cursor(
-                    db_manager=_db_manager, collection_name=collection_name, **kwargs
-                )
-            ]
+            if data := self.get_cursor(
+                db_manager=_db_manager, collection_name=collection_name, **kwargs
+            ):
+                return [x for x in data]
+            else:
+                return []
 
     def get_distinct_items_from_database(
         self, collection_name: str, field: str, condition: dict = None
