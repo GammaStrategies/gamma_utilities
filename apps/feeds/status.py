@@ -10,6 +10,7 @@ from bins.configuration import CONFIGURATION
 from bins.database.common.database_ids import create_id_hypervisor_status
 from bins.database.common.db_collections_common import database_global, database_local
 from bins.database.helpers import get_price_from_db
+from bins.errors.general import ProcessingError
 from bins.formulas.apr import calculate_rewards_apr
 from bins.formulas.dex_formulas import (
     pool_token_amounts_from_current_price,
@@ -497,6 +498,18 @@ def create_reward_status_from_hype_status(
                 rewarder_static=rewarder_static,
                 hypervisor_status=hypervisor_status,
             )
+
+    except ProcessingError as e:
+        logging.getLogger(__name__).error(
+            f" Unexpected error constructing {network}'s {rewarder_static['rewarder_address']} rewarder data. error-> {e.message}"
+        )
+        # TODO: code
+        # may be better to keep processed items in queue indefinitely
+        # if e.action=="remove":
+        #     # do not remove but set count to 100 to filter those out
+        # #     # create a dummy reward status zero so it gets discarded and not processed again
+        # #     rewards_data = [{"rewards_perSecond":0}]
+        #     pass
 
     except Exception as e:
         logging.getLogger(__name__).exception(

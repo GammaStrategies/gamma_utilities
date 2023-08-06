@@ -1,5 +1,7 @@
 import logging
 from web3 import Web3
+
+from bins.errors.general import ProcessingError
 from ....general.enums import Protocol
 from .. import gamma
 from ..general import erc20
@@ -88,13 +90,16 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
                 tmp_address.lower()
                 == "0x8DFF6BbEE7A6E5Fe3413a91dBF305C29e8A0Af5F".lower()
             ):
-                raise ValueError(
-                    f"Invalid MFD detected ({tmp_address.lower()}) from hypervisor {self.address.lower()} at block {self.block}"
+                raise ProcessingError(
+                    item={
+                        "hypervisor_address": self.address,
+                        "block": self.block,
+                        "object": "hypervisor.receiver",
+                    },
+                    action="remove",
+                    message=f"Invalid MFD detected ({tmp_address.lower()}) from hypervisor {self.address.lower()} at block {self.block}",
                 )
-                # is not a valid gamma MFD:
-                logging.getLogger(__name__).warning(
-                    f"Invalid MFD address detected ({tmp_address.lower()}) at hypervisor {self.address.lower()}, changing it to: "
-                )
+
             self._multiFeeDistribution = multiFeeDistribution(
                 address=tmp_address,
                 network=self._network,
@@ -305,13 +310,16 @@ class gamma_hypervisor_cached(gamma.hypervisor.gamma_hypervisor_cached):
                 tmp_address.lower()
                 == "0x8DFF6BbEE7A6E5Fe3413a91dBF305C29e8A0Af5F".lower()
             ):
-                raise ValueError(
-                    f"Invalid MFD detected ({tmp_address.lower()}) from hypervisor {self.address.lower()} at block {self.block}"
+                raise ProcessingError(
+                    item={
+                        "hypervisor_address": self.address,
+                        "block": self.block,
+                        "object": "hypervisor.receiver",
+                    },
+                    action="remove",
+                    message=f"Invalid MFD detected ({tmp_address.lower()}) from hypervisor {self.address.lower()} at block {self.block}",
                 )
-                # is not a valid gamma MFD chainge it?:
-                logging.getLogger(__name__).warning(
-                    f"Invalid MFD address detected ({tmp_address.lower()}) at hypervisor {self.address.lower()}, changing it to: "
-                )
+
             self._multiFeeDistribution = multiFeeDistribution(
                 address=tmp_address,
                 network=self._network,
