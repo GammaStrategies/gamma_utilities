@@ -66,12 +66,12 @@ def parse_commandLine_args():
     # auto database feed service
     par_service = exGroup.add_argument(
         "--service",
-        choices=["local", "global", "queue", "operations", "current_prices"],
+        choices=["local", "global", "queue", "operations", "current_prices", "latest"],
         help=" execute an infinite loop service",
     )
     par_network_service = exGroup.add_argument(
         "--service_network",
-        choices=["ethereum", "polygon", "optimism", "arbitrum", "binance"],
+        choices=[Chain.database_name for Chain in Chain],
         help=" infinite loop service for the specified network using the Gamma protocol",
     )
 
@@ -93,7 +93,7 @@ def parse_commandLine_args():
     # analysis
     par_analysis = exGroup.add_argument(
         "--analysis",
-        choices=["ethereum", "optimism", "polygon", "arbitrum", "binance"],
+        choices=[Chain.database_name for Chain in Chain],
         help=" execute analysis ",
     )
 
