@@ -5,6 +5,7 @@ import tqdm
 from datetime import datetime
 
 from web3 import Web3
+from apps.feeds.queue.push import build_and_save_queue_from_operation
 from bins.database.helpers import get_default_localdb, get_from_localdb
 
 from bins.general.enums import Chain, Protocol, queueItemType
@@ -16,7 +17,8 @@ from bins.w3.protocols.gamma.collectors import (
 from bins.w3.protocols.ramses.collectors import (
     create_multiFeeDistribution_data_collector,
 )
-from .queue import QueueItem, build_and_save_queue_from_operation
+
+from .queue.queue_item import QueueItem
 
 # from croniter import croniter
 
