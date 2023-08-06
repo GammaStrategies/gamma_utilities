@@ -396,9 +396,7 @@ def feed_mutiFeeDistribution_operations(
 
     if not block_end:
         # get last block from database
-        block_end = (
-            build_erc20_helper(chain.database_name)._getBlockData("latest").number
-        )
+        block_end = build_erc20_helper(chain)._getBlockData("latest").number
 
     # proceed to feed
     feed_queue_with_multiFeeDistribution_operations(
@@ -470,18 +468,29 @@ def feed_queue_with_multiFeeDistribution_operations(
 def get_latest_multifeedistribution_last_blocks(network: str) -> int:
     """Get the last block from latest_multifeedistribution collection"""
 
-    # get it from the collection
-    if max_block := get_from_localdb(
-        network=network,
-        collection="latest_multifeedistribution",
-        query=[
-            {"$group": {"_id": "none", "block": {"$max": "$last_updated_data.block"}}}
-        ],
-    ):
-        max_block = max_block[0]["block"]
-    else:
-        logging.getLogger(__name__).debug(
-            f" there are no latest_multifeedistribution in db for {network} choose last block from"
+    try:
+        # get it from the collection
+        if max_block := get_from_localdb(
+            network=network,
+            collection="latest_multifeedistribution",
+            query=[
+                {
+                    "$group": {
+                        "_id": "none",
+                        "block": {"$max": "$last_updated_data.block"},
+                    }
+                }
+            ],
+        ):
+            max_block = max_block[0]["block"]
+        else:
+            logging.getLogger(__name__).debug(
+                f" there are no latest_multifeedistribution in db for {network} choose last block from"
+            )
+            max_block = 0
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            f" Unexpected error while quering db for latest_multifeedistribution block  error:{e}"
         )
         max_block = 0
 
