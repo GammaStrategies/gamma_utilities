@@ -1053,7 +1053,7 @@ def create_rewards_status_ramses(
             "rewarder_address": hype_status.gauge.address.lower(),
             "rewarder_type": rewarderType.RAMSES_v2,
             "rewarder_refIds": [],
-            "rewarder_registry": hype_status.receiver.lower(),
+            "rewarder_registry": hype_status.receiver.address.lower(),
             "rewardToken": reward_token.lower(),
             "rewardToken_symbol": erc20_helper.symbol,
             "rewardToken_decimals": erc20_helper.decimals,
