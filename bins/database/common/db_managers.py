@@ -198,7 +198,7 @@ class MongoDbManager:
     def replace_items_bulk(
         self, coll_name: str, data: list, upsert=True
     ) -> BulkWriteResult:
-        """Add or Update items
+        """Add or Rewrite items
 
         Args:
            coll_name (str): collection name
@@ -223,6 +223,38 @@ class MongoDbManager:
         return self.database[coll_name].bulk_write(
             [
                 ReplaceOne(filter=item["filter"], replacement=item["data"], upsert=True)
+                for item in data
+            ]
+        )
+
+    def update_items_bulk(
+        self, coll_name: str, data: list, upsert=True
+    ) -> BulkWriteResult:
+        """Update items
+
+        Args:
+           coll_name (str): collection name
+           data (list): list of data to save
+
+        Raises:
+           ValueError: if coll_name is not defined at the class init <collections> field
+        """
+
+        # check collection configuration exists
+        if coll_name not in self.collections_config.keys():
+            raise ValueError(
+                f" No configuration found for {coll_name} database collection."
+            )
+        # create collection if it does not exist yet
+        self.create_collection(
+            coll_name=coll_name, **self.collections_config[coll_name]
+        )
+
+        # update to database (add or replace)
+
+        return self.database[coll_name].bulk_write(
+            [
+                UpdateOne(filter=item["filter"], update=item["data"], upsert=True)
                 for item in data
             ]
         )

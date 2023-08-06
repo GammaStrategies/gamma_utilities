@@ -201,6 +201,41 @@ class db_collections_common:
                 f" Unable to replace multiple items in mongo's {collection_name} collection.  Items qtty: {len(data)}    error-> {e}"
             )
 
+    def update_items_to_database(
+        self,
+        data: list[dict],
+        collection_name: str,
+    ) -> BulkWriteResult:
+        """Update multiple items in a collection at once ( in bulk) using updateOne by id
+
+        Args:
+            data (list[dict]): _description_
+            collection_name (str): _description_
+        """
+        try:
+            # create bulk data object
+            bulk_data = [
+                {"filter": {"id": item["id"]}, "data": {"$set": item}} for item in data
+            ]
+
+            with MongoDbManager(
+                url=self._db_mongo_url,
+                db_name=self._db_name,
+                collections=self._db_collections,
+            ) as _db_manager:
+                # add to mongodb
+                return _db_manager.update_items_bulk(
+                    coll_name=collection_name, data=bulk_data, upsert=True
+                )
+        except BulkWriteError as bwe:
+            logging.getLogger(__name__).error(
+                f"  Error while updating multiple items in {collection_name} collection database. Items qtty: {len(data)}  error-> {bwe.details}"
+            )
+        except Exception as e:
+            logging.getLogger(__name__).error(
+                f" Unable to updating multiple items in mongo's {collection_name} collection.  Items qtty: {len(data)}    error-> {e}"
+            )
+
     def insert_if_not_exists(
         self,
         data: dict,
