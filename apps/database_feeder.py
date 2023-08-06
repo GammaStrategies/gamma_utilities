@@ -4,8 +4,9 @@ import tqdm
 import concurrent.futures
 import contextlib
 from datetime import datetime, timezone
+
+from apps.feeds.queue.pull import pull_from_queue
 from .feeds.operations import feed_operations
-from .feeds.queue import pull_from_queue
 
 from bins.configuration import CONFIGURATION
 

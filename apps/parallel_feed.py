@@ -2,7 +2,7 @@ import logging
 import time
 import threading
 from multiprocessing import Pool
-from .feeds.queue import pull_from_queue
+from apps.feeds.queue.pull import pull_from_queue
 
 from bins.configuration import CONFIGURATION
 

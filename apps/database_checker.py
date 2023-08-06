@@ -10,11 +10,9 @@ import re
 from apps.feeds.status import create_reward_status_from_hype_status
 from bins.database.helpers import get_default_localdb, get_from_localdb
 
-from .feeds.queue import (
-    QueueItem,
-    build_and_save_queue_from_hypervisor_status,
-    process_queue_item_type,
-)
+from apps.feeds.queue.queue_item import QueueItem
+from apps.feeds.queue.pull import process_queue_item_type
+from apps.feeds.queue.push import build_and_save_queue_from_hypervisor_status
 
 from bins.configuration import CONFIGURATION, TOKEN_ADDRESS_EXCLUDE
 from bins.database.common.database_ids import create_id_block, create_id_price
