@@ -457,19 +457,19 @@ def latest_db_service():
     time_control_loop = {
         "latest_prices": {
             "every": 60,  # in seconds
-            "last": datetime.now(timezone.utc),
+            "last": time.time(),
             "callable": feed_latest_usd_prices,
             "args": (True),
         },
         "create_json_prices": {
             "every": 60 * 60 * 2,  # in seconds
-            "last": datetime.now(timezone.utc),
+            "last": time.time(),
             "callable": create_json_file,
             "args": (create_json_process),
         },
         "latest_multifeedistributor": {
             "every": 60,  # in seconds
-            "last": datetime.now(timezone.utc),
+            "last": time.time(),
             "callable": feed_latest_multifeedistribution_snapshot,
             "args": (),
         },
@@ -478,10 +478,8 @@ def latest_db_service():
     try:
         while True:
             for key, value in time_control_loop.items():
-                if (datetime.now(timezone.utc) - value["last"]).total_seconds() > value[
-                    "every"
-                ]:
-                    value["last"] = datetime.now(timezone.utc)
+                if (time.time() - value["last"]) > value["every"]:
+                    value["last"] = time.time()
                     logging.getLogger(__name__).debug(f"   Calling {key} ")
                     value["callable"](*value["args"])
 
