@@ -162,12 +162,15 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
 
         return baseRewards, boostedRewards
 
-    def calculate_rewards(self, period: int, reward_token: str) -> dict:
+    def calculate_rewards(
+        self, period: int, reward_token: str, convert_bint: bool = False
+    ) -> dict:
         """get rewards data for a given period and token address
 
         Args:
             period (int):
             reward_token (str): reward token address
+            convert_bint (bool): Convert integers to string?
 
         Returns:
             dict: {
@@ -227,7 +230,8 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
         # get rewards per second
         seconds_in_period = WEEK - self.current_period_remaining_seconds
 
-        return {
+        # set result
+        data_result = {
             "max_baseRewards": baseRewards,
             "max_boostedRewards": boostedRewards,
             "max_period_seconds": WEEK,
@@ -241,6 +245,21 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
             if seconds_in_period
             else 0,
         }
+
+        # convert to string when specified
+        if convert_bint:
+            for k in [
+                "max_baseRewards",
+                "max_boostedRewards",
+                "max_rewards_per_second",
+                "current_baseRewards",
+                "current_boostedRewards",
+                "current_rewards_per_second",
+            ]:
+                data_result[k] = str(data_result[k])
+
+        # return result
+        return data_result
 
 
 class gamma_hypervisor_cached(gamma.hypervisor.gamma_hypervisor_cached):

@@ -1,5 +1,6 @@
 # Feed of latest block data
 
+import logging
 import tqdm
 from dataclasses import dataclass, asdict
 from apps.feeds.operations import task_enqueue_operations
@@ -36,6 +37,11 @@ class multifeeDistribution_snapshot:
         # TODO: replace manual return with gettattr + check or similar
         result = {}
 
+        if self.id:
+            result["id"] = self.id
+        else:
+            raise ValueError(f" multiFeeDistribution snapshot should have an id")
+
         if self.block:
             result["block"] = self.block
         if self.timestamp:
@@ -67,35 +73,46 @@ def feed_latest_multifeedistribution_snapshot():
     Args:
         chain (Chain):
     """
+    #
+    items_to_queue = []
+
     # TODO: solve manual chains reference
     chains = [Chain.ARBITRUM]
     for chain in chains:
         # TODO: solve the 'rewarder_type' manual reference to ramses_v2
-        #
-        # get addresses to scrape and its minimum block
-        for reward in get_from_localdb(
+        rewards_static = get_from_localdb(
             network=chain.database_name,
             collection="rewards_static",
             find={"rewarder_type": "ramses_v2"},
-        ):
+        )
+
+        logging.getLogger(__name__).debug(
+            f" building {len(rewards_static)} mfd item operations to add to queue"
+        )
+
+        # get addresses to scrape and its minimum block
+        for reward in rewards_static:
             # always the same for snapshots
-            queue_item = {
-                "transactionHash": "0x00000000",
-                "blockHash": "",
-                "blockNumber": 0,
-                "address": reward["rewarder_registry"],
-                "timestamp": "",
-                "user": "",
-                "reward_token": "",
-                "topic": "snapshot",
-                "logIndex": 0,
-            }
-            # add to queue
-            task_enqueue_operations(
-                operations=[queue_item],
-                network=chain.database_name,
-                operation_type=queueItemType.LATEST_MULTIFEEDISTRIBUTION,
+            items_to_queue.append(
+                {
+                    "transactionHash": "0x00000000",
+                    "blockHash": "",
+                    "blockNumber": 0,
+                    "address": reward["rewarder_registry"],
+                    "timestamp": "",
+                    "user": "",
+                    "reward_token": "",
+                    "topic": "snapshot",
+                    "logIndex": 0,
+                    "is_last_item": False,
+                }
             )
+    # add to queue
+    task_enqueue_operations(
+        operations=items_to_queue,
+        network=chain.database_name,
+        operation_type=queueItemType.LATEST_MULTIFEEDISTRIBUTION,
+    )
 
 
 # def latest_mutiFeeDistribution_snapshot(

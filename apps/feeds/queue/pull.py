@@ -117,13 +117,11 @@ def process_queue_item_type(network: str, queue_item: QueueItem) -> bool:
         )
 
     elif queue_item.type == queueItemType.LATEST_MULTIFEEDISTRIBUTION:
-        # TODO: currently testing. will be removed asap
-        return False
-        # return pull_common_processing_work(
-        #     network=network,
-        #     queue_item=queue_item,
-        #     pull_func=pull_from_queue_latest_multiFeeDistribution,
-        # )
+        return pull_common_processing_work(
+            network=network,
+            queue_item=queue_item,
+            pull_func=pull_from_queue_latest_multiFeeDistribution,
+        )
     else:
         # reset queue item
 
@@ -152,10 +150,9 @@ def pull_common_processing_work(
     # benchmark
     if result:
         # remove item from queue
-        if db_return := database_local(
-            mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
-            db_name=f"{network}_gamma",
-        ).del_queue_item(queue_item.id):
+        if db_return := get_default_localdb(network=network).del_queue_item(
+            queue_item.id
+        ):
             if db_return.deleted_count or db_return.acknowledged:
                 logging.getLogger(__name__).debug(
                     f" {network}'s queue item {queue_item.id} has been removed from queue"
@@ -514,20 +511,6 @@ def pull_from_queue_operation(network: str, queue_item: QueueItem) -> bool:
     return False
 
 
-#   hypervisor.block
-#   hypervisor.timestamp
-#   hypervisor.receiver.totalStakes
-#   hypervisor.gauge.periodEarned(
-#                   period=period,
-#                   token_address=reward_token,
-#                   owner=hypervisor address,
-#                   index=0,
-#                   tickLower=hypervisor….Lower,
-#                   tickUpper=hypervisor….Upper,
-#                   )
-#   earned_since_last_event =  calculate qtty earned since last event
-
-
 def pull_from_queue_latest_multiFeeDistribution(
     network: str, queue_item: QueueItem
 ) -> bool:
@@ -619,7 +602,7 @@ def pull_from_queue_latest_multiFeeDistribution(
                     # get current total staked qtty from multifeedistributor contract
                     ephemeral_cache["mfd_total_staked"][
                         reward_static["hypervisor"]["address"]
-                    ] = hypervisor.receiver.totalStakes
+                    ] = str(hypervisor.receiver.totalStakes)
 
             # use cached info
             snapshot.block = ephemeral_cache["hypervisor_block"][
@@ -631,18 +614,17 @@ def pull_from_queue_latest_multiFeeDistribution(
             snapshot.rewards = hypervisor.calculate_rewards(
                 period=hypervisor.current_period,
                 reward_token=reward_static["rewardToken"],
+                convert_bint=True,
             )
             snapshot.total_staked = ephemeral_cache["mfd_total_staked"][
                 reward_static["hypervisor"]["address"]
             ]
 
             # set id
-            snapshot.id = (
-                create_id_latest_multifeedistributor(
-                    mfd_address=snapshot.address,
-                    rewardToken_address=snapshot.rewardToken,
-                    hypervisor_address=snapshot.hypervisor_address,
-                ),
+            snapshot.id = create_id_latest_multifeedistributor(
+                mfd_address=snapshot.address,
+                rewardToken_address=snapshot.rewardToken,
+                hypervisor_address=snapshot.hypervisor_address,
             )
 
             # set item to save
@@ -666,7 +648,7 @@ def pull_from_queue_latest_multiFeeDistribution(
             save_todb.append(item_to_save)
 
         # save to latest_multifeedistribution collection database
-        if db_return := get_default_localdb(network=network).save_items_to_database(
+        if db_return := get_default_localdb(network=network).update_items_to_database(
             data=save_todb, collection_name="latest_multifeedistribution"
         ):
             logging.getLogger(__name__).debug(

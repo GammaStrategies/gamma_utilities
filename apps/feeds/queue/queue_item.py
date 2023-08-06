@@ -1,6 +1,6 @@
 import time
 
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 
 from bins.database.common.database_ids import create_id_operation, create_id_queue
 from bins.general.enums import queueItemType

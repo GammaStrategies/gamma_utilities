@@ -451,6 +451,9 @@ def feed_queue_with_multiFeeDistribution_operations(
         # set progress callback to data collector
         data_collector.progress_callback = _update_progress
 
+        # control var
+        items_to_queue = {}
+
         for operations in data_collector.operations_generator(
             block_ini=block_ini,
             block_end=block_end,
@@ -458,11 +461,27 @@ def feed_queue_with_multiFeeDistribution_operations(
             max_blocks=5000,
         ):
             # process operation
-            task_enqueue_operations(
-                operations=operations,
-                network=chain.database_name,
-                operation_type=queueItemType.LATEST_MULTIFEEDISTRIBUTION,
-            )
+
+            for operation in operations:
+                if operation["address"].lower() not in items_to_queue:
+                    items_to_queue[operation["address"].lower()] = operation
+
+                # select the latest block number
+                if (
+                    items_to_queue[operation["address"].lower()]["blockNumber"]
+                    < operation["blockNumber"]
+                ):
+                    items_to_queue[operation["address"].lower()] = operation
+
+    logging.getLogger(__name__).info(
+        f" Adding {len(items_to_queue)} mfd operations items to {chain.database_name} queue"
+    )
+    # add to queue
+    task_enqueue_operations(
+        operations=list(items_to_queue.values()),
+        network=chain.database_name,
+        operation_type=queueItemType.LATEST_MULTIFEEDISTRIBUTION,
+    )
 
 
 def get_latest_multifeedistribution_last_blocks(network: str) -> int:
@@ -473,7 +492,7 @@ def get_latest_multifeedistribution_last_blocks(network: str) -> int:
         if max_block := get_from_localdb(
             network=network,
             collection="latest_multifeedistribution",
-            query=[
+            aggregate=[
                 {
                     "$group": {
                         "_id": "none",
@@ -498,7 +517,7 @@ def get_latest_multifeedistribution_last_blocks(network: str) -> int:
     if max_queue_block := get_from_localdb(
         network=network,
         collection="queue",
-        query=[
+        aggregate=[
             {
                 "$match": {
                     "type": queueItemType.LATEST_MULTIFEEDISTRIBUTION,
