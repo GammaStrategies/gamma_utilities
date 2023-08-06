@@ -10,6 +10,9 @@ import logging
 import multiprocessing as mp
 from datetime import datetime, timedelta, timezone
 import time
+from apps.feeds.latest.mutifeedistribution.currents import (
+    feed_latest_multifeedistribution_snapshot,
+)
 from bins.general.enums import Chain, text_to_chain
 
 from bins.general.general_utilities import identify_me
@@ -30,10 +33,13 @@ from .feeds.status import (
     feed_hypervisor_status,
 )
 from .feeds.prices import (
-    create_current_usd_prices_address_json,
-    feed_current_usd_prices,
     feed_prices,
     create_tokenBlocks_all,
+)
+
+from .feeds.latest.price.latest import (
+    create_latest_usd_prices_address_json,
+    feed_latest_usd_prices,
 )
 
 from .database_checker import repair_all
@@ -350,7 +356,7 @@ def current_prices_db_service():
     def create_json_file(create_json_process):
         if not create_json_process or not create_json_process.is_alive():
             create_json_process = mp.Process(
-                target=create_current_usd_prices_address_json,
+                target=create_latest_usd_prices_address_json,
                 name="create_json",
             )
         elif create_json_process.exitcode < 0:
@@ -358,14 +364,14 @@ def current_prices_db_service():
                 "   create_json_file process ended with an error or a terminate"
             )
             create_json_process = mp.Process(
-                target=create_current_usd_prices_address_json,
+                target=create_latest_usd_prices_address_json,
                 name="create_json",
             )
         else:
             # try join n reset
             create_json_process.join()
             create_json_process = mp.Process(
-                target=create_current_usd_prices_address_json,
+                target=create_latest_usd_prices_address_json,
                 name="create_json",
             )
 
@@ -379,7 +385,7 @@ def current_prices_db_service():
     try:
         while True:
             _starttime = datetime.now(timezone.utc)
-            feed_current_usd_prices(threaded=True)
+            feed_latest_usd_prices(threaded=True)
             # recreate the price json file
             _endtime = datetime.now(timezone.utc)
 
@@ -410,6 +416,89 @@ def current_prices_db_service():
     )
 
 
+def latest_db_service():
+    """loop feeding all latest_<name> collections"""
+    identity = identify_me()
+    # send eveyone service ON
+    logging.getLogger("telegram").info(
+        f" Latests collections database feeding loop started at {identity}"
+    )
+
+    # special vars
+    # create prices json file vars and process
+    create_json_process: mp.Process | None = None
+
+    def create_json_file(create_json_process):
+        if not create_json_process or not create_json_process.is_alive():
+            create_json_process = mp.Process(
+                target=create_latest_usd_prices_address_json,
+                name="create_json",
+            )
+        elif create_json_process.exitcode < 0:
+            logging.getLogger(__name__).error(
+                "   create_json_file process ended with an error or a terminate"
+            )
+            create_json_process = mp.Process(
+                target=create_latest_usd_prices_address_json,
+                name="create_json",
+            )
+        else:
+            # try join n reset
+            create_json_process.join()
+            create_json_process = mp.Process(
+                target=create_latest_usd_prices_address_json,
+                name="create_json",
+            )
+
+        logging.getLogger(__name__).debug("   Starting json file creation process")
+        create_json_process.start()
+
+    # time control var to fire callables
+    time_control_loop = {
+        "latest_prices": {
+            "every": 60,  # in seconds
+            "last": datetime.now(timezone.utc),
+            "callable": feed_latest_usd_prices,
+            "args": (True),
+        },
+        "create_json_prices": {
+            "every": 60 * 60 * 2,  # in seconds
+            "last": datetime.now(timezone.utc),
+            "callable": create_json_file,
+            "args": (create_json_process),
+        },
+        "latest_multifeedistributor": {
+            "every": 60,  # in seconds
+            "last": datetime.now(timezone.utc),
+            "callable": feed_latest_multifeedistribution_snapshot,
+            "args": (),
+        },
+    }
+
+    try:
+        while True:
+            for key, value in time_control_loop.items():
+                if (datetime.now(timezone.utc) - value["last"]).total_seconds() > value[
+                    "every"
+                ]:
+                    value["last"] = datetime.now(timezone.utc)
+                    logging.getLogger(__name__).debug(f"   Calling {key} ")
+                    value["callable"](*value["args"])
+
+    except KeyboardInterrupt:
+        logging.getLogger(__name__).debug(
+            " Latests collections database feeding loop stoped by user"
+        )
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            f" Unexpected error while loop-feeding database with latests collections. error {e}"
+        )
+    # send eveyone not updating anymore
+    logging.getLogger("telegram").info(
+        f" Latests collections database feeding loop stoped at {identity}"
+    )
+
+
 def main(option: str, **kwargs):
     if option == "local":
         local_db_service()
@@ -430,6 +519,8 @@ def main(option: str, **kwargs):
         operations_db_service()
     elif option == "current_prices":
         current_prices_db_service()
+    elif option == "latest":
+        latest_db_service()
     else:
         raise NotImplementedError(
             f" Can't find any action to be taken from {option} service option"
