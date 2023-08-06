@@ -1,8 +1,6 @@
 # Feed of latest block data
 
 import logging
-import tqdm
-from dataclasses import dataclass, asdict
 from apps.feeds.operations import task_enqueue_operations
 
 from bins.database.helpers import get_from_localdb
@@ -11,60 +9,6 @@ from bins.w3.builders import build_hypervisor
 from bins.w3.protocols.ramses.collectors import (
     create_multiFeeDistribution_data_collector,
 )
-
-
-@dataclass
-class multifeeDistribution_snapshot:
-    id: str = None
-    block: int = None
-    timestamp: int = None
-    address: str = None
-    dex: str = None
-    hypervisor_address: str = None
-    rewardToken: str = None
-    rewardToken_decimals: int = None
-    topic: str = None
-    total_staked: int = None
-    rewards: dict = None
-    last_updated_data: dict = None
-
-    def as_dict(self):
-        """_summary_
-
-        Returns:
-            _type_: _description_
-        """
-        # TODO: replace manual return with gettattr + check or similar
-        result = {}
-
-        if self.id:
-            result["id"] = self.id
-        else:
-            raise ValueError(f" multiFeeDistribution snapshot should have an id")
-
-        if self.block:
-            result["block"] = self.block
-        if self.timestamp:
-            result["timestamp"] = self.timestamp
-        if self.address:
-            result["address"] = self.address
-        if self.dex:
-            result["dex"] = self.dex
-        if self.hypervisor_address:
-            result["hypervisor_address"] = self.hypervisor_address
-        if self.rewardToken:
-            result["rewardToken"] = self.rewardToken
-        if self.rewardToken_decimals:
-            result["rewardToken_decimals"] = self.rewardToken_decimals
-        if self.topic:
-            result["topic"] = self.topic
-        if self.total_staked:
-            result["total_staked"] = self.total_staked
-        if self.rewards:
-            result["rewards"] = self.rewards
-        if self.last_updated_data:
-            result["last_updated_data"] = self.last_updated_data
-        return result
 
 
 def feed_latest_multifeedistribution_snapshot():

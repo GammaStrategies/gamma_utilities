@@ -1,7 +1,7 @@
 import logging
 import time
 import concurrent.futures
-from apps.feeds.latest.mutifeedistribution.currents import multifeeDistribution_snapshot
+from apps.feeds.latest.mutifeedistribution.item import multifeeDistribution_snapshot
 from apps.feeds.queue.helpers import to_free_or_not_to_free_item
 from apps.feeds.queue.push import (
     build_and_save_queue_from_hypervisor_status,
@@ -533,6 +533,7 @@ def pull_from_queue_latest_multiFeeDistribution(
             "hypervisor_block": {},
             "hypervisor_timestamp": {},
             "mfd_total_staked": {},
+            "hypervisor_period": {},
         }
 
         # get static rewards related to mfd and its linked hypervisor, (so that we know this hype's protocol)
@@ -604,6 +605,10 @@ def pull_from_queue_latest_multiFeeDistribution(
                         reward_static["hypervisor"]["address"]
                     ] = str(hypervisor.receiver.totalStakes)
 
+                    ephemeral_cache["hypervisor_period"][
+                        reward_static["hypervisor"]["address"]
+                    ] = hypervisor.current_period
+
             # use cached info
             snapshot.block = ephemeral_cache["hypervisor_block"][
                 reward_static["hypervisor"]["address"]
@@ -611,11 +616,22 @@ def pull_from_queue_latest_multiFeeDistribution(
             snapshot.timestamp = ephemeral_cache["hypervisor_timestamp"][
                 reward_static["hypervisor"]["address"]
             ]
-            snapshot.rewards = hypervisor.calculate_rewards(
-                period=hypervisor.current_period,
+            snapshot.current_period_rewards = hypervisor.calculate_rewards(
+                period=ephemeral_cache["hypervisor_period"][
+                    reward_static["hypervisor"]["address"]
+                ],
                 reward_token=reward_static["rewardToken"],
                 convert_bint=True,
             )
+            snapshot.last_period_rewards = hypervisor.calculate_rewards(
+                period=ephemeral_cache["hypervisor_period"][
+                    reward_static["hypervisor"]["address"]
+                ]
+                - 1,
+                reward_token=reward_static["rewardToken"],
+                convert_bint=True,
+            )
+
             snapshot.total_staked = ephemeral_cache["mfd_total_staked"][
                 reward_static["hypervisor"]["address"]
             ]
