@@ -388,7 +388,7 @@ def feed_mutiFeeDistribution_operations(
     if not block_ini:
         # get last block from database
         block_ini = (
-            get_db_last_multiFeeDistributionStatus_block(network=chain.database_name)
+            get_latest_multifeedistribution_last_blocks(network=chain.database_name)
             or block_ini_static
         )
 
@@ -461,23 +461,25 @@ def feed_queue_with_multiFeeDistribution_operations(
             task_enqueue_operations(
                 operations=operations,
                 network=chain.database_name,
-                operation_type=queueItemType.MULTIFEEDISTRIBUTION_STATUS,
+                operation_type=queueItemType.LATEST_MULTIFEEDISTRIBUTION,
             )
 
 
-def get_db_last_multiFeeDistributionStatus_block(network: str) -> int:
-    """Get the last multiFeeDistribution status block from database"""
+def get_latest_multifeedistribution_last_blocks(network: str) -> int:
+    """Get the last block from latest_multifeedistribution collection"""
 
     # get it from the collection
     if max_block := get_from_localdb(
         network=network,
-        collection="multifeedistribution_status",
-        query=[{"$group": {"_id": "none", "block": {"$max": "$block"}}}],
+        collection="latest_multifeedistribution",
+        query=[
+            {"$group": {"_id": "none", "block": {"$max": "$last_updated_data.block"}}}
+        ],
     ):
         max_block = max_block[0]["block"]
     else:
         logging.getLogger(__name__).debug(
-            f" there are no multiFeeDistribution status in db for {network} choose last block from"
+            f" there are no latest_multifeedistribution in db for {network} choose last block from"
         )
         max_block = 0
 
@@ -486,7 +488,12 @@ def get_db_last_multiFeeDistributionStatus_block(network: str) -> int:
         network=network,
         collection="queue",
         query=[
-            {"$match": {"type": queueItemType.MULTIFEEDISTRIBUTION_STATUS}},
+            {
+                "$match": {
+                    "type": queueItemType.LATEST_MULTIFEEDISTRIBUTION,
+                    "data.is_last_item": True,
+                }
+            },
             {"$group": {"_id": "none", "block": {"$max": "$block"}}},
         ],
     ):

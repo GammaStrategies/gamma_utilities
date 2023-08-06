@@ -806,7 +806,7 @@ class database_local(db_collections_common):
                     },
                     "multi_indexes": [],
                 },
-                "multifeedistribution_status": {
+                "latest_multifeedistribution": {
                     "mono_indexes": {
                         "id": True,
                         "block": False,

@@ -29,6 +29,7 @@ def convert_network_chain(network: str) -> Chain:
     raise ValueError(f"{network} is not a valid network name")
 
 
+# TODO: accept static hypervisor:dict as a parameter to use it for some fields instead of querying the chain
 def build_db_hypervisor(
     address: str,
     network: str,

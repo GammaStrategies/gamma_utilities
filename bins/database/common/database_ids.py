@@ -81,3 +81,9 @@ def create_id_user_operation(
     user_address: str, block: int, logIndex: int, hypervisor_address: str
 ) -> str:
     return f"{user_address}_{block}_{logIndex}_{hypervisor_address}"
+
+
+def create_id_latest_multifeedistributor(
+    mfd_address: str, rewardToken_address: str, hypervisor_address: str
+) -> str:
+    return f"{mfd_address}_{rewardToken_address}_{hypervisor_address}"

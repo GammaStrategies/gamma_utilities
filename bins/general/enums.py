@@ -204,10 +204,8 @@ class queueItemType(str, Enum):
     BLOCK = "block"
     OPERATION = "operation"
 
-    # special
-    MULTIFEEDISTRIBUTION_STATUS = (
-        "multifeedistribution_status"  # multiFeeDistribution operation
-    )
+    # latest data
+    LATEST_MULTIFEEDISTRIBUTION = "latest_multifeedistribution"
 
     # TODO: implement database_name and ...
 

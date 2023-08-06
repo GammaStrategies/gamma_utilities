@@ -188,6 +188,9 @@ class multiFeeDistribution_data_collector:
             )
             return None
 
+        # add is_last_item field so that it can be classified appropriately later when processing
+        itm["is_last_item"] = True
+
         return itm
 
 

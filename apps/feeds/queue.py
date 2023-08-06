@@ -3,6 +3,7 @@ from dataclasses import dataclass, asdict
 import logging
 import time
 import concurrent.futures
+from apps.feeds.latest.mutifeedistribution.currents import multifeeDistribution_snapshot
 from bins.database.helpers import get_default_localdb, get_from_localdb
 
 from bins.w3.protocols.gamma.hypervisor import gamma_hypervisor_bep20
@@ -11,11 +12,12 @@ from .status import (
     create_and_save_hypervisor_status,
     create_reward_status_from_hype_status,
 )
-from bins.configuration import CONFIGURATION
+from bins.configuration import CONFIGURATION, TOKEN_ADDRESS_EXCLUDE
 from bins.database.common.database_ids import (
     create_id_block,
     create_id_hypervisor_static,
     create_id_hypervisor_status,
+    create_id_latest_multifeedistributor,
     create_id_operation,
     create_id_price,
     create_id_queue,
@@ -112,7 +114,7 @@ class QueueItem:
             if "logIndex" in self.data and "transactionHash" in self.data:
                 self.id = f"{self.id}_{create_id_operation(logIndex=self.data['logIndex'], transactionHash=self.data['transactionHash'])}"
 
-        elif self.type == queueItemType.MULTIFEEDISTRIBUTION_STATUS:
+        elif self.type == queueItemType.LATEST_MULTIFEEDISTRIBUTION:
             # create the basic id
             self.id = create_id_queue(
                 type=self.type, block=self.block, hypervisor_address=self.address
@@ -443,11 +445,11 @@ def process_queue_item_type(network: str, queue_item: QueueItem) -> bool:
             network=network, queue_item=queue_item, pull_func=pull_from_queue_operation
         )
 
-    elif queue_item.type == queueItemType.MULTIFEEDISTRIBUTION_STATUS:
+    elif queue_item.type == queueItemType.LATEST_MULTIFEEDISTRIBUTION:
         return pull_common_processing_work(
             network=network,
             queue_item=queue_item,
-            pull_func=pull_from_queue_multiFeeDistribution_status,
+            pull_func=pull_from_queue_latest_multiFeeDistribution,
         )
     else:
         # reset queue item
@@ -635,6 +637,14 @@ def pull_from_queue_reward_status(network: str, queue_item: QueueItem) -> bool:
 
 
 def pull_from_queue_price(network: str, queue_item: QueueItem) -> bool:
+    # check prices not to process
+    if queue_item.address.lower() in TOKEN_ADDRESS_EXCLUDE.get(network, {}):
+        logging.getLogger(__name__).debug(
+            f" {network} queue item {queue_item.id} price is excluded from processing. Removing from queue"
+        )
+        # remove from queue
+        return True
+
     # debug variables
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     try:
@@ -845,7 +855,7 @@ def pull_from_queue_operation(network: str, queue_item: QueueItem) -> bool:
 #   earned_since_last_event =  calculate qtty earned since last event
 
 
-def pull_from_queue_multiFeeDistribution_status(
+def pull_from_queue_latest_multiFeeDistribution(
     network: str, queue_item: QueueItem
 ) -> bool:
     # build a list of itmes to be saved to the database
@@ -853,22 +863,10 @@ def pull_from_queue_multiFeeDistribution_status(
 
     try:
         # build mdf base structure ( to be saved to database later)
-        # the mdf operation is in the 'data' field...
-        mfd_status = {
-            "id": create_id_operation(
-                logIndex=queue_item.data["logIndex"],
-                transactionHash=queue_item.data["transactionHash"],
-            ),
-            "block": queue_item.block,
-            "timestamp": queue_item.data["timestamp"],
-            "address": queue_item.data["address"].lower(),
-            "dex": "",
-            "hypervisor_address": "",
-            "rewardToken": "",
-            "rewardToken_decimals": 0,
-            "topic": queue_item.data["topic"],
-            "total_staked": 0,
-        }
+        snapshot = multifeeDistribution_snapshot(
+            address=queue_item.data["address"].lower(),
+            topic=queue_item.data["topic"],
+        )
 
         # log operation processing
         logging.getLogger(__name__).debug(
@@ -876,7 +874,7 @@ def pull_from_queue_multiFeeDistribution_status(
         )
 
         ephemeral_cache = {
-            "hypervisor_rewards": {},
+            "hypervisor_block": {},
             "hypervisor_timestamp": {},
             "mfd_total_staked": {},
         }
@@ -889,7 +887,7 @@ def pull_from_queue_multiFeeDistribution_status(
             aggregate=[
                 {
                     "$match": {
-                        "rewarder_registry": mfd_status["address"],
+                        "rewarder_registry": queue_item.data["address"].lower(),
                     }
                 },
                 # // find hype's reward status
@@ -913,15 +911,15 @@ def pull_from_queue_multiFeeDistribution_status(
             batch_size=100000,
         ):
             # set mfd status hypervisor address and dex ( protocol)
-            mfd_status["hypervisor_address"] = reward_static["hypervisor"]["address"]
-            mfd_status["dex"] = reward_static["hypervisor"]["dex"]
+            snapshot.hypervisor_address = reward_static["hypervisor"]["address"]
+            snapshot.dex = reward_static["hypervisor"]["dex"]
 
-            mfd_status["rewardToken"] = reward_static["rewardToken"]
-            mfd_status["rewardToken_decimals"] = reward_static["rewardToken_decimals"]
+            snapshot.rewardToken = reward_static["rewardToken"]
+            snapshot.rewardToken_decimals = reward_static["rewardToken_decimals"]
 
-            # try to not calculate things just for the sake of it
+            # use local cache to minimize external calls
             if (
-                mfd_status["hypervisor_address"]
+                snapshot.hypervisor_address
                 not in ephemeral_cache["hypervisor_timestamp"]
             ):
                 # build hypervisor at block with private rpc
@@ -929,7 +927,7 @@ def pull_from_queue_multiFeeDistribution_status(
                     network=network,
                     protocol=text_to_protocol(reward_static["hypervisor"]["dex"]),
                     block=queue_item.block,
-                    hypervisor_address=mfd_status["hypervisor_address"],
+                    hypervisor_address=reward_static["hypervisor"]["address"],
                     cached=False,
                 ):
                     # set custom rpc type
@@ -937,40 +935,66 @@ def pull_from_queue_multiFeeDistribution_status(
 
                     # set timestamp
                     ephemeral_cache["hypervisor_timestamp"][
-                        mfd_status["hypervisor_address"]
+                        reward_static["hypervisor"]["address"]
                     ] = hypervisor._timestamp
 
-                    # calculate current real rewards
-                    # logging.getLogger(__name__).debug(f" Calculating rewards... ")
-                    ephemeral_cache["hypervisor_rewards"][
-                        mfd_status["hypervisor_address"]
-                    ] = hypervisor.calculate_rewards(
-                        period=hypervisor.current_period,
-                        reward_token=reward_static["rewardToken"],
-                    )
+                    # set block
+                    ephemeral_cache["hypervisor_block"][
+                        reward_static["hypervisor"]["address"]
+                    ] = hypervisor.block
 
                     # get current total staked qtty from multifeedistributor contract
                     ephemeral_cache["mfd_total_staked"][
-                        mfd_status["hypervisor_address"]
+                        reward_static["hypervisor"]["address"]
                     ] = hypervisor.receiver.totalStakes
 
             # use cached info
-            mfd_status["timestamp"] = ephemeral_cache["hypervisor_timestamp"][
-                mfd_status["hypervisor_address"]
+            snapshot.block = ephemeral_cache["hypervisor_block"][
+                reward_static["hypervisor"]["address"]
             ]
-            mfd_status["real_rewards"] = ephemeral_cache["hypervisor_rewards"][
-                mfd_status["hypervisor_address"]
+            snapshot.timestamp = ephemeral_cache["hypervisor_timestamp"][
+                reward_static["hypervisor"]["address"]
             ]
-            mfd_status["total_staked"] = ephemeral_cache["mfd_total_staked"][
-                mfd_status["hypervisor_address"]
+            snapshot.rewards = hypervisor.calculate_rewards(
+                period=hypervisor.current_period,
+                reward_token=reward_static["rewardToken"],
+            )
+            snapshot.total_staked = ephemeral_cache["mfd_total_staked"][
+                reward_static["hypervisor"]["address"]
             ]
+
+            # set id
+            snapshot.id = (
+                create_id_latest_multifeedistributor(
+                    mfd_address=snapshot.address,
+                    rewardToken_address=snapshot.rewardToken,
+                    hypervisor_address=snapshot.hypervisor_address,
+                ),
+            )
+
+            # set item to save
+            if "is_last_item" in queue_item.data and queue_item.data["is_last_item"]:
+                # set last updated but nor rewards field
+                item_to_save = multifeeDistribution_snapshot(
+                    id=snapshot.id,
+                    address=snapshot.address,
+                    hypervisor_address=snapshot.hypervisor_address,
+                    dex=snapshot.dex,
+                    rewardToken=snapshot.rewardToken,
+                    rewardToken_decimals=snapshot.rewardToken_decimals,
+                    last_updated_data=snapshot.as_dict(),
+                ).as_dict()
+
+            else:
+                # set item to save
+                item_to_save = snapshot.as_dict()
 
             # add item to be saved
-            save_todb.append(mfd_status.copy())
+            save_todb.append(item_to_save)
 
-        # save to multifeedistribution_status collection database
+        # save to latest_multifeedistribution collection database
         if db_return := get_default_localdb(network=network).save_items_to_database(
-            data=save_todb, collection_name="multifeedistribution_status"
+            data=save_todb, collection_name="latest_multifeedistribution"
         ):
             logging.getLogger(__name__).debug(
                 f"       db return-> del: {db_return.deleted_count}  ins: {db_return.inserted_count}  mod: {db_return.modified_count}  ups: {db_return.upserted_count} matched: {db_return.matched_count}"
@@ -987,7 +1011,7 @@ def pull_from_queue_multiFeeDistribution_status(
 
     except Exception as e:
         logging.getLogger(__name__).exception(
-            f"Error processing {network}'s operation queue item: {e}"
+            f"Error processing {network}'s latest_multifeedistribution queue item: {e}"
         )
 
     # return result
