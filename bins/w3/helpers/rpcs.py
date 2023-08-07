@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import logging
 import random
 import time
 
@@ -82,12 +83,18 @@ class w3Provider:
             self._cooldown *= 2
             # beguin cooldown
             self._cooldown_start = time.time()
+            logging.getLogger(__name__).debug(
+                f"  max aggregated failed attempts hit. Cooling {self._url} down to {self._cooldown} seconds"
+            )
 
         elif self._failed_attempts > self._max_failed_attempts:
             # disable
             self._is_available = False
             # beguin cooldown
             self._cooldown_start = time.time()
+            logging.getLogger(__name__).debug(
+                f"  max failed attempts hit. Cooling {self._url} down to {self._cooldown} seconds"
+            )
 
     # stats
     def get_stats(self) -> dict:
@@ -95,8 +102,12 @@ class w3Provider:
             "url": self._url,
             "type": self._type,
             "attempts": self._attempts,
-            "failed_attempts": self._failed_attempts,
-            "failed_attempts_aggregated": self._failed_attempts_aggregated,
+            "failed_attempts": (
+                self._failed_attempts + self._failed_attempts_aggregated
+            )
+            / self._attempts
+            if self._attempts
+            else 0,
             "is_available": self._is_available,
             "cooldown": self._cooldown,
         }
@@ -125,10 +136,11 @@ class w3Providers:
                 if network not in self.providers[key_name]:
                     self.providers[key_name][network] = []
 
-                # convert to w3Providers
-                self.providers[key_name][network].extend(
-                    [w3Provider(url=rpcUrl, type=key_name) for rpcUrl in rpcUrls]
-                )
+                if rpcUrls:
+                    # convert to w3Providers
+                    self.providers[key_name][network].extend(
+                        [w3Provider(url=rpcUrl, type=key_name) for rpcUrl in rpcUrls]
+                    )
 
     def get_rpc_list(
         self, network: str, rpcKey_names: list[str] | None = None, shuffle: bool = True
