@@ -632,9 +632,22 @@ def pull_from_queue_latest_multiFeeDistribution(
                 convert_bint=True,
             )
 
+            # add staked info from MFD
             snapshot.total_staked = ephemeral_cache["mfd_total_staked"][
                 reward_static["hypervisor"]["address"]
             ]
+
+            # add balance of rewardToken at MFD
+            rewardToken_contract = build_erc20_helper(
+                chain=text_to_chain(network), address=reward_static["rewardToken"]
+            )
+            snapshot.rewardToken_balance = rewardToken_contract.balanceOf(
+                address=queue_item.data["address"]
+            )
+            # reward data amount
+            snapshot.rewardData = hypervisor.receiver.rewardData(
+                rewardToken_address=reward_static["rewardToken"]
+            )
 
             # set id
             snapshot.id = create_id_latest_multifeedistributor(

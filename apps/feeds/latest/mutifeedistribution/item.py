@@ -11,6 +11,8 @@ class multifeeDistribution_snapshot:
     hypervisor_address: str = None
     rewardToken: str = None
     rewardToken_decimals: int = None
+    rewardToken_balance: int = None
+    rewardData: dict = None
     topic: str = None
     total_staked: int = None
     current_period_rewards: dict = None
@@ -45,6 +47,10 @@ class multifeeDistribution_snapshot:
             result["rewardToken"] = self.rewardToken
         if self.rewardToken_decimals:
             result["rewardToken_decimals"] = self.rewardToken_decimals
+        if self.rewardToken_balance:
+            result["rewardToken_balance"] = self.rewardToken_balance
+        if self.rewardData:
+            result["rewardData"] = self.rewardData
         if self.topic:
             result["topic"] = self.topic
         if self.total_staked:

@@ -173,6 +173,10 @@ class multiFeeDistribution_data_collector:
         elif topic == "mdf_getAllRewards":
             itm["user"] = event.topics[1][-20:].hex()
             itm["reward_token"] = event.topics[2][-20:].hex()
+        # elif topic == "mdf_transfer":
+        #     itm["src"] = event.topics[1][-20:].hex()
+        #     itm["dst"] = event.topics[2][-20:].hex()
+        #     itm["qtty"] = str(data[0])
 
         elif topic in [
             "mdf_adminChanged",
@@ -214,6 +218,8 @@ def create_multiFeeDistribution_data_collector(
             "mdf_initialized": "0x7f26b83ff96e1f2b6a682f133852f6798a09c465da95921460cefb3847402498",
             "mdf_ownershipTransfer": "0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0",
             "mdf_upgraded": "0xbc7cd75a20ee27fd9adebab32041f755214dbc6bffa90cc0225b39da2e5c2d3b",
+            # "mdf_claimRewards": "0xc8c7ebd754a625a8677ab2031c7674259be1e8c1a7f3521cbf5edbca8f48099c", # this is from the proxy contract, not mfd
+            # "mdf_transfer": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
         },
         topics_data_decoders={
             # index_topic_1 address user, index_topic_2 address rewardToken, uint256 amount
@@ -230,6 +236,7 @@ def create_multiFeeDistribution_data_collector(
             "mdf_ownershipTransfer": [],
             # index_topic_1 address implementation
             "mdf_upgraded": [],
+            # "mdf_transfer": ["uint256"],
         },
         network=network,
     )

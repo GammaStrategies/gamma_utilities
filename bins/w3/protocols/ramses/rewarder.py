@@ -1,4 +1,6 @@
 from web3 import Web3
+
+from bins.errors.general import ProcessingError
 from ....general.enums import rewarderType
 from ..general import web3wrap
 from .pool import pool
@@ -306,6 +308,28 @@ class multiFeeDistribution(web3wrap):
     def totalStakes(self) -> int:
         """ """
         return self.call_function_autoRpc("totalStakes")
+
+    def rewardData(self, rewardToken_address: str) -> dict:
+        """Amount of reward token saved in contract memory as per its last update time [ stake, unstake, claim and getAllRewards calls]
+
+        Returns { amount uint256, lastTimeUpdated uint256, rewardPerToken uint256}
+        """
+        if tmp := self.call_function_autoRpc("rewardData", None, rewardToken_address):
+            return {
+                "amount": tmp[0],
+                "lastTimeUpdated": tmp[1],
+                "rewardPerToken": tmp[2],
+            }
+        else:
+            raise ProcessingError(
+                item={
+                    "address": self.address,
+                    "block": self.block,
+                    "object": "multiFeeDistribution",
+                },
+                action="none",
+                message=f" can't get any result of rewardData({rewardToken_address}) call ",
+            )
 
 
 # TODO: gaugeFactory
