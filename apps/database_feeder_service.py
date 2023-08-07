@@ -453,6 +453,40 @@ def latest_db_service():
         logging.getLogger(__name__).debug("   Starting json file creation process")
         create_json_process.start()
 
+    def process_manager(process_to_manage, target: callable, name: str):
+        start = True
+        recreate = False
+        join = False
+
+        if not process_to_manage or not process_to_manage.is_alive():
+            logging.getLogger(__name__).debug(f"   {name} process is not alive.")
+            recreate = True
+        elif process_to_manage.exitcode < 0:
+            logging.getLogger(__name__).error(
+                f"   {name} process ended with an error or a terminate."
+            )
+            recreate = True
+        else:
+            logging.getLogger(__name__).warning(
+                f"  {name} process is still alive and we r trying to execute it. "
+            )
+            # set process not to start
+            start = False
+
+        # process operations
+        if join:
+            logging.getLogger(__name__).debug(f"   Joining {name} process.")
+            process_to_manage.join()
+        if recreate:
+            logging.getLogger(__name__).debug(f"   Creating {name} process.")
+            process_to_manage = mp.Process(
+                target=target,
+                name=name,
+            )
+        if start:
+            logging.getLogger(__name__).debug(f"   Starting {name} process.")
+            process_to_manage.start()
+
     # time control var to fire callables
     time_control_loop = {
         "latest_prices": {
@@ -460,18 +494,21 @@ def latest_db_service():
             "last": time.time(),
             "callable": feed_latest_usd_prices,
             "args": (True),
+            "process": None,
         },
         "create_json_prices": {
             "every": 60 * 60 * 2,  # in seconds
             "last": time.time(),
             "callable": create_json_file,
             "args": (create_json_process),
+            "process": None,
         },
         "latest_multifeedistributor": {
             "every": 60,  # in seconds
             "last": time.time(),
             "callable": feed_latest_multifeedistribution_snapshot,
             "args": (),
+            "process": None,
         },
     }
 
@@ -480,8 +517,11 @@ def latest_db_service():
             for key, value in time_control_loop.items():
                 if (time.time() - value["last"]) > value["every"]:
                     value["last"] = time.time()
-                    logging.getLogger(__name__).debug(f"   Calling {key} ")
+                    logging.getLogger(__name__).debug(f"   Starting {key} ")
                     value["callable"](*value["args"])
+                    logging.getLogger(__name__).debug(
+                        f"   {key} finished in {time.time() - value['last']} seconds"
+                    )
 
     except KeyboardInterrupt:
         logging.getLogger(__name__).debug(
