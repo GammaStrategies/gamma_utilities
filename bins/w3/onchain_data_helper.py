@@ -7,13 +7,15 @@ from web3.middleware import async_geth_poa_middleware, geth_poa_middleware
 from pathlib import Path
 import math
 
+from bins.w3.helpers.rpcs import RPC_MANAGER
+
 from ..w3.protocols.gamma.collectors import data_collector_OLD
 from ..w3.protocols.general import erc20, bep20
 
 from ..general import general_utilities
 from ..mixed import price_utilities
 
-from ..configuration import CONFIGURATION, rpcUrl_list
+from ..configuration import CONFIGURATION
 
 
 class onchain_data_helper:
@@ -43,7 +45,10 @@ class onchain_data_helper:
            Web3:
         """
 
-        rpcProvider = rpcUrl_list(network=network, rpcKey_names=["private"])[0]
+        # rpcProvider = rpcUrl_list(network=network, rpcKey_names=["private"])[0]
+        rpcProvider = RPC_MANAGER.get_rpc_list(
+            network=network, rpcKey_names=["private"]
+        )[0]
 
         w3 = Web3(
             Web3.HTTPProvider(

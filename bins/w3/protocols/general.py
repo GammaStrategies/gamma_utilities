@@ -8,7 +8,9 @@ from web3 import Web3, exceptions, types
 from web3.contract import Contract
 from web3.middleware import geth_poa_middleware, simple_cache_middleware
 
-from ...configuration import CONFIGURATION, WEB3_CHAIN_IDS, rpcUrl_list
+from bins.w3.helpers.rpcs import RPC_MANAGER, w3Provider
+
+from ...configuration import CONFIGURATION, WEB3_CHAIN_IDS
 from ...general import file_utilities
 from ...cache import cache_utilities
 from ...general.enums import Chain
@@ -79,11 +81,14 @@ class web3wrap:
 
     def setup_w3(self, network: str, web3Url: str | None = None) -> Web3:
         # create Web3 helper
-        rpcProvider = self.get_rpcUrls(rpcKey_names=["private"])[0]
+        # rpcProvider = self.get_rpcUrls(rpcKey_names=["private"])[0]
 
         result = Web3(
             Web3.HTTPProvider(
-                web3Url or rpcProvider,
+                web3Url
+                or RPC_MANAGER.get_rpc_list(
+                    network=self._network, rpcKey_names=["private"]
+                )[0],
                 request_kwargs={"timeout": 60},
             )
         )
@@ -416,24 +421,49 @@ class web3wrap:
         rpcKey_names: list[str] | None = None,
     ) -> list:
         entries = []
-        # execute query till it works
-        for rpcUrl in self.get_rpcUrls(rpcKey_names):
+
+        for rpc in RPC_MANAGER.get_rpc_list(
+            network=self._network, rpcKey_names=rpcKey_names
+        ):
             # set rpc
-            self._w3 = self.setup_w3(network=self._network, web3Url=rpcUrl)
+            self._w3 = self.setup_w3(network=self._network, web3Url=rpc.url)
             logging.getLogger(__name__).debug(
-                f"   Using {rpcUrl} to gather {self._network}'s events"
+                f"   Using {rpc.url} to gather {self._network}'s events"
             )
             # get chunk entries
             try:
+                # add rpc attempt
+                rpc.add_attempt()
                 if entries := self._w3.eth.filter(filter).get_all_entries():
                     # exit rpc loop
                     break
             except (requests.exceptions.HTTPError, ValueError) as e:
                 logging.getLogger(__name__).debug(
-                    f" Could not get {self._network}'s events usig {rpcUrl} from filter  -> {e}"
+                    f" Could not get {self._network}'s events usig {rpc.url} from filter  -> {e}"
                 )
+                # failed rpc event
+                rpc.add_failed()
                 # try changing the rpcURL and retry
                 continue
+
+        # # execute query till it works
+        # for rpcUrl in self.get_rpcUrls(rpcKey_names):
+        #     # set rpc
+        #     self._w3 = self.setup_w3(network=self._network, web3Url=rpcUrl)
+        #     logging.getLogger(__name__).debug(
+        #         f"   Using {rpcUrl} to gather {self._network}'s events"
+        #     )
+        #     # get chunk entries
+        #     try:
+        #         if entries := self._w3.eth.filter(filter).get_all_entries():
+        #             # exit rpc loop
+        #             break
+        #     except (requests.exceptions.HTTPError, ValueError) as e:
+        #         logging.getLogger(__name__).debug(
+        #             f" Could not get {self._network}'s events usig {rpcUrl} from filter  -> {e}"
+        #         )
+        #         # try changing the rpcURL and retry
+        #         continue
 
         # return all found
         return entries
@@ -457,12 +487,13 @@ class web3wrap:
         return result
 
     # universal failover execute funcion
-    def call_function(self, function_name: str, rpcUrls: list[str], *args):
+    def call_function(self, function_name: str, rpcs: list[w3Provider], *args):
         # loop choose url
-        for rpcUrl in rpcUrls:
+        for rpc in rpcs:
             try:
+                rpc.add_attempt()
                 # create web3 conn
-                chain_connection = self.setup_w3(network=self._network, web3Url=rpcUrl)
+                chain_connection = self.setup_w3(network=self._network, web3Url=rpc.url)
                 # set root w3 conn
                 self._w3 = chain_connection
                 # create contract
@@ -477,8 +508,9 @@ class web3wrap:
             except Exception as e:
                 # not working rpc or function at block has no data
                 logging.getLogger(__name__).debug(
-                    f"  Error calling function {function_name} using {rpcUrl} rpc: {e}  address: {self._address}"
+                    f"  Error calling function {function_name} using {rpc.url} rpc: {e}  address: {self._address}"
                 )
+                rpc.add_failed()
 
         # no rpcUrl worked
         return None
@@ -504,9 +536,14 @@ class web3wrap:
 
         result = self.call_function(
             function_name,
-            self.get_rpcUrls(rpcKey_names=rpcKey_names),
+            RPC_MANAGER.get_rpc_list(network=self._network, rpcKey_names=rpcKey_names),
             *args,
         )
+        # result = self.call_function(
+        #     function_name,
+        #     self.get_rpcUrls(rpcKey_names=rpcKey_names),
+        #     *args,
+        # )
         if not result is None:
             return result
         else:
@@ -516,22 +553,22 @@ class web3wrap:
 
         return None
 
-    def get_rpcUrls(
-        self, rpcKey_names: list[str] | None = None, shuffle: bool = True
-    ) -> list[str]:
-        """Get a list of rpc urls from configuration file
+    # def get_rpcUrls(
+    #     self, rpcKey_names: list[str] | None = None, shuffle: bool = True
+    # ) -> list[str]:
+    #     """Get a list of rpc urls from configuration file
 
-        Args:
-            rpcKey_names (list[str] | None, optional): private or public or whatever is placed in config w3Providers. Defaults to None.
-            shuffle (bool, optional): shuffle configured order. Defaults to True.
+    #     Args:
+    #         rpcKey_names (list[str] | None, optional): private or public or whatever is placed in config w3Providers. Defaults to None.
+    #         shuffle (bool, optional): shuffle configured order. Defaults to True.
 
-        Returns:
-            list[str]: RPC urls
-        """
+    #     Returns:
+    #         list[str]: RPC urls
+    #     """
 
-        return rpcUrl_list(
-            network=self._network, rpcKey_names=rpcKey_names, shuffle=shuffle
-        )
+    #     return rpcUrl_list(
+    #         network=self._network, rpcKey_names=rpcKey_names, shuffle=shuffle
+    #     )
 
     def _getTransactionReceipt(self, txHash: str):
         """Get transaction receipt
@@ -543,18 +580,31 @@ class web3wrap:
             dict: transaction receipt
         """
 
-        # get a list of rpc urls
-        rpcUrls = self.get_rpcUrls()
-        # execute query till it works
-        for rpcUrl in rpcUrls:
+        # get w3Provider list
+        for rpc in RPC_MANAGER.get_rpc_list(network=self._network):
             try:
-                _w3 = self.setup_w3(network=self._network, web3Url=rpcUrl)
+                rpc.add_attempt()
+                _w3 = self.setup_w3(network=self._network, web3Url=rpc.url)
                 return _w3.eth.get_transaction_receipt(txHash)
             except Exception as e:
                 logging.getLogger(__name__).debug(
-                    f" error getting transaction receipt using {rpcUrl} rpc: {e}"
+                    f" error getting transaction receipt using {rpc.url} rpc: {e}"
                 )
+                rpc.add_failed()
                 continue
+
+        # # get a list of rpc urls
+        # rpcUrls = self.get_rpcUrls()
+        # # execute query till it works
+        # for rpcUrl in rpcUrls:
+        #     try:
+        #         _w3 = self.setup_w3(network=self._network, web3Url=rpcUrl)
+        #         return _w3.eth.get_transaction_receipt(txHash)
+        #     except Exception as e:
+        #         logging.getLogger(__name__).debug(
+        #             f" error getting transaction receipt using {rpcUrl} rpc: {e}"
+        #         )
+        #         continue
 
         return None
 
@@ -566,18 +616,31 @@ class web3wrap:
 
         """
 
-        # get a list of rpc urls
-        rpcUrls = self.get_rpcUrls()
-        # execute query till it works
-        for rpcUrl in rpcUrls:
+        # get w3Provider list
+        for rpc in RPC_MANAGER.get_rpc_list(network=self._network):
             try:
-                _w3 = self.setup_w3(network=self._network, web3Url=rpcUrl)
+                rpc.add_attempt()
+                _w3 = self.setup_w3(network=self._network, web3Url=rpc.url)
                 return _w3.eth.get_block(block)
             except Exception as e:
                 logging.getLogger(__name__).debug(
-                    f" error getting block data using {rpcUrl} rpc: {e}"
+                    f" error getting block data using {rpc.url} rpc: {e}"
                 )
+                rpc.add_failed()
                 continue
+
+        # # get a list of rpc urls
+        # rpcUrls = self.get_rpcUrls()
+        # # execute query till it works
+        # for rpcUrl in rpcUrls:
+        #     try:
+        #         _w3 = self.setup_w3(network=self._network, web3Url=rpcUrl)
+        #         return _w3.eth.get_block(block)
+        #     except Exception as e:
+        #         logging.getLogger(__name__).debug(
+        #             f" error getting block data using {rpcUrl} rpc: {e}"
+        #         )
+        #         continue
 
         return None
 

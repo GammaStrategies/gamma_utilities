@@ -7,7 +7,9 @@ from hexbytes import HexBytes
 from web3 import Web3
 from web3.middleware import geth_poa_middleware, simple_cache_middleware
 
-from ....configuration import CONFIGURATION, rpcUrl_list
+from bins.w3.helpers.rpcs import RPC_MANAGER
+
+from ....configuration import CONFIGURATION
 from ..general import erc20, bep20
 from .hypervisor import (
     gamma_hypervisor,
@@ -332,7 +334,10 @@ class data_collector_OLD:
     def setup_w3(self, network: str):
         # create Web3 helper
 
-        rpcProvider = rpcUrl_list(network=network, rpcKey_names=["private"])[0]
+        # rpcProvider = rpcUrl_list(network=network, rpcKey_names=["private"])[0]
+        rpcProvider = RPC_MANAGER.get_rpc_list(
+            network=network, rpcKey_names=["private"]
+        )[0]
 
         self._w3 = Web3(
             Web3.HTTPProvider(
