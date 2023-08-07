@@ -9,6 +9,7 @@ from apps.feeds.queue.push import (
 )
 from apps.feeds.queue.queue_item import QueueItem
 from bins.database.helpers import get_default_localdb, get_from_localdb
+from bins.errors.general import ProcessingError
 
 from ..status import (
     create_reward_status_from_hype_status,
@@ -117,12 +118,11 @@ def process_queue_item_type(network: str, queue_item: QueueItem) -> bool:
         )
 
     elif queue_item.type == queueItemType.LATEST_MULTIFEEDISTRIBUTION:
-        return False  # TODO: debug
-        # return pull_common_processing_work(
-        #     network=network,
-        #     queue_item=queue_item,
-        #     pull_func=pull_from_queue_latest_multiFeeDistribution,
-        # )
+        return pull_common_processing_work(
+            network=network,
+            queue_item=queue_item,
+            pull_func=pull_from_queue_latest_multiFeeDistribution,
+        )
     else:
         # reset queue item
 
@@ -693,6 +693,9 @@ def pull_from_queue_latest_multiFeeDistribution(
         )
 
         return True
+
+    except ProcessingError as e:
+        logging.getLogger(__name__).error(f"{e.message}")
 
     except Exception as e:
         logging.getLogger(__name__).exception(
