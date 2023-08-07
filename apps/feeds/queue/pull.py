@@ -117,11 +117,12 @@ def process_queue_item_type(network: str, queue_item: QueueItem) -> bool:
         )
 
     elif queue_item.type == queueItemType.LATEST_MULTIFEEDISTRIBUTION:
-        return pull_common_processing_work(
-            network=network,
-            queue_item=queue_item,
-            pull_func=pull_from_queue_latest_multiFeeDistribution,
-        )
+        return False  # TODO: debug
+        # return pull_common_processing_work(
+        #     network=network,
+        #     queue_item=queue_item,
+        #     pull_func=pull_from_queue_latest_multiFeeDistribution,
+        # )
     else:
         # reset queue item
 
