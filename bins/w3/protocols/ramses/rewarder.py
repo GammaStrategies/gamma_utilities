@@ -314,7 +314,9 @@ class multiFeeDistribution(web3wrap):
 
         Returns { amount uint256, lastTimeUpdated uint256, rewardPerToken uint256}
         """
-        if tmp := self.call_function_autoRpc("rewardData", None, rewardToken_address):
+        if tmp := self.call_function_autoRpc(
+            "rewardData", None, Web3.toChecksumAddress(rewardToken_address)
+        ):
             return {
                 "amount": tmp[0],
                 "lastTimeUpdated": tmp[1],
