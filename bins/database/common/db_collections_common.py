@@ -868,7 +868,10 @@ class database_local(db_collections_common):
         return self.replace_item_to_database(data=data, collection_name="queue")
 
     def get_queue_item(
-        self, types: list[queueItemType] | None = None, find: dict | None = None
+        self,
+        types: list[queueItemType] | None = None,
+        find: dict | None = None,
+        sort: list[tuple] | None = None,
     ) -> dict | None:
         """Get the first found queue item and set it as processing.
             The sorting is done by creation time
@@ -876,6 +879,7 @@ class database_local(db_collections_common):
         Args:
             types (list[queueItemType] | None, optional): queue types to handle. Defaults to any.
             find (dict | None, optional): custom find command. Defaults to {"processing": 0}.
+            sort (list[tuple] | None, optional): custom sort command. Defaults to [("created", ASCENDING)].
 
         Returns:
             dict | None: queue dict item
@@ -886,11 +890,14 @@ class database_local(db_collections_common):
         if types:
             find["type"] = {"$in": types}
 
+        if not sort:
+            sort = [("created", ASCENDING)]
+
         # get one item from queue
         return self.find_one_and_update(
             collection_name="queue",
             find=find,
-            sort=[("creation", ASCENDING)],
+            sort=sort,
             update={"$set": {"processing": time.time()}},
         )
 
