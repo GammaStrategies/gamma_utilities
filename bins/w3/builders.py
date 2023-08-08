@@ -530,12 +530,12 @@ def build_erc20_helper(
 
     return (
         bep20(
-            address="0x0000000000000000000000000000000000000000",
+            address=address or "0x0000000000000000000000000000000000000000",
             network=chain.database_name,
         )
         if chain == Chain.BSC
         else erc20(
-            address="0x0000000000000000000000000000000000000000",
+            address=address or "0x0000000000000000000000000000000000000000",
             network=chain.database_name,
         )
     )
