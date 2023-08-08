@@ -221,27 +221,32 @@ def cooldown_severity(error: Exception, rpc: w3Provider) -> int:
         cooldown = random.randint(60, 120)
 
     try:
-        # check if we need to disable this provider
-        if (
-            error.args[0].get("code", 0) == -32000
-            and error.args[0].get("message", "").startswith("too many requests")
-            or error.args[0]
-            .get("message", "")
-            .startswith("Upgrade to an archive plan add-on for your account")
-        ):
-            logging.getLogger(__name__).debug(f"  too many requests for {rpc.url}")
-            # return random cooldown between 5 and 10 minutes
-            cooldown = random.randint(300, 600)
+        # Process dict info only
+        if error.args and isinstance(error.args[0], dict):
+            # check if we need to disable this provider
+            if (
+                error.args[0].get("code", 0) == -32000
+                and error.args[0].get("message", "").startswith("too many requests")
+                or error.args[0]
+                .get("message", "")
+                .startswith("Upgrade to an archive plan add-on for your account")
+            ):
+                logging.getLogger(__name__).debug(f"  too many requests for {rpc.url}")
+                # return random cooldown between 5 and 10 minutes
+                cooldown = random.randint(300, 600)
 
-        elif error.args[0].get("code", 0) == -32000 and error.args[0].get(
-            "message", ""
-        ).startswith("missing trie node"):
-            # disable by a small amount of time
-            logging.getLogger(__name__).debug(
-                f"  rpc {rpc.url} has no data at the specified block (public node)"
-            )
-            # return random cooldown
-            cooldown = random.randint(90, 150)
+            elif error.args[0].get("code", 0) == -32000 and error.args[0].get(
+                "message", ""
+            ).startswith("missing trie node"):
+                # disable by a small amount of time
+                logging.getLogger(__name__).debug(
+                    f"  rpc {rpc.url} has no data at the specified block (public node)"
+                )
+                # return random cooldown
+                cooldown = random.randint(90, 150)
+
+        # there are plenty of error types to handle here .. like MaxRetryError
+
     except Exception as e:
         logging.getLogger(__name__).exception(
             f" Error while checking cooldown severity-> {e}"
