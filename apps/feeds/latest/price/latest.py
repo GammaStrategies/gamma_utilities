@@ -39,6 +39,7 @@ def feed_latest_usd_prices(threaded: bool = True):
     def loopme_coingecko(network, addresses) -> tuple[str, list[str], bool]:
         result = []
         addresses_processed = []
+        prices = {}
         try:
             # get prices from coingecko
             prices = cg_helper.get_prices(
