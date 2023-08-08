@@ -1,4 +1,5 @@
 import contextlib
+import re
 import sys
 import os
 import logging
@@ -10,7 +11,7 @@ from datetime import timezone
 from decimal import Decimal
 
 from bins.database.helpers import get_default_localdb
-from .database_checker import get_all_logfiles
+from .database_checker import get_all_logfiles, load_logFile
 
 if __name__ == "__main__":
     # append parent directory pth
@@ -507,6 +508,150 @@ def queue_analysis():
     # read benchmark logs to sumarize queue statistics per network ( average processing time, average waiting time, etc )
     for log_file in get_all_logfiles(log_names=["benchmark"]):
         pass
+
+
+# benchmark analysis
+def analize_benchmark_log(log_file: str) -> dict | None:
+    # result
+    result = {
+        "total_items": 0,
+        "processing_time": 0,  # seconds
+        "lifetime": 0,  # seconds
+        "average_processing_time": 0,
+        "average_lifetime": 0,
+        "networks": {},
+        "types": {},
+    }
+    # regex
+    regex_search = "\-\s\s(?P<network>.*?)\squeue\sitem\s(?P<type>.*)\sprocessing\stime\:\s(?P<processing>.*?)\sseconds\s\stotal\slifetime\:\s(?P<lifetime>.*?)\s(?P<lifetime_units>days|hours|seconds|weeks)"
+    # find all matches in log file
+    if matches := re.finditer(regex_search, log_file):
+        # analyze
+        for match in matches:
+            # get matching vars
+            network = match.group("network")
+            type = match.group("type")
+            processing = match.group("processing")
+            lifetime = match.group("lifetime")
+            lifetime_units = match.group("lifetime_units")
+
+            # convert lifetime to seconds
+            if lifetime_units == "seconds":
+                lifetime = float(lifetime)
+            elif lifetime_units == "minutes":
+                lifetime = float(lifetime) * 60
+            elif lifetime_units == "hours":
+                lifetime = float(lifetime) * 60 * 60
+            elif lifetime_units == "days":
+                lifetime = float(lifetime) * 60 * 60 * 24
+            elif lifetime_units == "weeks":
+                lifetime = float(lifetime) * 60 * 60 * 24 * 7
+
+            # add network
+            if network not in result["networks"]:
+                result["networks"][network] = {
+                    "total_items": 0,
+                    "processing_time": 0,  # seconds
+                    "average_processing_time": 0,
+                    "average_lifetime": 0,
+                    "lifetime": 0,  # seconds
+                    "types": {},
+                }
+
+            # add types
+            if type not in result["networks"][network]["types"]:
+                result["networks"][network]["types"][type] = {
+                    "total_items": 0,
+                    "processing_time": 0,  # seconds
+                    "lifetime": 0,  # seconds
+                    "average_processing_time": 0,
+                    "average_lifetime": 0,
+                }
+            if type not in result["types"]:
+                result["types"][type] = {
+                    "total_items": 0,
+                    "processing_time": 0,  # seconds
+                    "lifetime": 0,  # seconds
+                    "average_processing_time": 0,
+                    "average_lifetime": 0,
+                }
+
+            # add total items
+            result["total_items"] += 1
+
+            # add items
+            result["networks"][network]["total_items"] += 1
+            result["networks"][network]["types"][type]["total_items"] += 1
+            result["types"][type]["total_items"] += 1
+
+            # add processing time
+            result["networks"][network]["processing_time"] += float(processing)
+            result["networks"][network]["types"][type]["processing_time"] += float(
+                processing
+            )
+            result["types"][type]["processing_time"] += float(processing)
+
+            # add lifetime
+            result["networks"][network]["lifetime"] += float(lifetime)
+            result["networks"][network]["types"][type]["lifetime"] += float(lifetime)
+            result["types"][type]["lifetime"] += float(lifetime)
+
+        # calculate averages
+        for network in result["networks"]:
+            result["networks"][network]["average_processing_time"] = (
+                result["networks"][network]["processing_time"]
+                / result["networks"][network]["total_items"]
+            )
+            result["networks"][network]["average_lifetime"] = (
+                result["networks"][network]["lifetime"]
+                / result["networks"][network]["total_items"]
+            )
+            for type in result["networks"][network]["types"]:
+                result["networks"][network]["types"][type][
+                    "average_processing_time"
+                ] = (
+                    result["networks"][network]["types"][type]["processing_time"]
+                    / result["networks"][network]["types"][type]["total_items"]
+                )
+                result["networks"][network]["types"][type]["average_lifetime"] = (
+                    result["networks"][network]["types"][type]["lifetime"]
+                    / result["networks"][network]["types"][type]["total_items"]
+                )
+
+        for type in result["types"]:
+            result["types"][type]["average_processing_time"] = (
+                result["types"][type]["processing_time"]
+                / result["types"][type]["total_items"]
+            )
+            result["types"][type]["average_lifetime"] = (
+                result["types"][type]["lifetime"] / result["types"][type]["total_items"]
+            )
+
+        # totals
+        result["processing_time"] = sum(
+            [
+                result["networks"][network]["processing_time"]
+                for network in result["networks"]
+            ]
+        )
+        result["lifetime"] = sum(
+            [result["networks"][network]["lifetime"] for network in result["networks"]]
+        )
+        result["average_processing_time"] = (
+            result["processing_time"] / result["total_items"]
+        )
+        result["average_lifetime"] = result["lifetime"] / result["total_items"]
+
+    return result
+
+
+def benchmark_logs_analysis():
+    # get all log files
+    for log_file in get_all_logfiles(log_names=["benchmark"]):
+        # analize log file
+        logging.getLogger(__name__).info(f" analyzing {log_file}")
+        if result := analize_benchmark_log(log_file=load_logFile(log_file)):
+            logging.getLogger(__name__).info(f"  {result}")
 
 
 def main(option: str, **kwargs):
