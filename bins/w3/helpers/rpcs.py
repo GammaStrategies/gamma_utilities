@@ -18,7 +18,7 @@ class w3Provider:
 
         self._max_failed_attempts = 5
         self._max_failed_attempts_aggregated = (
-            200  # every time it hits, cooldown increases by 120 seconds
+            50  # every time it hits, cooldown increases by 120 seconds
         )
 
         # cooldown
@@ -56,7 +56,7 @@ class w3Provider:
     @failed_attempts.setter
     def failed_attempts(self, value: int):
         self._failed_attempts = value
-
+        # modify state
         self._modify_state()
 
     @property
@@ -68,14 +68,27 @@ class w3Provider:
     def cooldown(self) -> int:
         return self._cooldown
 
-    def add_failed(self):
+    # modify status
+    def add_failed(self, error: Exception | None = None):
         # add one failed attempt
-        self.failed_attempts += 1
+        self._failed_attempts += 1
+
+        if error:
+            # get severity
+            cooldown = cooldown_severity(error=error, rpc=self)
+            self._modify_state(cooldown=cooldown)
+        else:
+            self._modify_state()
 
     def add_attempt(self):
         self._attempts += 1
 
-    def _modify_state(self):
+    def _set_unavailable(self, cooldown: int = 120):
+        self._is_available = False
+        self._cooldown = cooldown
+        self._cooldown_start = time.time()
+
+    def _modify_state(self, cooldown: int = 120):
         # check if we need to disable this provider
 
         if (
@@ -84,21 +97,15 @@ class w3Provider:
             == 0
         ):
             # disable
-            self._is_available = False
-            # increase cooldown
-            self._cooldown *= 2
-            # beguin cooldown
-            self._cooldown_start = time.time()
-            logging.getLogger(__name__).debug(
+            self._set_unavailable(cooldown=cooldown * 5)
+            logging.getLogger(__name__).warning(
                 f"  max aggregated failed attempts hit. Cooling {self._url} down to {self._cooldown} seconds"
             )
 
         elif self._failed_attempts > self._max_failed_attempts:
             # disable
-            self._is_available = False
-            # beguin cooldown
-            self._cooldown_start = time.time()
-            logging.getLogger(__name__).debug(
+            self._set_unavailable(cooldown=cooldown)
+            logging.getLogger(__name__).warning(
                 f"  max failed attempts hit. Cooling {self._url} down to {self._cooldown} seconds"
             )
 
@@ -189,3 +196,46 @@ class w3Providers:
 
 # singleton
 RPC_MANAGER = w3Providers()
+
+
+# TODO: implement at w3Provider.add_failed ?
+def cooldown_severity(error: Exception, rpc: w3Provider) -> int:
+    """Retrieve a cooldown severity from returned rpc errors
+        When zero is returned, no cooldown is needed
+    Args:
+        error (Exception): error
+        rpc (w3Provider): rpc
+    Returns:
+        int: cooldown severity
+    """
+    # default cooldown
+    cooldown = random.randint(120, 240)
+
+    if rpc.type == "private":
+        cooldown = random.randint(60, 120)
+
+    try:
+        # check if we need to disable this provider
+        if error.args[0].get("code", 0) == -32000 and error.args[0].get(
+            "message", ""
+        ).startswith("too many requests"):
+            logging.getLogger(__name__).debug(f"  too many requests for {rpc.url}")
+            # return random cooldown between 5 and 10 minutes
+            cooldown = random.randint(300, 600)
+
+        elif error.args[0].get("code", 0) == -32000 and error.args[0].get(
+            "message", ""
+        ).startswith("missing trie node"):
+            # disable by a small amount of time
+            logging.getLogger(__name__).debug(
+                f"  rpc {rpc.url} has no data at the specified block (public node)"
+            )
+            # return random cooldown
+            cooldown = random.randint(90, 150)
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            f" Error while checking cooldown severity-> {e}"
+        )
+
+    # return result
+    return cooldown

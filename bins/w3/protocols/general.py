@@ -442,28 +442,9 @@ class web3wrap:
                     f" Could not get {self._network}'s events usig {rpc.url} from filter  -> {e}"
                 )
                 # failed rpc event
-                rpc.add_failed()
+                rpc.add_failed(error=e)
                 # try changing the rpcURL and retry
                 continue
-
-        # # execute query till it works
-        # for rpcUrl in self.get_rpcUrls(rpcKey_names):
-        #     # set rpc
-        #     self._w3 = self.setup_w3(network=self._network, web3Url=rpcUrl)
-        #     logging.getLogger(__name__).debug(
-        #         f"   Using {rpcUrl} to gather {self._network}'s events"
-        #     )
-        #     # get chunk entries
-        #     try:
-        #         if entries := self._w3.eth.filter(filter).get_all_entries():
-        #             # exit rpc loop
-        #             break
-        #     except (requests.exceptions.HTTPError, ValueError) as e:
-        #         logging.getLogger(__name__).debug(
-        #             f" Could not get {self._network}'s events usig {rpcUrl} from filter  -> {e}"
-        #         )
-        #         # try changing the rpcURL and retry
-        #         continue
 
         # return all found
         return entries
@@ -510,7 +491,7 @@ class web3wrap:
                 logging.getLogger(__name__).debug(
                     f"  Error calling function {function_name} using {rpc.url} rpc: {e}  address: {self._address}"
                 )
-                rpc.add_failed()
+                rpc.add_failed(error=e)
 
         # no rpcUrl worked
         return None
@@ -553,23 +534,6 @@ class web3wrap:
 
         return None
 
-    # def get_rpcUrls(
-    #     self, rpcKey_names: list[str] | None = None, shuffle: bool = True
-    # ) -> list[str]:
-    #     """Get a list of rpc urls from configuration file
-
-    #     Args:
-    #         rpcKey_names (list[str] | None, optional): private or public or whatever is placed in config w3Providers. Defaults to None.
-    #         shuffle (bool, optional): shuffle configured order. Defaults to True.
-
-    #     Returns:
-    #         list[str]: RPC urls
-    #     """
-
-    #     return rpcUrl_list(
-    #         network=self._network, rpcKey_names=rpcKey_names, shuffle=shuffle
-    #     )
-
     def _getTransactionReceipt(self, txHash: str):
         """Get transaction receipt
 
@@ -590,21 +554,8 @@ class web3wrap:
                 logging.getLogger(__name__).debug(
                     f" error getting transaction receipt using {rpc.url} rpc: {e}"
                 )
-                rpc.add_failed()
+                rpc.add_failed(error=e)
                 continue
-
-        # # get a list of rpc urls
-        # rpcUrls = self.get_rpcUrls()
-        # # execute query till it works
-        # for rpcUrl in rpcUrls:
-        #     try:
-        #         _w3 = self.setup_w3(network=self._network, web3Url=rpcUrl)
-        #         return _w3.eth.get_transaction_receipt(txHash)
-        #     except Exception as e:
-        #         logging.getLogger(__name__).debug(
-        #             f" error getting transaction receipt using {rpcUrl} rpc: {e}"
-        #         )
-        #         continue
 
         return None
 
@@ -626,21 +577,8 @@ class web3wrap:
                 logging.getLogger(__name__).debug(
                     f" error getting block data using {rpc.url} rpc: {e}"
                 )
-                rpc.add_failed()
+                rpc.add_failed(error=e)
                 continue
-
-        # # get a list of rpc urls
-        # rpcUrls = self.get_rpcUrls()
-        # # execute query till it works
-        # for rpcUrl in rpcUrls:
-        #     try:
-        #         _w3 = self.setup_w3(network=self._network, web3Url=rpcUrl)
-        #         return _w3.eth.get_block(block)
-        #     except Exception as e:
-        #         logging.getLogger(__name__).debug(
-        #             f" error getting block data using {rpcUrl} rpc: {e}"
-        #         )
-        #         continue
 
         return None
 
