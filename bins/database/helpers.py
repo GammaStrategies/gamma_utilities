@@ -11,6 +11,12 @@ def get_default_localdb(network: str) -> database_local:
     )
 
 
+def get_default_globaldb() -> database_global:
+    return database_global(
+        mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"]
+    )
+
+
 def get_from_localdb(network: str, collection: str, **kwargs) -> list:
     """get data from a local database type
 
@@ -73,3 +79,24 @@ def get_price_from_db(
     raise ValueError(
         f" No price for {token_address} on {network} at blocks {block}, {block+1} and {block-1} in database."
     )
+
+
+def get_latest_price_from_db(network: str, token_address: str) -> float:
+    # try get the prices from database
+    if token_price := get_default_globaldb().get_items_from_database(
+        collection_name="current_usd_prices",
+        query=dict(network=network, address=token_address),
+        sort=dict(block=-1),
+        limit=1,
+    ):
+        return token_price[0]["price"]
+
+
+def get_latest_prices_from_db(network: str, token_addresses: list[str]) -> dict:
+    # try get the prices from database
+    if token_prices := get_default_globaldb().get_items_from_database(
+        collection_name="current_usd_prices",
+        find=dict(network=network, address={"$in": token_addresses}),
+        sort=dict(block=-1),
+    ):
+        return {price["address"]: price["price"] for price in token_prices}
