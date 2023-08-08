@@ -16,7 +16,7 @@ class w3Provider:
         self._failed_attempts = 0
         self._failed_attempts_aggregated = 0  # forever failed attempts
 
-        self._max_failed_attempts = 5
+        self._max_failed_attempts = 3
         self._max_failed_attempts_aggregated = (
             50  # every time it hits, cooldown increases by 120 seconds
         )
@@ -96,10 +96,16 @@ class w3Provider:
             and self._failed_attempts_aggregated % self._max_failed_attempts_aggregated
             == 0
         ):
-            # disable
-            self._set_unavailable(cooldown=cooldown * 5)
+            # disable 24-48 hours on public rpc's. Private rpc's are more important, so we disable them for less time
+            cooldown = (
+                random.randint(86400, 172800)
+                if self.type == "public"
+                else random.randint(3600, 7200)
+            )
+
+            self._set_unavailable(cooldown=cooldown)
             logging.getLogger(__name__).warning(
-                f"  max aggregated failed attempts hit. Cooling {self._url} down to {self._cooldown} seconds"
+                f"  max aggregated failed attempts hit. Cooling {self._url} down to {self._cooldown/60/60} hours"
             )
 
         elif self._failed_attempts > self._max_failed_attempts:
@@ -216,9 +222,13 @@ def cooldown_severity(error: Exception, rpc: w3Provider) -> int:
 
     try:
         # check if we need to disable this provider
-        if error.args[0].get("code", 0) == -32000 and error.args[0].get(
-            "message", ""
-        ).startswith("too many requests"):
+        if (
+            error.args[0].get("code", 0) == -32000
+            and error.args[0].get("message", "").startswith("too many requests")
+            or error.args[0]
+            .get("message", "")
+            .startswith("Upgrade to an archive plan add-on for your account")
+        ):
             logging.getLogger(__name__).debug(f"  too many requests for {rpc.url}")
             # return random cooldown between 5 and 10 minutes
             cooldown = random.randint(300, 600)
