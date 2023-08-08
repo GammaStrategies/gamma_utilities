@@ -341,7 +341,7 @@ class data_collector_OLD:
 
         self._w3 = Web3(
             Web3.HTTPProvider(
-                rpcProvider,
+                rpcProvider.url,
                 request_kwargs={"timeout": 120},
             )
         )

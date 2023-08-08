@@ -16,7 +16,7 @@ class w3Provider:
         self._failed_attempts = 0
         self._failed_attempts_aggregated = 0  # forever failed attempts
 
-        self._max_failed_attempts = 3
+        self._max_failed_attempts = 5
         self._max_failed_attempts_aggregated = (
             200  # every time it hits, cooldown increases by 120 seconds
         )
@@ -57,6 +57,8 @@ class w3Provider:
     def failed_attempts(self, value: int):
         self._failed_attempts = value
 
+        self._modify_state()
+
     @property
     def type(self) -> str:
         # public or private
@@ -68,7 +70,7 @@ class w3Provider:
 
     def add_failed(self):
         # add one failed attempt
-        self._failed_attempts += 1
+        self.failed_attempts += 1
 
     def add_attempt(self):
         self._attempts += 1
@@ -76,7 +78,11 @@ class w3Provider:
     def _modify_state(self):
         # check if we need to disable this provider
 
-        if self._failed_attempts_aggregated % self._max_failed_attempts_aggregated == 0:
+        if (
+            self._failed_attempts_aggregated
+            and self._failed_attempts_aggregated % self._max_failed_attempts_aggregated
+            == 0
+        ):
             # disable
             self._is_available = False
             # increase cooldown

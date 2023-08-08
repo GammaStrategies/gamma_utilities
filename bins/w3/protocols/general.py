@@ -88,7 +88,7 @@ class web3wrap:
                 web3Url
                 or RPC_MANAGER.get_rpc_list(
                     network=self._network, rpcKey_names=["private"]
-                )[0],
+                )[0].url,
                 request_kwargs={"timeout": 60},
             )
         )

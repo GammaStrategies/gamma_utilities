@@ -52,7 +52,7 @@ class onchain_data_helper:
 
         w3 = Web3(
             Web3.HTTPProvider(
-                rpcProvider,
+                rpcProvider.url,
                 request_kwargs={"timeout": 60},
             )
         )
