@@ -303,14 +303,25 @@ class db_collections_common:
     def get_cursor(self, db_manager: MongoDbManager, collection_name: str, **kwargs):
         return db_manager.get_items(coll_name=collection_name, **kwargs)
 
-    def find_one_and_update(self, collection_name: str, find: dict, update: dict):
+    def find_one_and_update(
+        self,
+        collection_name: str,
+        find: dict,
+        update: dict,
+        sort: list[tuple] | None = None,
+        upsert: bool = False,
+    ):
         with MongoDbManager(
             url=self._db_mongo_url,
             db_name=self._db_name,
             collections=self._db_collections,
         ) as _db_manager:
             return _db_manager.find_one_and_update(
-                coll_name=collection_name, dbFilter=find, update=update
+                coll_name=collection_name,
+                dbFilter=find,
+                update=update,
+                sort=sort,
+                upsert=upsert,
             )
 
     @property
@@ -897,8 +908,8 @@ class database_local(db_collections_common):
         return self.find_one_and_update(
             collection_name="queue",
             find=find,
-            sort=sort,
             update={"$set": {"processing": time.time()}},
+            sort=sort,
         )
 
     def del_queue_item(self, id: str) -> DeleteResult:

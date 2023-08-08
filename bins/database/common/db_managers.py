@@ -420,7 +420,12 @@ class MongoDbManager:
             return self.database[coll_name].distinct(field, condition)
 
     def find_one_and_update(
-        self, coll_name: str, dbFilter: dict, update: dict
+        self,
+        coll_name: str,
+        dbFilter: dict,
+        update: dict,
+        sort: list[tuple] | None = None,
+        upsert: bool = False,
     ) -> dict | None:
         """
         Returns the updated document or None if not found.
@@ -431,7 +436,11 @@ class MongoDbManager:
             update (dict):  like  {"$inc":{"sequence_value":1}}
         """
         return self.database[coll_name].find_one_and_update(
-            filter=dbFilter, update=update, return_document=True
+            filter=dbFilter,
+            update=update,
+            return_document=True,
+            sort=sort,
+            upsert=upsert,
         )
 
     def insert_if_not_exists(
