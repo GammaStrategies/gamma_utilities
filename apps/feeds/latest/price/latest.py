@@ -34,16 +34,31 @@ def feed_latest_usd_prices(threaded: bool = True):
         ],
     )
 
-    cg_helper = coingecko_price_helper(retries=2, request_timeout=25)
+    cg_helper = coingecko_price_helper(retries=3, request_timeout=25)
 
     def loopme_coingecko(network, addresses) -> tuple[str, list[str], bool]:
         result = []
         addresses_processed = []
-        # get prices from coingecko
-        prices = cg_helper.get_prices(
-            network, contract_addresses=list(addresses.keys())
-        )
+        try:
+            # get prices from coingecko
+            prices = cg_helper.get_prices(
+                network, contract_addresses=list(addresses.keys())
+            )
+        except ValueError as e:
+            if "status" in e.args[0]:
+                if (
+                    "error_code" in e.args[0]["status"]
+                    and e.args[0]["status"]["error_code"] == 429
+                ):
+                    # too many requests
+                    logging.getLogger(__name__).error(
+                        f" Too many requests to coingecko while gathering latest prices"
+                    )
 
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f" Exception at coingecko's price gathering of {contract_addresses[i : i + n]}        error-> {e}"
+            )
         # loop through prices
         for token_address, price in prices.items():
             if not token_address in addresses_processed:
