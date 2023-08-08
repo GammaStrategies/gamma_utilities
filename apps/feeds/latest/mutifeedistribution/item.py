@@ -11,6 +11,7 @@ class multifeeDistribution_snapshot:
     hypervisor_address: str = None
     hypervisor_price_x_share: float = None
     rewardToken: str = None
+    rewardToken_symbol: str = None
     rewardToken_decimals: int = None
     rewardToken_balance: int = None
     rewardToken_price: float = None
@@ -49,6 +50,8 @@ class multifeeDistribution_snapshot:
             result["hypervisor_price_x_share"] = self.hypervisor_price_x_share
         if self.rewardToken:
             result["rewardToken"] = self.rewardToken
+        if self.rewardToken_symbol:
+            result["rewardToken_symbol"] = self.rewardToken_symbol
         if self.rewardToken_decimals:
             result["rewardToken_decimals"] = self.rewardToken_decimals
         if self.rewardToken_balance:

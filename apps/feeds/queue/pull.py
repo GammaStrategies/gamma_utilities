@@ -660,6 +660,9 @@ def pull_from_queue_latest_multiFeeDistribution(
                 reward_static["hypervisor"]["address"]
             ]
 
+            # add symbol
+            snapshot.rewardToken_symbol = reward_static["rewardToken_symbol"]
+
             # add balance of rewardToken at MFD
             rewardToken_contract = build_erc20_helper(
                 chain=text_to_chain(network), address=reward_static["rewardToken"]
@@ -667,6 +670,7 @@ def pull_from_queue_latest_multiFeeDistribution(
             snapshot.rewardToken_balance = str(
                 rewardToken_contract.balanceOf(address=queue_item.data["address"])
             )
+
             # add rewardData
             try:
                 # reward data amount
