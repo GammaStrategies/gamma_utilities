@@ -642,13 +642,23 @@ def pull_from_queue_latest_multiFeeDistribution(
             rewardToken_contract = build_erc20_helper(
                 chain=text_to_chain(network), address=reward_static["rewardToken"]
             )
-            snapshot.rewardToken_balance = rewardToken_contract.balanceOf(
-                address=queue_item.data["address"]
+            snapshot.rewardToken_balance = str(
+                rewardToken_contract.balanceOf(address=queue_item.data["address"])
             )
-            # reward data amount
-            snapshot.rewardData = hypervisor.receiver.rewardData(
-                rewardToken_address=reward_static["rewardToken"]
-            )
+            try:
+                # reward data amount
+                if rewardData := hypervisor.receiver.rewardData(
+                    rewardToken_address=reward_static["rewardToken"]
+                ):
+                    snapshot.rewardData = rewardData
+                    # convert to string
+                    snapshot.rewardData["amount"] = str(snapshot.rewardData["amount"])
+                    # snapshot.rewardData["lastTimeUpdated"] =str(snapshot.rewardData["lastTimeUpdated"])
+                    snapshot.rewardData["rewardPerToken"] = str(
+                        snapshot.rewardData["rewardPerToken"]
+                    )
+            except ProcessingError as e:
+                pass
 
             # set id
             snapshot.id = create_id_latest_multifeedistributor(
