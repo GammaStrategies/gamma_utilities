@@ -9,9 +9,11 @@ class multifeeDistribution_snapshot:
     address: str = None
     dex: str = None
     hypervisor_address: str = None
+    hypervisor_price_x_share: float = None
     rewardToken: str = None
     rewardToken_decimals: int = None
     rewardToken_balance: int = None
+    rewardToken_price: float = None
     rewardData: dict = None
     topic: str = None
     total_staked: int = None
@@ -43,12 +45,16 @@ class multifeeDistribution_snapshot:
             result["dex"] = self.dex
         if self.hypervisor_address:
             result["hypervisor_address"] = self.hypervisor_address
+        if self.hypervisor_price_x_share:
+            result["hypervisor_price_x_share"] = self.hypervisor_price_x_share
         if self.rewardToken:
             result["rewardToken"] = self.rewardToken
         if self.rewardToken_decimals:
             result["rewardToken_decimals"] = self.rewardToken_decimals
         if self.rewardToken_balance:
             result["rewardToken_balance"] = self.rewardToken_balance
+        if self.rewardToken_price:
+            result["rewardToken_price"] = self.rewardToken_price
         if self.rewardData:
             result["rewardData"] = self.rewardData
         if self.topic:

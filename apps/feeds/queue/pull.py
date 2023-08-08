@@ -8,7 +8,14 @@ from apps.feeds.queue.push import (
     build_and_save_queue_from_operation,
 )
 from apps.feeds.queue.queue_item import QueueItem
-from bins.database.helpers import get_default_localdb, get_from_localdb
+from bins.database.helpers import (
+    get_default_globaldb,
+    get_default_localdb,
+    get_from_localdb,
+    get_latest_price_from_db,
+    get_latest_prices_from_db,
+    get_price_from_db,
+)
 from bins.errors.general import ProcessingError
 
 from ..status import (
@@ -535,6 +542,9 @@ def pull_from_queue_latest_multiFeeDistribution(
             "hypervisor_timestamp": {},
             "mfd_total_staked": {},
             "hypervisor_period": {},
+            "hypervisor_totalAmount": {},
+            "hypervisor_uncollected": {},
+            "hypervisor_totalSupply": {},
         }
 
         # get static rewards related to mfd and its linked hypervisor, (so that we know this hype's protocol)
@@ -610,6 +620,18 @@ def pull_from_queue_latest_multiFeeDistribution(
                         reward_static["hypervisor"]["address"]
                     ] = hypervisor.current_period
 
+                    ephemeral_cache["hypervisor_totalAmount"][
+                        reward_static["hypervisor"]["address"]
+                    ] = hypervisor.getTotalAmounts
+
+                    ephemeral_cache["hypervisor_uncollected"][
+                        reward_static["hypervisor"]["address"]
+                    ] = hypervisor.get_fees_uncollected(inDecimal=False)
+
+                    ephemeral_cache["hypervisor_totalSupply"][
+                        reward_static["hypervisor"]["address"]
+                    ] = hypervisor.totalSupply
+
             # use cached info
             snapshot.block = ephemeral_cache["hypervisor_block"][
                 reward_static["hypervisor"]["address"]
@@ -645,6 +667,7 @@ def pull_from_queue_latest_multiFeeDistribution(
             snapshot.rewardToken_balance = str(
                 rewardToken_contract.balanceOf(address=queue_item.data["address"])
             )
+            # add rewardData
             try:
                 # reward data amount
                 if rewardData := hypervisor.receiver.rewardData(
@@ -659,6 +682,58 @@ def pull_from_queue_latest_multiFeeDistribution(
                     )
             except ProcessingError as e:
                 pass
+
+            # add price
+            if prices := get_latest_prices_from_db(
+                network=network,
+                token_addresses=[
+                    reward_static["rewardToken"],
+                    reward_static["hypervisor"]["pool"]["token0"]["address"],
+                    reward_static["hypervisor"]["pool"]["token1"]["address"],
+                ],
+            ):
+                # get latest databse price
+                snapshot.rewardToken_price = prices[reward_static["rewardToken"]]
+                # calculate hypervisor price x share
+                total_underlying_token0 = (
+                    ephemeral_cache["hypervisor_totalAmount"][
+                        reward_static["hypervisor"]["address"]
+                    ]["total0"]
+                    + ephemeral_cache["hypervisor_uncollected"][
+                        reward_static["hypervisor"]["address"]
+                    ]["qtty_token0"]
+                )
+                total_underlying_token1 = (
+                    ephemeral_cache["hypervisor_totalAmount"][
+                        reward_static["hypervisor"]["address"]
+                    ]["total1"]
+                    + ephemeral_cache["hypervisor_uncollected"][
+                        reward_static["hypervisor"]["address"]
+                    ]["qtty_token1"]
+                )
+
+                total_underlying_token0_usd = (
+                    total_underlying_token0
+                    * prices[reward_static["hypervisor"]["pool"]["token0"]["address"]]
+                )
+                total_underlying_token1_usd = (
+                    total_underlying_token1
+                    * prices[reward_static["hypervisor"]["pool"]["token1"]["address"]]
+                )
+                snapshot.hypervisor_price_x_share = (
+                    (total_underlying_token0_usd + total_underlying_token1_usd)
+                    / ephemeral_cache["hypervisor_totalSupply"][
+                        reward_static["hypervisor"]["address"]
+                    ]
+                    if ephemeral_cache["hypervisor_totalSupply"][
+                        reward_static["hypervisor"]["address"]
+                    ]
+                    else 0
+                )
+            else:
+                logging.getLogger(__name__).warning(
+                    f" no prices found for queue's {network} {queue_item.type} {queue_item.id}"
+                )
 
             # set id
             snapshot.id = create_id_latest_multifeedistributor(
