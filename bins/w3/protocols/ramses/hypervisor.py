@@ -215,16 +215,20 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
         amount_base = 0
         amount_boost = 0
         if periodSecondsInsideX96_base:
-            amount_base += (baseRewards * periodSecondsInsideX96_base) / (WEEK << 96)
+            amount_base += int(
+                (baseRewards * periodSecondsInsideX96_base) / (WEEK << 96)
+            )
         if periodBoostedSecondsInsideX96_base:
-            amount_boost += (boostedRewards * periodBoostedSecondsInsideX96_base) / (
-                WEEK << 96
+            amount_boost += int(
+                (boostedRewards * periodBoostedSecondsInsideX96_base) / (WEEK << 96)
             )
         if periodSecondsInsideX96_limit:
-            amount_base += (baseRewards * periodSecondsInsideX96_limit) / (WEEK << 96)
+            amount_base += int(
+                (baseRewards * periodSecondsInsideX96_limit) / (WEEK << 96)
+            )
         if periodBoostedSecondsInsideX96_limit:
-            amount_boost += (boostedRewards * periodBoostedSecondsInsideX96_limit) / (
-                WEEK << 96
+            amount_boost += int(
+                (boostedRewards * periodBoostedSecondsInsideX96_limit) / (WEEK << 96)
             )
 
         # get rewards per second
