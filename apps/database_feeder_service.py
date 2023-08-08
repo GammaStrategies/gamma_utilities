@@ -424,36 +424,7 @@ def latest_db_service():
         f" Latests collections database feeding loop started at {identity}"
     )
 
-    # special vars
-    # create prices json file vars and process
-    create_json_process: mp.Process | None = None
-
-    def create_json_file(create_json_process):
-        if not create_json_process or not create_json_process.is_alive():
-            create_json_process = mp.Process(
-                target=create_latest_usd_prices_address_json,
-                name="create_json",
-            )
-        elif create_json_process.exitcode < 0:
-            logging.getLogger(__name__).error(
-                "   create_json_file process ended with an error or a terminate"
-            )
-            create_json_process = mp.Process(
-                target=create_latest_usd_prices_address_json,
-                name="create_json",
-            )
-        else:
-            # try join n reset
-            create_json_process.join()
-            create_json_process = mp.Process(
-                target=create_latest_usd_prices_address_json,
-                name="create_json",
-            )
-
-        logging.getLogger(__name__).debug("   Starting json file creation process")
-        create_json_process.start()
-
-    def process_manager(process_to_manage, target: callable, name: str):
+    def process_manager(process_to_manage, target: callable, name: str, args=()):
         start = True
         recreate = False
         join = False
@@ -482,6 +453,7 @@ def latest_db_service():
             process_to_manage = mp.Process(
                 target=target,
                 name=name,
+                args=args,
             )
         if start:
             logging.getLogger(__name__).debug(f"   Starting {name} process.")
@@ -493,18 +465,18 @@ def latest_db_service():
             "every": 60,  # in seconds
             "last": time.time(),
             "callable": feed_latest_usd_prices,
-            "args": (True),
+            "args": [(True)],
             "process": None,
         },
         "create_json_prices": {
             "every": 60 * 60 * 2,  # in seconds
             "last": time.time(),
-            "callable": create_json_file,
-            "args": (create_json_process),
+            "callable": create_latest_usd_prices_address_json,
+            "args": (),
             "process": None,
         },
         "latest_multifeedistributor": {
-            "every": 60,  # in seconds
+            "every": 60 * 3,  # in seconds
             "last": time.time(),
             "callable": feed_latest_multifeedistribution_snapshot,
             "args": (),
@@ -518,6 +490,13 @@ def latest_db_service():
                 if (time.time() - value["last"]) > value["every"]:
                     value["last"] = time.time()
                     logging.getLogger(__name__).debug(f"   Starting {key} ")
+                    process_manager(
+                        process_to_manage=value["process"],
+                        target=value["callable"],
+                        args=value["args"],
+                        name=key,
+                    )
+
                     value["callable"](*value["args"])
                     logging.getLogger(__name__).debug(
                         f"   {key} finished in {time.time() - value['last']} seconds"
