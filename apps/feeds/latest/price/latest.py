@@ -54,10 +54,9 @@ def feed_latest_usd_prices(threaded: bool = True):
                     logging.getLogger(__name__).error(
                         f" Too many requests to coingecko while gathering latest prices"
                     )
-
         except Exception as e:
             logging.getLogger(__name__).exception(
-                f" Exception at coingecko's price gathering of {contract_addresses[i : i + n]}        error-> {e}"
+                f" Exception at coingecko's price gathering       error-> {e}"
             )
         # loop through prices
         for token_address, price in prices.items():
