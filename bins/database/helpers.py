@@ -97,6 +97,5 @@ def get_latest_prices_from_db(network: str, token_addresses: list[str]) -> dict:
     if token_prices := get_default_globaldb().get_items_from_database(
         collection_name="current_usd_prices",
         find=dict(network=network, address={"$in": token_addresses}),
-        sort=dict(block=-1),
     ):
         return {price["address"]: price["price"] for price in token_prices}
