@@ -870,6 +870,17 @@ class database_local(db_collections_common):
     def get_queue_item(
         self, types: list[queueItemType] | None = None, find: dict | None = None
     ) -> dict | None:
+        """Get the first found queue item and set it as processing.
+            The sorting is done by creation time
+
+        Args:
+            types (list[queueItemType] | None, optional): queue types to handle. Defaults to any.
+            find (dict | None, optional): custom find command. Defaults to {"processing": 0}.
+
+        Returns:
+            dict | None: queue dict item
+
+        """
         if not find:
             find = {"processing": 0}
         if types:
@@ -879,6 +890,7 @@ class database_local(db_collections_common):
         return self.find_one_and_update(
             collection_name="queue",
             find=find,
+            sort=[("creation", ASCENDING)],
             update={"$set": {"processing": time.time()}},
         )
 
