@@ -614,7 +614,7 @@ def pull_from_queue_latest_multiFeeDistribution(
                     # get current total staked qtty from multifeedistributor contract
                     ephemeral_cache["mfd_total_staked"][
                         reward_static["hypervisor"]["address"]
-                    ] = str(hypervisor.receiver.totalStakes)
+                    ] = hypervisor.receiver.totalStakes
 
                     ephemeral_cache["hypervisor_period"][
                         reward_static["hypervisor"]["address"]
@@ -656,9 +656,11 @@ def pull_from_queue_latest_multiFeeDistribution(
             )
 
             # add staked info from MFD
-            snapshot.total_staked = ephemeral_cache["mfd_total_staked"][
-                reward_static["hypervisor"]["address"]
-            ]
+            snapshot.total_staked = str(
+                ephemeral_cache["mfd_total_staked"][
+                    reward_static["hypervisor"]["address"]
+                ]
+            )
 
             # add symbol
             snapshot.rewardToken_symbol = reward_static["rewardToken_symbol"]
@@ -703,18 +705,22 @@ def pull_from_queue_latest_multiFeeDistribution(
                     ephemeral_cache["hypervisor_totalAmount"][
                         reward_static["hypervisor"]["address"]
                     ]["total0"]
-                    + ephemeral_cache["hypervisor_uncollected"][
-                        reward_static["hypervisor"]["address"]
-                    ]["qtty_token0"]
-                )
+                    / 10 ** reward_static["hypervisor"]["decimals"]
+                ) + ephemeral_cache["hypervisor_uncollected"][
+                    reward_static["hypervisor"]["address"]
+                ][
+                    "qtty_token0"
+                ]
                 total_underlying_token1 = (
                     ephemeral_cache["hypervisor_totalAmount"][
                         reward_static["hypervisor"]["address"]
                     ]["total1"]
-                    + ephemeral_cache["hypervisor_uncollected"][
-                        reward_static["hypervisor"]["address"]
-                    ]["qtty_token1"]
-                )
+                    / 10 ** reward_static["hypervisor"]["decimals"]
+                ) + ephemeral_cache["hypervisor_uncollected"][
+                    reward_static["hypervisor"]["address"]
+                ][
+                    "qtty_token1"
+                ]
 
                 total_underlying_token0_usd = (
                     total_underlying_token0
