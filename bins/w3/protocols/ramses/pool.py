@@ -165,7 +165,9 @@ class pool(uniswap.pool.poolv3):
 
     # CUSTOM FUNCTIONS
 
-    def position(self, ownerAddress: str, tickLower: int, tickUpper: int) -> dict:
+    def position(
+        self, ownerAddress: str, tickLower: int, tickUpper: int, index: int = 0
+    ) -> dict:
         """
 
         Returns:
@@ -181,6 +183,7 @@ class pool(uniswap.pool.poolv3):
                 ownerAddress=ownerAddress,
                 tickLower=tickLower,
                 tickUpper=tickUpper,
+                index=index,
             )
         )
 
