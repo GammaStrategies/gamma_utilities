@@ -626,7 +626,7 @@ def pull_from_queue_latest_multiFeeDistribution(
 
                     ephemeral_cache["hypervisor_uncollected"][
                         reward_static["hypervisor"]["address"]
-                    ] = hypervisor.get_fees_uncollected(inDecimal=False)
+                    ] = hypervisor.get_fees_uncollected(inDecimal=True)
 
                     ephemeral_cache["hypervisor_totalSupply"][
                         reward_static["hypervisor"]["address"]
@@ -701,23 +701,27 @@ def pull_from_queue_latest_multiFeeDistribution(
                 # get latest databse price
                 snapshot.rewardToken_price = prices[reward_static["rewardToken"]]
                 # calculate hypervisor price x share
-                total_underlying_token0 = (
-                    ephemeral_cache["hypervisor_totalAmount"][
-                        reward_static["hypervisor"]["address"]
-                    ]["total0"]
-                    + ephemeral_cache["hypervisor_uncollected"][
+                hypervisor_total0 = ephemeral_cache["hypervisor_totalAmount"][
+                    reward_static["hypervisor"]["address"]
+                ]["total0"] / (
+                    10 ** reward_static["hypervisor"]["pool"]["token0"]["decimals"]
+                )
+                hypervisor_total1 = ephemeral_cache["hypervisor_totalAmount"][
+                    reward_static["hypervisor"]["address"]
+                ]["total1"] / (
+                    10 ** reward_static["hypervisor"]["pool"]["token1"]["decimals"]
+                )
+
+                total_underlying_token0 = hypervisor_total0 + float(
+                    ephemeral_cache["hypervisor_uncollected"][
                         reward_static["hypervisor"]["address"]
                     ]["qtty_token0"]
-                ) / 10 ** reward_static["hypervisor"]["pool"]["token0"]["decimals"]
-
-                total_underlying_token1 = (
-                    ephemeral_cache["hypervisor_totalAmount"][
-                        reward_static["hypervisor"]["address"]
-                    ]["total1"]
-                    + ephemeral_cache["hypervisor_uncollected"][
+                )
+                total_underlying_token1 = hypervisor_total1 + float(
+                    ephemeral_cache["hypervisor_uncollected"][
                         reward_static["hypervisor"]["address"]
                     ]["qtty_token1"]
-                ) / 10 ** reward_static["hypervisor"]["pool"]["token1"]["decimals"]
+                )
 
                 total_underlying_token0_usd = (
                     total_underlying_token0
@@ -727,14 +731,16 @@ def pull_from_queue_latest_multiFeeDistribution(
                     total_underlying_token1
                     * prices[reward_static["hypervisor"]["pool"]["token1"]["address"]]
                 )
+
+                # supply
+                hypervisor_supply = ephemeral_cache["hypervisor_totalSupply"][
+                    reward_static["hypervisor"]["address"]
+                ] / (10 ** reward_static["hypervisor"]["decimals"])
+
                 snapshot.hypervisor_price_x_share = (
                     (total_underlying_token0_usd + total_underlying_token1_usd)
-                    / ephemeral_cache["hypervisor_totalSupply"][
-                        reward_static["hypervisor"]["address"]
-                    ]
-                    if ephemeral_cache["hypervisor_totalSupply"][
-                        reward_static["hypervisor"]["address"]
-                    ]
+                    / hypervisor_supply
+                    if hypervisor_supply
                     else 0
                 )
             else:
