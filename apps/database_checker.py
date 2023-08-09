@@ -2093,10 +2093,9 @@ def get_all_logfiles(log_names: list = ["debug", "price"]) -> list:
 
     logfiles = []
 
-    for logPath in (
-        CONFIGURATION["_custom_"]["cml_parameters"].check_logs
-        or CONFIGURATION["logs"]["save_path"]
-    ):
+    for logPath in CONFIGURATION["_custom_"]["cml_parameters"].check_logs or [
+        CONFIGURATION["logs"]["save_path"]
+    ]:
         if os.path.isfile(logPath):
             logfiles.append(logPath)
         elif os.path.isdir(logPath):

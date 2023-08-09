@@ -10,9 +10,6 @@ from datetime import datetime, timedelta
 from datetime import timezone
 from decimal import Decimal
 
-from bins.database.helpers import get_default_localdb
-from .database_checker import get_all_logfiles, load_logFile
-
 if __name__ == "__main__":
     # append parent directory pth
     CURRENT_FOLDER = os.path.dirname(os.path.realpath(__file__))
@@ -28,6 +25,10 @@ from bins.database.db_user_status import (
 )
 from bins.general import general_utilities, file_utilities
 from bins.apis.thegraph_utilities import gamma_scraper
+
+
+from bins.database.helpers import get_default_localdb
+from .database_checker import get_all_logfiles, load_logFile
 
 
 def print_status(status: user_status, symbol: str = "", network: str = ""):
@@ -596,6 +597,7 @@ def analize_benchmark_log(log_file: str) -> dict | None:
             result["networks"][network]["types"][type]["lifetime"] += float(lifetime)
             result["types"][type]["lifetime"] += float(lifetime)
 
+        logging.getLogger(__name__).info(f" Calculating averages")
         # calculate averages
         for network in result["networks"]:
             result["networks"][network]["average_processing_time"] = (
@@ -639,15 +641,21 @@ def analize_benchmark_log(log_file: str) -> dict | None:
         )
         result["average_processing_time"] = (
             result["processing_time"] / result["total_items"]
+            if result["total_items"]
+            else 0
         )
-        result["average_lifetime"] = result["lifetime"] / result["total_items"]
+        result["average_lifetime"] = (
+            result["lifetime"] / result["total_items"] if result["total_items"] else 0
+        )
 
     return result
 
 
 def benchmark_logs_analysis():
+    log_files = get_all_logfiles(log_names=["benchmark"])
+    logging.getLogger(__name__).info(f"Processing {len(log_files)} log files")
     # get all log files
-    for log_file in get_all_logfiles(log_names=["benchmark"]):
+    for log_file in log_files:
         # analize log file
         logging.getLogger(__name__).info(f" analyzing {log_file}")
         if result := analize_benchmark_log(log_file=load_logFile(log_file)):
