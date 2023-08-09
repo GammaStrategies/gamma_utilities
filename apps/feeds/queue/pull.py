@@ -705,22 +705,19 @@ def pull_from_queue_latest_multiFeeDistribution(
                     ephemeral_cache["hypervisor_totalAmount"][
                         reward_static["hypervisor"]["address"]
                     ]["total0"]
-                    / 10 ** reward_static["hypervisor"]["decimals"]
-                ) + ephemeral_cache["hypervisor_uncollected"][
-                    reward_static["hypervisor"]["address"]
-                ][
-                    "qtty_token0"
-                ]
+                    + ephemeral_cache["hypervisor_uncollected"][
+                        reward_static["hypervisor"]["address"]
+                    ]["qtty_token0"]
+                ) / 10 ** reward_static["hypervisor"]["decimals"]
+
                 total_underlying_token1 = (
                     ephemeral_cache["hypervisor_totalAmount"][
                         reward_static["hypervisor"]["address"]
                     ]["total1"]
-                    / 10 ** reward_static["hypervisor"]["decimals"]
-                ) + ephemeral_cache["hypervisor_uncollected"][
-                    reward_static["hypervisor"]["address"]
-                ][
-                    "qtty_token1"
-                ]
+                    + ephemeral_cache["hypervisor_uncollected"][
+                        reward_static["hypervisor"]["address"]
+                    ]["qtty_token1"]
+                ) / 10 ** reward_static["hypervisor"]["decimals"]
 
                 total_underlying_token0_usd = (
                     total_underlying_token0
