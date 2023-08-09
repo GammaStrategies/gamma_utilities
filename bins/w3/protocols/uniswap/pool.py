@@ -1,4 +1,5 @@
 from decimal import Decimal
+import logging
 from web3 import Web3
 from hexbytes import HexBytes
 
@@ -391,6 +392,11 @@ class poolv3(web3wrap):
         tickCurrent = self.slot0["tick"]
         ticks_lower = self.ticks(tickLower)
         ticks_upper = self.ticks(tickUpper)
+
+        # do not continue if position is outside of the range, return zero
+        if tickCurrent < tickLower or tickCurrent > tickUpper:
+            f"one position of {ownerAddress} is outside of range. No uncollected fees to calculate."
+            return result.copy()
 
         (
             result["qtty_token0"],

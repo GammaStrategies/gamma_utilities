@@ -512,6 +512,13 @@ class poolv3(web3wrap):
         ticks_lower = self.ticks(tickLower)
         ticks_upper = self.ticks(tickUpper)
 
+        # do not continue if position is outside of the range, return zero
+        if tickCurrent < tickLower or tickCurrent > tickUpper:
+            logging.getLogger(__name__).warning(
+                f" one position of {ownerAddress} is outside of range. No uncollected fees to calculate."
+            )
+            return result.copy()
+
         (
             result["qtty_token0"],
             result["qtty_token1"],
