@@ -40,6 +40,7 @@ def feed_latest_usd_prices(threaded: bool = True):
         result = []
         addresses_processed = []
         prices = {}
+
         try:
             # get prices from coingecko
             prices = cg_helper.get_prices(
@@ -59,24 +60,26 @@ def feed_latest_usd_prices(threaded: bool = True):
             logging.getLogger(__name__).exception(
                 f" Exception at coingecko's price gathering       error-> {e}"
             )
-        # loop through prices
-        for token_address, price in prices.items():
-            if not token_address in addresses_processed:
-                result.append(
-                    {
-                        "id": f"{network}_{token_address}",
-                        "network": network,
-                        "timestamp": int(datetime.now().timestamp()),
-                        "address": token_address,
-                        "price": float(price["usd"]),
-                        "source": databaseSource.COINGECKO,
-                    }
-                )
-                addresses_processed.append(token_address)
-            else:
-                logging.getLogger(__name__).error(
-                    f"{network} - {token_address} is repeated in price_token_address.json file"
-                )
+
+        if prices:
+            # loop through prices
+            for token_address, price in prices.items():
+                if not token_address in addresses_processed:
+                    result.append(
+                        {
+                            "id": f"{network}_{token_address}",
+                            "network": network,
+                            "timestamp": int(datetime.now().timestamp()),
+                            "address": token_address,
+                            "price": float(price["usd"]),
+                            "source": databaseSource.COINGECKO,
+                        }
+                    )
+                    addresses_processed.append(token_address)
+                else:
+                    logging.getLogger(__name__).error(
+                        f"{network} - {token_address} is repeated in price_token_address.json file"
+                    )
 
         # save prices to database in bulk
         if result:
@@ -156,9 +159,9 @@ def feed_latest_usd_prices(threaded: bool = True):
             f"  Using multiple sources to gather prices for {len(args)} tokens left"
         )
         with tqdm.tqdm(total=len(args)) as progress_bar:
-            #
+            # limit max workers to avoid too many requests at once
             if threaded:
-                with concurrent.futures.ThreadPoolExecutor() as ex:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
                     for network, address, result in ex.map(lambda p: loopme(*p), args):
                         if not result:
                             _errors += 1
