@@ -214,21 +214,40 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
 
         amount_base = 0
         amount_boost = 0
-        if periodSecondsInsideX96_base:
+        if periodSecondsInsideX96_base > 0:
             amount_base += int(
                 (baseRewards * periodSecondsInsideX96_base) / (WEEK << 96)
             )
-        if periodBoostedSecondsInsideX96_base:
+        elif periodSecondsInsideX96_base < 0:
+            logging.getLogger(__name__).warning(
+                f"  hype: {self.address} periodSecondsInsideX96_base < 0: {periodSecondsInsideX96_base}"
+            )
+
+        if periodBoostedSecondsInsideX96_base > 0:
             amount_boost += int(
                 (boostedRewards * periodBoostedSecondsInsideX96_base) / (WEEK << 96)
             )
-        if periodSecondsInsideX96_limit:
+        elif periodBoostedSecondsInsideX96_base < 0:
+            logging.getLogger(__name__).warning(
+                f"  hype: {self.address} periodBoostedSecondsInsideX96_base < 0: {periodBoostedSecondsInsideX96_base}"
+            )
+
+        if periodSecondsInsideX96_limit > 0:
             amount_base += int(
                 (baseRewards * periodSecondsInsideX96_limit) / (WEEK << 96)
             )
-        if periodBoostedSecondsInsideX96_limit:
+        elif periodSecondsInsideX96_limit < 0:
+            logging.getLogger(__name__).warning(
+                f"  hype: {self.address} periodSecondsInsideX96_limit < 0: {periodSecondsInsideX96_limit}"
+            )
+
+        if periodBoostedSecondsInsideX96_limit > 0:
             amount_boost += int(
                 (boostedRewards * periodBoostedSecondsInsideX96_limit) / (WEEK << 96)
+            )
+        elif periodBoostedSecondsInsideX96_limit < 0:
+            logging.getLogger(__name__).warning(
+                f"  hype: {self.address} periodBoostedSecondsInsideX96_limit < 0: {periodBoostedSecondsInsideX96_limit}"
             )
 
         # get rewards per second
