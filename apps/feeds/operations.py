@@ -527,7 +527,8 @@ def get_latest_multifeedistribution_last_blocks(network: str) -> int:
             {"$group": {"_id": "none", "block": {"$max": "$block"}}},
         ],
     ):
-        max_block = max(max_block, max_queue_block[0]["block"])
+        if not max_block is None and not max_queue_block[0]["block"] is None:
+            max_block = max(max_block, max_queue_block[0]["block"])
 
     return max_block
 
