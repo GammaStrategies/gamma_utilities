@@ -125,12 +125,11 @@ def process_queue_item_type(network: str, queue_item: QueueItem) -> bool:
         )
 
     elif queue_item.type == queueItemType.LATEST_MULTIFEEDISTRIBUTION:
-        return False
-        # return pull_common_processing_work(
-        #     network=network,
-        #     queue_item=queue_item,
-        #     pull_func=pull_from_queue_latest_multiFeeDistribution,
-        # )
+        return pull_common_processing_work(
+            network=network,
+            queue_item=queue_item,
+            pull_func=pull_from_queue_latest_multiFeeDistribution,
+        )
     else:
         # reset queue item
 
@@ -527,12 +526,6 @@ def pull_from_queue_latest_multiFeeDistribution(
     save_todb = []
 
     try:
-        # build mdf base structure ( to be saved to database later)
-        snapshot = multifeeDistribution_snapshot(
-            address=queue_item.data["address"].lower(),
-            topic=queue_item.data["topic"],
-        )
-
         # log operation processing
         logging.getLogger(__name__).debug(
             f"  -> Processing queue's {network} {queue_item.type} {queue_item.id}"
@@ -579,6 +572,12 @@ def pull_from_queue_latest_multiFeeDistribution(
             limit=1,
             batch_size=100000,
         ):
+            # build mdf base structure ( to be saved to database later)
+            snapshot = multifeeDistribution_snapshot(
+                address=queue_item.data["address"].lower(),
+                topic=queue_item.data["topic"],
+            )
+
             # set mfd status hypervisor address and dex ( protocol)
             snapshot.hypervisor_address = reward_static["hypervisor"]["address"]
             snapshot.dex = reward_static["hypervisor"]["dex"]
@@ -713,16 +712,27 @@ def pull_from_queue_latest_multiFeeDistribution(
                     10 ** reward_static["hypervisor"]["pool"]["token1"]["decimals"]
                 )
 
-                total_underlying_token0 = hypervisor_total0 + float(
+                # Uncollected fees go crazy sometimes. TODO: check what happens. For now, set to 0 when > 10**18
+                uncollected_token0 = float(
                     ephemeral_cache["hypervisor_uncollected"][
                         reward_static["hypervisor"]["address"]
                     ]["qtty_token0"]
                 )
-                total_underlying_token1 = hypervisor_total1 + float(
+                uncollected_token1 = float(
                     ephemeral_cache["hypervisor_uncollected"][
                         reward_static["hypervisor"]["address"]
                     ]["qtty_token1"]
                 )
+
+                if uncollected_token0 > 10**20 or uncollected_token1 > 10**20:
+                    logging.getLogger(__name__).warning(
+                        f" Uncollected fees are > 10**20 for hypervisor {reward_static['hypervisor']['address']} - {reward_static['hypervisor']['pool']['token0']['symbol']}-{reward_static['hypervisor']['pool']['token1']['symbol']} - block {ephemeral_cache['hypervisor_block'][reward_static['hypervisor']['address']]} {uncollected_token0} {uncollected_token1}"
+                    )
+                    uncollected_token0 = 0
+                    uncollected_token1 = 0
+
+                total_underlying_token0 = hypervisor_total0 + uncollected_token0
+                total_underlying_token1 = hypervisor_total1 + uncollected_token1
 
                 total_underlying_token0_usd = (
                     total_underlying_token0
@@ -748,6 +758,9 @@ def pull_from_queue_latest_multiFeeDistribution(
                 logging.getLogger(__name__).warning(
                     f" no prices found for queue's {network} {queue_item.type} {queue_item.id}"
                 )
+
+            if snapshot.hypervisor_price_x_share > 100000000000:
+                po = "pippo"
 
             # set id
             snapshot.id = create_id_latest_multifeedistributor(
