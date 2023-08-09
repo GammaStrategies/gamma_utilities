@@ -125,11 +125,12 @@ def process_queue_item_type(network: str, queue_item: QueueItem) -> bool:
         )
 
     elif queue_item.type == queueItemType.LATEST_MULTIFEEDISTRIBUTION:
-        return pull_common_processing_work(
-            network=network,
-            queue_item=queue_item,
-            pull_func=pull_from_queue_latest_multiFeeDistribution,
-        )
+        return False
+        # return pull_common_processing_work(
+        #     network=network,
+        #     queue_item=queue_item,
+        #     pull_func=pull_from_queue_latest_multiFeeDistribution,
+        # )
     else:
         # reset queue item
 
@@ -758,9 +759,6 @@ def pull_from_queue_latest_multiFeeDistribution(
                 logging.getLogger(__name__).warning(
                     f" no prices found for queue's {network} {queue_item.type} {queue_item.id}"
                 )
-
-            if snapshot.hypervisor_price_x_share > 100000000000:
-                po = "pippo"
 
             # set id
             snapshot.id = create_id_latest_multifeedistributor(
