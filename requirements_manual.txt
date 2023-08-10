@@ -47,3 +47,4 @@ pymongo
 croniter
 polars
 ratelimit
+websocket-client
