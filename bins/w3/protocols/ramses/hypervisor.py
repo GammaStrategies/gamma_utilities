@@ -215,40 +215,46 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
         amount_base = 0
         amount_boost = 0
         if periodSecondsInsideX96_base > 0:
-            amount_base += int(
-                (baseRewards * periodSecondsInsideX96_base) / (WEEK << 96)
-            )
+            amount_base += (baseRewards * periodSecondsInsideX96_base) / (WEEK << 96)
+
         elif periodSecondsInsideX96_base < 0:
             logging.getLogger(__name__).warning(
                 f"  hype: {self.address} periodSecondsInsideX96_base < 0: {periodSecondsInsideX96_base}"
             )
 
         if periodBoostedSecondsInsideX96_base > 0:
-            amount_boost += int(
-                (boostedRewards * periodBoostedSecondsInsideX96_base) / (WEEK << 96)
+            amount_boost += (boostedRewards * periodBoostedSecondsInsideX96_base) / (
+                WEEK << 96
             )
+
         elif periodBoostedSecondsInsideX96_base < 0:
             logging.getLogger(__name__).warning(
                 f"  hype: {self.address} periodBoostedSecondsInsideX96_base < 0: {periodBoostedSecondsInsideX96_base}"
             )
 
         if periodSecondsInsideX96_limit > 0:
-            amount_base += int(
-                (baseRewards * periodSecondsInsideX96_limit) / (WEEK << 96)
-            )
+            amount_base += (baseRewards * periodSecondsInsideX96_limit) / (WEEK << 96)
+
         elif periodSecondsInsideX96_limit < 0:
             logging.getLogger(__name__).warning(
                 f"  hype: {self.address} periodSecondsInsideX96_limit < 0: {periodSecondsInsideX96_limit}"
             )
 
         if periodBoostedSecondsInsideX96_limit > 0:
-            amount_boost += int(
-                (boostedRewards * periodBoostedSecondsInsideX96_limit) / (WEEK << 96)
+            amount_boost += (boostedRewards * periodBoostedSecondsInsideX96_limit) / (
+                WEEK << 96
             )
+
         elif periodBoostedSecondsInsideX96_limit < 0:
             logging.getLogger(__name__).warning(
                 f"  hype: {self.address} periodBoostedSecondsInsideX96_limit < 0: {periodBoostedSecondsInsideX96_limit}"
             )
+
+        # convert to integer, if it is
+        if amount_boost and amount_boost.is_integer():
+            amount_boost = int(amount_boost)
+        if amount_base and amount_base.is_integer():
+            amount_base = int(amount_base)
 
         # get rewards per second
         seconds_in_period = WEEK - self.current_period_remaining_seconds
