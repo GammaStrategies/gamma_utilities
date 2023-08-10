@@ -983,6 +983,7 @@ def create_rewards_status_ramses(
         block=hypervisor_status["block"],
     )
 
+    hypervisor_share_price_usd = 0
     hypervisor_totalSupply = hype_status.totalSupply
     # pool_liquidity = hype_status.pool.liquidity
     # gamma_liquidity = (
@@ -1066,7 +1067,7 @@ def create_rewards_status_ramses(
         total_baseRewards = 0
         total_boostedRewards = 0
         total_time_passed = 0
-        current_period
+
         for hype in timeframe_hype_status_list:
             # do not process "time_passed" -1
             if hype.get("time_passed", 0) == -1:
@@ -1125,8 +1126,12 @@ def create_rewards_status_ramses(
             total_boostedRewards += boostRewards_per_second * _temp_time_passed
             total_time_passed += _temp_time_passed
 
-        gamma_baseRewards_per_second = total_baseRewards / total_time_passed
-        gamma_boostedRewards_per_second = total_boostedRewards / total_time_passed
+        gamma_baseRewards_per_second = (
+            total_baseRewards / total_time_passed if total_time_passed else 0
+        )
+        gamma_boostedRewards_per_second = (
+            total_boostedRewards / total_time_passed if total_time_passed else 0
+        )
         gamma_totalRewards_per_second = (
             gamma_baseRewards_per_second + gamma_boostedRewards_per_second
         )
@@ -1209,6 +1214,9 @@ def create_rewards_status_ramses(
                 # discard items with timepassed = 0
                 if item["time_passed"] == 0:
                     continue
+                if item["hype_totalSupply"] == 0:
+                    # logging.getLogger(__name__).debug(f" ...no hype supply found")
+                    continue
 
                 # calculate price per share for each item using current prices
                 item["tvl"] = (
@@ -1218,6 +1226,8 @@ def create_rewards_status_ramses(
                 item["hypervisor_price_per_share"] = (
                     item["tvl"] / item["hype_totalSupply"]
                 )
+                # set price per share var ( the last will remain)
+                hypervisor_share_price_usd = item["hypervisor_price_per_share"]
 
                 item["base_rewards_usd"] = item["base_rewards"] * rewardToken_price
                 item["boosted_rewards_usd"] = (
@@ -1297,24 +1307,36 @@ def create_rewards_status_ramses(
             cum_reward_return -= 1
             cum_baseReward_return -= 1
             cum_boostedReward_return -= 1
-            reward_apr = cum_reward_return * (
-                (60 * 60 * 24 * 365) / total_period_seconds
+            reward_apr = (
+                cum_reward_return * ((60 * 60 * 24 * 365) / total_period_seconds)
+                if total_period_seconds
+                else 0
             )
             reward_apy = (
                 1 + cum_reward_return * ((60 * 60 * 24) / total_period_seconds)
+                if total_period_seconds
+                else 0
             ) ** 365 - 1
 
-            baseRewards_apr = cum_baseReward_return * (
-                (60 * 60 * 24 * 365) / total_period_seconds
+            baseRewards_apr = (
+                cum_baseReward_return * ((60 * 60 * 24 * 365) / total_period_seconds)
+                if total_period_seconds
+                else 0
             )
             baseRewards_apy = (
                 1 + cum_baseReward_return * ((60 * 60 * 24) / total_period_seconds)
+                if total_period_seconds
+                else 0
             ) ** 365 - 1
-            boostRewards_apr = cum_boostedReward_return * (
-                (60 * 60 * 24 * 365) / total_period_seconds
+            boostRewards_apr = (
+                cum_boostedReward_return * ((60 * 60 * 24 * 365) / total_period_seconds)
+                if total_period_seconds
+                else 0
             )
             boostRewards_apy = (
                 1 + cum_boostedReward_return * ((60 * 60 * 24) / total_period_seconds)
+                if total_period_seconds
+                else 0
             ) ** 365 - 1
 
             # build reward data
@@ -1331,8 +1353,12 @@ def create_rewards_status_ramses(
                 "rewardToken": reward_token.lower(),
                 "rewardToken_symbol": erc20_helper.symbol,
                 "rewardToken_decimals": erc20_helper.decimals,
+                "rewardToken_price_usd": rewardToken_price,
+                "token0_price_usd": hype_token0_price,
+                "token1_price_usd": hype_token1_price,
                 "rewards_perSecond": str(gamma_totalRewards_per_second),
                 "total_hypervisorToken_qtty": str(total_hypervisorToken_qtty),
+                "hypervisor_share_price_usd": hypervisor_share_price_usd,
                 # extra fields
                 "extra": {
                     "baseRewards": total_baseRewards,
