@@ -125,12 +125,11 @@ def process_queue_item_type(network: str, queue_item: QueueItem) -> bool:
         )
 
     elif queue_item.type == queueItemType.LATEST_MULTIFEEDISTRIBUTION:
-        return False
-        # return pull_common_processing_work(
-        #     network=network,
-        #     queue_item=queue_item,
-        #     pull_func=pull_from_queue_latest_multiFeeDistribution,
-        # )
+        return pull_common_processing_work(
+            network=network,
+            queue_item=queue_item,
+            pull_func=pull_from_queue_latest_multiFeeDistribution,
+        )
     else:
         # reset queue item
 
@@ -579,6 +578,11 @@ def pull_from_queue_latest_multiFeeDistribution(
                 topic=queue_item.data["topic"],
             )
 
+            # hypervisor_address = reward_static["hypervisors_status"][0]["address"]
+            # hypervisor_dex = reward_static["hypervisors_status"][0]["dex"]
+            # hypervisor_token0_address = reward_static["hypervisors_status"][0]["pool"]["token0"]["address"]
+            # hypervisor_token1_address = reward_static["hypervisors_status"][0]["pool"]["token1"]["address"]
+
             # set mfd status hypervisor address and dex ( protocol)
             snapshot.hypervisor_address = reward_static["hypervisor"]["address"]
             snapshot.dex = reward_static["hypervisor"]["dex"]
@@ -714,15 +718,21 @@ def pull_from_queue_latest_multiFeeDistribution(
                 )
 
                 # Uncollected fees go crazy sometimes. TODO: check what happens. For now, set to 0 when > 10**18
-                uncollected_token0 = float(
-                    ephemeral_cache["hypervisor_uncollected"][
-                        reward_static["hypervisor"]["address"]
-                    ]["qtty_token0"]
+                uncollected_token0 = (
+                    float(
+                        ephemeral_cache["hypervisor_uncollected"][
+                            reward_static["hypervisor"]["address"]
+                        ]["qtty_token0"]
+                    )
+                    / 10 ** reward_static["hypervisor"]["pool"]["token0"]["decimals"]
                 )
-                uncollected_token1 = float(
-                    ephemeral_cache["hypervisor_uncollected"][
-                        reward_static["hypervisor"]["address"]
-                    ]["qtty_token1"]
+                uncollected_token1 = (
+                    float(
+                        ephemeral_cache["hypervisor_uncollected"][
+                            reward_static["hypervisor"]["address"]
+                        ]["qtty_token1"]
+                    )
+                    / 10 ** reward_static["hypervisor"]["pool"]["token1"]["decimals"]
                 )
 
                 if uncollected_token0 > 10**20 or uncollected_token1 > 10**20:
@@ -814,3 +824,12 @@ def pull_from_queue_latest_multiFeeDistribution(
 
     # return result
     return False
+
+
+def pull_from_queue_latest_multiFeeDistribution2(
+    network: str, queue_item: QueueItem
+) -> bool:
+    # build a list of itmes to be saved to the database
+    save_todb = []
+
+    # get
