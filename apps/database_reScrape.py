@@ -152,7 +152,7 @@ def reScrape_loopWork_rewards_status(rewarder_status: dict, chain: Chain) -> boo
                 network=chain.database_name,
             ):
                 # save to database
-                if int(new_rewarder_status["rewards_perSecond"]) > 0:
+                if float(new_rewarder_status["rewards_perSecond"]) > 0:
                     err = False
                     # compare main differences
                     if rewarder_status["block"] != new_rewarder_status["block"]:
