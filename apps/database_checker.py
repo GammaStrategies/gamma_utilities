@@ -2088,7 +2088,7 @@ def auto_get_prices():
                     )
 
 
-def get_all_logfiles(log_names: list = ["debug", "price"]) -> list:
+def get_all_logfiles(log_names: list = ["error", "debug", "price"]) -> list:
     """get all logfiles from config or default"""
 
     logfiles = []
