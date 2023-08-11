@@ -4,6 +4,7 @@ import tqdm
 from apps.feeds.status import create_reward_status_from_hype_status
 from bins.configuration import CONFIGURATION
 from bins.database.common.db_collections_common import database_local
+from bins.database.helpers import get_default_localdb, get_from_localdb
 from bins.general.enums import Chain, Protocol, text_to_chain
 from bins.w3.builders import build_db_hypervisor
 
@@ -85,8 +86,7 @@ def reScrape_loopWork_hypervisor_status(
     hype_status: dict,
     chain: Chain,
 ) -> bool:
-    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-    db_name = f"{chain.database_name}_gamma"
+    """Rescrape hypervisor status"""
     try:
         if hypervisor := build_db_hypervisor(
             address=hype_status["address"],
@@ -97,9 +97,10 @@ def reScrape_loopWork_hypervisor_status(
             # TODO: compare n log diffs
 
             # add to database
-            database_local(mongo_url=mongo_url, db_name=db_name).set_status(
+            db_result = get_default_localdb(network=chain.database_name).set_status(
                 data=hypervisor
             )
+            # todo: log database result
             return True
     except Exception as e:
         logging.getLogger(__name__).exception(
@@ -110,14 +111,12 @@ def reScrape_loopWork_hypervisor_status(
 
 
 def reScrape_loopWork_rewards_status(rewarder_status: dict, chain: Chain) -> bool:
-    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-    db_name = f"{chain.database_name}_gamma"
+    """Rescrape rewarder status"""
     try:
         # get hypervisor static data from database
-        if hypervisor_status := database_local(
-            mongo_url=mongo_url, db_name=db_name
-        ).get_items_from_database(
-            collection_name="status",
+        if hypervisor_status := get_from_localdb(
+            network=chain.database_name,
+            collection="status",
             find={
                 "address": rewarder_status["hypervisor_address"],
                 "block": rewarder_status["block"],
@@ -128,10 +127,9 @@ def reScrape_loopWork_rewards_status(rewarder_status: dict, chain: Chain) -> boo
             hypervisor_status = hypervisor_status[0]
 
             # get rewarder static
-            rewarder_static = database_local(
-                mongo_url=mongo_url, db_name=db_name
-            ).get_items_from_database(
-                collection_name="rewards_static",
+            rewarder_static = get_from_localdb(
+                network=chain.database_name,
+                collection="rewards_static",
                 find={
                     "hypervisor_address": rewarder_status["hypervisor_address"],
                     "rewarder_registry": rewarder_status["rewarder_registry"],
@@ -195,9 +193,10 @@ def reScrape_loopWork_rewards_status(rewarder_status: dict, chain: Chain) -> boo
 
                     if not err:
                         # add to database
-                        database_local(
-                            mongo_url=mongo_url, db_name=db_name
+                        db_return = get_default_localdb(
+                            network=chain.database_name
                         ).set_rewards_status(data=new_rewarder_status)
+                        # TODO: log database result
                         return True
                 else:
                     logging.getLogger(__name__).debug(
@@ -227,21 +226,24 @@ def main(option=None):
             for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][
                 network
             ]:
-                if option == "rewards_status":
-                    manual_reScrape(
-                        chain=text_to_chain(network),
-                        loop_work=reScrape_loopWork_rewards_status,
-                        find={"dex": dex},
-                        sort=[("block", -1)],
-                        db_collection="rewards_status",
-                        threaded=True,
-                    )
-                elif option == "status":
+                # Hypervisor status  ( first, as its a backbone to all other statuses )
+                if option == "status" or option == "all":
                     manual_reScrape(
                         chain=text_to_chain(network),
                         loop_work=reScrape_loopWork_hypervisor_status,
                         find={"dex": dex},
                         sort=[("block", -1)],
                         db_collection="status",
+                        threaded=True,
+                    )
+
+                # Rewards status
+                if option == "rewards_status" or option == "all":
+                    manual_reScrape(
+                        chain=text_to_chain(network),
+                        loop_work=reScrape_loopWork_rewards_status,
+                        find={"dex": dex},
+                        sort=[("block", -1)],
+                        db_collection="rewards_status",
                         threaded=True,
                     )

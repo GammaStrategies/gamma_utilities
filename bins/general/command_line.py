@@ -100,6 +100,7 @@ def parse_commandLine_args():
     par_rescrape = exGroup.add_argument(
         "--rescrape",
         choices=[
+            "all",
             "status",
             "rewards_status",
         ],
