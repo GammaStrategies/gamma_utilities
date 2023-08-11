@@ -1004,7 +1004,7 @@ def create_rewards_status_ramses(
     # initial timestamp of the period
     period_ini_timestamp = current_period * 60 * 60 * 24 * 7
     # end timestamp of the period
-    # period_end_timestamp = ((current_period + 1) * 60 * 60 * 24 * 7) - 1
+    period_end_timestamp = ((current_period + 1) * 60 * 60 * 24 * 7) - 1
 
     # Get the last 5 status of the hypervisor
     raw_timeframe_hype_status_list = get_from_localdb(
@@ -1102,9 +1102,25 @@ def create_rewards_status_ramses(
             )
 
             # time passed since the position was active. Use the current timestamp only on the last item
-            _temp_time_passed = hype.get(
-                "time_passed", current_timestamp - hype["timestamp"]
-            )
+            # _temp_time_passed = hype.get(
+            #     "time_passed", current_timestamp - hype["timestamp"]
+            # )
+            if not "time_passed" in hype:
+                # check if the hype timestamp is within the period
+                if (
+                    hype["timestamp"] >= period_ini_timestamp
+                    and hype["timestamp"] <= period_end_timestamp
+                ):
+                    # if so, use the current timestamp
+                    _temp_time_passed = current_timestamp - hype["timestamp"]
+                else:
+                    logging.getLogger(__name__).warning(
+                        f" while calc. rewards, found that {hype['address']} at block {hype['block']} is not within the current period {period_ini_timestamp}-{period_end_timestamp}"
+                    )
+                    #TODO: solve this may be the period -1
+                    _temp_time_passed = current_timestamp - hype["timestamp"]
+            else:
+                _temp_time_passed = hype["time_passed"]
 
             # calculate real rewards for the position during the time it was active
             items_to_calc_apr.append(
