@@ -164,7 +164,7 @@ def reScrape_loopWork_rewards_status(rewarder_status: dict, chain: Chain) -> boo
                         rewarder_status["rewards_perSecond"]
                         != new_rewarder_status["rewards_perSecond"]
                     ):
-                        logging.getLogger(__name__).error(
+                        logging.getLogger(__name__).debug(
                             f" rewards_perSecond differ for hype {rewarder_status['hypervisor_address']} rewarder {rewarder_status['rewarder_address']} block {rewarder_status['block']} original: {rewarder_status['rewards_perSecond']} -> new: {new_rewarder_status['rewards_perSecond']}"
                         )
                     if (
