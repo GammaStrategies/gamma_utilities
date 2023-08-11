@@ -97,6 +97,15 @@ def parse_commandLine_args():
         help=" execute analysis ",
     )
 
+    par_rescrape = exGroup.add_argument(
+        "--rescrape",
+        choices=[
+            "status",
+            "rewards_status",
+        ],
+        help=" execute a rescraping of the current database items",
+    )
+
     # tests
     par_test = exGroup.add_argument(
         "--test",

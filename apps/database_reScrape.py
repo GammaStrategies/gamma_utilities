@@ -4,7 +4,7 @@ import tqdm
 from apps.feeds.status import create_reward_status_from_hype_status
 from bins.configuration import CONFIGURATION
 from bins.database.common.db_collections_common import database_local
-from bins.general.enums import Chain
+from bins.general.enums import Chain, Protocol
 from bins.w3.builders import build_db_hypervisor
 
 
@@ -211,3 +211,29 @@ def reScrape_loopWork_rewards_status(rewarder_status: dict, chain: Chain) -> boo
         )
 
     return False
+
+
+def main(option=None):
+    manual_reScrape(
+        chain=Chain.ARBITRUM,
+        loop_work=reScrape_loopWork_rewards_status,
+        find={"dex": Protocol.RAMSES.database_name},
+        sort=[("block", -1)],
+        db_collection="rewards_status",
+        threaded=True,
+    )
+    return
+    # TODO: add options logic
+    # options are collection, custom find, custom sort, threaded
+    for protocol in CONFIGURATION["script"]["protocols"]:
+        # override networks if specified in cml
+        networks = (
+            CONFIGURATION["_custom_"]["cml_parameters"].networks
+            or CONFIGURATION["script"]["protocols"][protocol]["networks"]
+        )
+
+        for network in networks:
+            for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][
+                network
+            ]:
+                pass

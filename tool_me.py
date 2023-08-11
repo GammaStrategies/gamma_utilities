@@ -16,6 +16,7 @@ from apps import (
     database_feeder_service,
     database_checker,
     database_analysis,
+    database_reScrape,
 )
 
 
@@ -93,6 +94,12 @@ if __name__ == "__main__":
         # analysis   --analysis
         database_analysis.main(
             option=CONFIGURATION["_custom_"]["cml_parameters"].analysis
+        )
+
+    elif CONFIGURATION["_custom_"]["cml_parameters"].rescrape:
+        # rescrape   --rescrape
+        database_reScrape.main(
+            option=CONFIGURATION["_custom_"]["cml_parameters"].rescrape
         )
 
     else:
