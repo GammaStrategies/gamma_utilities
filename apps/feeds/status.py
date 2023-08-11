@@ -1005,16 +1005,23 @@ def create_rewards_status_ramses(
     period_ini_timestamp = current_period * 60 * 60 * 24 * 7
     # end timestamp of the period
     # period_end_timestamp = ((current_period + 1) * 60 * 60 * 24 * 7) - 1
-    # create a list of hypervisor status between period_ini_timestamp and current_timestamp, excluding hypervisor_status id
+
+    # Get the last 5 status of the hypervisor
     raw_timeframe_hype_status_list = get_from_localdb(
         network=chain.database_name,
         collection="status",
         find={
             "address": hypervisor_status["address"],
-            "timestamp": {"$gte": period_ini_timestamp, "$lte": current_timestamp},
+            "timestamp": {
+                "$lte": current_timestamp
+            },  # {"$gte": period_ini_timestamp, "$lte": current_timestamp},
         },
-        sort=[("timestamp", 1)],
-        limit=20,
+        sort=[("timestamp", -1)],
+        limit=5,
+    )
+    # sort raw_timeframe_hype_status_list by ascending timestamp
+    raw_timeframe_hype_status_list = sorted(
+        raw_timeframe_hype_status_list, key=lambda k: k["timestamp"]
     )
 
     # filter list with only those where any of the positions changed: list is ordered by ascending timestamp
@@ -1094,7 +1101,7 @@ def create_rewards_status_ramses(
                 / _temp_real_rewards["current_period_seconds"]
             )
 
-            # time passed since the position was active. On the last item, use the current timestamp
+            # time passed since the position was active. Use the current timestamp only on the last item
             _temp_time_passed = hype.get(
                 "time_passed", current_timestamp - hype["timestamp"]
             )
@@ -1281,25 +1288,47 @@ def create_rewards_status_ramses(
                 item["total_reward_apr"] = (cum_reward_return - 1) * (
                     (60 * 60 * 24 * 365) / item["time_passed"]
                 )
-                item["total_reward_apy"] = (
-                    1 + (cum_reward_return - 1) * ((60 * 60 * 24) / item["time_passed"])
-                ) ** 365 - 1
+                try:
+                    item["total_reward_apy"] = (
+                        1
+                        + (cum_reward_return - 1)
+                        * ((60 * 60 * 24) / item["time_passed"])
+                    ) ** 365 - 1
+                except OverflowError as e:
+                    logging.getLogger(__name__).error(
+                        f"  cant calc apy Overflow err on  total_reward_apy...{e}"
+                    )
+                    item["total_reward_apy"] = 0
+
                 item["base_reward_apr"] = (cum_baseReward_return - 1) * (
                     (60 * 60 * 24 * 365) / item["time_passed"]
                 )
-                item["base_reward_apy"] = (
-                    1
-                    + (cum_baseReward_return - 1)
-                    * ((60 * 60 * 24) / item["time_passed"])
-                ) ** 365 - 1
+                try:
+                    item["base_reward_apy"] = (
+                        1
+                        + (cum_baseReward_return - 1)
+                        * ((60 * 60 * 24) / item["time_passed"])
+                    ) ** 365 - 1
+                except OverflowError as e:
+                    logging.getLogger(__name__).error(
+                        f"  cant calc apy Overflow err on  base_reward_apy...{e}"
+                    )
+                    item["base_reward_apy"] = 0
+
                 item["boosted_reward_apr"] = (cum_boostedReward_return - 1) * (
                     (60 * 60 * 24 * 365) / item["time_passed"]
                 )
-                item["boosted_reward_apy"] = (
-                    1
-                    + (cum_boostedReward_return - 1)
-                    * ((60 * 60 * 24) / item["time_passed"])
-                ) ** 365 - 1
+                try:
+                    item["boosted_reward_apy"] = (
+                        1
+                        + (cum_boostedReward_return - 1)
+                        * ((60 * 60 * 24) / item["time_passed"])
+                    ) ** 365 - 1
+                except OverflowError as e:
+                    logging.getLogger(__name__).error(
+                        f"  cant calc apy Overflow err on  boosted_reward_apy...{e}"
+                    )
+                    item["boosted_reward_apy"] = 0
 
                 total_period_seconds += item["time_passed"]
 

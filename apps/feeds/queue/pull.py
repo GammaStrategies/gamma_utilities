@@ -832,4 +832,65 @@ def pull_from_queue_latest_multiFeeDistribution2(
     # build a list of itmes to be saved to the database
     save_todb = []
 
-    # get
+    # get last hype status rewards per sec
+    for reward_static in get_from_localdb(
+        network=network,
+        collection="rewards_static",
+        aggregate=[
+            {
+                "$match": {
+                    "rewarder_registry": queue_item.data["address"].lower(),
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "rewards_status",
+                    "let": {"op_address": "$hypervisor_address"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$eq": ["$hypervisor_address", "$$op_address"]
+                                }
+                            }
+                        },
+                        {"$sort": {"block": -1}},
+                        {"$limit": 3},
+                    ],
+                    "as": "rewards_status",
+                }
+            },
+        ],
+        batch_size=10000,
+    ):
+        # build hypervisor at block with private rpc
+        hypervisor = build_hypervisor(
+            network=network,
+            protocol=text_to_protocol(reward_static["reward_status"][0]["dex"]),
+            block=queue_item.block,
+            hypervisor_address=reward_static["hypervisor_address"],
+            cached=False,
+        )
+
+        # get reward data
+        rewardData = hypervisor.receiver.rewardData(
+            rewardToken_address=reward_static["rewardToken"]
+        )
+
+        lastUpdate_secondsPassed = hypervisor._timestamp - rewardData["lastTimeUpdated"]
+
+        # calc rewards aquired since last update
+        rewards_per_second = reward_static["rewards_status"][0]["rewards_perSecond"]
+        rewards_aquired = rewards_per_second * lastUpdate_secondsPassed
+
+        # calculate base and boost rewards since last update
+        baseRewards_per_second = reward_static["rewards_status"][0]["extra"][
+            "baseRewards_per_second"
+        ]
+        boostRewards_per_second = reward_static["rewards_status"][0]["extra"][
+            "boostRewards_per_second"
+        ]
+        baseRewards_aquired = baseRewards_per_second * lastUpdate_secondsPassed
+        boostRewards_aquired = boostRewards_per_second * lastUpdate_secondsPassed
+
+        save_todb.append({})
