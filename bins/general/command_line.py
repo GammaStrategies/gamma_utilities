@@ -1,7 +1,7 @@
 import sys
 import argparse
 
-from ..general.enums import Chain, queueItemType
+from ..general.enums import Chain, Protocol, queueItemType
 
 
 # validations
@@ -15,6 +15,20 @@ class ValidateNetworks(argparse.Action):
             for item in networks
             for network in item.split(" ")
             if network in valid_subjects
+        ]:
+            setattr(args, self.dest, result)
+
+
+class ValidateProtocols(argparse.Action):
+    def __call__(self, parser, args, protocols, option_string=None):
+        valid_subjects = [x.database_name for x in Protocol]
+
+        # modify only if not empty
+        if result := [
+            protocol
+            for item in protocols
+            for protocol in item.split(" ")
+            if protocol in valid_subjects
         ]:
             setattr(args, self.dest, result)
 
@@ -177,7 +191,14 @@ def parse_commandLine_args():
         action=ValidateNetworks,
         nargs="+",
         # type=str,
-        help=" specify a list of networks to be processed. Enclose all networks within ' ' separator being an empty space ",
+        help=" specify a list of networks to be processed. Enclose within ' ' separator being an empty space ",
+    )
+    par_main.add_argument(
+        "--protocols",
+        action=ValidateProtocols,
+        nargs="+",
+        # type=str,
+        help=" specify a list of protocols to be processed. Enclose within ' ' separator being an empty space ",
     )
     par_main.add_argument(
         "--min_loop_time",

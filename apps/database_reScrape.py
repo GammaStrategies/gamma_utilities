@@ -215,35 +215,37 @@ def reScrape_loopWork_rewards_status(rewarder_status: dict, chain: Chain) -> boo
 def main(option=None):
     # TODO: add options logic
     # options are collection, custom find, custom sort, threaded
-    for protocol in CONFIGURATION["script"]["protocols"]:
-        # override networks if specified in cml
-        networks = (
-            CONFIGURATION["_custom_"]["cml_parameters"].networks
-            or CONFIGURATION["script"]["protocols"][protocol]["networks"]
+    main = "gamma"
+    # override networks if specified in cml
+    networks = (
+        CONFIGURATION["_custom_"]["cml_parameters"].networks
+        or CONFIGURATION["script"]["protocols"][main]["networks"]
+    )
+    for network in networks:
+        # override protocols if specified in cml
+        protocols = (
+            CONFIGURATION["_custom_"]["cml_parameters"].protocols
+            or CONFIGURATION["script"]["protocols"][main]["networks"][network]
         )
+        for protocol in protocols:
+            # Hypervisor status  ( first, as its a backbone to all other statuses )
+            if option == "status" or option == "all":
+                manual_reScrape(
+                    chain=text_to_chain(network),
+                    loop_work=reScrape_loopWork_hypervisor_status,
+                    find={"dex": protocol},
+                    sort=[("block", -1)],
+                    db_collection="status",
+                    threaded=True,
+                )
 
-        for network in networks:
-            for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][
-                network
-            ]:
-                # Hypervisor status  ( first, as its a backbone to all other statuses )
-                if option == "status" or option == "all":
-                    manual_reScrape(
-                        chain=text_to_chain(network),
-                        loop_work=reScrape_loopWork_hypervisor_status,
-                        find={"dex": dex},
-                        sort=[("block", -1)],
-                        db_collection="status",
-                        threaded=True,
-                    )
-
-                # Rewards status
-                if option == "rewards_status" or option == "all":
-                    manual_reScrape(
-                        chain=text_to_chain(network),
-                        loop_work=reScrape_loopWork_rewards_status,
-                        find={"dex": dex},
-                        sort=[("block", -1)],
-                        db_collection="rewards_status",
-                        threaded=True,
-                    )
+            # Rewards status
+            if option == "rewards_status" or option == "all":
+                manual_reScrape(
+                    chain=text_to_chain(network),
+                    loop_work=reScrape_loopWork_rewards_status,
+                    find={"dex": protocol},
+                    sort=[("block", -1)],
+                    db_collection="rewards_status",
+                    threaded=True,
+                )
