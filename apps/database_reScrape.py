@@ -214,14 +214,24 @@ def reScrape_loopWork_rewards_status(rewarder_status: dict, chain: Chain) -> boo
 
 
 def main(option=None):
-    manual_reScrape(
-        chain=Chain.ARBITRUM,
-        loop_work=reScrape_loopWork_rewards_status,
-        find={"dex": Protocol.RAMSES.database_name},
-        sort=[("block", -1)],
-        db_collection="rewards_status",
-        threaded=True,
-    )
+    if option == "rewards_status":
+        manual_reScrape(
+            chain=Chain.ARBITRUM,
+            loop_work=reScrape_loopWork_rewards_status,
+            find={"dex": Protocol.RAMSES.database_name},
+            sort=[("block", -1)],
+            db_collection="rewards_status",
+            threaded=True,
+        )
+    elif option == "status":
+        manual_reScrape(
+            chain=Chain.ARBITRUM,
+            loop_work=reScrape_loopWork_hypervisor_status,
+            find={"dex": Protocol.RAMSES.database_name},
+            sort=[("block", -1)],
+            db_collection="status",
+            threaded=True,
+        )
     return
     # TODO: add options logic
     # options are collection, custom find, custom sort, threaded
