@@ -3,6 +3,7 @@ import concurrent.futures
 import tqdm
 from apps.feeds.status import create_reward_status_from_hype_status
 from bins.configuration import CONFIGURATION
+from bins.database.common.database_ids import create_id_rewards_static
 from bins.database.common.db_collections_common import database_local
 from bins.database.helpers import get_default_localdb, get_from_localdb
 from bins.general.enums import Chain, Protocol, text_to_chain
@@ -17,6 +18,7 @@ def manual_reScrape(
     sort: list = [("block", -1)],
     db_collection: str = "status",
     threaded: bool = True,
+    rewrite: bool | None = None,
 ):
     """Rescrape database items
 
@@ -27,6 +29,7 @@ def manual_reScrape(
         sort (list, optional): . Defaults to descending block
         db_collection (str, optional):  database collection to beguin rescraping with ... defaults to hypervisor "status",
         threaded (bool, optional): Defaults to yes,
+        rewrite (bool, optional): rewrite items from database when no rewards found. Defaults to False.
     """
 
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
@@ -58,6 +61,7 @@ def manual_reScrape(
                     (
                         item,
                         chain,
+                        rewrite,
                     )
                     for item in database_items
                 )
@@ -85,6 +89,7 @@ def manual_reScrape(
 def reScrape_loopWork_hypervisor_status(
     hype_status: dict,
     chain: Chain,
+    rewrite: bool | None = None,
 ) -> bool:
     """Rescrape hypervisor status"""
     try:
@@ -94,7 +99,7 @@ def reScrape_loopWork_hypervisor_status(
             block=hype_status["block"],
             dex=hype_status["dex"],
         ):
-            # TODO: compare n log diffs
+            # TODO: compare n log diffs and rewrite
 
             # add to database
             db_result = get_default_localdb(network=chain.database_name).set_status(
@@ -110,7 +115,9 @@ def reScrape_loopWork_hypervisor_status(
     return False
 
 
-def reScrape_loopWork_rewards_status(rewarder_status: dict, chain: Chain) -> bool:
+def reScrape_loopWork_rewards_status(
+    rewarder_status: dict, chain: Chain, rewrite: bool | None = None
+) -> bool:
     """Rescrape rewarder status"""
     try:
         # get hypervisor static data from database
@@ -131,13 +138,16 @@ def reScrape_loopWork_rewards_status(rewarder_status: dict, chain: Chain) -> boo
                 network=chain.database_name,
                 collection="rewards_static",
                 find={
-                    "hypervisor_address": rewarder_status["hypervisor_address"],
-                    "rewarder_registry": rewarder_status["rewarder_registry"],
+                    "id": create_id_rewards_static(
+                        hypervisor_address=rewarder_status["hypervisor_address"],
+                        rewarder_address=rewarder_status["rewarder_address"],
+                        rewardToken_address=rewarder_status["rewardToken"],
+                    )
                 },
             )
             if not rewarder_static:
                 logging.getLogger(__name__).error(
-                    f" No rewarder static found for hypervisor {rewarder_status['hypervisor_address']} rewarder {rewarder_status['rewarder_address']} "
+                    f" No rewarder static found for hypervisor {rewarder_status['hypervisor_address']} rewarder {rewarder_status['rewarder_address']} rewardToken {rewarder_status['rewardToken']}"
                 )
                 return False
             else:
@@ -149,8 +159,8 @@ def reScrape_loopWork_rewards_status(rewarder_status: dict, chain: Chain) -> boo
                 rewarder_static=rewarder_static,
                 network=chain.database_name,
             ):
-                # save to database
-                if float(new_rewarder_status["rewards_perSecond"]) > 0:
+                # save to database if rewards_perSecond > 0 or rewrite
+                if float(new_rewarder_status["rewards_perSecond"]) > 0 or rewrite:
                     err = False
                     # compare main differences
                     if rewarder_status["block"] != new_rewarder_status["block"]:
@@ -237,6 +247,7 @@ def main(option=None):
                     sort=[("block", -1)],
                     db_collection="status",
                     threaded=True,
+                    rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
                 )
 
             # Rewards status
@@ -248,4 +259,5 @@ def main(option=None):
                     sort=[("block", -1)],
                     db_collection="rewards_status",
                     threaded=True,
+                    rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
                 )
