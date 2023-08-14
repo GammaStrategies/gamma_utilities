@@ -1639,6 +1639,7 @@ def create_rewards_status_ramses(
                     "block": hype_status.block,
                     "timestamp": hype_status._timestamp,
                     "hypervisor_address": hype_status.address.lower(),
+                    "dex": Protocol.RAMSES.database_name,
                     "rewarder_address": hype_status.gauge.address.lower(),
                     "rewarder_type": rewarderType.RAMSES_v2,
                     "rewarder_refIds": [],
@@ -1658,8 +1659,8 @@ def create_rewards_status_ramses(
                     ],
                     # extra fields
                     "extra": {
-                        "baseRewards": total_baseRewards,
-                        "boostedRewards": total_boostedRewards,
+                        "baseRewards": str(total_baseRewards),
+                        "boostedRewards": str(total_boostedRewards),
                         "baseRewards_apr": reward_apr_data_to_save["extra"][
                             "baseRewards_apr"
                         ],

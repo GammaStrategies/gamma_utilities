@@ -13,7 +13,6 @@ import time
 from apps.feeds.latest.mutifeedistribution.currents import (
     feed_latest_multifeedistribution_snapshot,
 )
-from bins.general.enums import Chain, text_to_chain
 
 from bins.general.general_utilities import identify_me
 
@@ -21,7 +20,7 @@ from .parallel_feed import process_all_queues
 
 from bins.configuration import CONFIGURATION
 
-from .feeds.operations import feed_mutiFeeDistribution_operations, feed_operations
+from .feeds.operations import feed_operations
 from .database_feeder import (
     feed_timestamp_blocks,
     feed_blocks_timestamp,
@@ -310,13 +309,6 @@ def operations_db_service():
                 for network in networks:
                     # ops
                     feed_operations(protocol=protocol, network=network)
-
-                    # TODO: solve this manual reference
-                    # multifeeDistributor ops
-                    if network in [Chain.ARBITRUM.database_name]:
-                        feed_mutiFeeDistribution_operations(
-                            chain=text_to_chain(network)
-                        )
 
             # nforce a min time between loops
             _endtime = datetime.now(timezone.utc)
