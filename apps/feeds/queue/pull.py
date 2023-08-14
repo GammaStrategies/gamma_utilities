@@ -607,7 +607,7 @@ def pull_from_queue_latest_multiFeeDistribution(
             hypervisor_address = reward_static["hypervisor_address"]
 
             # create multiFeeDistributior snapshot structure (to be saved to database later)
-            snapshot = multifeeDistribution_snapshot_2(
+            snapshot = multifeeDistribution_snapshot(
                 address=mfd_address,
                 hypervisor_address=hypervisor_address,
                 dex=protocol.database_name,
