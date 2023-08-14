@@ -1318,7 +1318,7 @@ def create_rewards_status_ramses_old(
                         * ((60 * 60 * 24) / item["time_passed"])
                     ) ** 365 - 1
                 except OverflowError as e:
-                    logging.getLogger(__name__).error(
+                    logging.getLogger(__name__).debug(
                         f"  cant calc apy Overflow err on  total_reward_apy...{e}"
                     )
                     item["total_reward_apy"] = 0
@@ -1333,7 +1333,7 @@ def create_rewards_status_ramses_old(
                         * ((60 * 60 * 24) / item["time_passed"])
                     ) ** 365 - 1
                 except OverflowError as e:
-                    logging.getLogger(__name__).error(
+                    logging.getLogger(__name__).debug(
                         f"  cant calc apy Overflow err on  base_reward_apy...{e}"
                     )
                     item["base_reward_apy"] = 0
@@ -1348,7 +1348,7 @@ def create_rewards_status_ramses_old(
                         * ((60 * 60 * 24) / item["time_passed"])
                     ) ** 365 - 1
                 except OverflowError as e:
-                    logging.getLogger(__name__).error(
+                    logging.getLogger(__name__).debug(
                         f"  cant calc apy Overflow err on  boosted_reward_apy...{e}"
                     )
                     item["boosted_reward_apy"] = 0
@@ -1900,7 +1900,7 @@ def create_rewards_status_ramses_calculate_apr(
                     1 + (cum_reward_return - 1) * ((60 * 60 * 24) / item["time_passed"])
                 ) ** 365 - 1
             except OverflowError as e:
-                logging.getLogger(__name__).error(
+                logging.getLogger(__name__).debug(
                     f"  cant calc apy Overflow err on  total_reward_apy...{e}"
                 )
                 item["total_reward_apy"] = 0
@@ -1915,7 +1915,7 @@ def create_rewards_status_ramses_calculate_apr(
                     * ((60 * 60 * 24) / item["time_passed"])
                 ) ** 365 - 1
             except OverflowError as e:
-                logging.getLogger(__name__).error(
+                logging.getLogger(__name__).debug(
                     f"  cant calc apy Overflow err on  base_reward_apy...{e}"
                 )
                 item["base_reward_apy"] = 0
@@ -1930,7 +1930,7 @@ def create_rewards_status_ramses_calculate_apr(
                     * ((60 * 60 * 24) / item["time_passed"])
                 ) ** 365 - 1
             except OverflowError as e:
-                logging.getLogger(__name__).error(
+                logging.getLogger(__name__).debug(
                     f"  cant calc apy Overflow err on  boosted_reward_apy...{e}"
                 )
                 item["boosted_reward_apy"] = 0
