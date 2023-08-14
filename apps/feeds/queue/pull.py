@@ -246,7 +246,7 @@ def pull_from_queue_hypervisor_status(network: str, queue_item: QueueItem) -> bo
             )
 
     except Exception as e:
-        logging.getLogger(__name__).error(
+        logging.getLogger(__name__).exception(
             f"Error processing {network}'s hypervisor status queue item: {e}"
         )
 

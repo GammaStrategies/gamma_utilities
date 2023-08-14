@@ -976,471 +976,471 @@ def create_rewards_status_angle_merkle(
     return result
 
 
-def create_rewards_status_ramses_old(
-    chain: Chain, rewarder_static: dict, hypervisor_status: dict
-) -> list:
-    batch_size = 50000
+# def create_rewards_status_ramses_old(
+#     chain: Chain, rewarder_static: dict, hypervisor_status: dict
+# ) -> list:
+#     batch_size = 50000
 
-    result = []
-    # create ramses hypervisor
-    hype_status = ramses_hypervisor(
-        address=hypervisor_status["address"],
-        network=chain.database_name,
-        block=hypervisor_status["block"],
-    )
+#     result = []
+#     # create ramses hypervisor
+#     hype_status = ramses_hypervisor(
+#         address=hypervisor_status["address"],
+#         network=chain.database_name,
+#         block=hypervisor_status["block"],
+#     )
 
-    hypervisor_share_price_usd = 0
-    hypervisor_totalSupply = hype_status.totalSupply
-    # pool_liquidity = hype_status.pool.liquidity
-    # gamma_liquidity = (
-    #     hype_status.getBasePosition["liquidity"]
-    #     + hype_status.getLimitPosition["liquidity"]
-    # )
-    totalStaked = hype_status.receiver.totalStakes
+#     hypervisor_share_price_usd = 0
+#     hypervisor_totalSupply = hype_status.totalSupply
+#     # pool_liquidity = hype_status.pool.liquidity
+#     # gamma_liquidity = (
+#     #     hype_status.getBasePosition["liquidity"]
+#     #     + hype_status.getLimitPosition["liquidity"]
+#     # )
+#     totalStaked = hype_status.receiver.totalStakes
 
-    if not hypervisor_totalSupply:
-        logging.getLogger(__name__).debug(
-            f"Can't calculate rewards status for ramses hype {hype_status.symbol} {hype_status.address} because it has no supply at block {hype_status.block}"
-        )
-        return []
+#     if not hypervisor_totalSupply:
+#         logging.getLogger(__name__).debug(
+#             f"Can't calculate rewards status for ramses hype {hype_status.symbol} {hype_status.address} because it has no supply at block {hype_status.block}"
+#         )
+#         return []
 
-    # period timeframe
-    current_timestamp = hype_status._timestamp
-    current_period = hype_status.current_period
-    # initial timestamp of the period
-    period_ini_timestamp = current_period * 60 * 60 * 24 * 7
-    # end timestamp of the period
-    period_end_timestamp = ((current_period + 1) * 60 * 60 * 24 * 7) - 1
+#     # period timeframe
+#     current_timestamp = hype_status._timestamp
+#     current_period = hype_status.current_period
+#     # initial timestamp of the period
+#     period_ini_timestamp = current_period * 60 * 60 * 24 * 7
+#     # end timestamp of the period
+#     period_end_timestamp = ((current_period + 1) * 60 * 60 * 24 * 7) - 1
 
-    # Get the last 5 status of the hypervisor
-    raw_timeframe_hype_status_list = get_from_localdb(
-        network=chain.database_name,
-        collection="status",
-        find={
-            "address": hypervisor_status["address"],
-            "timestamp": {
-                "$lte": current_timestamp
-            },  # {"$gte": period_ini_timestamp, "$lte": current_timestamp},
-        },
-        sort=[("timestamp", -1)],
-        limit=5,
-    )
+#     # Get the last 5 status of the hypervisor
+#     raw_timeframe_hype_status_list = get_from_localdb(
+#         network=chain.database_name,
+#         collection="status",
+#         find={
+#             "address": hypervisor_status["address"],
+#             "timestamp": {
+#                 "$lte": current_timestamp
+#             },  # {"$gte": period_ini_timestamp, "$lte": current_timestamp},
+#         },
+#         sort=[("timestamp", -1)],
+#         limit=5,
+#     )
 
-    # sort raw_timeframe_hype_status_list by ascending timestamp
-    raw_timeframe_hype_status_list = sorted(
-        raw_timeframe_hype_status_list, key=lambda k: k["timestamp"]
-    )
+#     # sort raw_timeframe_hype_status_list by ascending timestamp
+#     raw_timeframe_hype_status_list = sorted(
+#         raw_timeframe_hype_status_list, key=lambda k: k["timestamp"]
+#     )
 
-    # filter list with only those where any of the positions changed: list is ordered by ascending timestamp
-    timeframe_hype_status_list = []
-    for idx in range(len(raw_timeframe_hype_status_list)):
-        # add the first item in the list
-        if idx == 0:
-            timeframe_hype_status_list.append(raw_timeframe_hype_status_list[idx])
-            continue
+#     # filter list with only those where any of the positions changed: list is ordered by ascending timestamp
+#     timeframe_hype_status_list = []
+#     for idx in range(len(raw_timeframe_hype_status_list)):
+#         # add the first item in the list
+#         if idx == 0:
+#             timeframe_hype_status_list.append(raw_timeframe_hype_status_list[idx])
+#             continue
 
-        # # check if current item positions are different from previous item positions
-        # if (
-        #     raw_timeframe_hype_status_list[idx]["baseUpper"]
-        #     != raw_timeframe_hype_status_list[idx - 1]["baseUpper"]
-        #     or raw_timeframe_hype_status_list[idx]["limitUpper"]
-        #     != raw_timeframe_hype_status_list[idx - 1]["limitUpper"]
-        #     or raw_timeframe_hype_status_list[idx]["baseLower"]
-        #     != raw_timeframe_hype_status_list[idx - 1]["baseLower"]
-        #     or raw_timeframe_hype_status_list[idx]["limitLower"]
-        #     != raw_timeframe_hype_status_list[idx - 1]["limitLower"]
-        # ):
-        # add to last item the total time in seconds passed between this item and the previous one
-        timeframe_hype_status_list[-1]["time_passed"] = (
-            raw_timeframe_hype_status_list[idx]["timestamp"]
-            - timeframe_hype_status_list[-1]["timestamp"]
-        ) - 1  # one second less to avoid overlapping periods
+#         # # check if current item positions are different from previous item positions
+#         # if (
+#         #     raw_timeframe_hype_status_list[idx]["baseUpper"]
+#         #     != raw_timeframe_hype_status_list[idx - 1]["baseUpper"]
+#         #     or raw_timeframe_hype_status_list[idx]["limitUpper"]
+#         #     != raw_timeframe_hype_status_list[idx - 1]["limitUpper"]
+#         #     or raw_timeframe_hype_status_list[idx]["baseLower"]
+#         #     != raw_timeframe_hype_status_list[idx - 1]["baseLower"]
+#         #     or raw_timeframe_hype_status_list[idx]["limitLower"]
+#         #     != raw_timeframe_hype_status_list[idx - 1]["limitLower"]
+#         # ):
+#         # add to last item the total time in seconds passed between this item and the previous one
+#         timeframe_hype_status_list[-1]["time_passed"] = (
+#             raw_timeframe_hype_status_list[idx]["timestamp"]
+#             - timeframe_hype_status_list[-1]["timestamp"]
+#         ) - 1  # one second less to avoid overlapping periods
 
-        # add the item to the list
-        timeframe_hype_status_list.append(raw_timeframe_hype_status_list[idx])
+#         # add the item to the list
+#         timeframe_hype_status_list.append(raw_timeframe_hype_status_list[idx])
 
-    # when only one item in the list, add total time in seconds passed between this item and the previous one
-    # if len(timeframe_hype_status_list) ==1:
-    #     timeframe_hype_status_list[-1]["time_passed"] = (
-    #         current_timestamp
-    #         - timeframe_hype_status_list[-1]["timestamp"]
-    #     ) - 1
+#     # when only one item in the list, add total time in seconds passed between this item and the previous one
+#     # if len(timeframe_hype_status_list) ==1:
+#     #     timeframe_hype_status_list[-1]["time_passed"] = (
+#     #         current_timestamp
+#     #         - timeframe_hype_status_list[-1]["timestamp"]
+#     #     ) - 1
 
-    result = []
-    for reward_token in hype_status.gauge.getRewardTokens:
-        # lower case address
-        reward_token = reward_token.lower()
+#     result = []
+#     for reward_token in hype_status.gauge.getRewardTokens:
+#         # lower case address
+#         reward_token = reward_token.lower()
 
-        # build erc20 helper
-        erc20_helper = build_erc20_helper(
-            chain=chain, address=reward_token, cached=True
-        )
+#         # build erc20 helper
+#         erc20_helper = build_erc20_helper(
+#             chain=chain, address=reward_token, cached=True
+#         )
 
-        # get rewards for all this period for the multiple positions this hypervisor has had
-        items_to_calc_apr = []
-        total_baseRewards = 0
-        total_boostedRewards = 0
-        total_time_passed = 0
+#         # get rewards for all this period for the multiple positions this hypervisor has had
+#         items_to_calc_apr = []
+#         total_baseRewards = 0
+#         total_boostedRewards = 0
+#         total_time_passed = 0
 
-        for hype in timeframe_hype_status_list:
-            # do not process "time_passed" -1
-            if hype.get("time_passed", 0) == -1:
-                continue
+#         for hype in timeframe_hype_status_list:
+#             # do not process "time_passed" -1
+#             if hype.get("time_passed", 0) == -1:
+#                 continue
 
-            # get rewards for this period using the hype's position
-            # create ramses hypervisor
-            _temp_hype_status = ramses_hypervisor(
-                address=hype["address"],
-                network=chain.database_name,
-                block=hype["block"],
-            )
-            # calculate rewards for this position at period
-            _temp_real_rewards = _temp_hype_status.calculate_rewards(
-                period=_temp_hype_status.current_period, reward_token=reward_token
-            )
-            # calculate rewards per second for this position and perood
-            baseRewards_per_second = (
-                _temp_real_rewards["current_baseRewards"]
-                / _temp_real_rewards["current_period_seconds"]
-            )
-            boostRewards_per_second = (
-                _temp_real_rewards["current_boostedRewards"]
-                / _temp_real_rewards["current_period_seconds"]
-            )
+#             # get rewards for this period using the hype's position
+#             # create ramses hypervisor
+#             _temp_hype_status = ramses_hypervisor(
+#                 address=hype["address"],
+#                 network=chain.database_name,
+#                 block=hype["block"],
+#             )
+#             # calculate rewards for this position at period
+#             _temp_real_rewards = _temp_hype_status.calculate_rewards(
+#                 period=_temp_hype_status.current_period, reward_token=reward_token
+#             )
+#             # calculate rewards per second for this position and perood
+#             baseRewards_per_second = (
+#                 _temp_real_rewards["current_baseRewards"]
+#                 / _temp_real_rewards["current_period_seconds"]
+#             )
+#             boostRewards_per_second = (
+#                 _temp_real_rewards["current_boostedRewards"]
+#                 / _temp_real_rewards["current_period_seconds"]
+#             )
 
-            # time passed since the position was active. Use the current timestamp only on the last item
-            # _temp_time_passed = hype.get(
-            #     "time_passed", current_timestamp - hype["timestamp"]
-            # )
-            if not "time_passed" in hype:
-                # check if the hype timestamp is within the period
-                if (
-                    hype["timestamp"] >= period_ini_timestamp
-                    and hype["timestamp"] <= period_end_timestamp
-                ):
-                    # if so, use the current timestamp
-                    _temp_time_passed = current_timestamp - hype["timestamp"]
-                else:
-                    logging.getLogger(__name__).warning(
-                        f" while calc. rewards, found that {hype['address']} at block {hype['block']} is not within the current period {period_ini_timestamp}-{period_end_timestamp}"
-                    )
-                    # TODO: solve this may be the period -1
-                    _temp_time_passed = current_timestamp - hype["timestamp"]
-            else:
-                _temp_time_passed = hype["time_passed"]
+#             # time passed since the position was active. Use the current timestamp only on the last item
+#             # _temp_time_passed = hype.get(
+#             #     "time_passed", current_timestamp - hype["timestamp"]
+#             # )
+#             if not "time_passed" in hype:
+#                 # check if the hype timestamp is within the period
+#                 if (
+#                     hype["timestamp"] >= period_ini_timestamp
+#                     and hype["timestamp"] <= period_end_timestamp
+#                 ):
+#                     # if so, use the current timestamp
+#                     _temp_time_passed = current_timestamp - hype["timestamp"]
+#                 else:
+#                     logging.getLogger(__name__).warning(
+#                         f" while calc. rewards, found that {hype['address']} at block {hype['block']} is not within the current period {period_ini_timestamp}-{period_end_timestamp}"
+#                     )
+#                     # TODO: solve this may be the period -1
+#                     _temp_time_passed = current_timestamp - hype["timestamp"]
+#             else:
+#                 _temp_time_passed = hype["time_passed"]
 
-            # calculate real rewards for the position during the time it was active
-            items_to_calc_apr.append(
-                {
-                    "base_rewards": (baseRewards_per_second * _temp_time_passed)
-                    / (10 ** rewarder_static["rewardToken_decimals"]),
-                    "boosted_rewards": (boostRewards_per_second * _temp_time_passed)
-                    / (10 ** rewarder_static["rewardToken_decimals"]),
-                    "time_passed": _temp_time_passed,
-                    "timestamp_ini": hype["timestamp"],
-                    "hype_totalSupply": int(hype["totalSupply"])
-                    / (10 ** hype["decimals"]),
-                    "hype_underlying_token0": (
-                        float(hype["totalAmounts"]["total0"])
-                        + float(hype["fees_uncollected"]["qtty_token0"])
-                    )
-                    / (10 ** hype["pool"]["token0"]["decimals"]),
-                    "hype_underlying_token1": (
-                        float(hype["totalAmounts"]["total1"])
-                        + float(hype["fees_uncollected"]["qtty_token1"])
-                    )
-                    / (10 ** hype["pool"]["token1"]["decimals"]),
-                }
-            )
-            total_baseRewards += baseRewards_per_second * _temp_time_passed
-            total_boostedRewards += boostRewards_per_second * _temp_time_passed
-            total_time_passed += _temp_time_passed
+#             # calculate real rewards for the position during the time it was active
+#             items_to_calc_apr.append(
+#                 {
+#                     "base_rewards": (baseRewards_per_second * _temp_time_passed)
+#                     / (10 ** rewarder_static["rewardToken_decimals"]),
+#                     "boosted_rewards": (boostRewards_per_second * _temp_time_passed)
+#                     / (10 ** rewarder_static["rewardToken_decimals"]),
+#                     "time_passed": _temp_time_passed,
+#                     "timestamp_ini": hype["timestamp"],
+#                     "hype_totalSupply": int(hype["totalSupply"])
+#                     / (10 ** hype["decimals"]),
+#                     "hype_underlying_token0": (
+#                         float(hype["totalAmounts"]["total0"])
+#                         + float(hype["fees_uncollected"]["qtty_token0"])
+#                     )
+#                     / (10 ** hype["pool"]["token0"]["decimals"]),
+#                     "hype_underlying_token1": (
+#                         float(hype["totalAmounts"]["total1"])
+#                         + float(hype["fees_uncollected"]["qtty_token1"])
+#                     )
+#                     / (10 ** hype["pool"]["token1"]["decimals"]),
+#                 }
+#             )
+#             total_baseRewards += baseRewards_per_second * _temp_time_passed
+#             total_boostedRewards += boostRewards_per_second * _temp_time_passed
+#             total_time_passed += _temp_time_passed
 
-        gamma_baseRewards_per_second = (
-            total_baseRewards / total_time_passed if total_time_passed else 0
-        )
-        gamma_boostedRewards_per_second = (
-            total_boostedRewards / total_time_passed if total_time_passed else 0
-        )
-        gamma_totalRewards_per_second = (
-            gamma_baseRewards_per_second + gamma_boostedRewards_per_second
-        )
-        # set  LP staked
-        total_hypervisorToken_qtty = totalStaked or hype_status.totalSupply
+#         gamma_baseRewards_per_second = (
+#             total_baseRewards / total_time_passed if total_time_passed else 0
+#         )
+#         gamma_boostedRewards_per_second = (
+#             total_boostedRewards / total_time_passed if total_time_passed else 0
+#         )
+#         gamma_totalRewards_per_second = (
+#             gamma_baseRewards_per_second + gamma_boostedRewards_per_second
+#         )
+#         # set  LP staked
+#         total_hypervisorToken_qtty = totalStaked or hype_status.totalSupply
 
-        # if real_rewards["current_rewards_per_second"]:
-        #     gamma_rewards_per_second = real_rewards["current_rewards_per_second"]
-        #     # get LP staked
-        #     total_hypervisorToken_qtty = totalStaked or hype_status.totalSupply
-        # else:
-        #     logging.getLogger(__name__).debug(
-        #         f" Using Ramses max rewards per second for hype {hype_status.symbol} {hype_status.address.lower()} because it has no real rewards at block {hype_status.block}. rewarder address: {hype_status.gauge.address.lower()}"
-        #     )
-        #     gamma_rewards_per_second = real_rewards["max_rewards_per_second"]
-        #     # xtrapolate gamma hype supply to approach pool value
-        #     if gamma_liquidity:
-        #         total_hypervisorToken_qtty = int(
-        #             hypervisor_totalSupply * (pool_liquidity / gamma_liquidity)
-        #         )
-        #     else:
-        #         logging.getLogger(__name__).warning(
-        #             f" No liquidity for hype {hypervisor_status['address']} found at block {hypervisor_status['block']}."
-        #         )
-        #         total_hypervisorToken_qtty = 0
+#         # if real_rewards["current_rewards_per_second"]:
+#         #     gamma_rewards_per_second = real_rewards["current_rewards_per_second"]
+#         #     # get LP staked
+#         #     total_hypervisorToken_qtty = totalStaked or hype_status.totalSupply
+#         # else:
+#         #     logging.getLogger(__name__).debug(
+#         #         f" Using Ramses max rewards per second for hype {hype_status.symbol} {hype_status.address.lower()} because it has no real rewards at block {hype_status.block}. rewarder address: {hype_status.gauge.address.lower()}"
+#         #     )
+#         #     gamma_rewards_per_second = real_rewards["max_rewards_per_second"]
+#         #     # xtrapolate gamma hype supply to approach pool value
+#         #     if gamma_liquidity:
+#         #         total_hypervisorToken_qtty = int(
+#         #             hypervisor_totalSupply * (pool_liquidity / gamma_liquidity)
+#         #         )
+#         #     else:
+#         #         logging.getLogger(__name__).warning(
+#         #             f" No liquidity for hype {hypervisor_status['address']} found at block {hypervisor_status['block']}."
+#         #         )
+#         #         total_hypervisorToken_qtty = 0
 
-        # when available, get last known reward status from database to be able to calculate staked
-        # if last_reward_status := get_from_localdb(
-        #     network=chain.database_name,
-        #     collection="rewards_status",
-        #     find={
-        #         "hypervisor_address": hypervisor_status["address"],
-        #         "rewarder_address": hype_status.gauge.address.lower(),
-        #         "rewardToken": reward_token.lower(),
-        #         "block": {"$lt": hypervisor_status["block"]},
-        #     },
-        #     sort=[("block", -1)],
-        #     limit=1,
-        # ):
-        #     last_reward_status = last_reward_status[0]
+#         # when available, get last known reward status from database to be able to calculate staked
+#         # if last_reward_status := get_from_localdb(
+#         #     network=chain.database_name,
+#         #     collection="rewards_status",
+#         #     find={
+#         #         "hypervisor_address": hypervisor_status["address"],
+#         #         "rewarder_address": hype_status.gauge.address.lower(),
+#         #         "rewardToken": reward_token.lower(),
+#         #         "block": {"$lt": hypervisor_status["block"]},
+#         #     },
+#         #     sort=[("block", -1)],
+#         #     limit=1,
+#         # ):
+#         #     last_reward_status = last_reward_status[0]
 
-        #     if int(last_reward_status["total_hypervisorToken_qtty"]) > 0:
-        #         logging.getLogger(__name__).debug(
-        #             f"    ...chainging total hype {hypervisor_status['address']} qtty from {total_hypervisorToken_qtty} to last known {last_reward_status['total_hypervisorToken_qtty']} {hypervisor_status['block']-last_reward_status['block']} blocks in the past [curr:{hypervisor_status['block']} last: {last_reward_status['block']}]"
-        #         )
-        #         total_hypervisorToken_qtty = int(
-        #             last_reward_status["total_hypervisorToken_qtty"]
-        #         )
-        #     else:
-        #         logging.getLogger(__name__).debug(
-        #             f"    ...no past rewards_status found for hypervisor {hypervisor_status['address']} {hypervisor_status['symbol']} at block {hypervisor_status['block']}. Using current {total_hypervisorToken_qtty}"
-        #         )
+#         #     if int(last_reward_status["total_hypervisorToken_qtty"]) > 0:
+#         #         logging.getLogger(__name__).debug(
+#         #             f"    ...chainging total hype {hypervisor_status['address']} qtty from {total_hypervisorToken_qtty} to last known {last_reward_status['total_hypervisorToken_qtty']} {hypervisor_status['block']-last_reward_status['block']} blocks in the past [curr:{hypervisor_status['block']} last: {last_reward_status['block']}]"
+#         #         )
+#         #         total_hypervisorToken_qtty = int(
+#         #             last_reward_status["total_hypervisorToken_qtty"]
+#         #         )
+#         #     else:
+#         #         logging.getLogger(__name__).debug(
+#         #             f"    ...no past rewards_status found for hypervisor {hypervisor_status['address']} {hypervisor_status['symbol']} at block {hypervisor_status['block']}. Using current {total_hypervisorToken_qtty}"
+#         #         )
 
-        # else:
-        #     logging.getLogger(__name__).debug(
-        #         f"  ...no past rewards found for hypervisor {hypervisor_status['address']} {hypervisor_status['symbol']}"
-        #     )
+#         # else:
+#         #     logging.getLogger(__name__).debug(
+#         #         f"  ...no past rewards found for hypervisor {hypervisor_status['address']} {hypervisor_status['symbol']}"
+#         #     )
 
-        # add apr
-        try:
-            # get prices
-            (
-                rewardToken_price,
-                hype_token0_price,
-                hype_token1_price,
-            ) = get_reward_pool_prices(
-                network=chain.database_name,
-                block=hypervisor_status["block"],
-                reward_token=reward_token.lower(),
-                token0=hypervisor_status["pool"]["token0"]["address"],
-                token1=hypervisor_status["pool"]["token1"]["address"],
-            )
+#         # add apr
+#         try:
+#             # get prices
+#             (
+#                 rewardToken_price,
+#                 hype_token0_price,
+#                 hype_token1_price,
+#             ) = get_reward_pool_prices(
+#                 network=chain.database_name,
+#                 block=hypervisor_status["block"],
+#                 reward_token=reward_token.lower(),
+#                 token0=hypervisor_status["pool"]["token0"]["address"],
+#                 token1=hypervisor_status["pool"]["token1"]["address"],
+#             )
 
-            # calculate apr using items_to_calc_apr data and prices
-            cum_reward_return = 0
-            cum_baseReward_return = 0
-            cum_boostedReward_return = 0
-            total_period_seconds = 0
-            for item in items_to_calc_apr:
-                # discard items with timepassed = 0
-                if item["time_passed"] == 0:
-                    continue
-                if item["hype_totalSupply"] == 0:
-                    # logging.getLogger(__name__).debug(f" ...no hype supply found")
-                    continue
+#             # calculate apr using items_to_calc_apr data and prices
+#             cum_reward_return = 0
+#             cum_baseReward_return = 0
+#             cum_boostedReward_return = 0
+#             total_period_seconds = 0
+#             for item in items_to_calc_apr:
+#                 # discard items with timepassed = 0
+#                 if item["time_passed"] == 0:
+#                     continue
+#                 if item["hype_totalSupply"] == 0:
+#                     # logging.getLogger(__name__).debug(f" ...no hype supply found")
+#                     continue
 
-                # calculate price per share for each item using current prices
-                item["tvl"] = (
-                    item["hype_underlying_token0"] * hype_token0_price
-                    + item["hype_underlying_token1"] * hype_token1_price
-                )
-                item["hypervisor_price_per_share"] = (
-                    item["tvl"] / item["hype_totalSupply"]
-                )
-                # set price per share var ( the last will remain)
-                hypervisor_share_price_usd = item["hypervisor_price_per_share"]
+#                 # calculate price per share for each item using current prices
+#                 item["tvl"] = (
+#                     item["hype_underlying_token0"] * hype_token0_price
+#                     + item["hype_underlying_token1"] * hype_token1_price
+#                 )
+#                 item["hypervisor_price_per_share"] = (
+#                     item["tvl"] / item["hype_totalSupply"]
+#                 )
+#                 # set price per share var ( the last will remain)
+#                 hypervisor_share_price_usd = item["hypervisor_price_per_share"]
 
-                item["base_rewards_usd"] = item["base_rewards"] * rewardToken_price
-                item["boosted_rewards_usd"] = (
-                    item["boosted_rewards"] * rewardToken_price
-                )
-                item["total_rewards_usd"] = (
-                    item["base_rewards_usd"] + item["boosted_rewards_usd"]
-                )
+#                 item["base_rewards_usd"] = item["base_rewards"] * rewardToken_price
+#                 item["boosted_rewards_usd"] = (
+#                     item["boosted_rewards"] * rewardToken_price
+#                 )
+#                 item["total_rewards_usd"] = (
+#                     item["base_rewards_usd"] + item["boosted_rewards_usd"]
+#                 )
 
-                # calculate period yield
-                item["period_yield"] = item["total_rewards_usd"] / item["tvl"]
-                # add to cumulative yield
-                if cum_reward_return:
-                    cum_reward_return *= 1 + item["period_yield"]
-                else:
-                    cum_reward_return = 1 + item["period_yield"]
-                if cum_baseReward_return:
-                    cum_baseReward_return *= 1 + (
-                        item["base_rewards_usd"] / item["tvl"]
-                    )
-                else:
-                    cum_baseReward_return = 1 + (item["base_rewards_usd"] / item["tvl"])
-                if cum_boostedReward_return:
-                    cum_boostedReward_return *= 1 + (
-                        item["boosted_rewards_usd"] / item["tvl"]
-                    )
-                else:
-                    cum_boostedReward_return = 1 + (
-                        item["boosted_rewards_usd"] / item["tvl"]
-                    )
+#                 # calculate period yield
+#                 item["period_yield"] = item["total_rewards_usd"] / item["tvl"]
+#                 # add to cumulative yield
+#                 if cum_reward_return:
+#                     cum_reward_return *= 1 + item["period_yield"]
+#                 else:
+#                     cum_reward_return = 1 + item["period_yield"]
+#                 if cum_baseReward_return:
+#                     cum_baseReward_return *= 1 + (
+#                         item["base_rewards_usd"] / item["tvl"]
+#                     )
+#                 else:
+#                     cum_baseReward_return = 1 + (item["base_rewards_usd"] / item["tvl"])
+#                 if cum_boostedReward_return:
+#                     cum_boostedReward_return *= 1 + (
+#                         item["boosted_rewards_usd"] / item["tvl"]
+#                     )
+#                 else:
+#                     cum_boostedReward_return = 1 + (
+#                         item["boosted_rewards_usd"] / item["tvl"]
+#                     )
 
-                # extrapolate rewards to a year
-                item["base_rewards_usd_year"] = (
-                    (item["base_rewards_usd"] / item["time_passed"])
-                    * 60
-                    * 60
-                    * 24
-                    * 365
-                )
-                item["boosted_rewards_usd_year"] = (
-                    (item["boosted_rewards_usd"] / item["time_passed"])
-                    * 60
-                    * 60
-                    * 24
-                    * 365
-                )
-                item["total_rewards_usd_year"] = (
-                    item["base_rewards_usd_year"] + item["boosted_rewards_usd_year"]
-                )
+#                 # extrapolate rewards to a year
+#                 item["base_rewards_usd_year"] = (
+#                     (item["base_rewards_usd"] / item["time_passed"])
+#                     * 60
+#                     * 60
+#                     * 24
+#                     * 365
+#                 )
+#                 item["boosted_rewards_usd_year"] = (
+#                     (item["boosted_rewards_usd"] / item["time_passed"])
+#                     * 60
+#                     * 60
+#                     * 24
+#                     * 365
+#                 )
+#                 item["total_rewards_usd_year"] = (
+#                     item["base_rewards_usd_year"] + item["boosted_rewards_usd_year"]
+#                 )
 
-                item["total_reward_apr"] = (cum_reward_return - 1) * (
-                    (60 * 60 * 24 * 365) / item["time_passed"]
-                )
-                try:
-                    item["total_reward_apy"] = (
-                        1
-                        + (cum_reward_return - 1)
-                        * ((60 * 60 * 24) / item["time_passed"])
-                    ) ** 365 - 1
-                except OverflowError as e:
-                    logging.getLogger(__name__).debug(
-                        f"  cant calc apy Overflow err on  total_reward_apy...{e}"
-                    )
-                    item["total_reward_apy"] = 0
+#                 item["total_reward_apr"] = (cum_reward_return - 1) * (
+#                     (60 * 60 * 24 * 365) / item["time_passed"]
+#                 )
+#                 try:
+#                     item["total_reward_apy"] = (
+#                         1
+#                         + (cum_reward_return - 1)
+#                         * ((60 * 60 * 24) / item["time_passed"])
+#                     ) ** 365 - 1
+#                 except OverflowError as e:
+#                     logging.getLogger(__name__).debug(
+#                         f"  cant calc apy Overflow err on  total_reward_apy...{e}"
+#                     )
+#                     item["total_reward_apy"] = 0
 
-                item["base_reward_apr"] = (cum_baseReward_return - 1) * (
-                    (60 * 60 * 24 * 365) / item["time_passed"]
-                )
-                try:
-                    item["base_reward_apy"] = (
-                        1
-                        + (cum_baseReward_return - 1)
-                        * ((60 * 60 * 24) / item["time_passed"])
-                    ) ** 365 - 1
-                except OverflowError as e:
-                    logging.getLogger(__name__).debug(
-                        f"  cant calc apy Overflow err on  base_reward_apy...{e}"
-                    )
-                    item["base_reward_apy"] = 0
+#                 item["base_reward_apr"] = (cum_baseReward_return - 1) * (
+#                     (60 * 60 * 24 * 365) / item["time_passed"]
+#                 )
+#                 try:
+#                     item["base_reward_apy"] = (
+#                         1
+#                         + (cum_baseReward_return - 1)
+#                         * ((60 * 60 * 24) / item["time_passed"])
+#                     ) ** 365 - 1
+#                 except OverflowError as e:
+#                     logging.getLogger(__name__).debug(
+#                         f"  cant calc apy Overflow err on  base_reward_apy...{e}"
+#                     )
+#                     item["base_reward_apy"] = 0
 
-                item["boosted_reward_apr"] = (cum_boostedReward_return - 1) * (
-                    (60 * 60 * 24 * 365) / item["time_passed"]
-                )
-                try:
-                    item["boosted_reward_apy"] = (
-                        1
-                        + (cum_boostedReward_return - 1)
-                        * ((60 * 60 * 24) / item["time_passed"])
-                    ) ** 365 - 1
-                except OverflowError as e:
-                    logging.getLogger(__name__).debug(
-                        f"  cant calc apy Overflow err on  boosted_reward_apy...{e}"
-                    )
-                    item["boosted_reward_apy"] = 0
+#                 item["boosted_reward_apr"] = (cum_boostedReward_return - 1) * (
+#                     (60 * 60 * 24 * 365) / item["time_passed"]
+#                 )
+#                 try:
+#                     item["boosted_reward_apy"] = (
+#                         1
+#                         + (cum_boostedReward_return - 1)
+#                         * ((60 * 60 * 24) / item["time_passed"])
+#                     ) ** 365 - 1
+#                 except OverflowError as e:
+#                     logging.getLogger(__name__).debug(
+#                         f"  cant calc apy Overflow err on  boosted_reward_apy...{e}"
+#                     )
+#                     item["boosted_reward_apy"] = 0
 
-                total_period_seconds += item["time_passed"]
+#                 total_period_seconds += item["time_passed"]
 
-            # calculate total apr
-            cum_reward_return -= 1
-            cum_baseReward_return -= 1
-            cum_boostedReward_return -= 1
-            reward_apr = (
-                cum_reward_return * ((60 * 60 * 24 * 365) / total_period_seconds)
-                if total_period_seconds
-                else 0
-            )
-            reward_apy = (
-                1 + cum_reward_return * ((60 * 60 * 24) / total_period_seconds)
-                if total_period_seconds
-                else 0
-            ) ** 365 - 1
+#             # calculate total apr
+#             cum_reward_return -= 1
+#             cum_baseReward_return -= 1
+#             cum_boostedReward_return -= 1
+#             reward_apr = (
+#                 cum_reward_return * ((60 * 60 * 24 * 365) / total_period_seconds)
+#                 if total_period_seconds
+#                 else 0
+#             )
+#             reward_apy = (
+#                 1 + cum_reward_return * ((60 * 60 * 24) / total_period_seconds)
+#                 if total_period_seconds
+#                 else 0
+#             ) ** 365 - 1
 
-            baseRewards_apr = (
-                cum_baseReward_return * ((60 * 60 * 24 * 365) / total_period_seconds)
-                if total_period_seconds
-                else 0
-            )
-            baseRewards_apy = (
-                1 + cum_baseReward_return * ((60 * 60 * 24) / total_period_seconds)
-                if total_period_seconds
-                else 0
-            ) ** 365 - 1
-            boostRewards_apr = (
-                cum_boostedReward_return * ((60 * 60 * 24 * 365) / total_period_seconds)
-                if total_period_seconds
-                else 0
-            )
-            boostRewards_apy = (
-                1 + cum_boostedReward_return * ((60 * 60 * 24) / total_period_seconds)
-                if total_period_seconds
-                else 0
-            ) ** 365 - 1
+#             baseRewards_apr = (
+#                 cum_baseReward_return * ((60 * 60 * 24 * 365) / total_period_seconds)
+#                 if total_period_seconds
+#                 else 0
+#             )
+#             baseRewards_apy = (
+#                 1 + cum_baseReward_return * ((60 * 60 * 24) / total_period_seconds)
+#                 if total_period_seconds
+#                 else 0
+#             ) ** 365 - 1
+#             boostRewards_apr = (
+#                 cum_boostedReward_return * ((60 * 60 * 24 * 365) / total_period_seconds)
+#                 if total_period_seconds
+#                 else 0
+#             )
+#             boostRewards_apy = (
+#                 1 + cum_boostedReward_return * ((60 * 60 * 24) / total_period_seconds)
+#                 if total_period_seconds
+#                 else 0
+#             ) ** 365 - 1
 
-            # build reward data
-            reward_data = {
-                "apr": reward_apr,
-                "apy": reward_apy,
-                "block": hype_status.block,
-                "timestamp": hype_status._timestamp,
-                "hypervisor_address": hype_status.address.lower(),
-                "rewarder_address": hype_status.gauge.address.lower(),
-                "rewarder_type": rewarderType.RAMSES_v2,
-                "rewarder_refIds": [],
-                "rewarder_registry": hype_status.receiver.address.lower(),
-                "rewardToken": reward_token.lower(),
-                "rewardToken_symbol": erc20_helper.symbol,
-                "rewardToken_decimals": erc20_helper.decimals,
-                "rewardToken_price_usd": rewardToken_price,
-                "token0_price_usd": hype_token0_price,
-                "token1_price_usd": hype_token1_price,
-                "rewards_perSecond": str(gamma_totalRewards_per_second),
-                "total_hypervisorToken_qtty": str(total_hypervisorToken_qtty),
-                "hypervisor_share_price_usd": hypervisor_share_price_usd,
-                # extra fields
-                "extra": {
-                    "baseRewards": total_baseRewards,
-                    "boostedRewards": total_boostedRewards,
-                    "baseRewards_apr": baseRewards_apr,
-                    "baseRewards_apy": baseRewards_apy,
-                    "boostedRewards_apr": boostRewards_apr,
-                    "boostedRewards_apy": boostRewards_apy,
-                    "baseRewards_per_second": str(gamma_baseRewards_per_second),
-                    "boostedRewards_per_second": str(gamma_boostedRewards_per_second),
-                    # "raw_data": items_to_calc_apr,
-                },
-            }
+#             # build reward data
+#             reward_data = {
+#                 "apr": reward_apr,
+#                 "apy": reward_apy,
+#                 "block": hype_status.block,
+#                 "timestamp": hype_status._timestamp,
+#                 "hypervisor_address": hype_status.address.lower(),
+#                 "rewarder_address": hype_status.gauge.address.lower(),
+#                 "rewarder_type": rewarderType.RAMSES_v2,
+#                 "rewarder_refIds": [],
+#                 "rewarder_registry": hype_status.receiver.address.lower(),
+#                 "rewardToken": reward_token.lower(),
+#                 "rewardToken_symbol": erc20_helper.symbol,
+#                 "rewardToken_decimals": erc20_helper.decimals,
+#                 "rewardToken_price_usd": rewardToken_price,
+#                 "token0_price_usd": hype_token0_price,
+#                 "token1_price_usd": hype_token1_price,
+#                 "rewards_perSecond": str(gamma_totalRewards_per_second),
+#                 "total_hypervisorToken_qtty": str(total_hypervisorToken_qtty),
+#                 "hypervisor_share_price_usd": hypervisor_share_price_usd,
+#                 # extra fields
+#                 "extra": {
+#                     "baseRewards": total_baseRewards,
+#                     "boostedRewards": total_boostedRewards,
+#                     "baseRewards_apr": baseRewards_apr,
+#                     "baseRewards_apy": baseRewards_apy,
+#                     "boostedRewards_apr": boostRewards_apr,
+#                     "boostedRewards_apy": boostRewards_apy,
+#                     "baseRewards_per_second": str(gamma_baseRewards_per_second),
+#                     "boostedRewards_per_second": str(gamma_boostedRewards_per_second),
+#                     # "raw_data": items_to_calc_apr,
+#                 },
+#             }
 
-            result.append(reward_data)
-        except Exception as e:
-            logging.getLogger(__name__).exception(
-                f" Ramses Rewards-> {chain.database_name}'s {rewarder_static.get('rewardToken','None')} price at block {hypervisor_status['block']} could not be calculated. Error: {e}"
-            )
-            logging.getLogger(__name__).debug(
-                f" Ramses Rewards last err debug data -> rewarder_static {rewarder_static}    hype status {hypervisor_status}"
-            )
+#             result.append(reward_data)
+#         except Exception as e:
+#             logging.getLogger(__name__).exception(
+#                 f" Ramses Rewards-> {chain.database_name}'s {rewarder_static.get('rewardToken','None')} price at block {hypervisor_status['block']} could not be calculated. Error: {e}"
+#             )
+#             logging.getLogger(__name__).debug(
+#                 f" Ramses Rewards last err debug data -> rewarder_static {rewarder_static}    hype status {hypervisor_status}"
+#             )
 
-    # empty result means no rewards at this block
-    if not result:
-        logging.getLogger(__name__).debug(
-            f" Ramses Rewards-> {chain.database_name}'s {rewarder_static.get('rewardToken','None')} has no rewards at block {hypervisor_status['block']}"
-        )
+#     # empty result means no rewards at this block
+#     if not result:
+#         logging.getLogger(__name__).debug(
+#             f" Ramses Rewards-> {chain.database_name}'s {rewarder_static.get('rewardToken','None')} has no rewards at block {hypervisor_status['block']}"
+#         )
 
-    return result
+#     return result
 
 
 def create_rewards_status_ramses(
@@ -1455,7 +1455,7 @@ def create_rewards_status_ramses(
         chain (Chain):
         rewarder_static (dict):
         hypervisor_status (dict):
-        periods (int | None, optional): how many ramses periods to include data from. Defaults to 2 periods.
+        periods (int | None, optional): how many ramses periods to include data from. Defaults to 1 period (current).
 
     Returns:
         list:
@@ -1486,7 +1486,7 @@ def create_rewards_status_ramses(
     current_period = hype_status.current_period
     # default to 2 periods
     if not periods:
-        periods = 2
+        periods = 1
     period_ini = current_period + (1 - abs(periods))
     # set as initial date the two last periods
     period_ini_timestamp = period_ini * 60 * 60 * 24 * 7
@@ -1975,18 +1975,18 @@ def create_rewards_status_ramses_calculate_apr(
 
         # build reward data
         reward_data = {
-            "apr": reward_apr,
-            "apy": reward_apy,
+            "apr": reward_apr if reward_apr > 0 else 0,
+            "apy": reward_apy if reward_apy > 0 else 0,
             "rewardToken_price_usd": rewardToken_price,
             "token0_price_usd": hype_token0_price,
             "token1_price_usd": hype_token1_price,
             "hypervisor_share_price_usd": hypervisor_share_price_usd,
             # extra fields
             "extra": {
-                "baseRewards_apr": baseRewards_apr,
-                "baseRewards_apy": baseRewards_apy,
-                "boostedRewards_apr": boostRewards_apr,
-                "boostedRewards_apy": boostRewards_apy,
+                "baseRewards_apr": baseRewards_apr if baseRewards_apr > 0 else 0,
+                "baseRewards_apy": baseRewards_apy if baseRewards_apy > 0 else 0,
+                "boostedRewards_apr": boostRewards_apr if boostRewards_apr > 0 else 0,
+                "boostedRewards_apy": boostRewards_apy if boostRewards_apy > 0 else 0,
             },
         }
 
