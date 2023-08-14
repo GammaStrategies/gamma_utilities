@@ -41,7 +41,7 @@ def manual_reScrape(
         sort = [("block", -1)]
 
     logging.getLogger(__name__).info(
-        f" Starting a manual {'threaded ' if threaded else ''}rescraping process using {db_collection} for {chain} {f'using filter: {find}' if find else ''} {f'sorted by : {sort}' if sort else ''}"
+        f" Starting a manual {'threaded ' if threaded else ''}rescraping process using {db_collection} for {chain} {f'using filter: {find}' if find else ''} {f'sorted by : {sort}' if sort else ''} {f'rewrite on' if rewrite else ''}"
     )
 
     if database_items := database_local(
