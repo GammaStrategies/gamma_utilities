@@ -76,7 +76,7 @@ def manual_reScrape(
                         progress_bar.update(1)
             else:
                 for item in database_items:
-                    if result := loop_work(item, chain):
+                    if result := loop_work(item, chain, rewrite):
                         ok += 1
                     else:
                         error += 1
