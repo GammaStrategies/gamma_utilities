@@ -32,13 +32,12 @@ def feed_latest_multifeedistribution_snapshot():
 
 
 def create_items_to_feed_latest_multifeedistribution_snapshot(
-    chain: Chain, rewarder_type: rewarderType.RAMSES_v2
+    chain: Chain, rewarder_type: rewarderType
 ):
     """Create item list to feed latest multifeedistribution snapshot"""
     #
     result = []
 
-    # TODO: solve the 'rewarder_type' manual reference to ramses_v2
     rewards_static = get_from_localdb(
         network=chain.database_name,
         collection="rewards_static",
