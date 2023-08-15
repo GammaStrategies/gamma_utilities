@@ -275,7 +275,16 @@ def pull_from_queue_reward_status(network: str, queue_item: QueueItem) -> bool:
             ):
                 for reward_status in reward_status_list:
                     # only save status if rewards per second are greater than 0
-                    if int(reward_status["rewards_perSecond"]) > 0:
+                    tmp = 0
+                    try:
+                        tmp = int(reward_status["rewards_perSecond"])
+                    except Exception as e:
+                        logging.getLogger(__name__).warning(
+                            f"  rewards per second are float not int at reward status id: {reward_status['dex']}'s hype {reward_status['hypervisor_address']} rewarder address {reward_status['rewarder_address']}  block {reward_status['block']}  rewardsXsec {reward_status['rewards_perSecond']}"
+                        )
+                        tmp = float(reward_status["rewards_perSecond"])
+
+                    if tmp > 0:
                         if db_return := local_db.set_rewards_status(data=reward_status):
                             # evaluate if price has been saved
                             if (
@@ -305,10 +314,10 @@ def pull_from_queue_reward_status(network: str, queue_item: QueueItem) -> bool:
 
             else:
                 logging.getLogger(__name__).debug(
-                    f" Cant get any reward status data for {network}'s {queue_item.address} rewarder"
+                    f" Cant get any reward status data for {network}'s {queue_item.address} rewarder->  dex: {queue_item.data['hypervisor_status'].get('dex', 'unknown')} hype address: {queue_item.data['hypervisor_status'].get('address', 'unknown')}  block: {queue_item.block}."
                 )
         except Exception as e:
-            logging.getLogger(__name__).error(
+            logging.getLogger(__name__).exception(
                 f"Error processing {network}'s rewards status queue item: {e}"
             )
 
