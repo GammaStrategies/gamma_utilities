@@ -1516,32 +1516,52 @@ def create_rewards_status_ramses_calculate_apr(
             if total_period_seconds
             else 0
         )
-        reward_apy = (
-            1 + cum_reward_return * ((60 * 60 * 24) / total_period_seconds)
-            if total_period_seconds
-            else 0
-        ) ** 365 - 1
+        try:
+            reward_apy = (
+                1 + cum_reward_return * ((60 * 60 * 24) / total_period_seconds)
+                if total_period_seconds
+                else 0
+            ) ** 365 - 1
+        except OverflowError as e:
+            logging.getLogger(__name__).debug(
+                f"  cant calc apy Overflow err on  reward_apy...{e}"
+            )
+            reward_apy = 0
 
         baseRewards_apr = (
             cum_baseReward_return * ((60 * 60 * 24 * 365) / total_period_seconds)
             if total_period_seconds
             else 0
         )
-        baseRewards_apy = (
-            1 + cum_baseReward_return * ((60 * 60 * 24) / total_period_seconds)
-            if total_period_seconds
-            else 0
-        ) ** 365 - 1
+        try:
+            baseRewards_apy = (
+                1 + cum_baseReward_return * ((60 * 60 * 24) / total_period_seconds)
+                if total_period_seconds
+                else 0
+            ) ** 365 - 1
+        except OverflowError as e:
+            logging.getLogger(__name__).debug(
+                f"  cant calc apy Overflow err on  baseRewards_apy...{e}"
+            )
+            baseRewards_apy = 0
+
         boostRewards_apr = (
             cum_boostedReward_return * ((60 * 60 * 24 * 365) / total_period_seconds)
             if total_period_seconds
             else 0
         )
-        boostRewards_apy = (
-            1 + cum_boostedReward_return * ((60 * 60 * 24) / total_period_seconds)
-            if total_period_seconds
-            else 0
-        ) ** 365 - 1
+
+        try:
+            boostRewards_apy = (
+                1 + cum_boostedReward_return * ((60 * 60 * 24) / total_period_seconds)
+                if total_period_seconds
+                else 0
+            ) ** 365 - 1
+        except OverflowError as e:
+            logging.getLogger(__name__).debug(
+                f"  cant calc apy Overflow err on  boostRewards_apy...{e}"
+            )
+            boostRewards_apy = 0
 
         # build reward data
         reward_data = {
