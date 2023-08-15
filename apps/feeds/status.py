@@ -1189,7 +1189,10 @@ def create_rewards_status_ramses(
             )
             totalRewards_per_second = baseRewards_per_second + boostedRewards_per_second
 
-            if totalRewards_per_second.is_integer():
+            if (
+                not isinstance(totalRewards_per_second, int)
+                and totalRewards_per_second.is_integer()
+            ):
                 totalRewards_per_second = int(totalRewards_per_second)
 
             # calculate apr
