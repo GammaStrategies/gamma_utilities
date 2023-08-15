@@ -1112,6 +1112,17 @@ def create_rewards_status_ramses(
 
             # loop thru the list of apr ordered hype status
             for _ordered_hype_status_db in apr_ordered_hypervisor_status_db_list:
+                # add hype status if not already in the list
+                ids = [x["id"] for x in _ordered_hype_status_db["status"]]
+                if (
+                    hypervisor_status["id"] not in ids
+                    and hypervisor_status["block"]
+                    >= _ordered_hype_status_db["status"][-1]["block"]
+                ):
+                    logging.getLogger(__name__).debug(f" adding hype status to list")
+                    # add as last item
+                    _ordered_hype_status_db["status"].append(hypervisor_status)
+
                 # _ordered_hype_status_db["_id"] = hypervisor_address
                 for idx, data in enumerate(_ordered_hype_status_db["status"]):
                     # zero and par indexes refer to initial values
@@ -1150,6 +1161,7 @@ def create_rewards_status_ramses(
                                 "timestamp_ini": last_item["timestamp"],
                                 "timestamp_end": data["timestamp"],
                                 "hypervisor": {
+                                    "block": last_item["block"],
                                     "totalStaked": last_item["totalStaked"]
                                     / (10 ** last_item["decimals"]),
                                     "totalSupply": int(last_item["totalSupply"])
@@ -1433,6 +1445,21 @@ def create_rewards_status_ramses_calculate_apr(
 
             # calculate period yield
             item["period_yield"] = item["total_rewards_usd"] / tvl if tvl else 0
+
+            # filter outliers
+            if item["period_yield"] > 1:
+                logging.getLogger(__name__).warning(
+                    f" found outlier period yield {item['period_yield']} for {hypervisor_address} using item {item}"
+                )
+                item["hypervisor"]["tvl"] = 0
+                item["hypervisor"]["totalStaked_tvl"] = 0
+                item["hypervisor"]["price_per_share"] = 0
+                item["base_rewards_usd"] = 0
+                item["boosted_rewards_usd"] = 0
+                item["total_rewards_usd"] = 0
+                item["period_yield"] = 0
+                continue
+
             # add to cumulative yield
             if cum_reward_return:
                 cum_reward_return *= 1 + item["period_yield"]
