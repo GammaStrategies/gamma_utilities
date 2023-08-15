@@ -98,11 +98,13 @@ def reScrape_loopWork_hypervisor_status(
             network=chain.database_name,
             block=hype_status["block"],
             dex=hype_status["dex"],
+            cached=False,
+            force_rpcType="private",
         ):
             # TODO: compare n log diffs and rewrite
 
             # add to database
-            db_result = get_default_localdb(network=chain.database_name).set_status(
+            db_return = get_default_localdb(network=chain.database_name).set_status(
                 data=hypervisor
             )
             # todo: log database result

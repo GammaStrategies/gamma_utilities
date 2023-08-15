@@ -530,7 +530,7 @@ def create_reward_status_from_hype_status(
         )
 
     logging.getLogger(__name__).debug(
-        f"    -> Done processing {network}'s rewarder {rewarder_static['rewarder_address']}  registry: {rewarder_static['rewarder_registry']}"
+        f"    -> Done processing {network}'s hype {hypervisor_status['address']}  rewarder {rewarder_static['rewarder_address']}  registry: {rewarder_static['rewarder_registry']} at block {hypervisor_status['block']}."
     )
 
     return rewards_data
