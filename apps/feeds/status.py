@@ -1019,7 +1019,7 @@ def create_rewards_status_ramses(
 
     if not hypervisor_totalSupply:
         logging.getLogger(__name__).debug(
-            f"Can't calculate rewards status for ramses hype {hype_status.symbol} {hype_status.address} because it has no supply at block {hype_status.block}"
+            f"Can't calculate rewards status for ramses hype {hypervisor_status['symbol']} {hype_status.address} because it has no supply at block {hype_status.block}"
         )
         return []
 
@@ -1209,6 +1209,7 @@ def create_rewards_status_ramses(
                     "block": hype_status.block,
                     "timestamp": hype_status._timestamp,
                     "hypervisor_address": hype_status.address.lower(),
+                    "hypervisor_symbol": hypervisor_status["symbol"],
                     "dex": Protocol.RAMSES.database_name,
                     "rewarder_address": hype_status.gauge.address.lower(),
                     "rewarder_type": rewarderType.RAMSES_v2,
