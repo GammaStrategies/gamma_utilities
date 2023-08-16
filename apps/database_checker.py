@@ -1212,7 +1212,9 @@ def repair_rewards_status():
             )
 
 
-def repair_missing_rewards_status(chain: Chain, max_repair: int = None):
+def repair_missing_rewards_status(
+    chain: Chain, max_repair: int = None, hypervisor_addresses: list[str] | None = None
+):
     """ """
     batch_size = 100000
     logging.getLogger(__name__).info(
@@ -1226,7 +1228,9 @@ def repair_missing_rewards_status(chain: Chain, max_repair: int = None):
     for reward_static in tqdm.tqdm(
         database_local(mongo_url=mongo_url, db_name=db_name).get_items_from_database(
             collection_name="rewards_static",
-            find={},
+            find={"hypervisor_address": {"$in": hypervisor_addresses}}
+            if hypervisor_addresses
+            else {},
             batch_size=batch_size,
             sort=[("_id", -1)],
         )
