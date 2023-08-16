@@ -997,7 +997,7 @@ def create_rewards_status_ramses(
         chain (Chain):
         rewarder_static (dict):
         hypervisor_status (dict):
-        periods (int | None, optional): how many ramses periods to include data from. Defaults to 1 period (current).
+        periods (int | None, optional): how many ramses periods[WEEKs] to include data from. Defaults to 1 period (current).
 
     Returns:
         list:
