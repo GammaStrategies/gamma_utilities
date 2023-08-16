@@ -143,7 +143,7 @@ class period_yield_data:
     def ini_underlying_usd(self) -> float:
         return (
             self.ini_underlying_token0 * self.token0_price_ini
-            + self.ini_underlying_token1 * self.token0_price_end
+            + self.ini_underlying_token1 * self.token1_price_ini
         )
 
     @property
