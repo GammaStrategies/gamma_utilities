@@ -437,11 +437,15 @@ def feed_hypervisor_returns(
         logging.getLogger(__name__).info(
             f" No hypervisor returns found in database. Staring from scratch."
         )
+        if hypervisor_addresses:
+            find = {"address": {"$in": hypervisor_addresses}}
+        else:
+            find = {}
         # get a list of hypes to feed
         hypervisors_static = get_from_localdb(
             network=chain.database_name,
             collection="static",
-            find={},
+            find=find,
             projection={"address": 1, "timestamp": 1, "_id": 0},
         )
 
