@@ -7,7 +7,11 @@ import time
 from bins.configuration import CONFIGURATION
 from bins.database.common.database_ids import create_id_hypervisor_returns
 from bins.database.common.db_collections_common import database_local
-from bins.database.helpers import get_price_from_db
+from bins.database.helpers import (
+    get_default_localdb,
+    get_from_localdb,
+    get_price_from_db,
+)
 from bins.general.enums import Chain
 
 # from bins.general.enums import Period
@@ -91,9 +95,6 @@ class period_yield_data:
     ini_block: int = None
     end_block: int = None
 
-    period_blocks_qtty: int = None
-    period_seconds: int = None
-
     ini_underlying_token0: float = None
     ini_underlying_token1: float = None
 
@@ -117,6 +118,14 @@ class period_yield_data:
     token0_price_end: float = None
     token1_price_ini: float = None
     token1_price_end: float = None
+
+    @property
+    def id(self) -> str:
+        return create_id_hypervisor_returns(
+            hypervisor_address=self.address,
+            ini_block=self.ini_block,
+            end_block=self.end_block,
+        )
 
     @property
     def period_blocks_qtty(self) -> int:
@@ -182,75 +191,51 @@ class period_yield_data:
         )
 
     def fill_from_rewards_data(self, ini_rewards: list[dict], end_rewards: list[dict]):
-        """_summary_
+        """fill period rewards data from rewards data
 
         Args:
             ini_rewards (list[dict]): Should have same block and timestamp
             end_rewards (list[dict]): Should have same block and timestamp
         """
 
-        # careful on change
-        hypervisor_decimals = 18
+        if len(ini_rewards) != len(end_rewards):
+            raise ValueError(" Rewards ini and end lenghts do not match.")
 
         # seconds passed
         period_seconds = end_rewards[0]["timestamp"] - ini_rewards[0]["timestamp"]
 
-        ### TODO:  #################################
-        ###########################################
-        ### TODO:  #################################
-        ### TODO:  #################################
-        ### TODO:  #################################
-        ### TODO:  #################################
-        ### TODO:  #################################
-        ### TODO:  #################################
-        ### TODO:  #################################
-        ### TODO:  #################################
-        rewards_perSecond = sum([x["rewards_perSecond"] for x in ini_rewards]) + sum(
-            [x["rewards_perSecond"] for x in end_rewards]
-        )
-        for reward in ini_rewards:
-            pass
+        raw_data = {}
+        for i in range(len(ini_rewards)):
+            # check all itmes have same block and timestamp
+            if (
+                ini_rewards[i]["block"] != end_rewards[i]["block"]
+                or ini_rewards[i]["timestamp"] != end_rewards[i]["timestamp"]
+            ):
+                raise ValueError(
+                    " Rewards ini and end blocks and timestamps do not match."
+                )
+            elif (
+                ini_rewards[i]["address"] != end_rewards[i]["address"]
+                or ini_rewards[i]["rewardToken"] != end_rewards[i]["rewardToken"]
+            ):
+                raise ValueError(" Rewards ini and end data do not match.")
 
-        # average period rewards perSecond
-        average_period_rewards_perSecond = (
-            (end_reward["rewards_perSecond"] + ini_reward["rewards_perSecond"]) / 2
-        ) / (10 ** end_reward["rewardToken_decimals"])
+            if ini_rewards[i]["rewardToken"] not in raw_data:
+                # add to traceable data
+                raw_data[ini_rewards[i]["rewardToken"]] = {
+                    "period_qtty": float(end_rewards[i]["rewards_perSecond"])
+                    * period_seconds,
+                    "period_usd": float(end_rewards[i]["rewards_perSecond"])
+                    * period_seconds
+                    * end_rewards[i]["rewardToken_price_usd"],
+                }
 
-        # total rewards on this period
-        total_rewards_usd = (
-            period_seconds
-            * average_period_rewards_perSecond
-            * end_reward["rewardToken_price_usd"]
-        )
+                # add to total rewards usd
+                self.period_rewards_usd += raw_data[ini_rewards[i]["rewardToken"]][
+                    "period_usd"
+                ]
 
-        # set variables
-        self.address = end_reward["address"]
-        self.timestamp = end_reward["timestamp"]
-        self.block = end_reward["block"]
-
-        self.period_blocks_qtty = end_reward["block"] - ini_reward["block"]
-        self.period_seconds = period_seconds
-
-        self.ini_hypervisor_supply = ini_reward["total_hypervisorToken_qtty"] / (
-            10**hypervisor_decimals
-        )
-        self.end_hypervisor_supply = end_reward["total_hypervisorToken_qtty"] / (
-            10**hypervisor_decimals
-        )
-
-        self.ini_tvl_usd = (
-            ini_reward["hypervisor_share_price_usd"] * self.ini_hypervisor_supply
-        )
-        self.end_tvl_usd = (
-            end_reward["hypervisor_share_price_usd"] * self.end_hypervisor_supply
-        )
-
-        self.period_total_rewards_usd = total_rewards_usd
-
-        self.token0_price_ini = ini_reward["token0_price_usd"]
-        self.token1_price_ini = ini_reward["token1_price_usd"]
-        self.token0_price_end = end_reward["token0_price_usd"]
-        self.token1_price_end = end_reward["token1_price_usd"]
+        ### TODO:  #################################
 
     def fill_from_hypervisors_data(
         self, ini_hype: dict, end_hype: dict, network: str | None = None
@@ -376,6 +361,7 @@ class period_yield_data:
 
     def to_dict(self) -> dict:
         return {
+            "id": self.id,
             "address": self.address,
             "ini_timestamp": self.ini_timestamp,
             "end_timestamp": self.end_timestamp,
@@ -401,8 +387,10 @@ class period_yield_data:
         }
 
 
-def feed_hypervisor_returns(chain: Chain, hypervisor_addresses: list[str]):
-    """Feed missing hypervisor returns from the specified chain and hypervisor addresses
+def feed_hypervisor_returns(
+    chain: Chain, hypervisor_addresses: list[str] | None = None
+):
+    """Feed hypervisor returns from the specified chain and hypervisor addresses
 
     Args:
         chain (Chain):
@@ -414,19 +402,27 @@ def feed_hypervisor_returns(chain: Chain, hypervisor_addresses: list[str]):
         f">Feeding {chain.database_name} returns information"
     )
 
-    # set local database name and create manager
-    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-    db_name = f"{chain.database_name}_gamma"
-    local_db = database_local(mongo_url=mongo_url, db_name=db_name)
     batch_size = 50000
 
+    query = []
+    if (
+        _match := {"$match": {"address": {"$in": hypervisor_addresses}}}
+        if hypervisor_addresses
+        else {}
+    ):
+        query.append(_match)
+    query.append({"$group": {"_id": "$address", "end_block": {"$max": "$end_block"}}})
+
     # get last block_end hypervisor returns for each hype in the specified list
-    query = [
-        {"$match": {"address": {"$in": hypervisor_addresses}}},
-        {"$group": {"_id": "$address", "end_block": {"$max": "$end_block"}}},
-    ]
-    if hype_block_data := local_db.get_items_from_database(
-        collection_name="hypervisor_returns", aggregate=query, batch_size=batch_size
+    # query = [
+    #     {"$match": {"address": {"$in": hypervisor_addresses}}},
+    #     {"$group": {"_id": "$address", "end_block": {"$max": "$end_block"}}},
+    # ]
+    if hype_block_data := get_from_localdb(
+        network=chain.database_name,
+        collection="hypervisor_returns",
+        aggregate=query,
+        batch_size=batch_size,
     ):
         # get query_locs_apr_hypervisor_data_calculation ( block_ini = block_end +1 )
         for item in hype_block_data:
@@ -442,8 +438,9 @@ def feed_hypervisor_returns(chain: Chain, hypervisor_addresses: list[str]):
             f" No hypervisor returns found in database. Staring from scratch."
         )
         # get a list of hypes to feed
-        hypervisors_static = local_db.get_items_from_database(
-            collection_name="static",
+        hypervisors_static = get_from_localdb(
+            network=chain.database_name,
+            collection="static",
             find={},
             projection={"address": 1, "timestamp": 1, "_id": 0},
         )
@@ -457,7 +454,7 @@ def feed_hypervisor_returns(chain: Chain, hypervisor_addresses: list[str]):
         max_timestamp = int(time.time())
 
         # define chunk size
-        chunk_size = 86400 * 7  # 1 week
+        chunk_size = 86400 * 7 * 4  # 4 week
 
         # create chunks
         chunks = [
@@ -476,7 +473,7 @@ def feed_hypervisor_returns(chain: Chain, hypervisor_addresses: list[str]):
                 )
                 save_hypervisor_returns_to_database(
                     chain=chain,
-                    hypervisor_addresses=item["address"],
+                    hypervisor_address=item["address"],
                     timestamp_ini=chunk[0],
                     timestamp_end=chunk[1],
                 )
@@ -490,18 +487,52 @@ def save_hypervisor_returns_to_database(
     block_ini: int | None = None,
     block_end: int | None = None,
 ):
-    # create database manager
-    local_db = database_local(
-        mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
-        db_name=f"{chain.database_name}_gamma",
-    )
+    # create hypervisor returns list
+    if data := create_hypervisor_returns(
+        chain=chain,
+        hypervisor_address=hypervisor_address,
+        timestamp_ini=timestamp_ini,
+        timestamp_end=timestamp_end,
+        block_ini=block_ini,
+        block_end=block_end,
+    ):
+        # save all at once
+        if db_return := get_default_localdb(
+            network=chain.database_name
+        ).set_hypervisor_return_bulk(data=data):
+            logging.getLogger(__name__).debug(
+                f"     db return-> del: {db_return.deleted_count}  ins: {db_return.inserted_count}  mod: {db_return.modified_count}  ups: {db_return.upserted_count} matched: {db_return.matched_count}"
+            )
+        else:
+            logging.getLogger(__name__).error(
+                f"  database did not return anything while saving {hypervisor_address}s returns at { 'blocks' if block_ini and block_end else 'timestamps'} {block_ini if block_ini else timestamp_ini} to {block_end if block_end else timestamp_end}"
+            )
+    else:
+        logging.getLogger(__name__).debug(
+            f" No hypervisor {hypervisor_address} data from { 'blocks' if block_ini and block_end else 'timestamps'} {block_ini if block_ini else timestamp_ini} to {block_end if block_end else timestamp_end} to construct returns "
+        )
+
+
+def create_hypervisor_returns(
+    chain: Chain,
+    hypervisor_address: str,
+    timestamp_ini: int | None = None,
+    timestamp_end: int | None = None,
+    block_ini: int | None = None,
+    block_end: int | None = None,
+) -> list[dict]:
+    #
+    result = []
+
     batch_size = 80000
 
     # create control vars
     last_item = None
 
     # build query (ease debuging)
-    query = local_db.query_locs_apr_hypervisor_data_calculation(
+    query = get_default_localdb(
+        network=chain.database_name
+    ).query_locs_apr_hypervisor_data_calculation(
         hypervisor_address=hypervisor_address,
         timestamp_ini=timestamp_ini,
         timestamp_end=timestamp_end,
@@ -509,48 +540,43 @@ def save_hypervisor_returns_to_database(
         block_end=block_end,
     )
     # get a list of custom ordered hype status
-    for hypervisor_status in local_db.get_items_from_database(
-        collection_name="operations",
+    ordered_hype_status_list = get_from_localdb(
+        network=chain.database_name,
+        collection="operations",
         aggregate=query,
         batch_size=batch_size,
-    ):
+    )
+
+    for hypervisor_status in ordered_hype_status_list:
         # hypervisor_status["_id"] = hypervisor_address
         for idx, data in enumerate(hypervisor_status["status"]):
-            if not last_item:
-                # this is the first item
-                last_item = data
-                continue
-
             # zero and par indexes refer to initial values
             if idx == 0 or idx % 2 == 0:
                 # this is an initial value
                 pass
             else:
                 # this is an end value
+                #
                 # create yield data and fill from hype status
                 current_period = period_yield_data()
                 current_period.fill_from_hypervisors_data(
                     ini_hype=last_item, end_hype=data, network=chain.database_name
                 )
+                # fill rewards
+                current_period.fill_from_rewards_data(
+                    ini_rewards=last_item["rewards_status"],
+                    end_rewards=data["rewards_status"],
+                )
 
                 # convert to dict
                 current_period = current_period.to_dict()
 
-                # create id
-                current_period["id"] = create_id_hypervisor_returns(
-                    hypervisor_address=current_period["address"],
-                    ini_block=current_period["ini_block"],
-                    end_block=current_period["end_block"],
-                )
                 # convert to bson compatible and save to database
-                up_result = local_db.set_hypervisor_returns(
-                    data=local_db.convert_decimal_to_d128(current_period)
+                result.append(
+                    get_default_localdb.convert_decimal_to_d128(current_period)
                 )
-                # check if replacement upsert has been done
-                if not up_result.modified_count:
-                    logging.getLogger(__name__).error(
-                        f" hypervisor return {current_period['id']} has not been saved/updated in the database: {up_result.raw_result}"
-                    )
 
             # set lastitem
             last_item = data
+    #
+    return result

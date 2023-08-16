@@ -10,6 +10,9 @@ from bins.general.enums import Chain, Protocol, text_to_chain
 from bins.w3.builders import build_db_hypervisor
 
 
+## Database re scraping items
+
+
 ## main rescraping func
 def manual_reScrape(
     chain: Chain,
