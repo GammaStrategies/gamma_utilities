@@ -746,21 +746,76 @@ def pull_from_queue_latest_multiFeeDistribution(
                     f"   total rewards of {network} {queue_item.type} {queue_item.id}   base:{snapshot.baseRewards_sinceLastUpdateTime} boosted:{snapshot.boostedRewards_sinceLastUpdateTime}   seconds:{snapshot.seconds_sinceLastUpdateTime}"
                 )
 
-            # get last known aprs
-            snapshot.apr_baseRewards = reward_static["rewards_status"][0]["extra"][
-                "baseRewards_apr"
-            ]
-            snapshot.apr_boostedRewards = reward_static["rewards_status"][0]["extra"][
-                "boostedRewards_apr"
-            ]
-            snapshot.apr = reward_static["rewards_status"][0]["apr"]
-
-            snapshot.rewardToken_price = reward_static["rewards_status"][0][
-                "rewardToken_price_usd"
-            ]
+            # get reward token price
+            rewardToken_price = get_latest_price_from_db(
+                network=network,
+                token_address=reward_static["rewardToken"],
+            )
+            # use price or fallback to last known price
+            snapshot.rewardToken_price = (
+                rewardToken_price
+                or reward_static["rewards_status"][0]["rewardToken_price_usd"]
+            )
             snapshot.hypervisor_share_price_usd = reward_static["rewards_status"][0][
                 "hypervisor_share_price_usd"
             ]
+
+            # TODO: use hype decimals from db, avoid hardcode
+            staked_usd = snapshot.hypervisor_share_price_usd * (
+                float(snapshot.hypervisor_staked) / 10**18
+            )
+
+            try:
+                snapshot.apr_baseRewards = (
+                    (
+                        (
+                            (
+                                float(snapshot.baseRewards_sinceLastUpdateTime)
+                                / 10 ** reward_static["rewardToken_decimals"]
+                            )
+                            / snapshot.seconds_sinceLastUpdateTime
+                        )
+                        * 60
+                        * 60
+                        * 24
+                        * 365
+                    )
+                    * snapshot.rewardToken_price
+                ) / staked_usd
+            except Exception as e:
+                logging.getLogger(__name__).error(
+                    f" using last known rewards apr for {network} {queue_item.type} {queue_item.id} {e}"
+                )
+                snapshot.apr_baseRewards = reward_static["rewards_status"][0]["extra"][
+                    "baseRewards_apr"
+                ]
+
+            try:
+                snapshot.apr_boostedRewards = (
+                    (
+                        (
+                            (
+                                float(snapshot.boostedRewards_sinceLastUpdateTime)
+                                / 10 ** reward_static["rewardToken_decimals"]
+                            )
+                            / snapshot.seconds_sinceLastUpdateTime
+                        )
+                        * 60
+                        * 60
+                        * 24
+                        * 365
+                    )
+                    * snapshot.rewardToken_price
+                ) / staked_usd
+            except Exception as e:
+                logging.getLogger(__name__).error(
+                    f" using last known rewards apr for {network} {queue_item.type} {queue_item.id} {e}"
+                )
+                snapshot.apr_boostedRewards = reward_static["rewards_status"][0][
+                    "extra"
+                ]["boostedRewards_apr"]
+
+            snapshot.apr = snapshot.apr_baseRewards + snapshot.apr_boostedRewards
 
             # set id
             snapshot.id = create_id_latest_multifeedistributor(

@@ -11,6 +11,7 @@ from bins.w3.protocols.ramses.collectors import (
 )
 
 
+# PULL TO QUEUE
 def feed_latest_multifeedistribution_snapshot():
     """add a multifeedistribution snapshot to the queue
 
