@@ -1282,7 +1282,7 @@ class database_local(db_collections_common):
             data=data, collection_name="user_operations"
         )
 
-    def set_user_operations_bulk(self, data: list[dict]):
+    def set_user_operations_bulk(self, data: list[dict]) -> BulkWriteResult:
         """Bulk insert user operations
 
         Args:
@@ -1298,7 +1298,9 @@ class database_local(db_collections_common):
             )
 
         # convert decimal to bson compatible and save
-        self.replace_items_to_database(data=data, collection_name="user_operations")
+        return self.replace_items_to_database(
+            data=data, collection_name="user_operations"
+        )
 
     # user rewards
     def get_user_rewards_operations(
@@ -1411,7 +1413,7 @@ class database_local(db_collections_common):
         return self.save_item_to_database(data=data, collection_name="rewards_status")
 
     # hypervisor returns
-    def set_hypervisor_returns(self, data: dict) -> UpdateResult:
+    def set_hypervisor_return(self, data: dict) -> UpdateResult:
         # create id
         data["id"] = create_id_hypervisor_returns(
             hypervisor_address=data["address"],
@@ -1421,6 +1423,12 @@ class database_local(db_collections_common):
 
         # save
         return self.replace_item_to_database(
+            data=data, collection_name="hypervisor_returns"
+        )
+
+    def set_hypervisor_return_bulk(self, data: dict) -> BulkWriteResult:
+        # save
+        return self.replace_items_to_database(
             data=data, collection_name="hypervisor_returns"
         )
 
