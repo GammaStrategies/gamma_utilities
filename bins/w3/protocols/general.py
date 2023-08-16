@@ -81,14 +81,27 @@ class web3wrap:
 
     def setup_w3(self, network: str, web3Url: str | None = None) -> Web3:
         # create Web3 helper
-        # rpcProvider = self.get_rpcUrls(rpcKey_names=["private"])[0]
+        if not web3Url:
+            if rpclist := RPC_MANAGER.get_rpc_list(
+                network=self._network, rpcKey_names=["private"]
+            ):
+                web3Url = rpclist[0].url
+            elif rpclist := RPC_MANAGER.get_rpc_list(network=self._network):
+                # there are no private RPCs available
+                logging.getLogger(__name__).warning(
+                    f"  no private RPCs available for network {self._network} address {self._address}. Using any available RPC."
+                )
+                web3Url = RPC_MANAGER.get_rpc_list(network=self._network)[0].url
+            else:
+                # there are no public nor private RPCs available
+                logging.getLogger(__name__).error(
+                    f"  no public nor private RPCs available for network {self._network} address {self._address}..."
+                )
+                raise Exception(f" No RPCs available for network {self._network}.")
 
         result = Web3(
             Web3.HTTPProvider(
-                web3Url
-                or RPC_MANAGER.get_rpc_list(
-                    network=self._network, rpcKey_names=["private"]
-                )[0].url,
+                web3Url,
                 request_kwargs={"timeout": 60},
             )
         )
