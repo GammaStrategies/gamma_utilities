@@ -81,6 +81,19 @@ def get_price_from_db(
     )
 
 
+def get_prices_from_db(
+    network: str,
+    block: int,
+    token_addresses: list[str],
+) -> dict:
+    # try get the prices from database
+    if token_prices := get_default_globaldb().get_items_from_database(
+        collection_name="usd_prices",
+        find=dict(network=network, address={"$in": token_addresses}, block=block),
+    ):
+        return {price["address"]: price["price"] for price in token_prices}
+
+
 def get_latest_price_from_db(network: str, token_address: str) -> float:
     # try get the prices from database
     if token_price := get_default_globaldb().get_items_from_database(
