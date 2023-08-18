@@ -2,6 +2,7 @@ import logging
 from web3 import Web3
 
 from bins.errors.general import ProcessingError
+from bins.formulas import dex_formulas
 from ....general.enums import Protocol
 from .. import gamma
 from ..general import erc20
@@ -259,6 +260,23 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
         # get rewards per second
         seconds_in_period = WEEK - self.current_period_remaining_seconds
 
+        inside_seconds_base: float = (
+            periodSecondsInsideX96_base + periodSecondsInsideX96_limit
+        ) >> 96  # / (2**96)
+        inside_seconds_boost: float = (
+            periodBoostedSecondsInsideX96_base + periodBoostedSecondsInsideX96_limit
+        ) >> 96  # / (2**96)
+
+        inside_base_rewards_per_second: float = (
+            amount_base / inside_seconds_base if inside_seconds_base else 0
+        )
+        inside_boosted_rewards_per_second: float = (
+            amount_boost / inside_seconds_boost if inside_seconds_boost else 0
+        )
+        inside_rewards_per_second = (
+            inside_base_rewards_per_second + inside_boosted_rewards_per_second
+        )
+
         # set result
         data_result = {
             "max_baseRewards": baseRewards,
@@ -273,6 +291,11 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
             )
             if seconds_in_period
             else 0,
+            "inside_baseRewards_per_second": inside_base_rewards_per_second,
+            "inside_boostedRewards_per_second": inside_boosted_rewards_per_second,
+            "inside_seconds_base": inside_seconds_base,
+            "inside_seconds_boost": inside_seconds_boost,
+            "inside_rewards_per_second": inside_rewards_per_second,
         }
 
         # convert to string when specified
@@ -284,11 +307,48 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
                 "current_baseRewards",
                 "current_boostedRewards",
                 "current_rewards_per_second",
+                "inside_baseRewards_per_second",
+                "inside_boostedRewards_per_second",
+                "inside_rewards_per_second",
             ]:
                 data_result[k] = str(data_result[k])
 
         # return result
         return data_result
+
+    def get_already_claimedRewards(self, period: int, reward_token: str) -> int:
+        """Get the claimed rewards for an specific period
+
+        Args:
+            period (int):
+            reward_token (str):
+
+        Returns:
+            int: sum of base and limit positions rewards already collected
+        """
+        _base_position = self.gauge.periodClaimedAmount(
+            period=period,
+            positionHash=dex_formulas.get_positionKey_ramses(
+                ownerAddress=Web3.toChecksumAddress(self.address),
+                tickLower=self.baseLower,
+                tickUpper=self.baseUpper,
+                index=0,
+            ),
+            address=reward_token,
+        )
+        _limit_position = self.gauge.periodClaimedAmount(
+            period=period,
+            positionHash=dex_formulas.get_positionKey_ramses(
+                ownerAddress=Web3.toChecksumAddress(self.address),
+                tickLower=self.limitLower,
+                tickUpper=self.limitUpper,
+                index=0,
+            ),
+            address=reward_token,
+        )
+
+        # return result
+        return _base_position + _limit_position
 
 
 class gamma_hypervisor_cached(gamma.hypervisor.gamma_hypervisor_cached):
