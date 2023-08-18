@@ -739,12 +739,20 @@ def build_multiFeeDistribution_from_queueItem(
                         _this_period_rewards_rate["current_baseRewards"]
                     ) + float(_this_period_rewards_rate["current_boostedRewards"])
                     item["baseRewardsSinceLastUpdateTime"] = (
-                        float(_this_period_rewards_rate["current_baseRewards"])
-                        / total_period_rewards
+                        (
+                            float(_this_period_rewards_rate["current_baseRewards"])
+                            / total_period_rewards
+                        )
+                        if total_period_rewards
+                        else 0
                     ) * item["rewardsSinceLastUpdateTime"]
                     item["boostedRewardsSinceLastUpdateTime"] = (
-                        float(_this_period_rewards_rate["current_boostedRewards"])
-                        / total_period_rewards
+                        (
+                            float(_this_period_rewards_rate["current_boostedRewards"])
+                            / total_period_rewards
+                        )
+                        if total_period_rewards
+                        else 0
                     ) * item["rewardsSinceLastUpdateTime"]
 
                     # append result item
