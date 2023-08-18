@@ -704,6 +704,12 @@ def build_multiFeeDistribution_from_queueItem(
             if rewardData := hypervisor.receiver.rewardData(
                 rewardToken_address=reward_static["rewardToken"]
             ):
+                if rewardData["lastTimeUpdated"] == 0:
+                    logging.getLogger(__name__).warning(
+                        f"  no rewards status found for queue's {network} {queue_item.type} {queue_item.id}"
+                    )
+                    continue
+
                 # set sumUP vars
                 boostedRewards_sinceLastUpdateTime = 0
                 baseRewards_sinceLastUpdateTime = 0
