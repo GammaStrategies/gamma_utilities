@@ -121,10 +121,22 @@ class gauge(web3wrap):
         """ """
         return self.call_function_autoRpc("nfpManager")
 
-    def periodClaimedAmount(self, period: int, data: bytes, address: str) -> int:
-        """ """
+    def periodClaimedAmount(
+        self, period: int, positionHash: bytes, address: str
+    ) -> int:
+        """Retrieves the claimed amount for a specific period, position hash, and user address.
+
+        period The period for which to retrieve the claimed amount.
+        positionHash The identifier of the NFP for which to retrieve the claimed amount.
+        address The address of the token for the claimed amount.
+
+        """
         return self.call_function_autoRpc(
-            "periodClaimedAmount", None, period, data, Web3.toChecksumAddress(address)
+            "periodClaimedAmount",
+            None,
+            period,
+            positionHash,
+            Web3.toChecksumAddress(address),
         )
 
     def periodEarned(self, period: int, token_address: str, token_id: int) -> int:
@@ -332,6 +344,41 @@ class multiFeeDistribution(web3wrap):
                 action="none",
                 message=f" can't get any result of rewardData({rewardToken_address}) call ",
             )
+
+    def totalBalance(self, user_address: str) -> int:
+        """ """
+        return self.call_function_autoRpc(
+            "totalBalance", None, Web3.toChecksumAddress(user_address)
+        )
+
+    def userData(self, user_address: str) -> dict:
+        if tmp := self.call_function_autoRpc(
+            "userData", None, Web3.toChecksumAddress(user_address)
+        ):
+            return {
+                "tokenAmount": tmp[0],
+                "lastTimeUpdated": tmp[1],
+                "tokenClaimable": tmp[2],
+            }
+        else:
+            raise ProcessingError(
+                item={
+                    "address": self.address,
+                    "block": self.block,
+                    "object": "multiFeeDistribution",
+                },
+                action="none",
+                message=f" can't get any result of userData({user_address}) call ",
+            )
+
+    def claimable(self, user_address: str, rewardToken_address: str) -> int:
+        """ """
+        return self.call_function_autoRpc(
+            "claimable",
+            None,
+            Web3.toChecksumAddress(user_address),
+            Web3.toChecksumAddress(rewardToken_address),
+        )
 
 
 # TODO: gaugeFactory
