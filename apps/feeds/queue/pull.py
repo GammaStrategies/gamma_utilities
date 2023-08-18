@@ -529,7 +529,36 @@ def pull_from_queue_operation(network: str, queue_item: QueueItem) -> bool:
     return False
 
 
+# multiFeeDistribution
 def pull_from_queue_latest_multiFeeDistribution(
+    network: str, queue_item: QueueItem
+) -> bool:
+    # build a list of itmes to be saved to the database
+    if save_todb := build_multiFeeDistribution_from_queueItem(
+        network=network, queue_item=queue_item
+    ):
+        # save to latest_multifeedistribution collection database
+        if db_return := get_default_localdb(network=network).update_items_to_database(
+            data=save_todb, collection_name="latest_multifeedistribution"
+        ):
+            logging.getLogger(__name__).debug(
+                f"       db return-> del: {db_return.deleted_count}  ins: {db_return.inserted_count}  mod: {db_return.modified_count}  ups: {db_return.upserted_count} matched: {db_return.matched_count}"
+            )
+        else:
+            raise ValueError(" Database has not returned anything on writeBulk")
+
+        # log
+        logging.getLogger(__name__).debug(
+            f"  <- Done processing {network}'s {queue_item.type} {queue_item.id}"
+        )
+
+        return True
+
+    # return result
+    return False
+
+
+def build_multiFeeDistribution_from_queueItem(
     network: str, queue_item: QueueItem
 ) -> bool:
     # build a list of itmes to be saved to the database
@@ -668,12 +697,6 @@ def pull_from_queue_latest_multiFeeDistribution(
                 ephemeral_cache["mfd_total_staked"][hypervisor_address]
             )
 
-            current_period_rewards_rate = hypervisor.calculate_rewards(
-                period=ephemeral_cache["hypervisor_period"][hypervisor_address],
-                reward_token=reward_static["rewardToken"],
-                convert_bint=True,
-            )
-
             # add symbol
             snapshot.rewardToken_symbol = reward_static["rewardToken_symbol"]
 
@@ -681,62 +704,65 @@ def pull_from_queue_latest_multiFeeDistribution(
             if rewardData := hypervisor.receiver.rewardData(
                 rewardToken_address=reward_static["rewardToken"]
             ):
-                baseRewards_from_LastTimeUpdated = 0
-                boostedRewards_from_LastTimeUpdated = 0
+                # set sumUP vars
+                boostedRewards_sinceLastUpdateTime = 0
+                baseRewards_sinceLastUpdateTime = 0
 
-                # check how many rewards status are needed to get from rewardData lastTimeUpdated timestamp to snapshot timestamp
-                if temp_rewards_status := [
-                    x
-                    for x in reward_static["rewards_status"]
-                    if x["timestamp"] > rewardData["lastTimeUpdated"]
-                    and x["timestamp"] <= snapshot.timestamp
-                ]:
-                    # how many rewards have been aquired since lastTimeUpdated = seconds passed * rewardRate
-                    # get rewards for all this positions and sum them ( rewards x seconds passed in the position)
-
-                    # sum up all rewards from last time updated to reward status snapshot...
-                    baseRewards_from_LastTimeUpdated = 0
-                    boostedRewards_from_LastTimeUpdated = 0
-                    last_reward_status_timestamp = 10**30
-                    for i in temp_rewards_status:
-                        baseRewards_from_LastTimeUpdated += float(
-                            i["extra"]["baseRewards"]
-                        )
-                        boostedRewards_from_LastTimeUpdated += float(
-                            i["extra"]["boostedRewards"]
-                        )
-                        last_reward_status_timestamp = min(
-                            i["timestamp"], last_reward_status_timestamp
-                        )
-
-                    logging.getLogger(__name__).debug(
-                        f"   using 'rewards status' in the calc of {network} {queue_item.type} {queue_item.id}   base:{baseRewards_from_LastTimeUpdated} boosted:{boostedRewards_from_LastTimeUpdated}   seconds:{snapshot.timestamp - last_reward_status_timestamp}"
+                reward_items_periods = []
+                # onchain_helper = onchain_data_helper.onchain_data_helper(protocol="gamma")
+                # periods from lastUpdateStatus to snapshot
+                for item in build_periods_timestamps(
+                    ini_timestamp=rewardData["lastTimeUpdated"],
+                    end_timestamp=snapshot.timestamp,
+                ):
+                    claimed = hypervisor.get_already_claimedRewards(
+                        period=item["period"],
+                        reward_token=reward_static["rewardToken"],
                     )
-                else:
-                    # there are no reward status between lastTimeUpdated and current snapshot timestamp
-                    last_reward_status_timestamp = rewardData["lastTimeUpdated"]
 
-                # seconds passed between last known reward status and current snapshot timestamp
-                seconds_passed_last_reward_status = (
-                    snapshot.timestamp - last_reward_status_timestamp
-                )
+                    #  get the rewards per second from the last period
+                    _this_period_rewards_rate = hypervisor.calculate_rewards(
+                        period=item["period"],
+                        reward_token=reward_static["rewardToken"],
+                        convert_bint=True,
+                    )
 
-                # rewards from last known reward status and now
-                baseRewards_from_currentPosition = (
-                    float(current_period_rewards_rate["current_baseRewards"])
-                    / current_period_rewards_rate["current_period_seconds"]
-                ) * seconds_passed_last_reward_status
-                boostedRewards_from_currentPosition = (
-                    float(current_period_rewards_rate["current_boostedRewards"])
-                    / current_period_rewards_rate["current_period_seconds"]
-                ) * seconds_passed_last_reward_status
+                    # total mixed rewards
+                    item["rewardsSinceLastUpdateTime"] = (
+                        float(_this_period_rewards_rate["current_baseRewards"])
+                        + float(_this_period_rewards_rate["current_boostedRewards"])
+                        - claimed
+                    )
+
+                    # unmix proportionally
+                    total_period_rewards = float(
+                        _this_period_rewards_rate["current_baseRewards"]
+                    ) + float(_this_period_rewards_rate["current_boostedRewards"])
+                    item["baseRewardsSinceLastUpdateTime"] = (
+                        float(_this_period_rewards_rate["current_baseRewards"])
+                        / total_period_rewards
+                    ) * item["rewardsSinceLastUpdateTime"]
+                    item["boostedRewardsSinceLastUpdateTime"] = (
+                        float(_this_period_rewards_rate["current_boostedRewards"])
+                        / total_period_rewards
+                    ) * item["rewardsSinceLastUpdateTime"]
+
+                    # append result item
+                    reward_items_periods.append(item)
+
+                    # sum up snapshot vars
+                    baseRewards_sinceLastUpdateTime += item[
+                        "baseRewardsSinceLastUpdateTime"
+                    ]
+                    boostedRewards_sinceLastUpdateTime += item[
+                        "boostedRewardsSinceLastUpdateTime"
+                    ]
 
                 snapshot.baseRewards_sinceLastUpdateTime = str(
-                    baseRewards_from_currentPosition + baseRewards_from_LastTimeUpdated
+                    baseRewards_sinceLastUpdateTime
                 )
                 snapshot.boostedRewards_sinceLastUpdateTime = str(
-                    boostedRewards_from_currentPosition
-                    + boostedRewards_from_LastTimeUpdated
+                    boostedRewards_sinceLastUpdateTime
                 )
                 snapshot.seconds_sinceLastUpdateTime = (
                     snapshot.timestamp - rewardData["lastTimeUpdated"]
@@ -830,23 +856,6 @@ def pull_from_queue_latest_multiFeeDistribution(
             # add item to be saved
             save_todb.append(item_to_save)
 
-        # save to latest_multifeedistribution collection database
-        if db_return := get_default_localdb(network=network).update_items_to_database(
-            data=save_todb, collection_name="latest_multifeedistribution"
-        ):
-            logging.getLogger(__name__).debug(
-                f"       db return-> del: {db_return.deleted_count}  ins: {db_return.inserted_count}  mod: {db_return.modified_count}  ups: {db_return.upserted_count} matched: {db_return.matched_count}"
-            )
-        else:
-            raise ValueError(" Database has not returned anything on writeBulk")
-
-        # log
-        logging.getLogger(__name__).debug(
-            f"  <- Done processing {network}'s {queue_item.type} {queue_item.id}"
-        )
-
-        return True
-
     except ProcessingError as e:
         logging.getLogger(__name__).error(f"{e.message}")
 
@@ -856,322 +865,684 @@ def pull_from_queue_latest_multiFeeDistribution(
         )
 
     # return result
-    return False
+    return save_todb
+
+
+def build_periods_timestamps(ini_timestamp: int, end_timestamp: int) -> dict:
+    week_in_seconds = 60 * 60 * 24 * 7
+    items_periods = []
+
+    initial_period = ini_timestamp // week_in_seconds
+    end_period = end_timestamp // week_in_seconds
+
+    current_timestamp = ini_timestamp
+    for i in range(initial_period, end_period + 1):
+        if current_timestamp >= end_timestamp:
+            logging.getLogger(__name__).error(f" -> current_timestamp >= end_timestamp")
+            break
+
+        item_to_add = {
+            "period": i,
+            "from_timestamp": current_timestamp,
+            "to_timestamp": min((i + 1) * week_in_seconds - 1, end_timestamp),
+        }
+        # define total seconds ( visual debugging)
+        item_to_add["total_seconds"] = (
+            item_to_add["to_timestamp"] - item_to_add["from_timestamp"]
+        )
+        # add to list
+        items_periods.append(item_to_add)
+        # set next timestamp
+        current_timestamp = min((i + 1) * week_in_seconds, end_timestamp)
+
+    return items_periods
 
 
 # DEPRECATED
-def pull_from_queue_latest_multiFeeDistribution_OLD(
-    network: str, queue_item: QueueItem
-) -> bool:
-    # build a list of itmes to be saved to the database
-    save_todb = []
 
-    try:
-        # log operation processing
-        logging.getLogger(__name__).debug(
-            f"  -> Processing queue's {network} {queue_item.type} {queue_item.id}"
-        )
 
-        ephemeral_cache = {
-            "hypervisor_block": {},
-            "hypervisor_timestamp": {},
-            "mfd_total_staked": {},
-            "hypervisor_period": {},
-            "hypervisor_totalAmount": {},
-            "hypervisor_uncollected": {},
-            "hypervisor_totalSupply": {},
-        }
+# def pull_from_queue_latest_multiFeeDistribution_BACKUP(
+#     network: str, queue_item: QueueItem
+# ) -> bool:
+#     # build a list of itmes to be saved to the database
+#     save_todb = []
 
-        # get static rewards related to mfd and its linked hypervisor, (so that we know this hype's protocol)
-        # this will be used as tokenReward also
-        for reward_static in get_from_localdb(
-            network=network,
-            collection="rewards_static",
-            aggregate=[
-                {
-                    "$match": {
-                        "rewarder_registry": queue_item.data["address"].lower(),
-                    }
-                },
-                # // find hype's reward status
-                {
-                    "$lookup": {
-                        "from": "static",
-                        "let": {"op_address": "$hypervisor_address"},
-                        "pipeline": [
-                            {
-                                "$match": {
-                                    "$expr": {
-                                        "$and": [
-                                            {
-                                                "$eq": [
-                                                    "$hypervisor_address",
-                                                    "$$op_address",
-                                                ]
-                                            },
-                                            {"$lte": ["$block", queue_item.block]},
-                                        ],
-                                    }
-                                }
-                            },
-                        ],
-                        "as": "hypervisor",
-                    }
-                },
-                {"$unwind": "$hypervisor"},
-            ],
-            limit=1,
-            batch_size=100000,
-        ):
-            # build mdf base structure ( to be saved to database later)
-            snapshot = multifeeDistribution_snapshot(
-                address=queue_item.data["address"].lower(),
-                topic=queue_item.data["topic"],
-            )
+#     try:
+#         # log operation processing
+#         logging.getLogger(__name__).debug(
+#             f"  -> Processing queue's {network} {queue_item.type} {queue_item.id}"
+#         )
 
-            # hypervisor_address = reward_static["hypervisors_status"][0]["address"]
-            # hypervisor_dex = reward_static["hypervisors_status"][0]["dex"]
-            # hypervisor_token0_address = reward_static["hypervisors_status"][0]["pool"]["token0"]["address"]
-            # hypervisor_token1_address = reward_static["hypervisors_status"][0]["pool"]["token1"]["address"]
+#         ephemeral_cache = {
+#             "hypervisor_block": {},
+#             "hypervisor_timestamp": {},
+#             "mfd_total_staked": {},
+#             "hypervisor_period": {},
+#         }
 
-            # set mfd status hypervisor address and dex ( protocol)
-            snapshot.hypervisor_address = reward_static["hypervisor"]["address"]
-            snapshot.dex = reward_static["hypervisor"]["dex"]
+#         # setup data filtering. When block is zero, get all available data
+#         _and_filter = [
+#             {
+#                 "$eq": [
+#                     "$hypervisor_address",
+#                     "$$op_address",
+#                 ]
+#             },
+#         ]
 
-            snapshot.rewardToken = reward_static["rewardToken"]
-            snapshot.rewardToken_decimals = reward_static["rewardToken_decimals"]
+#         if queue_item.block > 0:
+#             _and_filter.append({"$lte": ["$block", queue_item.block]})
 
-            # use local cache to minimize external calls
-            if (
-                snapshot.hypervisor_address
-                not in ephemeral_cache["hypervisor_timestamp"]
-            ):
-                # build hypervisor at block with private rpc
-                if hypervisor := build_hypervisor(
-                    network=network,
-                    protocol=text_to_protocol(reward_static["hypervisor"]["dex"]),
-                    block=queue_item.block,
-                    hypervisor_address=reward_static["hypervisor"]["address"],
-                    cached=False,
-                ):
-                    # set custom rpc type
-                    hypervisor.custom_rpcType = "private"
+#         query = [
+#             {
+#                 "$match": {
+#                     "rewarder_registry": queue_item.data["address"].lower(),
+#                 }
+#             },
+#             # // find hype's reward status
+#             {
+#                 "$lookup": {
+#                     "from": "rewards_status",
+#                     "let": {"op_address": "$hypervisor_address"},
+#                     "pipeline": [
+#                         {
+#                             "$match": {
+#                                 "$expr": {
+#                                     "$and": _and_filter,
+#                                 }
+#                             }
+#                         },
+#                         {"$sort": {"block": -1}},
+#                         {"$limit": 5},
+#                     ],
+#                     "as": "rewards_status",
+#                 }
+#             },
+#         ]
 
-                    # set timestamp
-                    ephemeral_cache["hypervisor_timestamp"][
-                        reward_static["hypervisor"]["address"]
-                    ] = hypervisor._timestamp
+#         # get rewards related to this mfd, (so that we know this hype's protocol)
+#         rewards_related_info = get_from_localdb(
+#             network=network,
+#             collection="rewards_static",
+#             aggregate=query,
+#             limit=1,
+#             batch_size=100000,
+#         )
 
-                    # set block
-                    ephemeral_cache["hypervisor_block"][
-                        reward_static["hypervisor"]["address"]
-                    ] = hypervisor.block
+#         # set common vars to be used multiple times
+#         mfd_address = queue_item.data["address"].lower()
 
-                    # get current total staked qtty from multifeedistributor contract
-                    ephemeral_cache["mfd_total_staked"][
-                        reward_static["hypervisor"]["address"]
-                    ] = hypervisor.receiver.totalStakes
+#         # this will be used as tokenReward also
+#         for reward_static in rewards_related_info:
+#             # if no rewards status are found, skip it
+#             if reward_static["rewards_status"] == []:
+#                 logging.getLogger(__name__).warning(
+#                     f"  no rewards status found for queue's {network} {queue_item.type} {queue_item.id}"
+#                 )
+#                 continue
 
-                    ephemeral_cache["hypervisor_period"][
-                        reward_static["hypervisor"]["address"]
-                    ] = hypervisor.current_period
+#             # set common vars to be used multiple times
+#             protocol = (
+#                 Protocol.RAMSES
+#             )  # text_to_protocol(reward_static["rewards_status"][0]["dex"])
+#             hypervisor_address = reward_static["hypervisor_address"]
 
-                    ephemeral_cache["hypervisor_totalAmount"][
-                        reward_static["hypervisor"]["address"]
-                    ] = hypervisor.getTotalAmounts
+#             # create multiFeeDistributior snapshot structure (to be saved to database later)
+#             snapshot = multifeeDistribution_snapshot(
+#                 address=mfd_address,
+#                 hypervisor_address=hypervisor_address,
+#                 dex=protocol.database_name,
+#                 rewardToken=reward_static["rewardToken"],
+#                 rewardToken_decimals=reward_static["rewardToken_decimals"],
+#             )
 
-                    ephemeral_cache["hypervisor_uncollected"][
-                        reward_static["hypervisor"]["address"]
-                    ] = hypervisor.get_fees_uncollected(inDecimal=True)
+#             # use local cache to minimize external calls
+#             if (
+#                 snapshot.hypervisor_address
+#                 not in ephemeral_cache["hypervisor_timestamp"]
+#             ):
+#                 # build hypervisor at block with private rpc
+#                 if hypervisor := build_hypervisor(
+#                     network=network,
+#                     protocol=protocol,
+#                     block=queue_item.block,
+#                     hypervisor_address=hypervisor_address,
+#                     cached=False,
+#                 ):
+#                     # set custom rpc type
+#                     hypervisor.custom_rpcType = "private"
 
-                    ephemeral_cache["hypervisor_totalSupply"][
-                        reward_static["hypervisor"]["address"]
-                    ] = hypervisor.totalSupply
+#                     # set timestamp
+#                     ephemeral_cache["hypervisor_timestamp"][
+#                         hypervisor_address
+#                     ] = hypervisor._timestamp
 
-            # use cached info
-            snapshot.block = ephemeral_cache["hypervisor_block"][
-                reward_static["hypervisor"]["address"]
-            ]
-            snapshot.timestamp = ephemeral_cache["hypervisor_timestamp"][
-                reward_static["hypervisor"]["address"]
-            ]
-            snapshot.current_period_rewards = hypervisor.calculate_rewards(
-                period=ephemeral_cache["hypervisor_period"][
-                    reward_static["hypervisor"]["address"]
-                ],
-                reward_token=reward_static["rewardToken"],
-                convert_bint=True,
-            )
-            snapshot.last_period_rewards = hypervisor.calculate_rewards(
-                period=ephemeral_cache["hypervisor_period"][
-                    reward_static["hypervisor"]["address"]
-                ]
-                - 1,
-                reward_token=reward_static["rewardToken"],
-                convert_bint=True,
-            )
+#                     # set block
+#                     ephemeral_cache["hypervisor_block"][
+#                         hypervisor_address
+#                     ] = hypervisor.block
 
-            # add staked info from MFD
-            snapshot.total_staked = str(
-                ephemeral_cache["mfd_total_staked"][
-                    reward_static["hypervisor"]["address"]
-                ]
-            )
+#                     # get current total staked qtty from multifeedistributor contract
+#                     ephemeral_cache["mfd_total_staked"][
+#                         hypervisor_address
+#                     ] = hypervisor.receiver.totalStakes
 
-            # add symbol
-            snapshot.rewardToken_symbol = reward_static["rewardToken_symbol"]
+#                     ephemeral_cache["hypervisor_period"][
+#                         hypervisor_address
+#                     ] = hypervisor.current_period
 
-            # add balance of rewardToken at MFD
-            rewardToken_contract = build_erc20_helper(
-                chain=text_to_chain(network), address=reward_static["rewardToken"]
-            )
-            snapshot.rewardToken_balance = str(
-                rewardToken_contract.balanceOf(address=queue_item.data["address"])
-            )
+#             # use cached info
+#             snapshot.block = ephemeral_cache["hypervisor_block"][hypervisor_address]
+#             snapshot.timestamp = ephemeral_cache["hypervisor_timestamp"][
+#                 hypervisor_address
+#             ]
+#             snapshot.hypervisor_staked = str(
+#                 ephemeral_cache["mfd_total_staked"][hypervisor_address]
+#             )
 
-            # add rewardData
-            try:
-                # reward data amount
-                if rewardData := hypervisor.receiver.rewardData(
-                    rewardToken_address=reward_static["rewardToken"]
-                ):
-                    snapshot.rewardData = rewardData
-                    # convert to string
-                    snapshot.rewardData["amount"] = str(snapshot.rewardData["amount"])
-                    # snapshot.rewardData["lastTimeUpdated"] =str(snapshot.rewardData["lastTimeUpdated"])
-                    snapshot.rewardData["rewardPerToken"] = str(
-                        snapshot.rewardData["rewardPerToken"]
-                    )
-            except ProcessingError as e:
-                pass
+#             current_period_rewards_rate = hypervisor.calculate_rewards(
+#                 period=ephemeral_cache["hypervisor_period"][hypervisor_address],
+#                 reward_token=reward_static["rewardToken"],
+#                 convert_bint=True,
+#             )
 
-            # add price
-            if prices := get_latest_prices_from_db(
-                network=network,
-                token_addresses=[
-                    reward_static["rewardToken"],
-                    reward_static["hypervisor"]["pool"]["token0"]["address"],
-                    reward_static["hypervisor"]["pool"]["token1"]["address"],
-                ],
-            ):
-                # get latest databse price
-                snapshot.rewardToken_price = prices[reward_static["rewardToken"]]
-                # calculate hypervisor price x share
-                hypervisor_total0 = ephemeral_cache["hypervisor_totalAmount"][
-                    reward_static["hypervisor"]["address"]
-                ]["total0"] / (
-                    10 ** reward_static["hypervisor"]["pool"]["token0"]["decimals"]
-                )
-                hypervisor_total1 = ephemeral_cache["hypervisor_totalAmount"][
-                    reward_static["hypervisor"]["address"]
-                ]["total1"] / (
-                    10 ** reward_static["hypervisor"]["pool"]["token1"]["decimals"]
-                )
+#             # add symbol
+#             snapshot.rewardToken_symbol = reward_static["rewardToken_symbol"]
 
-                # Uncollected fees go crazy sometimes. TODO: check what happens. For now, set to 0 when > 10**18
-                uncollected_token0 = (
-                    float(
-                        ephemeral_cache["hypervisor_uncollected"][
-                            reward_static["hypervisor"]["address"]
-                        ]["qtty_token0"]
-                    )
-                    / 10 ** reward_static["hypervisor"]["pool"]["token0"]["decimals"]
-                )
-                uncollected_token1 = (
-                    float(
-                        ephemeral_cache["hypervisor_uncollected"][
-                            reward_static["hypervisor"]["address"]
-                        ]["qtty_token1"]
-                    )
-                    / 10 ** reward_static["hypervisor"]["pool"]["token1"]["decimals"]
-                )
+#             # use rewardData
+#             if rewardData := hypervisor.receiver.rewardData(
+#                 rewardToken_address=reward_static["rewardToken"]
+#             ):
+#                 baseRewards_from_LastTimeUpdated = 0
+#                 boostedRewards_from_LastTimeUpdated = 0
 
-                if uncollected_token0 > 10**20 or uncollected_token1 > 10**20:
-                    logging.getLogger(__name__).warning(
-                        f" Uncollected fees are > 10**20 for hypervisor {reward_static['hypervisor']['address']} - {reward_static['hypervisor']['pool']['token0']['symbol']}-{reward_static['hypervisor']['pool']['token1']['symbol']} - block {ephemeral_cache['hypervisor_block'][reward_static['hypervisor']['address']]} {uncollected_token0} {uncollected_token1}"
-                    )
-                    uncollected_token0 = 0
-                    uncollected_token1 = 0
+#                 # check how many rewards status are needed to get from rewardData lastTimeUpdated timestamp to snapshot timestamp
+#                 if temp_rewards_status := [
+#                     x
+#                     for x in reward_static["rewards_status"]
+#                     if x["timestamp"] > rewardData["lastTimeUpdated"]
+#                     and x["timestamp"] <= snapshot.timestamp
+#                 ]:
+#                     # how many rewards have been aquired since lastTimeUpdated = seconds passed * rewardRate
+#                     # get rewards for all this positions and sum them ( rewards x seconds passed in the position)
 
-                total_underlying_token0 = hypervisor_total0 + uncollected_token0
-                total_underlying_token1 = hypervisor_total1 + uncollected_token1
+#                     # sum up all rewards from last time updated to reward status snapshot...
+#                     baseRewards_from_LastTimeUpdated = 0
+#                     boostedRewards_from_LastTimeUpdated = 0
+#                     last_reward_status_timestamp = 10**30
+#                     for i in temp_rewards_status:
+#                         baseRewards_from_LastTimeUpdated += float(
+#                             i["extra"]["baseRewards"]
+#                         )
+#                         boostedRewards_from_LastTimeUpdated += float(
+#                             i["extra"]["boostedRewards"]
+#                         )
+#                         last_reward_status_timestamp = min(
+#                             i["timestamp"], last_reward_status_timestamp
+#                         )
 
-                total_underlying_token0_usd = (
-                    total_underlying_token0
-                    * prices[reward_static["hypervisor"]["pool"]["token0"]["address"]]
-                )
-                total_underlying_token1_usd = (
-                    total_underlying_token1
-                    * prices[reward_static["hypervisor"]["pool"]["token1"]["address"]]
-                )
+#                     logging.getLogger(__name__).debug(
+#                         f"   using 'rewards status' in the calc of {network} {queue_item.type} {queue_item.id}   base:{baseRewards_from_LastTimeUpdated} boosted:{boostedRewards_from_LastTimeUpdated}   seconds:{snapshot.timestamp - last_reward_status_timestamp}"
+#                     )
+#                 else:
+#                     # there are no reward status between lastTimeUpdated and current snapshot timestamp
+#                     last_reward_status_timestamp = rewardData["lastTimeUpdated"]
 
-                # supply
-                hypervisor_supply = ephemeral_cache["hypervisor_totalSupply"][
-                    reward_static["hypervisor"]["address"]
-                ] / (10 ** reward_static["hypervisor"]["decimals"])
+#                 # seconds passed between last known reward status and current snapshot timestamp
+#                 seconds_passed_last_reward_status = (
+#                     snapshot.timestamp - last_reward_status_timestamp
+#                 )
 
-                snapshot.hypervisor_price_x_share = (
-                    (total_underlying_token0_usd + total_underlying_token1_usd)
-                    / hypervisor_supply
-                    if hypervisor_supply
-                    else 0
-                )
-            else:
-                logging.getLogger(__name__).warning(
-                    f" no prices found for queue's {network} {queue_item.type} {queue_item.id}"
-                )
+#                 # rewards from last known reward status and now
+#                 baseRewards_from_currentPosition = (
+#                     float(current_period_rewards_rate["current_baseRewards"])
+#                     / current_period_rewards_rate["current_period_seconds"]
+#                 ) * seconds_passed_last_reward_status
+#                 boostedRewards_from_currentPosition = (
+#                     float(current_period_rewards_rate["current_boostedRewards"])
+#                     / current_period_rewards_rate["current_period_seconds"]
+#                 ) * seconds_passed_last_reward_status
 
-            # set id
-            snapshot.id = create_id_latest_multifeedistributor(
-                mfd_address=snapshot.address,
-                rewardToken_address=snapshot.rewardToken,
-                hypervisor_address=snapshot.hypervisor_address,
-            )
+#                 snapshot.baseRewards_sinceLastUpdateTime = str(
+#                     baseRewards_from_currentPosition + baseRewards_from_LastTimeUpdated
+#                 )
+#                 snapshot.boostedRewards_sinceLastUpdateTime = str(
+#                     boostedRewards_from_currentPosition
+#                     + boostedRewards_from_LastTimeUpdated
+#                 )
+#                 snapshot.seconds_sinceLastUpdateTime = (
+#                     snapshot.timestamp - rewardData["lastTimeUpdated"]
+#                 )
 
-            # set item to save
-            if "is_last_item" in queue_item.data and queue_item.data["is_last_item"]:
-                # set last updated but nor rewards field
-                item_to_save = multifeeDistribution_snapshot(
-                    id=snapshot.id,
-                    address=snapshot.address,
-                    hypervisor_address=snapshot.hypervisor_address,
-                    dex=snapshot.dex,
-                    rewardToken=snapshot.rewardToken,
-                    rewardToken_decimals=snapshot.rewardToken_decimals,
-                    last_updated_data=snapshot.as_dict(),
-                ).as_dict()
+#                 logging.getLogger(__name__).debug(
+#                     f"   total rewards of {network} {queue_item.type} {queue_item.id}   base:{snapshot.baseRewards_sinceLastUpdateTime} boosted:{snapshot.boostedRewards_sinceLastUpdateTime}   seconds:{snapshot.seconds_sinceLastUpdateTime}"
+#                 )
 
-            else:
-                # set item to save
-                item_to_save = snapshot.as_dict()
+#             # get reward token price
+#             rewardToken_price = get_latest_price_from_db(
+#                 network=network,
+#                 token_address=reward_static["rewardToken"],
+#             )
+#             # use price or fallback to last known price
+#             snapshot.rewardToken_price = (
+#                 rewardToken_price
+#                 or reward_static["rewards_status"][0]["rewardToken_price_usd"]
+#             )
+#             snapshot.hypervisor_share_price_usd = reward_static["rewards_status"][0][
+#                 "hypervisor_share_price_usd"
+#             ]
 
-            # add item to be saved
-            save_todb.append(item_to_save)
+#             # TODO: use hype decimals from db, avoid hardcode
+#             staked_usd = snapshot.hypervisor_share_price_usd * (
+#                 float(snapshot.hypervisor_staked) / 10**18
+#             )
 
-        # save to latest_multifeedistribution collection database
-        if db_return := get_default_localdb(network=network).update_items_to_database(
-            data=save_todb, collection_name="latest_multifeedistribution"
-        ):
-            logging.getLogger(__name__).debug(
-                f"       db return-> del: {db_return.deleted_count}  ins: {db_return.inserted_count}  mod: {db_return.modified_count}  ups: {db_return.upserted_count} matched: {db_return.matched_count}"
-            )
-        else:
-            raise ValueError(" Database has not returned anything on writeBulk")
+#             try:
+#                 snapshot.apr_baseRewards = (
+#                     (
+#                         (
+#                             (
+#                                 float(snapshot.baseRewards_sinceLastUpdateTime)
+#                                 / 10 ** reward_static["rewardToken_decimals"]
+#                             )
+#                             / snapshot.seconds_sinceLastUpdateTime
+#                         )
+#                         * 60
+#                         * 60
+#                         * 24
+#                         * 365
+#                     )
+#                     * snapshot.rewardToken_price
+#                 ) / staked_usd
+#             except Exception as e:
+#                 logging.getLogger(__name__).error(
+#                     f" using last known rewards apr for {network} {queue_item.type} {queue_item.id} {e}"
+#                 )
+#                 snapshot.apr_baseRewards = reward_static["rewards_status"][0]["extra"][
+#                     "baseRewards_apr"
+#                 ]
 
-        # log
-        logging.getLogger(__name__).debug(
-            f"  <- Done processing {network}'s {queue_item.type} {queue_item.id}"
-        )
+#             try:
+#                 snapshot.apr_boostedRewards = (
+#                     (
+#                         (
+#                             (
+#                                 float(snapshot.boostedRewards_sinceLastUpdateTime)
+#                                 / 10 ** reward_static["rewardToken_decimals"]
+#                             )
+#                             / snapshot.seconds_sinceLastUpdateTime
+#                         )
+#                         * 60
+#                         * 60
+#                         * 24
+#                         * 365
+#                     )
+#                     * snapshot.rewardToken_price
+#                 ) / staked_usd
+#             except Exception as e:
+#                 logging.getLogger(__name__).error(
+#                     f" using last known rewards apr for {network} {queue_item.type} {queue_item.id} {e}"
+#                 )
+#                 snapshot.apr_boostedRewards = reward_static["rewards_status"][0][
+#                     "extra"
+#                 ]["boostedRewards_apr"]
 
-        return True
+#             snapshot.apr = snapshot.apr_baseRewards + snapshot.apr_boostedRewards
 
-    except ProcessingError as e:
-        logging.getLogger(__name__).error(f"{e.message}")
+#             # set id
+#             snapshot.id = create_id_latest_multifeedistributor(
+#                 mfd_address=snapshot.address,
+#                 rewardToken_address=snapshot.rewardToken,
+#                 hypervisor_address=snapshot.hypervisor_address,
+#             )
 
-    except Exception as e:
-        logging.getLogger(__name__).exception(
-            f"Error processing {network}'s latest_multifeedistribution queue item: {e}"
-        )
+#             # set item to save
+#             item_to_save = snapshot.as_dict()
 
-    # return result
-    return False
+#             # add item to be saved
+#             save_todb.append(item_to_save)
+
+#         # save to latest_multifeedistribution collection database
+#         if db_return := get_default_localdb(network=network).update_items_to_database(
+#             data=save_todb, collection_name="latest_multifeedistribution"
+#         ):
+#             logging.getLogger(__name__).debug(
+#                 f"       db return-> del: {db_return.deleted_count}  ins: {db_return.inserted_count}  mod: {db_return.modified_count}  ups: {db_return.upserted_count} matched: {db_return.matched_count}"
+#             )
+#         else:
+#             raise ValueError(" Database has not returned anything on writeBulk")
+
+#         # log
+#         logging.getLogger(__name__).debug(
+#             f"  <- Done processing {network}'s {queue_item.type} {queue_item.id}"
+#         )
+
+#         return True
+
+#     except ProcessingError as e:
+#         logging.getLogger(__name__).error(f"{e.message}")
+
+#     except Exception as e:
+#         logging.getLogger(__name__).exception(
+#             f"Error processing {network}'s latest_multifeedistribution queue item: {e}"
+#         )
+
+#     # return result
+#     return False
+
+
+# def pull_from_queue_latest_multiFeeDistribution_OLD(
+#     network: str, queue_item: QueueItem
+# ) -> bool:
+#     # build a list of itmes to be saved to the database
+#     save_todb = []
+
+#     try:
+#         # log operation processing
+#         logging.getLogger(__name__).debug(
+#             f"  -> Processing queue's {network} {queue_item.type} {queue_item.id}"
+#         )
+
+#         ephemeral_cache = {
+#             "hypervisor_block": {},
+#             "hypervisor_timestamp": {},
+#             "mfd_total_staked": {},
+#             "hypervisor_period": {},
+#             "hypervisor_totalAmount": {},
+#             "hypervisor_uncollected": {},
+#             "hypervisor_totalSupply": {},
+#         }
+
+#         # get static rewards related to mfd and its linked hypervisor, (so that we know this hype's protocol)
+#         # this will be used as tokenReward also
+#         for reward_static in get_from_localdb(
+#             network=network,
+#             collection="rewards_static",
+#             aggregate=[
+#                 {
+#                     "$match": {
+#                         "rewarder_registry": queue_item.data["address"].lower(),
+#                     }
+#                 },
+#                 # // find hype's reward status
+#                 {
+#                     "$lookup": {
+#                         "from": "static",
+#                         "let": {"op_address": "$hypervisor_address"},
+#                         "pipeline": [
+#                             {
+#                                 "$match": {
+#                                     "$expr": {
+#                                         "$and": [
+#                                             {
+#                                                 "$eq": [
+#                                                     "$hypervisor_address",
+#                                                     "$$op_address",
+#                                                 ]
+#                                             },
+#                                             {"$lte": ["$block", queue_item.block]},
+#                                         ],
+#                                     }
+#                                 }
+#                             },
+#                         ],
+#                         "as": "hypervisor",
+#                     }
+#                 },
+#                 {"$unwind": "$hypervisor"},
+#             ],
+#             limit=1,
+#             batch_size=100000,
+#         ):
+#             # build mdf base structure ( to be saved to database later)
+#             snapshot = multifeeDistribution_snapshot(
+#                 address=queue_item.data["address"].lower(),
+#                 topic=queue_item.data["topic"],
+#             )
+
+#             # hypervisor_address = reward_static["hypervisors_status"][0]["address"]
+#             # hypervisor_dex = reward_static["hypervisors_status"][0]["dex"]
+#             # hypervisor_token0_address = reward_static["hypervisors_status"][0]["pool"]["token0"]["address"]
+#             # hypervisor_token1_address = reward_static["hypervisors_status"][0]["pool"]["token1"]["address"]
+
+#             # set mfd status hypervisor address and dex ( protocol)
+#             snapshot.hypervisor_address = reward_static["hypervisor"]["address"]
+#             snapshot.dex = reward_static["hypervisor"]["dex"]
+
+#             snapshot.rewardToken = reward_static["rewardToken"]
+#             snapshot.rewardToken_decimals = reward_static["rewardToken_decimals"]
+
+#             # use local cache to minimize external calls
+#             if (
+#                 snapshot.hypervisor_address
+#                 not in ephemeral_cache["hypervisor_timestamp"]
+#             ):
+#                 # build hypervisor at block with private rpc
+#                 if hypervisor := build_hypervisor(
+#                     network=network,
+#                     protocol=text_to_protocol(reward_static["hypervisor"]["dex"]),
+#                     block=queue_item.block,
+#                     hypervisor_address=reward_static["hypervisor"]["address"],
+#                     cached=False,
+#                 ):
+#                     # set custom rpc type
+#                     hypervisor.custom_rpcType = "private"
+
+#                     # set timestamp
+#                     ephemeral_cache["hypervisor_timestamp"][
+#                         reward_static["hypervisor"]["address"]
+#                     ] = hypervisor._timestamp
+
+#                     # set block
+#                     ephemeral_cache["hypervisor_block"][
+#                         reward_static["hypervisor"]["address"]
+#                     ] = hypervisor.block
+
+#                     # get current total staked qtty from multifeedistributor contract
+#                     ephemeral_cache["mfd_total_staked"][
+#                         reward_static["hypervisor"]["address"]
+#                     ] = hypervisor.receiver.totalStakes
+
+#                     ephemeral_cache["hypervisor_period"][
+#                         reward_static["hypervisor"]["address"]
+#                     ] = hypervisor.current_period
+
+#                     ephemeral_cache["hypervisor_totalAmount"][
+#                         reward_static["hypervisor"]["address"]
+#                     ] = hypervisor.getTotalAmounts
+
+#                     ephemeral_cache["hypervisor_uncollected"][
+#                         reward_static["hypervisor"]["address"]
+#                     ] = hypervisor.get_fees_uncollected(inDecimal=True)
+
+#                     ephemeral_cache["hypervisor_totalSupply"][
+#                         reward_static["hypervisor"]["address"]
+#                     ] = hypervisor.totalSupply
+
+#             # use cached info
+#             snapshot.block = ephemeral_cache["hypervisor_block"][
+#                 reward_static["hypervisor"]["address"]
+#             ]
+#             snapshot.timestamp = ephemeral_cache["hypervisor_timestamp"][
+#                 reward_static["hypervisor"]["address"]
+#             ]
+#             snapshot.current_period_rewards = hypervisor.calculate_rewards(
+#                 period=ephemeral_cache["hypervisor_period"][
+#                     reward_static["hypervisor"]["address"]
+#                 ],
+#                 reward_token=reward_static["rewardToken"],
+#                 convert_bint=True,
+#             )
+#             snapshot.last_period_rewards = hypervisor.calculate_rewards(
+#                 period=ephemeral_cache["hypervisor_period"][
+#                     reward_static["hypervisor"]["address"]
+#                 ]
+#                 - 1,
+#                 reward_token=reward_static["rewardToken"],
+#                 convert_bint=True,
+#             )
+
+#             # add staked info from MFD
+#             snapshot.total_staked = str(
+#                 ephemeral_cache["mfd_total_staked"][
+#                     reward_static["hypervisor"]["address"]
+#                 ]
+#             )
+
+#             # add symbol
+#             snapshot.rewardToken_symbol = reward_static["rewardToken_symbol"]
+
+#             # add balance of rewardToken at MFD
+#             rewardToken_contract = build_erc20_helper(
+#                 chain=text_to_chain(network), address=reward_static["rewardToken"]
+#             )
+#             snapshot.rewardToken_balance = str(
+#                 rewardToken_contract.balanceOf(address=queue_item.data["address"])
+#             )
+
+#             # add rewardData
+#             try:
+#                 # reward data amount
+#                 if rewardData := hypervisor.receiver.rewardData(
+#                     rewardToken_address=reward_static["rewardToken"]
+#                 ):
+#                     snapshot.rewardData = rewardData
+#                     # convert to string
+#                     snapshot.rewardData["amount"] = str(snapshot.rewardData["amount"])
+#                     # snapshot.rewardData["lastTimeUpdated"] =str(snapshot.rewardData["lastTimeUpdated"])
+#                     snapshot.rewardData["rewardPerToken"] = str(
+#                         snapshot.rewardData["rewardPerToken"]
+#                     )
+#             except ProcessingError as e:
+#                 pass
+
+#             # add price
+#             if prices := get_latest_prices_from_db(
+#                 network=network,
+#                 token_addresses=[
+#                     reward_static["rewardToken"],
+#                     reward_static["hypervisor"]["pool"]["token0"]["address"],
+#                     reward_static["hypervisor"]["pool"]["token1"]["address"],
+#                 ],
+#             ):
+#                 # get latest databse price
+#                 snapshot.rewardToken_price = prices[reward_static["rewardToken"]]
+#                 # calculate hypervisor price x share
+#                 hypervisor_total0 = ephemeral_cache["hypervisor_totalAmount"][
+#                     reward_static["hypervisor"]["address"]
+#                 ]["total0"] / (
+#                     10 ** reward_static["hypervisor"]["pool"]["token0"]["decimals"]
+#                 )
+#                 hypervisor_total1 = ephemeral_cache["hypervisor_totalAmount"][
+#                     reward_static["hypervisor"]["address"]
+#                 ]["total1"] / (
+#                     10 ** reward_static["hypervisor"]["pool"]["token1"]["decimals"]
+#                 )
+
+#                 # Uncollected fees go crazy sometimes. TODO: check what happens. For now, set to 0 when > 10**18
+#                 uncollected_token0 = (
+#                     float(
+#                         ephemeral_cache["hypervisor_uncollected"][
+#                             reward_static["hypervisor"]["address"]
+#                         ]["qtty_token0"]
+#                     )
+#                     / 10 ** reward_static["hypervisor"]["pool"]["token0"]["decimals"]
+#                 )
+#                 uncollected_token1 = (
+#                     float(
+#                         ephemeral_cache["hypervisor_uncollected"][
+#                             reward_static["hypervisor"]["address"]
+#                         ]["qtty_token1"]
+#                     )
+#                     / 10 ** reward_static["hypervisor"]["pool"]["token1"]["decimals"]
+#                 )
+
+#                 if uncollected_token0 > 10**20 or uncollected_token1 > 10**20:
+#                     logging.getLogger(__name__).warning(
+#                         f" Uncollected fees are > 10**20 for hypervisor {reward_static['hypervisor']['address']} - {reward_static['hypervisor']['pool']['token0']['symbol']}-{reward_static['hypervisor']['pool']['token1']['symbol']} - block {ephemeral_cache['hypervisor_block'][reward_static['hypervisor']['address']]} {uncollected_token0} {uncollected_token1}"
+#                     )
+#                     uncollected_token0 = 0
+#                     uncollected_token1 = 0
+
+#                 total_underlying_token0 = hypervisor_total0 + uncollected_token0
+#                 total_underlying_token1 = hypervisor_total1 + uncollected_token1
+
+#                 total_underlying_token0_usd = (
+#                     total_underlying_token0
+#                     * prices[reward_static["hypervisor"]["pool"]["token0"]["address"]]
+#                 )
+#                 total_underlying_token1_usd = (
+#                     total_underlying_token1
+#                     * prices[reward_static["hypervisor"]["pool"]["token1"]["address"]]
+#                 )
+
+#                 # supply
+#                 hypervisor_supply = ephemeral_cache["hypervisor_totalSupply"][
+#                     reward_static["hypervisor"]["address"]
+#                 ] / (10 ** reward_static["hypervisor"]["decimals"])
+
+#                 snapshot.hypervisor_price_x_share = (
+#                     (total_underlying_token0_usd + total_underlying_token1_usd)
+#                     / hypervisor_supply
+#                     if hypervisor_supply
+#                     else 0
+#                 )
+#             else:
+#                 logging.getLogger(__name__).warning(
+#                     f" no prices found for queue's {network} {queue_item.type} {queue_item.id}"
+#                 )
+
+#             # set id
+#             snapshot.id = create_id_latest_multifeedistributor(
+#                 mfd_address=snapshot.address,
+#                 rewardToken_address=snapshot.rewardToken,
+#                 hypervisor_address=snapshot.hypervisor_address,
+#             )
+
+#             # set item to save
+#             if "is_last_item" in queue_item.data and queue_item.data["is_last_item"]:
+#                 # set last updated but nor rewards field
+#                 item_to_save = multifeeDistribution_snapshot(
+#                     id=snapshot.id,
+#                     address=snapshot.address,
+#                     hypervisor_address=snapshot.hypervisor_address,
+#                     dex=snapshot.dex,
+#                     rewardToken=snapshot.rewardToken,
+#                     rewardToken_decimals=snapshot.rewardToken_decimals,
+#                     last_updated_data=snapshot.as_dict(),
+#                 ).as_dict()
+
+#             else:
+#                 # set item to save
+#                 item_to_save = snapshot.as_dict()
+
+#             # add item to be saved
+#             save_todb.append(item_to_save)
+
+#         # save to latest_multifeedistribution collection database
+#         if db_return := get_default_localdb(network=network).update_items_to_database(
+#             data=save_todb, collection_name="latest_multifeedistribution"
+#         ):
+#             logging.getLogger(__name__).debug(
+#                 f"       db return-> del: {db_return.deleted_count}  ins: {db_return.inserted_count}  mod: {db_return.modified_count}  ups: {db_return.upserted_count} matched: {db_return.matched_count}"
+#             )
+#         else:
+#             raise ValueError(" Database has not returned anything on writeBulk")
+
+#         # log
+#         logging.getLogger(__name__).debug(
+#             f"  <- Done processing {network}'s {queue_item.type} {queue_item.id}"
+#         )
+
+#         return True
+
+#     except ProcessingError as e:
+#         logging.getLogger(__name__).error(f"{e.message}")
+
+#     except Exception as e:
+#         logging.getLogger(__name__).exception(
+#             f"Error processing {network}'s latest_multifeedistribution queue item: {e}"
+#         )
+
+#     # return result
+#     return False
