@@ -575,6 +575,7 @@ def build_multiFeeDistribution_from_queueItem(
             "hypervisor_timestamp": {},
             "mfd_total_staked": {},
             "hypervisor_period": {},
+            "hypervisor_position_id": {},
         }
 
         # setup data filtering. When block is zero, get all available data
@@ -596,7 +597,7 @@ def build_multiFeeDistribution_from_queueItem(
                     "rewarder_registry": queue_item.data["address"].lower(),
                 }
             },
-            # // find hype's reward status
+            # find hype's reward status
             {
                 "$lookup": {
                     "from": "rewards_status",
@@ -611,6 +612,36 @@ def build_multiFeeDistribution_from_queueItem(
                         },
                         {"$sort": {"block": -1}},
                         {"$limit": 5},
+                        # get hypervisor status
+                        {
+                            "$lookup": {
+                                "from": "status",
+                                "let": {
+                                    "r_address": "$hypervisor_address",
+                                    "r_block": "$block",
+                                },
+                                "pipeline": [
+                                    {
+                                        "$match": {
+                                            "$expr": {
+                                                "$and": [
+                                                    {
+                                                        "$eq": [
+                                                            "$address",
+                                                            "$$r_address",
+                                                        ]
+                                                    },
+                                                    {"$eq": ["$block", "$$r_block"]},
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    {"$limit": 1},
+                                ],
+                                "as": "hypervisor_status",
+                            }
+                        },
+                        {"$unwind": "$hypervisor_status"},
                     ],
                     "as": "rewards_status",
                 }
@@ -688,6 +719,11 @@ def build_multiFeeDistribution_from_queueItem(
                         hypervisor_address
                     ] = hypervisor.current_period
 
+                    # save current hype position id so that can be used for comparison purposes later
+                    ephemeral_cache["hypervisor_position_id"][
+                        hypervisor_address
+                    ] = f"{hypervisor.baseUpper}_{hypervisor.baseLower}_{hypervisor.limitUpper}_{hypervisor.limitLower}"
+
             # use cached info
             snapshot.block = ephemeral_cache["hypervisor_block"][hypervisor_address]
             snapshot.timestamp = ephemeral_cache["hypervisor_timestamp"][
@@ -720,7 +756,61 @@ def build_multiFeeDistribution_from_queueItem(
                     ini_timestamp=rewardData["lastTimeUpdated"],
                     end_timestamp=snapshot.timestamp,
                 ):
-                    claimed = hypervisor.get_already_claimedRewards(
+                    # loop thru the different positions this hype has been during the timeframe ( including the current one)
+                    claimed = 0
+                    base = 0
+                    boosted = 0
+                    position_ids_already_processed = []
+                    for reward_status in reward_static["rewards_status"]:
+                        if (
+                            reward_status["timestamp"] >= item["from_timestamp"]
+                            and reward_status["timestamp"] <= item["to_timestamp"]
+                        ):
+                            # check if position is different and has not been processed
+                            temp_position_id = f"{reward_status['hypervisor_status']['baseUpper']}_{reward_status['hypervisor_status']['baseLower']}_{reward_status['hypervisor_status']['limitUpper']}_{reward_status['hypervisor_status']['limitLower']}"
+                            if (
+                                (
+                                    ephemeral_cache["hypervisor_position_id"][
+                                        hypervisor_address
+                                    ]
+                                    != temp_position_id
+                                )
+                                and temp_position_id
+                                not in position_ids_already_processed
+                            ):
+                                # positions differ
+                                # create hype at block and get already claimed rewards for the position
+                                if _tempHypervisor := build_hypervisor(
+                                    network=network,
+                                    protocol=protocol,
+                                    block=reward_status["block"],
+                                    hypervisor_address=hypervisor_address,
+                                    cached=False,
+                                ):
+                                    # set custom rpc type
+                                    _tempHypervisor.custom_rpcType = "private"
+
+                                    # get claimed rewards
+                                    claimed += (
+                                        _tempHypervisor.get_already_claimedRewards(
+                                            period=item["period"],
+                                            reward_token=reward_static["rewardToken"],
+                                        )
+                                    )
+
+                                    base += float(reward_status["extra"]["baseRewards"])
+                                    boosted += float(
+                                        reward_status["extra"]["boostedRewards"]
+                                    )
+                                    logging.getLogger(__name__).debug(
+                                        f" {hypervisor_address} at block {reward_status['block']} aggregated data-> claimed {claimed} base {base} boosted {boosted}"
+                                    )
+
+                                # add position id to already processed so that it is not processed again
+                                position_ids_already_processed.append(temp_position_id)
+
+                    # add current position claimed rewards
+                    claimed += hypervisor.get_already_claimedRewards(
                         period=item["period"],
                         reward_token=reward_static["rewardToken"],
                     )
@@ -735,6 +825,8 @@ def build_multiFeeDistribution_from_queueItem(
                     # total mixed rewards
                     item["rewardsSinceLastUpdateTime"] = (
                         float(_this_period_rewards_rate["current_baseRewards"])
+                        + boosted
+                        + base
                         + float(_this_period_rewards_rate["current_boostedRewards"])
                         - claimed
                     )
