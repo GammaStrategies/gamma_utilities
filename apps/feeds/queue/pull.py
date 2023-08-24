@@ -741,8 +741,12 @@ def build_multiFeeDistribution_from_queueItem(
                 rewardToken_address=reward_static["rewardToken"]
             ):
                 if rewardData["lastTimeUpdated"] == 0:
-                    raise ValueError(
-                        f"  lastTimeUpdated is zero for queue's {network} {queue_item.type} {queue_item.id}"
+                    # no rewards?
+                    logging.getLogger(__name__).warning(
+                        f"  lastTimeUpdated is zero for queue's {network} {queue_item.type} {queue_item.id}  -> hypervisor {hypervisor_address} block {hypervisor.block}. Initial timestamp calculation for rewards pending will be 2 weeks ago"
+                    )
+                    rewardData["lastTimeUpdated"] = snapshot.timestamp - (
+                        60 * 60 * 24 * 7 * 2
                     )
 
                 # set sumUP vars
