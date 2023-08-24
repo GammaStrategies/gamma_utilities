@@ -831,6 +831,13 @@ def build_multiFeeDistribution_from_queueItem(
                         - claimed
                     )
 
+                    # check for negative and zero em
+                    if item["rewardsSinceLastUpdateTime"] < 0:
+                        logging.getLogger(__name__).warning(
+                            f" claimed rewards [{claimed}] are bigger than calculated rewards for the period... zeroed rewardsSinceLastUpdateTime"
+                        )
+                        item["rewardsSinceLastUpdateTime"] = 0
+
                     # unmix proportionally
                     total_period_rewards = float(
                         _this_period_rewards_rate["current_baseRewards"]
