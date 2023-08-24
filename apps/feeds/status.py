@@ -1399,6 +1399,10 @@ def create_rewards_status_ramses_calculate_apr(
         boostRewards_apr = 0
         boostRewards_apy = 0
 
+        # statics
+        day_in_seconds = 60 * 60 * 24
+        year_in_seconds = day_in_seconds * 365
+
         for item in items_to_calc_apr:
             # discard items with timepassed = 0
             if item["time_passed"] == 0:
@@ -1426,7 +1430,7 @@ def create_rewards_status_ramses_calculate_apr(
                 * item["hypervisor"]["price_per_share"]
             )
 
-            # set the TVL value to be used as denominarot: totalStaked or totalSupply
+            # set the TVL value to be used as denominator: totalStaked or totalSupply
             tvl = item["hypervisor"]["totalStaked_tvl"]
             if not tvl:
                 logging.getLogger(__name__).warning(
@@ -1483,22 +1487,24 @@ def create_rewards_status_ramses_calculate_apr(
                 )
 
             # extrapolate rewards to a year
+
             item["base_rewards_usd_year"] = (
-                (item["base_rewards_usd"] / item["time_passed"]) * 60 * 60 * 24 * 365
-            )
+                item["base_rewards_usd"] / item["time_passed"]
+            ) * year_in_seconds
             item["boosted_rewards_usd_year"] = (
-                (item["boosted_rewards_usd"] / item["time_passed"]) * 60 * 60 * 24 * 365
-            )
+                item["boosted_rewards_usd"] / item["time_passed"]
+            ) * year_in_seconds
             item["total_rewards_usd_year"] = (
                 item["base_rewards_usd_year"] + item["boosted_rewards_usd_year"]
             )
 
             item["total_reward_apr"] = (cum_reward_return - 1) * (
-                (60 * 60 * 24 * 365) / item["time_passed"]
+                (year_in_seconds) / item["time_passed"]
             )
             try:
                 item["total_reward_apy"] = (
-                    1 + (cum_reward_return - 1) * ((60 * 60 * 24) / item["time_passed"])
+                    1
+                    + (cum_reward_return - 1) * ((day_in_seconds) / item["time_passed"])
                 ) ** 365 - 1
             except OverflowError as e:
                 logging.getLogger(__name__).debug(
@@ -1507,13 +1513,13 @@ def create_rewards_status_ramses_calculate_apr(
                 item["total_reward_apy"] = 0
 
             item["base_reward_apr"] = (cum_baseReward_return - 1) * (
-                (60 * 60 * 24 * 365) / item["time_passed"]
+                (year_in_seconds) / item["time_passed"]
             )
             try:
                 item["base_reward_apy"] = (
                     1
                     + (cum_baseReward_return - 1)
-                    * ((60 * 60 * 24) / item["time_passed"])
+                    * ((day_in_seconds) / item["time_passed"])
                 ) ** 365 - 1
             except OverflowError as e:
                 logging.getLogger(__name__).debug(
@@ -1522,13 +1528,13 @@ def create_rewards_status_ramses_calculate_apr(
                 item["base_reward_apy"] = 0
 
             item["boosted_reward_apr"] = (cum_boostedReward_return - 1) * (
-                (60 * 60 * 24 * 365) / item["time_passed"]
+                (year_in_seconds) / item["time_passed"]
             )
             try:
                 item["boosted_reward_apy"] = (
                     1
                     + (cum_boostedReward_return - 1)
-                    * ((60 * 60 * 24) / item["time_passed"])
+                    * ((day_in_seconds) / item["time_passed"])
                 ) ** 365 - 1
             except OverflowError as e:
                 logging.getLogger(__name__).debug(
@@ -1543,13 +1549,13 @@ def create_rewards_status_ramses_calculate_apr(
         cum_baseReward_return -= 1
         cum_boostedReward_return -= 1
         reward_apr = (
-            cum_reward_return * ((60 * 60 * 24 * 365) / total_period_seconds)
+            cum_reward_return * ((year_in_seconds) / total_period_seconds)
             if total_period_seconds
             else 0
         )
         try:
             reward_apy = (
-                1 + cum_reward_return * ((60 * 60 * 24) / total_period_seconds)
+                1 + cum_reward_return * ((day_in_seconds) / total_period_seconds)
                 if total_period_seconds
                 else 0
             ) ** 365 - 1
@@ -1560,13 +1566,13 @@ def create_rewards_status_ramses_calculate_apr(
             reward_apy = 0
 
         baseRewards_apr = (
-            cum_baseReward_return * ((60 * 60 * 24 * 365) / total_period_seconds)
+            cum_baseReward_return * ((year_in_seconds) / total_period_seconds)
             if total_period_seconds
             else 0
         )
         try:
             baseRewards_apy = (
-                1 + cum_baseReward_return * ((60 * 60 * 24) / total_period_seconds)
+                1 + cum_baseReward_return * ((day_in_seconds) / total_period_seconds)
                 if total_period_seconds
                 else 0
             ) ** 365 - 1
@@ -1577,14 +1583,14 @@ def create_rewards_status_ramses_calculate_apr(
             baseRewards_apy = 0
 
         boostRewards_apr = (
-            cum_boostedReward_return * ((60 * 60 * 24 * 365) / total_period_seconds)
+            cum_boostedReward_return * ((year_in_seconds) / total_period_seconds)
             if total_period_seconds
             else 0
         )
 
         try:
             boostRewards_apy = (
-                1 + cum_boostedReward_return * ((60 * 60 * 24) / total_period_seconds)
+                1 + cum_boostedReward_return * ((day_in_seconds) / total_period_seconds)
                 if total_period_seconds
                 else 0
             ) ** 365 - 1
