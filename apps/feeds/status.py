@@ -1264,7 +1264,6 @@ def create_rewards_status_ramses(
                         # "raw_data": items_to_calc_apr,
                     },
                 }
-
                 result.append(reward_data)
 
     else:

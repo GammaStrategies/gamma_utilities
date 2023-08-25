@@ -65,17 +65,24 @@ def feed_latest_usd_prices(threaded: bool = True):
             # loop through prices
             for token_address, price in prices.items():
                 if not token_address in addresses_processed:
-                    result.append(
-                        {
-                            "id": f"{network}_{token_address}",
-                            "network": network,
-                            "timestamp": int(datetime.now().timestamp()),
-                            "address": token_address,
-                            "price": float(price["usd"]),
-                            "source": databaseSource.COINGECKO,
-                        }
-                    )
-                    addresses_processed.append(token_address)
+                    if "usd" in price:
+                        # add price to result
+
+                        result.append(
+                            {
+                                "id": f"{network}_{token_address}",
+                                "network": network,
+                                "timestamp": int(datetime.now().timestamp()),
+                                "address": token_address,
+                                "price": float(price["usd"]),
+                                "source": databaseSource.COINGECKO,
+                            }
+                        )
+                        addresses_processed.append(token_address)
+                    else:
+                        logging.getLogger(__name__).error(
+                            f"{network} - {token_address} has no usd price -> {price}"
+                        )
                 else:
                     logging.getLogger(__name__).error(
                         f"{network} - {token_address} is repeated in price_token_address.json file"
