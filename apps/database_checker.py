@@ -127,11 +127,11 @@ def repair_prices_from_logs(min_count: int = 1, add_to_queue: bool = False):
             except Exception as e:
                 pass
 
+        # create a queue item list to add to queue when enabled
+        to_queue_items = []
+
         with tqdm.tqdm(total=len(network_token_blocks)) as progress_bar:
             for network, addresses in network_token_blocks.items():
-                # create a queue item list to add to queue when enabled
-                to_queue_items = []
-
                 logging.getLogger(__name__).info(
                     f" > Trying to repair {len(addresses)} tokens price from {network}"
                 )
