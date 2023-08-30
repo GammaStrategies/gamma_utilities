@@ -1,7 +1,8 @@
 import logging
 import concurrent.futures
 import tqdm
-from apps.feeds.status import create_reward_status_from_hype_status
+
+from apps.feeds.status.rewards.general import create_reward_status_from_hype_status
 from bins.configuration import CONFIGURATION
 from bins.database.common.database_ids import create_id_rewards_static
 from bins.database.common.db_collections_common import database_local

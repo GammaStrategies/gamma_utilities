@@ -27,10 +27,10 @@ from .database_feeder import (
 )
 
 from .feeds.users import feed_user_operations
-from .feeds.status import (
-    feed_rewards_status,
-    feed_hypervisor_status,
-)
+
+from .feeds.status.hypervisors.general import feed_hypervisor_status
+from .feeds.status.rewards.general import feed_rewards_status
+
 from .feeds.prices import (
     feed_prices,
     create_tokenBlocks_all,

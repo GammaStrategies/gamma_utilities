@@ -19,7 +19,10 @@ from bins.database.common.db_collections_common import (
 
 from .feeds.static import feed_hypervisor_static, feed_rewards_static
 from .feeds.users import feed_user_operations
-from .feeds.status import feed_hypervisor_status, feed_rewards_status
+
+from .feeds.status.hypervisors.general import feed_hypervisor_status
+from .feeds.status.rewards.general import feed_rewards_status
+
 from .feeds.prices import feed_all_prices
 
 

@@ -8,7 +8,6 @@ import contextlib
 import re
 from apps.feeds.operations import feed_operations
 
-from apps.feeds.status import create_reward_status_from_hype_status
 from bins.database.helpers import (
     get_default_globaldb,
     get_default_localdb,
