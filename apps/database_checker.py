@@ -1626,7 +1626,10 @@ def repair_operations():
         )
         for network in networks:
             logging.getLogger(__name__).info(f"  Repairing {network} operations ")
-            repair_operations_chain(chain=text_to_chain(network))
+            repair_operations_chain(
+                chain=text_to_chain(network),
+                block_ini=CONFIGURATION["_custom_"]["cml_parameters"].ini_block,
+            )
 
 
 def repair_operations_chain(
