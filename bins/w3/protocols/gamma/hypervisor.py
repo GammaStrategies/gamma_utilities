@@ -311,6 +311,20 @@ class gamma_hypervisor(erc20):
         self.token1.custom_rpcType = value
 
     # CUSTOM FUNCTIONS
+
+    def get_gamma_fee(self) -> float:
+        """Calculate the gamma fee percentage over accrued fees by the positions
+
+        Returns:
+            float: gamma fee percentage
+        """
+        fee_rate = self.fee
+
+        if self.identify_dex_name() in [Protocol.CAMELOT, Protocol.RAMSES]:
+            return fee_rate / 100
+        else:
+            return 1 / fee_rate if fee_rate < 100 else 1 / 10
+
     def get_all_events(self):
         return NotImplementedError("get_all_events not implemented for v1 contracts")
         # return [
@@ -820,6 +834,20 @@ class gamma_hypervisor_bep20(bep20):
         self.token1.custom_rpcType = value
 
     # CUSTOM FUNCTIONS
+
+    def get_gamma_fee(self) -> float:
+        """Calculate the gamma fee percentage over accrued fees by the positions
+
+        Returns:
+            float: gamma fee percentage
+        """
+        fee_rate = self.fee
+
+        if self.identify_dex_name() in [Protocol.CAMELOT, Protocol.RAMSES]:
+            return fee_rate / 100
+        else:
+            return 1 / fee_rate if fee_rate < 100 else 1 / 10
+
     def get_all_events(self):
         return NotImplementedError("get_all_events not implemented for v1 contracts")
 
