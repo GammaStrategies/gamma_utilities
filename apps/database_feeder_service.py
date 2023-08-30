@@ -489,7 +489,7 @@ def latest_db_service():
                         name=key,
                     )
 
-                    value["callable"](*value["args"])
+                    # value["callable"](*value["args"])
                     logging.getLogger(__name__).debug(
                         f"   {key} finished in {time.time() - value['last']} seconds"
                     )
@@ -506,6 +506,11 @@ def latest_db_service():
     logging.getLogger("telegram").info(
         f" Latests collections database feeding loop stoped at {identity}"
     )
+    # kill any process still alive
+    for key, value in time_control_loop.items():
+        if value["process"] and value["process"].is_alive():
+            logging.getLogger(__name__).debug(f"   joining {key} process.")
+            value["process"].join()
 
 
 def main(option: str, **kwargs):
