@@ -84,6 +84,7 @@ def create_rewards_status_ramses(
 
     # get hypervisor data for apr
     apr_ordered_hypervisor_status_db_list = get_hypervisor_data_for_apr(
+        network=chain.database_name,
         hypervisor_address=hypervisor_status["address"],
         timestamp_ini=period_ini_timestamp,
         timestamp_end=current_timestamp,
@@ -99,6 +100,7 @@ def create_rewards_status_ramses(
         period_ini_timestamp = period_ini * 60 * 60 * 24 * 7
         # get hypervisor data for apr
         apr_ordered_hypervisor_status_db_list = get_hypervisor_data_for_apr(
+            network=chain.database_name,
             hypervisor_address=hypervisor_status["address"],
             timestamp_ini=period_ini_timestamp,
             timestamp_end=current_timestamp,
