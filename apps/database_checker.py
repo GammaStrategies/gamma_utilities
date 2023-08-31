@@ -7,6 +7,7 @@ import concurrent.futures
 import contextlib
 import re
 from apps.feeds.operations import feed_operations
+from apps.feeds.price_paths import create_price_paths_json
 
 from bins.database.helpers import (
     get_default_globaldb,
@@ -76,9 +77,9 @@ def repair_prices(min_count: int = 1):
         or 500
     )
 
-    repair_prices_from_database(
-        max_repair_per_network=CONFIGURATION["_custom_"]["cml_parameters"].maximum or 50
-    )
+    # repair_prices_from_database(
+    #     max_repair_per_network=CONFIGURATION["_custom_"]["cml_parameters"].maximum or 50
+    # )
 
 
 def repair_prices_from_logs(min_count: int = 1, add_to_queue: bool = False):
@@ -127,8 +128,8 @@ def repair_prices_from_logs(min_count: int = 1, add_to_queue: bool = False):
             except Exception as e:
                 pass
 
-        # create a queue item list to add to queue when enabled
-        to_queue_items = []
+        # create a network/queue item list to add to queue when enabled
+        to_queue_network_items = {}
 
         with tqdm.tqdm(total=len(network_token_blocks)) as progress_bar:
             for network, addresses in network_token_blocks.items():
@@ -152,7 +153,11 @@ def repair_prices_from_logs(min_count: int = 1, add_to_queue: bool = False):
                         if counter >= min_count:
                             # add to queue
                             if add_to_queue:
-                                to_queue_items.append(
+                                # add network
+                                if network not in to_queue_network_items:
+                                    to_queue_network_items[network] = []
+                                # add item
+                                to_queue_network_items[network].append(
                                     QueueItem(
                                         type=queueItemType.PRICE,
                                         block=block,
@@ -200,26 +205,27 @@ def repair_prices_from_logs(min_count: int = 1, add_to_queue: bool = False):
         )
 
     # add all items to queue, when enabled
-    if add_to_queue and len(to_queue_items):
-        if db_return := get_default_localdb(network).replace_items_to_database(
-            data=to_queue_items, collection_name="queue"
-        ):
-            if (
-                db_return.inserted_count
-                or db_return.upserted_count
-                or db_return.modified_count
+    if add_to_queue and len(to_queue_network_items):
+        for network, to_queue_items in to_queue_network_items.items():
+            if db_return := get_default_localdb(network).replace_items_to_database(
+                data=to_queue_items, collection_name="queue"
             ):
-                logging.getLogger(__name__).debug(
-                    f" Added {len(to_queue_items)} prices to the queue for {network}."
-                )
+                if (
+                    db_return.inserted_count
+                    or db_return.upserted_count
+                    or db_return.modified_count
+                ):
+                    logging.getLogger(__name__).debug(
+                        f" Added {len(to_queue_items)} prices to the queue for {network}."
+                    )
+                else:
+                    logging.getLogger(__name__).warning(
+                        f" No prices added to the queue for {network}. Database returned:  {db_return.bulk_api_result}"
+                    )
             else:
-                logging.getLogger(__name__).warning(
-                    f" No prices added to the queue for {network}. Database returned:  {db_return.bulk_api_result}"
+                logging.getLogger(__name__).error(
+                    f" No database return while adding prices to the queue for {network}."
                 )
-        else:
-            logging.getLogger(__name__).error(
-                f" No database return while adding prices to the queue for {network}."
-            )
 
 
 def repair_prices_from_status(
@@ -534,10 +540,15 @@ def repair_prices_from_database(
             logging.getLogger(__name__).info(
                 f" > Trying to repair {network}'s prices from database (old prices)"
             )
-            feed_prices(
-                network=network,
-                price_ids=create_tokenBlocks_all(network=network),
-            )
+            try:
+                feed_prices(
+                    network=network,
+                    price_ids=create_tokenBlocks_all(network=network),
+                )
+            except Exception as e:
+                logging.getLogger(__name__).exception(
+                    f" Error repairing {network} prices  {e} "
+                )
 
 
 def repair_prices_from_status_OLD(
@@ -2331,9 +2342,10 @@ def main(option: str, **kwargs):
         repair_operations()
     if option == "special":
         # used to check for special cases
-        reScrape_database_prices(
-            network_limit=CONFIGURATION["_custom_"]["cml_parameters"].maximum
-        )
+        # reScrape_database_prices(
+        #    network_limit=CONFIGURATION["_custom_"]["cml_parameters"].maximum
+        # )
+        create_price_paths_json()
     # else:
     #     raise NotImplementedError(
     #         f" Can't find any action to be taken from {option} checks option"
