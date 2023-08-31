@@ -77,9 +77,9 @@ def repair_prices(min_count: int = 1):
         or 500
     )
 
-    # repair_prices_from_database(
-    #     max_repair_per_network=CONFIGURATION["_custom_"]["cml_parameters"].maximum or 50
-    # )
+    repair_prices_from_database(
+        max_repair_per_network=CONFIGURATION["_custom_"]["cml_parameters"].maximum or 50
+    )
 
 
 def repair_prices_from_logs(min_count: int = 1, add_to_queue: bool = False):
