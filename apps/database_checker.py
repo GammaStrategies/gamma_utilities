@@ -96,12 +96,67 @@ def repair_prices_from_logs(min_count: int = 1, add_to_queue: bool = False):
         # setup database managers
         mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
         global_db_manager = database_global(mongo_url=mongo_url)
-        # create ids to query database with
+
+        # how do we know the log specified address-network is correct?
+        # we get hypervisor static and reward static tokens from database, per network
+        valid_tokens_networks = {}
+        for network in network_token_blocks.keys():
+            if network not in valid_tokens_networks:
+                valid_tokens_networks[network] = []
+            # get hypervisor static tokens
+            query = [
+                {
+                    "$project": {
+                        "address": "$address",
+                        "token0": "$pool.token0.address",
+                        "token1": "$pool.token1.address",
+                    }
+                },
+                {
+                    "$lookup": {
+                        "from": "rewards_static",
+                        "let": {"parent_address": "$address"},
+                        "pipeline": [
+                            {
+                                "$match": {
+                                    "$expr": {
+                                        "$eq": [
+                                            "$hypervisor_address",
+                                            "$$parent_address",
+                                        ],
+                                    }
+                                }
+                            },
+                            {"$project": {"token": "$rewardToken"}},
+                        ],
+                        "as": "reward_tokens",
+                    }
+                },
+            ]
+            for item in get_from_localdb(
+                network=network, collection="static", aggregate=query
+            ):
+                # add to valid tokens if not already
+                if item["token0"].lower() not in valid_tokens_networks[network]:
+                    valid_tokens_networks[network].append(item["token0"].lower())
+                if item["token1"].lower() not in valid_tokens_networks[network]:
+                    valid_tokens_networks[network].append(item["token1"].lower())
+                for reward_token in item["reward_tokens"]:
+                    if (
+                        reward_token["token"].lower()
+                        not in valid_tokens_networks[network]
+                    ):
+                        valid_tokens_networks[network].append(
+                            reward_token["token"].lower()
+                        )
+
+        # create ids to query database with, and filter out incorrect ones
         price_ids_to_search = [
             create_id_price(network, block, address)
             for network, addresses in network_token_blocks.items()
             for address, blocks_data in addresses.items()
             for block, counter in blocks_data.items()
+            if address.lower() in valid_tokens_networks[network]
         ]
         # get those same prices from database
         price_ids_in_database = global_db_manager.get_items_from_database(
