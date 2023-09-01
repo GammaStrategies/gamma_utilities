@@ -511,3 +511,20 @@ TOKEN_ADDRESS_EXCLUDE = {
         "0xe0688a2fe90d0f93f17f273235031062a210d691".lower(): "AnglaMerkl",
     },
 }
+
+
+# chain
+#   id
+#   names ( database, fancy ...)
+#   etherscan
+#       base url
+#       API key
+#   w3Providers
+#       public
+#         ...
+#       private
+#         ...
+#   protocols
+#      ...
+#   filters
+#      ...
