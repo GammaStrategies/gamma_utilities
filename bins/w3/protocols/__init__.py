@@ -15,4 +15,5 @@ from ..protocols import (
     angle,
     ramses,
     ascent,
+    synthswap,
 )

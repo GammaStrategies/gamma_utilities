@@ -21,6 +21,8 @@ class Chain(str, Enum):
 
     MANTLE = ("mantle", 5000, "mantle", "Mantle")
 
+    BASE = ("base", 8453, "base", "Base")
+
     # extra properties
     id: int
     database_name: str
@@ -78,6 +80,8 @@ class Protocol(str, Enum):
     EQUILIBRE = ("equilibre", "equilibre", "Equilibre")
 
     ASCENT = ("ascent", "ascent", "Ascent")
+
+    SYNTHSWAP = ("synthswap", "synthswap", "SynthSwap")
 
     # extra properties
     database_name: str
@@ -158,6 +162,8 @@ class ProtocolVersion(str, Enum):
     VEZARD_v1 = ("vezard_v1", Protocol.VEZARD, "vezard_v1", "veZard v1")
     EQUILIBRE_v1 = ("equilibre_v1", Protocol.EQUILIBRE, "equilibre_v1", "Equilibre v1")
 
+    SYNTHSWAP_v1 = ("synthswap_v1", Protocol.SYNTHSWAP, "synthswap_v1", "SynthSwap v1")
+
     # extra properties
     protocol: Protocol
     database_name: str
@@ -224,6 +230,9 @@ class rewarderType(str, Enum):
     ANGLE_MERKLE = "angle_merkle"
 
     RAMSES_v2 = "ramses_v2"
+
+    SYNTHSWAP_masterchef_v1 = "synthswap_masterchef_v1"
+    SYNTHSWAP_masterchef_v1_rewarder = "synthswap_masterchef_v1_rewarder"
 
 
 class Family_type(str, Enum):

@@ -13,6 +13,7 @@ class etherscan_helper:
         "binance": "https://api.bscscan.com",
         "moonbeam": "https://api-moonbeam.moonscan.io",
         "fantomscan": "https://api.ftmscan.com",
+        "base": "https://api.baseprotocol.org",
     }
     _key_network_matches = {
         "etherscan": "ethereum",
@@ -22,7 +23,8 @@ class etherscan_helper:
         "bscscan": "binance",
         "zkevmpolygonscan": "polygon_zkevm",
         "moonbeam": "moonbeam",
-        "fantomscan": "fantomscan",
+        "fantomscan": "fantom",
+        "basescan": "base",
     }
 
     def __init__(self, api_keys: dict):

@@ -370,6 +370,24 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
         )
+    elif protocol == Protocol.SYNTHSWAP:
+        hypervisor = (
+            protocols.synthswap.hypervisor.gamma_hypervisor(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not cached
+            else protocols.synthswap.hypervisor.gamma_hypervisor_cached(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+        )
 
     elif protocol == Protocol.GAMMA:
         hypervisor = (

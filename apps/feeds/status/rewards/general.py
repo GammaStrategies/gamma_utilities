@@ -4,6 +4,7 @@ import tqdm
 from apps.feeds.status.rewards.angle import create_rewards_status_angle_merkle
 from apps.feeds.status.rewards.beamswap import create_rewards_status_beamswap
 from apps.feeds.status.rewards.ramses import create_rewards_status_ramses
+from apps.feeds.status.rewards.synthswap import create_rewards_status_synthswap
 from apps.feeds.status.rewards.thena import create_rewards_status_thena
 from apps.feeds.status.rewards.zyberswap import create_rewards_status_zyberswap
 
@@ -224,6 +225,17 @@ def create_reward_status_from_hype_status(
         ]:
             rewards_data = create_rewards_status_ramses(
                 chain=text_to_chain(network),
+                rewarder_static=rewarder_static,
+                hypervisor_status=hypervisor_status,
+            )
+
+        elif rewarder_static["rewarder_type"] in [
+            rewarderType.SYNTHSWAP_masterchef_v1,
+            rewarderType.SYNTHSWAP_masterchef_v1_rewarder,
+        ]:
+            # get rewards status
+            rewards_data = create_rewards_status_synthswap(
+                network=network,
                 rewarder_static=rewarder_static,
                 hypervisor_status=hypervisor_status,
             )

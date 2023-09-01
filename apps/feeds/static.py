@@ -21,6 +21,7 @@ from bins.w3.protocols.gamma.rewarder import (
     gamma_masterchef_registry,
     gamma_masterchef_v1,
 )
+from bins.w3.protocols.synthswap.rewarder import synthswap_masterchef_v1
 from bins.w3.protocols.thena.rewarder import thena_voter_v3
 from bins.w3.protocols.zyberswap.rewarder import zyberswap_masterchef_v1
 from bins.w3.protocols.beamswap.rewarder import beamswap_masterchef_v2
@@ -373,6 +374,15 @@ def create_n_add_reward_static(
         rewards_static_lst = create_rewards_static_ramses(
             chain=text_to_chain(network),
             hypervisors=hypervisors,
+            already_processed=already_processed,
+            rewrite=rewrite,
+            block=block,
+        )
+
+    elif dex == Protocol.SYNTHSWAP.database_name:
+        rewards_static_lst = create_rewards_static_synthswap(
+            network=network,
+            hypervisor_addresses=hypervisor_addresses,
             already_processed=already_processed,
             rewrite=rewrite,
             block=block,
@@ -837,6 +847,73 @@ def create_rewards_static_ramses(
                     )
                     # add to result
                     result.append(reward_data)
+    return result
+
+
+def create_rewards_static_synthswap(
+    network: str,
+    hypervisor_addresses: list,
+    already_processed: list,
+    rewrite: bool = False,
+    block: int = 0,
+) -> list[dict]:
+    result = []
+
+    to_process_contract_addresses = {
+        "0xef153cb7bfc04c657cb7f582c7411556320098b9".lower(): {
+            "creation_block": 2015084,
+            "type": rewarderType.SYNTHSWAP_masterchef_v1,
+        }
+    }
+    ephemeral_cache = {
+        "creation_block": {},
+    }
+    for masterchef_address, contract_data in to_process_contract_addresses.items():
+        if contract_data["type"] == rewarderType.SYNTHSWAP_masterchef_v1:
+            # create masterchef object
+            _masterchef = synthswap_masterchef_v1(
+                address=masterchef_address, network=network, block=block
+            )
+            rewards_data = _masterchef.get_rewards(
+                hypervisor_addresses=hypervisor_addresses, convert_bint=True
+            )
+
+            for reward_data in rewards_data:
+                # add block creation data to cache
+                if (
+                    not reward_data["rewarder_address"]
+                    in ephemeral_cache["creation_block"]
+                ):
+                    # add block creation data
+                    if creation_data := _get_contract_creation_block(
+                        network=network,
+                        contract_address=reward_data["rewarder_address"],
+                    ):
+                        ephemeral_cache["creation_block"][
+                            reward_data["rewarder_address"]
+                        ] = creation_data["block"]
+                    else:
+                        # modify block number manually -> block num. is later used to update rewards_status from
+                        ephemeral_cache["creation_block"][
+                            reward_data["rewarder_address"]
+                        ] = contract_data["creation_block"]
+
+                # set creation block
+                reward_data["block"] = ephemeral_cache["creation_block"][
+                    reward_data["rewarder_address"]
+                ]
+                if (
+                    rewrite
+                    or create_id_rewards_static(
+                        hypervisor_address=reward_data["hypervisor_address"],
+                        rewarder_address=reward_data["rewarder_address"],
+                        rewardToken_address=reward_data["rewardToken"],
+                    )
+                    not in already_processed
+                ):
+                    # save to database
+                    result.append(reward_data)
+
     return result
 
 

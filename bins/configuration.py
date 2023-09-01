@@ -217,6 +217,14 @@ STATIC_REGISTRY_ADDRESSES = {
             "glacier": "0xF5BFA20F4A77933fEE0C7bB7F39E7642A070d599".lower(),
         },
     },
+    "base": {
+        "hypervisors": {
+            "synthswap": "0x1e86a593e55215957c4755f1be19a229af3286f6".lower(),
+        },
+        "synthswap_v1_masterchefs": [
+            "0xef153cb7bfc04c657cb7f582c7411556320098b9".lower(),
+        ],
+    },
 }
 
 
@@ -605,5 +613,18 @@ TOKEN_ADDRESS_EXCLUDE = {
     },
     Chain.ARBITRUM: {
         "0xe0688a2fe90d0f93f17f273235031062a210d691".lower(): "AnglaMerkl",
+    },
+}
+
+
+# fixed priced tokens: token address and its price when block is lower than <block> variable -> ( use gamma's pool creation block)
+# this is usefull on new tokens not yet listed on any DEX/AMM
+TOKEN_ADDRESS_FIXED_PRICE = {
+    Chain.ARBITRUM: {
+        "0xaaa6c1e32c55a7bfa8066a6fae9b42650f262418".lower(): {
+            "block": 124485017,
+            "price": 0.03,
+            "symbol": "OATH",
+        },
     },
 }
