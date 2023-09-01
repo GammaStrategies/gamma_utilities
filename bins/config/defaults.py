@@ -516,9 +516,14 @@ TOKEN_ADDRESS_EXCLUDE = {
 # chain
 #   id
 #   names ( database, fancy ...)
-#   etherscan
-#       base url
-#       API key
+#   apis
+#      etherscan
+#          base url
+#          API key
+#      coingecko
+#          network_id
+#      geckoterminal
+#          network_id
 #   w3Providers
 #       public
 #         ...
