@@ -345,6 +345,12 @@ DEX_POOLS = {
             "token0": "0x3a29cab2e124919d14a6f735b6033a3aad2b260f".lower(),
             "token1": "0xbfa35599c7aebb0dace9b5aa3ca5f2a79624d8eb".lower(),
         },
+        "XOC_WETH": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0x4c493eea376d57d69a4e6d55ef048068e65f1765".lower(),
+            "token0": "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619".lower(),
+            "token1": "0xa411c9aa00e020e4f88bc19996d29c5b7adb4acf".lower(),
+        },
     },
     Chain.POLYGON_ZKEVM: {
         "WETH_USDC": {
@@ -420,6 +426,14 @@ DEX_POOLS = {
         },
     },
     Chain.MOONBEAM: {},
+    Chain.BASE: {
+        "TBTC-WETH": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0x9fee7385a2979d15277c3467db7d99ef1a2669d7".lower(),
+            "token0": "0x236aa50979d5f3de3bd1eeb40e81137f22ab794b".lower(),
+            "token1": "0x4200000000000000000000000000000000000006".lower(),
+        },
+    },
 }
 
 
