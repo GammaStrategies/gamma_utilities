@@ -1,6 +1,6 @@
 #
 class ProcessingError(Exception):
-    """Exception raised for errors during rewards processing.
+    """Exception raised for errors during processing.
 
     Attributes:
         item -- error item

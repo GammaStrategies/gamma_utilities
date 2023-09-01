@@ -3,6 +3,8 @@ import logging
 from web3 import Web3
 from hexbytes import HexBytes
 
+from bins.errors.general import ProcessingError
+
 from ....configuration import WEB3_CHAIN_IDS
 from ....cache import cache_utilities
 from ....general.enums import Protocol
@@ -123,7 +125,15 @@ class poolv3(web3wrap):
                 "tokensOwed1": result[4],
             }
         else:
-            raise ValueError(f" positions function call returned None")
+            raise ProcessingError(
+                item={
+                    "pool_address": self.address,
+                    "block": self.block,
+                    "object": "pool.positions",
+                },
+                action="",
+                message=f" positions function of {self.address} at block {self.block} returned none using {position_key} as position_key",
+            )
 
     @property
     def protocolFees(self) -> list[int]:
@@ -158,7 +168,15 @@ class poolv3(web3wrap):
                 "unlocked": tmp[6],
             }
         else:
-            raise ValueError(f" slot0 function call returned None")
+            raise ProcessingError(
+                item={
+                    "pool_address": self.address,
+                    "block": self.block,
+                    "object": "pool.slot0",
+                },
+                action="",
+                message=f" slot0 of {self.address} at block {self.block} returned none. (Check contract creation block)",
+            )
 
     def snapshotCumulativeInside(self, tickLower: int, tickUpper: int):
         return self.call_function_autoRpc(
@@ -200,7 +218,15 @@ class poolv3(web3wrap):
                 "initialized": result[7],
             }
         else:
-            raise ValueError(f" ticks function call returned None")
+            raise ProcessingError(
+                item={
+                    "pool_address": self.address,
+                    "block": self.block,
+                    "object": "pool.ticks",
+                },
+                action="",
+                message=f" ticks function of {self.address} at block {self.block} returned none. (Check contract creation block)",
+            )
 
     @property
     def token0(self) -> erc20:

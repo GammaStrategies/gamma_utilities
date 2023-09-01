@@ -5,6 +5,8 @@ from decimal import Decimal
 from hexbytes import HexBytes
 from web3 import Web3
 
+from bins.errors.general import ProcessingError
+
 from ....configuration import WEB3_CHAIN_IDS
 from ....formulas import dex_formulas
 from ....general.enums import Protocol
@@ -206,7 +208,15 @@ class poolv3(web3wrap):
                 "unlocked": tmp[6],
             }
         else:
-            raise ValueError(f" globalState function call returned None")
+            raise ProcessingError(
+                item={
+                    "pool_address": self.address,
+                    "block": self.block,
+                    "object": "pool.globalState",
+                },
+                action="",
+                message=f" globalState function of {self.address} at block {self.block} returned none. (Check contract creation block)",
+            )
 
     @property
     def liquidity(self) -> int:
@@ -263,7 +273,15 @@ class poolv3(web3wrap):
                 "tokensOwed1": result[5],
             }
         else:
-            raise ValueError(f" positions function call returned None using")
+            raise ProcessingError(
+                item={
+                    "pool_address": self.address,
+                    "block": self.block,
+                    "object": "pool.positions",
+                },
+                action="",
+                message=f" positions function of {self.address} at block {self.block} returned none using {position_key} as position_key",
+            )
 
     @property
     def tickSpacing(self) -> int:
@@ -305,7 +323,15 @@ class poolv3(web3wrap):
                 "initialized": result[7],
             }
         else:
-            raise ValueError(f" ticks function call returned None")
+            raise ProcessingError(
+                item={
+                    "pool_address": self.address,
+                    "block": self.block,
+                    "object": "pool.ticks",
+                },
+                action="",
+                message=f" ticks function of {self.address} at block {self.block} returned none. (Check contract creation block)",
+            )
 
     def timepoints(self, index: int) -> dict:
         #   initialized bool, blockTimestamp uint32, tickCumulative int56, secondsPerLiquidityCumulative uint160, volatilityCumulative uint88, averageTick int24, volumePerLiquidityCumulative uint144

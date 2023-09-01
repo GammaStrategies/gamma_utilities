@@ -4,6 +4,8 @@ import logging
 import time
 
 from ratelimit.exception import RateLimitException
+
+from bins.errors.general import ProcessingError
 from ..cache import cache_utilities
 from ..apis import thegraph_utilities, coingecko_utilities
 from ..apis.geckoterminal_helper import geckoterminal_price_helper
@@ -426,6 +428,12 @@ class price_scraper:
             _price = onchain_price_helper.get_price(
                 chain=chain, token_address=token_id, block=block
             )
+
+        # except ProcessingError as e:
+        #     # do nothing at this level
+        #     # raise error again
+        #     raise e
+
         except Exception as e:
             logging.getLogger(LOG_NAME).exception(
                 f"Error while getting onchain price {e}"
@@ -537,6 +545,12 @@ class usdc_price_scraper:
                 )
 
             return price
+
+        except ProcessingError as e:
+            # do nothing at this level
+            # raise error again
+            raise e
+
         except Exception as e:
             logging.getLogger(__name__).exception(
                 f"Error while getting onchain price for token {token_address} on chain {chain}. Error: {e}"
@@ -582,6 +596,12 @@ class usdc_price_scraper:
                     f" token {token_address} not found in DEX_POOLS_PRICE_PATHS. Cant get onchain price"
                 )
                 return None
+
+        except ProcessingError as e:
+            # do nothing at this level
+            # raise error again
+            raise e
+
         except Exception as e:
             logging.getLogger(__name__).exception(
                 f"Error while getting onchain price for token {token_address} on chain {chain}. Error: {e}"
@@ -650,6 +670,11 @@ class usdc_price_scraper:
                     f" price paths file not found. Cant get onchain price"
                 )
                 return None
+        except ProcessingError as e:
+            # do nothing at this level
+            # raise error again
+            raise e
+
         except Exception as e:
             logging.getLogger(__name__).exception(
                 f"Error while getting onchain price for token {token_address} on chain {chain}. Error: {e}"
