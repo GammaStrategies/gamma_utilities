@@ -9,6 +9,7 @@ class coingecko_price_helper:
 
     def __init__(self, retries: int = 1, request_timeout=10):
         # todo: coded coingecko's network id conversion
+        # https://api.coingecko.com/api/v3/asset_platforms
         self.COINGECKO_netids = {
             # enums.Chain.ETHEREUM: "ethereum",
             # enums.Chain.OPTIMISM: "optimistic-ethereum",
@@ -26,6 +27,8 @@ class coingecko_price_helper:
             "fantom": "fantom",
             "polygon_zkevm": "polygon-zkevm",
             "avalanche": "avalanche",
+            "mantle": "mantle",
+            "base": "base",
         }
 
         self.retries = retries
