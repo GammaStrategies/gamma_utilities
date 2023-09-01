@@ -23,6 +23,8 @@ class Chain(str, Enum):
 
     BASE = ("base", 8453, "base", "Base")
 
+    LINEA = ("linea", 59144, "linea", "Linea")
+
     # extra properties
     id: int
     database_name: str
@@ -82,6 +84,7 @@ class Protocol(str, Enum):
     ASCENT = ("ascent", "ascent", "Ascent")
 
     SYNTHSWAP = ("synthswap", "synthswap", "SynthSwap")
+    LYNEX = ("lynex", "lynex", "Lynex")
 
     # extra properties
     database_name: str

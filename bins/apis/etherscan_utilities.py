@@ -14,6 +14,7 @@ class etherscan_helper:
         "moonbeam": "https://api-moonbeam.moonscan.io",
         "fantomscan": "https://api.ftmscan.com",
         "base": "https://api.basescan.org",
+        "linea": "https://api.lineascan.build",
     }
     # config key : network
     _key_network_matches = {
@@ -26,6 +27,7 @@ class etherscan_helper:
         "moonbeam": "moonbeam",
         "fantomscan": "fantom",
         "basescan": "base",
+        "lineascan": "linea",
     }
 
     def __init__(self, api_keys: dict):

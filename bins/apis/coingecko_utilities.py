@@ -29,6 +29,7 @@ class coingecko_price_helper:
             "avalanche": "avalanche",
             "mantle": "mantle",
             "base": "base",
+            "linea": "linea",
         }
 
         self.retries = retries

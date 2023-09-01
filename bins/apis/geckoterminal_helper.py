@@ -32,6 +32,7 @@ class geckoterminal_price_helper:
             "fantom": "fantom",
             "mantle": "mantle",
             "base": "base",
+            "linea": "linea",
         }
 
         self.retries = retries
