@@ -291,6 +291,14 @@ def main(option="operations"):
                 for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][
                     network
                 ]:
+                    # filter if dex not in cml ( when cml is used )
+                    if CONFIGURATION["_custom_"]["cml_parameters"].protocols:
+                        if (
+                            dex
+                            not in CONFIGURATION["_custom_"]["cml_parameters"].protocols
+                        ):
+                            continue
+
                     try:
                         # feed database with static hypervisor info
                         feed_hypervisor_static(
@@ -316,6 +324,14 @@ def main(option="operations"):
                 for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][
                     network
                 ]:
+                    # filter if dex not in cml ( when cml is used )
+                    if CONFIGURATION["_custom_"]["cml_parameters"].protocols:
+                        if (
+                            dex
+                            not in CONFIGURATION["_custom_"]["cml_parameters"].protocols
+                        ):
+                            continue
+
                     # first feed static information
                     feed_hypervisor_static(protocol=protocol, network=network, dex=dex)
 
@@ -355,6 +371,14 @@ def main(option="operations"):
                 for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][
                     network
                 ]:
+                    # filter if dex not in cml ( when cml is used )
+                    if CONFIGURATION["_custom_"]["cml_parameters"].protocols:
+                        if (
+                            dex
+                            not in CONFIGURATION["_custom_"]["cml_parameters"].protocols
+                        ):
+                            continue
+
                     feed_rewards_static(protocol=protocol, network=network, dex=dex)
 
             elif option == "queue":
