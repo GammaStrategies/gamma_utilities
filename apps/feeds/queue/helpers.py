@@ -1,4 +1,5 @@
 import logging
+import time
 from apps.feeds.queue.queue_item import QueueItem
 from bins.database.helpers import get_default_localdb
 
@@ -7,8 +8,8 @@ def to_free_or_not_to_free_item(
     network: str,
     queue_item: QueueItem,
 ) -> bool:
-    """Free item from processing if count is lower than 5,
-        so that after 5 fails, next time will need an unlock before processing, taking longer
+    """Free item from processing if count is lower than X,
+        so that after X fails, next time will need an unlock before processing, (unlock = taking longer to process)
 
     Args:
         queue_item (QueueItem):
@@ -17,9 +18,8 @@ def to_free_or_not_to_free_item(
     Returns:
         bool: freed or not
     """
-    #
-    #
-    if queue_item.count < 5:
+    # do not free items not
+    if queue_item.count < 5 and queue_item.can_be_processed:
         if db_return := get_default_localdb(network=network).free_queue_item(
             db_queue_item=queue_item.as_dict
         ):
@@ -38,7 +38,7 @@ def to_free_or_not_to_free_item(
             )
     else:
         logging.getLogger(__name__).debug(
-            f" Not freeing {queue_item.type} {queue_item.id} from queue because it failed {queue_item.count} times. Will need to be unlocked by a 'check' command"
+            f" Not freeing {queue_item.type} {queue_item.id} from queue because it failed {queue_item.count} times and needs a cooldown. Will need to be unlocked by a 'check' command"
         )
         # save item with count
         if db_return := get_default_localdb(network=network).set_queue_item(

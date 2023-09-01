@@ -56,13 +56,13 @@ def parallel_pull(network: str):
 
 
 def pull_from_queue(network: str, types: list[queueItemType] | None = None):
-    # variables
-    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     # set local database name and create manager
-    local_db = database_local(mongo_url=mongo_url, db_name=f"{network}_gamma")
+    local_db = get_default_localdb(network=network)
 
     # get first item from queue
-    if db_queue_item := local_db.get_queue_item(types=types):
+    if db_queue_item := local_db.get_queue_item(
+        types=types, find={"processing": 0}, sort=[("created", 1)]
+    ):
         try:
             # convert database queue item to class
             queue_item = QueueItem(**db_queue_item)
@@ -79,15 +79,35 @@ def pull_from_queue(network: str, types: list[queueItemType] | None = None):
             raise e
     # else:
     # no item found
+
     return True
 
 
 # classifier
 def process_queue_item_type(network: str, queue_item: QueueItem) -> bool:
+    """Get item from queue and process it.
+
+        Items with count>0 will be processed if queue.can_be_processed is True
+
+    Args:
+        network (str): network name
+        queue_item (QueueItem):
+
+
+    Returns:
+        bool: processed successfully or not
+    """
+
     # check if queue item has been processed more than 10 times, and return if so
-    if queue_item.count > 10:
+    # if queue_item.count > 10:
+    #     logging.getLogger(__name__).error(
+    #         f" {network}'s queue item {queue_item.id} has been processed more than 10 times unsuccessfully. Skipping ( check it manually)"
+    #     )
+    #     return False
+
+    if queue_item.can_be_processed == False:
         logging.getLogger(__name__).error(
-            f" {network}'s queue item {queue_item.id} has been processed more than 10 times unsuccessfully. Skipping ( check it manually)"
+            f" {network}'s queue item {queue_item.id} cannot be processed yet (more cooldown time defined). Will be processed later"
         )
         return False
 

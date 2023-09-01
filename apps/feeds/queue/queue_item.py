@@ -92,3 +92,38 @@ class QueueItem:
             "creation": self.creation,
             "count": self.count,
         }
+
+    @property
+    def can_be_processed(self) -> bool:
+        """Check if sufficient time has passed since creation
+        minimum time table:
+            count	minutes	    hours       days
+                1	5	        0.1
+                2	10	        0.2
+                3	16	        0.3
+                4	22	        0.4
+                5	32	        0.5
+                6	52	        0.9
+                7	106	        1.8
+                8	274	        4.6
+                9	819	        13.6        0.6
+                10	2,603	    43.4        1.8
+                11	8,479	    141.3       5.9
+                12	27,858	    464.3       19.3
+                13	91,799	    1,530.0     63.8
+                14	302,792	    5,046.5     210.3
+                15	999,057	    16,651.0    693.8
+                16	3,296,722	54,945.4    2,289.4
+                17	10,879,004	181,316.7   7,554.9
+                18	35,900,521	598,342.0   24,931.8
+                19	118,471,519	1,974,525.3 82,267.7
+                20	390,955,798	6,515,930.0 271,497.9
+
+        Returns:
+            bool:
+        """
+
+        time_passed = time.time() - self.creation
+        calculation = (self.count * 300) + (3.3**self.count)
+
+        return self.count == 0 or time_passed >= calculation
