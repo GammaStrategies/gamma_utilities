@@ -65,6 +65,10 @@ def create_id_block(network: str, block: int) -> str:
     return f"{network}_{block}"
 
 
+def create_id_configuration(name: str) -> str:
+    return f"{name}"
+
+
 def create_id_hypervisor_returns(
     hypervisor_address: str, ini_block: int, end_block: int
 ) -> str:

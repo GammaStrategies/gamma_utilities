@@ -466,6 +466,11 @@ class database_global(db_collections_common):
                         ],
                     ],
                 },
+                "configuration": {
+                    "mono_indexes": {"id": True},
+                    "multi_indexes": [],
+                },
+            
             }
         else:
             logging.getLogger(__name__).warning(
