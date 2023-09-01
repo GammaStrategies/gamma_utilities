@@ -18,6 +18,7 @@ class geckoterminal_price_helper:
 
     def __init__(self, retries: int = 1, request_timeout=10, sleepNretry: bool = False):
         # todo: coded coingecko's network id conversion
+        # https://api.geckoterminal.com/api/v2/networks?page=1
         self.netids = {
             "polygon": "polygon_pos",
             "ethereum": "eth",
@@ -29,6 +30,8 @@ class geckoterminal_price_helper:
             "polygon_zkevm": "polygon-zkevm",
             "moonbeam": "moonbeam",
             "fantom": "fantom",
+            "mantle": "mantle",
+            "base": "base",
         }
 
         self.retries = retries
