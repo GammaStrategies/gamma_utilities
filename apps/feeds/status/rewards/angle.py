@@ -12,195 +12,19 @@ from bins.general.enums import Chain, rewarderType
 from bins.w3.protocols.angle.rewarder import angle_merkle_distributor_creator
 
 
-def create_rewards_status_angle_merkle(
-    network: str, rewarder_static: dict, hypervisor_status: dict
-) -> list:
-    result = []
-
-    # create merkl helper at status block
-    distributor_creator = angle_merkle_distributor_creator(
-        address=rewarder_static["rewarder_registry"],
-        network=network,
-        block=hypervisor_status["block"],
-    )
-    # save for later use
-    _epoch_duration = distributor_creator.EPOCH_DURATION
-
-    # get active distribution data from merkle
-    distributions = distributor_creator.getActivePoolDistributions(
-        address=hypervisor_status["pool"]["address"]
-    )
-    for distribution_data in distributions:
-        # check if reward token is valid
-        if distributor_creator.isValid_reward_token(
-            reward_address=distribution_data["token"].lower()
-        ):
-            try:
-                # check tokenX == hype tokenX
-                if (
-                    distribution_data["token0_contract"]
-                    != hypervisor_status["pool"]["token0"]["address"]
-                    or distribution_data["token1_contract"]
-                    != hypervisor_status["pool"]["token1"]["address"]
-                ):
-                    # big problem
-                    logging.getLogger(__name__).error(
-                        f" Merkle Rewards - rewarder id {rewarder_static['rewarder_address']} has different pool tokens than the hypervisor it is attached to!!"
-                    )
-
-                # get token prices
-                (
-                    rewardToken_price,
-                    token0_price,
-                    token1_price,
-                ) = get_reward_pool_prices(
-                    network=network,
-                    block=hypervisor_status["block"],
-                    reward_token=distribution_data["token"],
-                    token0=distribution_data["token0_contract"],
-                    token1=distribution_data["token1_contract"],
-                )
-
-                # hypervisor data
-                hype_price_per_share = get_hypervisor_price_per_share(
-                    hypervisor_status=hypervisor_status,
-                    token0_price=token0_price,
-                    token1_price=token1_price,
-                )
-                hype_tvl_usd = (
-                    int(hypervisor_status["totalSupply"])
-                    / (10 ** hypervisor_status["decimals"])
-                ) * hype_price_per_share
-                hypervisor_liquidity = int(
-                    hypervisor_status["basePosition"]["liquidity"]
-                ) + int(hypervisor_status["limitPosition"]["liquidity"])
-                hypervisor_total0 = int(hypervisor_status["totalAmounts"]["total0"]) / (
-                    10 ** hypervisor_status["pool"]["token0"]["decimals"]
-                )
-                hypervisor_total1 = int(hypervisor_status["totalAmounts"]["total1"]) / (
-                    10 ** hypervisor_status["pool"]["token1"]["decimals"]
-                )
-
-                # pool data
-                pool_liquidity = int(hypervisor_status["pool"]["liquidity"])
-                pool_total0 = int(distribution_data["token0_balance_in_pool"]) / (
-                    10 ** int(distribution_data["token0_decimals"])
-                )
-                pool_total1 = int(distribution_data["token1_balance_in_pool"]) / (
-                    10 ** int(distribution_data["token1_decimals"])
-                )
-                pool_tvl_usd = pool_total0 * token0_price + pool_total1 * token1_price
-
-                # multiple reward information
-                calculations = distributor_creator.get_reward_calculations(
-                    distribution=distribution_data, _epoch_duration=_epoch_duration
-                )
-
-                # reward x year decimal
-                reward_x_year_decimal_propFees = (
-                    calculations["reward_yearly_fees_decimal"]
-                ) * (hypervisor_liquidity / pool_liquidity)
-                reward_x_year_decimal_propToken0 = (
-                    calculations["reward_yearly_token0_decimal"]
-                ) * (hypervisor_total0 / pool_total0)
-                reward_x_year_decimal_propToken1 = (
-                    calculations["reward_yearly_token1_decimal"]
-                ) * (hypervisor_total1 / pool_total1)
-
-                # reward x second
-                reward_x_second_propFees = (
-                    calculations["reward_x_second"]
-                    * (distribution_data["propFees"] / 10000)
-                ) * (hypervisor_liquidity / pool_liquidity)
-                reward_x_second_propToken0 = (
-                    calculations["reward_x_second"]
-                    * (distribution_data["propToken0"] / 10000)
-                ) * (hypervisor_total0 / pool_total0)
-                reward_x_second_propToken1 = (
-                    calculations["reward_x_second"]
-                    * (distribution_data["propToken1"] / 10000)
-                ) * (hypervisor_total1 / pool_total1)
-
-                total_yearly_rewards = (
-                    reward_x_year_decimal_propFees
-                    + reward_x_year_decimal_propToken0
-                    + reward_x_year_decimal_propToken1
-                )
-
-                fee_APR = (
-                    reward_x_year_decimal_propFees * rewardToken_price
-                ) / hype_tvl_usd
-                token0_APR = (
-                    reward_x_year_decimal_propToken0 * rewardToken_price
-                ) / hype_tvl_usd
-                token1_APR = (
-                    reward_x_year_decimal_propToken1 * rewardToken_price
-                ) / hype_tvl_usd
-
-                hype_APR = fee_APR + token0_APR + token1_APR
-                reward_x_second = int(
-                    reward_x_second_propToken1
-                    + reward_x_second_propToken0
-                    + reward_x_second_propFees
-                )
-
-                # build reward base data
-                reward_data = distributor_creator.construct_reward_data(
-                    distribution_data=distribution_data,
-                    hypervisor_address=hypervisor_status["address"],
-                    total_hypervisorToken_qtty=hypervisor_status["totalSupply"],
-                    epoch_duration=_epoch_duration,
-                    convert_bint=True,
-                )
-
-                reward_data["rewards_perSecond"] = str(reward_x_second)
-
-                # add status fields ( APR )
-                reward_data["hypervisor_symbol"] = hypervisor_status["symbol"]
-                reward_data["dex"] = hypervisor_status["dex"]
-                reward_data["apr"] = hype_APR
-                reward_data["rewardToken_price_usd"] = rewardToken_price
-                reward_data["token0_price_usd"] = token0_price
-                reward_data["token1_price_usd"] = token1_price
-                reward_data["hypervisor_share_price_usd"] = hype_price_per_share
-
-                # add reward to result
-                result.append(reward_data)
-
-            except Exception as e:
-                logging.getLogger(__name__).error(
-                    f" Merkle Rewards-> {network}'s {rewarder_static['rewardToken']} price at block {hypervisor_status['block']} could not be calculated. Error: {e}"
-                )
-                logging.getLogger(__name__).debug(
-                    f" Merkle Rewards last err debug data -> rewarder_static {rewarder_static}           hype status {distributions}"
-                )
-                # make sure we return an empty list
-                return []
-
-        else:
-            # this rewarder is not for this hypervisor
-            continue
-
-    # empty result means no rewards at this block
-    if not result:
-        logging.getLogger(__name__).debug(
-            f" Merkle Rewards-> {network}'s {rewarder_static['rewardToken']} has no rewards at block {hypervisor_status['block']}"
-        )
-
-    return result
-
-
+# new method
 def build_angle_merkle_rewards_status(
     network: str,
     hypervisor_status: dict,
     rewarder_static: dict,
+    max_items: int = 6,
 ):
     # create result
     result = []
 
     # TODO: modify query to adjust to slow/fast networks:  get last x data qtty instead of timestamps or blocks
-    # angle seems to fire their snapshot every 6-12 hours
-    # define ini timestamp to 2 day data before end ( will only use a maximum of 5 items)
+    # current angle endpoint seems to show snapshot every 6-12 hours
+    # define ini timestamp to 2 day data before end ( will only use a maximum of 5 items to optimize performance[time basically])
     ini_timestamp = hypervisor_status["timestamp"] - (86400 * 2)
 
     # get hypervisor data for apr
@@ -232,15 +56,17 @@ def build_angle_merkle_rewards_status(
                 # add as last item
                 _ordered_hype_status_db["status"].append(hypervisor_status)
 
-            # limit the list to 5 items
+            # limit the list to 6 items ( should be par number)
             max_items = (
-                5
-                if len(_ordered_hype_status_db["status"]) > 5
+                max_items
+                if len(_ordered_hype_status_db["status"]) > max_items
                 else len(_ordered_hype_status_db["status"])
             )
+            # get the last max_items from the list
+            filtered_status_list = _ordered_hype_status_db["status"][-max_items:]
 
             # get the last max_items from the list
-            for idx, data in enumerate(_ordered_hype_status_db["status"][-max_items:]):
+            for idx, data in enumerate(filtered_status_list):
                 # build distribution data
                 distribution_data = build_distribution_data(
                     network=network,
@@ -267,6 +93,9 @@ def build_angle_merkle_rewards_status(
                             calculations_data=distribution_data["reward_calculations"],
                         )
 
+                        # add real rewards to distribution_data for later use
+                        distribution_data["reward_calculations"] = real_rewards_end
+
                         # calculate rewards of the period
                         rewards_aquired_period_end = (
                             real_rewards_end["reward_x_second_propFees"]
@@ -277,8 +106,9 @@ def build_angle_merkle_rewards_status(
                         # add to items to calc apr: transform to float
                         items_to_calc_apr.append(
                             {
-                                "rewards": rewards_aquired_period_end
+                                "base_rewards": rewards_aquired_period_end
                                 / (10 ** rewarder_static["rewardToken_decimals"]),
+                                "boosted_rewards": 0,
                                 "time_passed": time_passed,
                                 "timestamp_ini": last_item["timestamp"],
                                 "timestamp_end": data["timestamp"],
@@ -358,7 +188,7 @@ def build_angle_merkle_rewards_status(
                 "rewarder_address": rewarder_static["rewarder_address"].lower(),
                 "rewarder_type": rewarderType.ANGLE_MERKLE,
                 "rewarder_refIds": [],
-                "rewarder_registry": rewarder_static["registry_address"].lower(),
+                "rewarder_registry": rewarder_static["rewarder_registry"].lower(),
                 "rewardToken": rewarder_static["rewardToken"].lower(),
                 "rewardToken_symbol": rewarder_static["rewardToken_symbol"],
                 "rewardToken_decimals": rewarder_static["rewardToken_decimals"],
@@ -395,7 +225,8 @@ def build_angle_merkle_rewards_status(
             }
             result.append(reward_data)
 
-        #
+    #
+    return result
 
 
 def build_distribution_data(
@@ -797,6 +628,189 @@ def create_rewards_status_calculate_apr(
         )
 
     return reward_data
+
+
+# deprecated method ( use build_angle_merkle_rewards_status) ############
+def create_rewards_status_angle_merkle_deprecated(
+    network: str, rewarder_static: dict, hypervisor_status: dict
+) -> list:
+    logging.getLogger(__name__).warning(
+        f" Deprecated method create_rewards_status_angle_merkle. Use build_angle_merkle_rewards_status instead"
+    )
+
+    result = []
+
+    # create merkl helper at status block
+    distributor_creator = angle_merkle_distributor_creator(
+        address=rewarder_static["rewarder_registry"],
+        network=network,
+        block=hypervisor_status["block"],
+    )
+    # save for later use
+    _epoch_duration = distributor_creator.EPOCH_DURATION
+
+    # get active distribution data from merkle
+    distributions = distributor_creator.getActivePoolDistributions(
+        address=hypervisor_status["pool"]["address"]
+    )
+    for distribution_data in distributions:
+        # check if reward token is valid
+        if distributor_creator.isValid_reward_token(
+            reward_address=distribution_data["token"].lower()
+        ):
+            try:
+                # check tokenX == hype tokenX
+                if (
+                    distribution_data["token0_contract"]
+                    != hypervisor_status["pool"]["token0"]["address"]
+                    or distribution_data["token1_contract"]
+                    != hypervisor_status["pool"]["token1"]["address"]
+                ):
+                    # big problem
+                    logging.getLogger(__name__).error(
+                        f" Merkle Rewards - rewarder id {rewarder_static['rewarder_address']} has different pool tokens than the hypervisor it is attached to!!"
+                    )
+
+                # get token prices
+                (
+                    rewardToken_price,
+                    token0_price,
+                    token1_price,
+                ) = get_reward_pool_prices(
+                    network=network,
+                    block=hypervisor_status["block"],
+                    reward_token=distribution_data["token"],
+                    token0=distribution_data["token0_contract"],
+                    token1=distribution_data["token1_contract"],
+                )
+
+                # hypervisor data
+                hype_price_per_share = get_hypervisor_price_per_share(
+                    hypervisor_status=hypervisor_status,
+                    token0_price=token0_price,
+                    token1_price=token1_price,
+                )
+                hype_tvl_usd = (
+                    int(hypervisor_status["totalSupply"])
+                    / (10 ** hypervisor_status["decimals"])
+                ) * hype_price_per_share
+                hypervisor_liquidity = int(
+                    hypervisor_status["basePosition"]["liquidity"]
+                ) + int(hypervisor_status["limitPosition"]["liquidity"])
+                hypervisor_total0 = int(hypervisor_status["totalAmounts"]["total0"]) / (
+                    10 ** hypervisor_status["pool"]["token0"]["decimals"]
+                )
+                hypervisor_total1 = int(hypervisor_status["totalAmounts"]["total1"]) / (
+                    10 ** hypervisor_status["pool"]["token1"]["decimals"]
+                )
+
+                # pool data
+                pool_liquidity = int(hypervisor_status["pool"]["liquidity"])
+                pool_total0 = int(distribution_data["token0_balance_in_pool"]) / (
+                    10 ** int(distribution_data["token0_decimals"])
+                )
+                pool_total1 = int(distribution_data["token1_balance_in_pool"]) / (
+                    10 ** int(distribution_data["token1_decimals"])
+                )
+                pool_tvl_usd = pool_total0 * token0_price + pool_total1 * token1_price
+
+                # multiple reward information
+                calculations = distributor_creator.get_reward_calculations(
+                    distribution=distribution_data, _epoch_duration=_epoch_duration
+                )
+
+                # reward x year decimal
+                reward_x_year_decimal_propFees = (
+                    calculations["reward_yearly_fees_decimal"]
+                ) * (hypervisor_liquidity / pool_liquidity)
+                reward_x_year_decimal_propToken0 = (
+                    calculations["reward_yearly_token0_decimal"]
+                ) * (hypervisor_total0 / pool_total0)
+                reward_x_year_decimal_propToken1 = (
+                    calculations["reward_yearly_token1_decimal"]
+                ) * (hypervisor_total1 / pool_total1)
+
+                # reward x second
+                reward_x_second_propFees = (
+                    calculations["reward_x_second"]
+                    * (distribution_data["propFees"] / 10000)
+                ) * (hypervisor_liquidity / pool_liquidity)
+                reward_x_second_propToken0 = (
+                    calculations["reward_x_second"]
+                    * (distribution_data["propToken0"] / 10000)
+                ) * (hypervisor_total0 / pool_total0)
+                reward_x_second_propToken1 = (
+                    calculations["reward_x_second"]
+                    * (distribution_data["propToken1"] / 10000)
+                ) * (hypervisor_total1 / pool_total1)
+
+                total_yearly_rewards = (
+                    reward_x_year_decimal_propFees
+                    + reward_x_year_decimal_propToken0
+                    + reward_x_year_decimal_propToken1
+                )
+
+                fee_APR = (
+                    reward_x_year_decimal_propFees * rewardToken_price
+                ) / hype_tvl_usd
+                token0_APR = (
+                    reward_x_year_decimal_propToken0 * rewardToken_price
+                ) / hype_tvl_usd
+                token1_APR = (
+                    reward_x_year_decimal_propToken1 * rewardToken_price
+                ) / hype_tvl_usd
+
+                hype_APR = fee_APR + token0_APR + token1_APR
+                reward_x_second = int(
+                    reward_x_second_propToken1
+                    + reward_x_second_propToken0
+                    + reward_x_second_propFees
+                )
+
+                # build reward base data
+                reward_data = distributor_creator.construct_reward_data(
+                    distribution_data=distribution_data,
+                    hypervisor_address=hypervisor_status["address"],
+                    total_hypervisorToken_qtty=hypervisor_status["totalSupply"],
+                    epoch_duration=_epoch_duration,
+                    convert_bint=True,
+                )
+
+                reward_data["rewards_perSecond"] = str(reward_x_second)
+
+                # add status fields ( APR )
+                reward_data["hypervisor_symbol"] = hypervisor_status["symbol"]
+                reward_data["dex"] = hypervisor_status["dex"]
+                reward_data["apr"] = hype_APR
+                reward_data["rewardToken_price_usd"] = rewardToken_price
+                reward_data["token0_price_usd"] = token0_price
+                reward_data["token1_price_usd"] = token1_price
+                reward_data["hypervisor_share_price_usd"] = hype_price_per_share
+
+                # add reward to result
+                result.append(reward_data)
+
+            except Exception as e:
+                logging.getLogger(__name__).error(
+                    f" Merkle Rewards-> {network}'s {rewarder_static['rewardToken']} price at block {hypervisor_status['block']} could not be calculated. Error: {e}"
+                )
+                logging.getLogger(__name__).debug(
+                    f" Merkle Rewards last err debug data -> rewarder_static {rewarder_static}           hype status {distributions}"
+                )
+                # make sure we return an empty list
+                return []
+
+        else:
+            # this rewarder is not for this hypervisor
+            continue
+
+    # empty result means no rewards at this block
+    if not result:
+        logging.getLogger(__name__).debug(
+            f" Merkle Rewards-> {network}'s {rewarder_static['rewardToken']} has no rewards at block {hypervisor_status['block']}"
+        )
+
+    return result
 
 
 # User rewards status

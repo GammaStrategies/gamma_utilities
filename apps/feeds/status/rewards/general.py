@@ -1,7 +1,7 @@
 import logging
 import concurrent.futures
 import tqdm
-from apps.feeds.status.rewards.angle import create_rewards_status_angle_merkle
+from apps.feeds.status.rewards.angle import build_angle_merkle_rewards_status
 from apps.feeds.status.rewards.beamswap import create_rewards_status_beamswap
 from apps.feeds.status.rewards.ramses import create_rewards_status_ramses
 from apps.feeds.status.rewards.synthswap import create_rewards_status_synthswap
@@ -214,7 +214,7 @@ def create_reward_status_from_hype_status(
         elif rewarder_static["rewarder_type"] in [
             rewarderType.ANGLE_MERKLE,
         ]:
-            rewards_data = create_rewards_status_angle_merkle(
+            rewards_data = build_angle_merkle_rewards_status(
                 network=network,
                 rewarder_static=rewarder_static,
                 hypervisor_status=hypervisor_status,
