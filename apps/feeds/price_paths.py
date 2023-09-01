@@ -3,6 +3,7 @@ import logging
 import tqdm
 from bins.configuration import CONFIGURATION, DEX_POOLS, USDC_TOKEN_ADDRESSES
 from bins.database.common.db_collections_common import database_local
+from bins.database.helpers import get_default_globaldb
 from bins.general.enums import Chain
 from bins.general.file_utilities import save_json
 from bins.w3.builders import build_protocol_pool, convert_dex_protocol
@@ -17,6 +18,15 @@ def create_price_paths_json():
     logging.getLogger(__name__).info(
         "  token paths json file saved at data/token_paths.json"
     )
+
+
+# TODO: save token paths to database
+def save_token_paths_to_db():
+    # build token paths
+    token_price_paths = build_token_paths(max_depth=6)
+
+    # save token paths to database
+    get_default_globaldb().save_item_to_database()
 
 
 def convert_DEX_POOLS(DEX_POOLS: dict) -> dict:
@@ -111,7 +121,7 @@ def build_token_paths(max_depth: int = 6):
             # add chain to result
             result[chain] = {}
 
-            # add chain to token_pools
+            # add chain to token_pools, if not already there
             if not chain in token_pools:
                 token_pools[chain] = {}
 
@@ -122,6 +132,11 @@ def build_token_paths(max_depth: int = 6):
             add_database_pools_to_paths(token_pools=token_pools, chain=chain)
 
             # 1) construct paths to usdc
+            if not chain in USDC_TOKEN_ADDRESSES:
+                logging.getLogger(__name__).warning(
+                    f"  no usdc token addresses found in USDC_TOKEN_ADDRESSES configuration var for {chain}"
+                )
+
             token_pools_paths = []
             for usdc_token_address in USDC_TOKEN_ADDRESSES.get(chain, []):
                 if usdc_token_address in token_pools[chain]:
