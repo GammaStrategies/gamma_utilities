@@ -470,7 +470,6 @@ class database_global(db_collections_common):
                     "mono_indexes": {"id": True},
                     "multi_indexes": [],
                 },
-            
             }
         else:
             logging.getLogger(__name__).warning(
@@ -2473,7 +2472,7 @@ class database_local(db_collections_common):
             "dst": {"$ne": "0x0000000000000000000000000000000000000000"},
             "topic": {
                 "$in": [
-                    "transfer",
+                    # "transfer", # transfers do not affect hype status-> careful changing this affect calculations bc transfers do not have block-1 hype status scraped
                     "deposit",
                     "withdraw",
                     "rebalance",
@@ -2556,7 +2555,7 @@ class database_local(db_collections_common):
                             }
                         },
                     ],
-                    "as": "rewards_static",
+                    "as": "status.rewards_static",
                 }
             },
             # find hype's reward status
@@ -2581,7 +2580,7 @@ class database_local(db_collections_common):
                             }
                         },
                     ],
-                    "as": "rewards_status",
+                    "as": "status.rewards_status",
                 }
             },
             {
