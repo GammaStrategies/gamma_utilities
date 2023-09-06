@@ -919,7 +919,7 @@ class database_local(db_collections_common):
     def del_queue_item(self, id: str) -> DeleteResult:
         return self.delete_item(collection_name="queue", item_id=id)
 
-    def free_queue_item(self, id: str, count: int | None = None) -> UpdateResult:
+    def free_queue_item(self, id: str, count: int | None = None) -> dict:
         """set queue object free to be processed again
 
         Args:

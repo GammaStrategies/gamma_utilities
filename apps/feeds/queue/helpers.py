@@ -23,15 +23,7 @@ def to_free_or_not_to_free_item(
         if db_return := get_default_localdb(network=network).free_queue_item(
             id=queue_item.id, count=queue_item.count
         ):
-            if db_return.modified_count or db_return.upserted_id:
-                logging.getLogger(__name__).debug(
-                    f" Freed {queue_item.type} {queue_item.id} from queue"
-                )
-                return True
-            else:
-                logging.getLogger(__name__).error(
-                    f" Could not free {queue_item.type} {queue_item.id} from queue. Database returned: {db_return.raw_result}"
-                )
+            return True
         else:
             logging.getLogger(__name__).error(
                 f" No database return received while trying to free queue item {queue_item.id}"
