@@ -36,7 +36,7 @@ def to_free_or_not_to_free_item(
 
         if db_return := get_default_localdb(network=network).find_one_and_update(
             collection_name="queue",
-            filter={"id": queue_item.id},
+            find={"id": queue_item.id},
             update={"$set": {"count": queue_item.count}},
         ):
             logging.getLogger(__name__).debug(
