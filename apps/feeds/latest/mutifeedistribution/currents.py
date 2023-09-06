@@ -24,12 +24,24 @@ def feed_latest_multifeedistribution_snapshot():
         chain=chain, rewarder_type=rewarderType.RAMSES_v2
     )
 
-    # add to queue
-    task_enqueue_operations(
-        operations=items_to_queue,
-        network=chain.database_name,
-        operation_type=queueItemType.LATEST_MULTIFEEDISTRIBUTION,
-    )
+    # only add non existant items to the queue
+    addresses_already_queued = [
+        x["address"]
+        for x in get_from_localdb(
+            network=chain.database_name,
+            collection="queue",
+            find={"type": queueItemType.LATEST_MULTIFEEDISTRIBUTION},
+        )
+    ]
+    if items_to_queue := [
+        x for x in items_to_queue if x["address"] not in addresses_already_queued
+    ]:
+        # add to queue
+        task_enqueue_operations(
+            operations=items_to_queue,
+            network=chain.database_name,
+            operation_type=queueItemType.LATEST_MULTIFEEDISTRIBUTION,
+        )
 
 
 def create_items_to_feed_latest_multifeedistribution_snapshot(
