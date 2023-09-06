@@ -41,11 +41,14 @@ def to_free_or_not_to_free_item(
             f" Not freeing {queue_item.type} {queue_item.id} from queue because it failed {queue_item.count} times and needs a cooldown. Will need to be unlocked by a 'check' command"
         )
         # save item with count
-        if db_return := get_default_localdb(network=network).set_queue_item(
-            data=queue_item.as_dict
+
+        if db_return := get_default_localdb(network=network).find_one_and_update(
+            collection_name="queue",
+            filter={"id": queue_item.id},
+            update={"$set": {"count": queue_item.count}},
         ):
             logging.getLogger(__name__).debug(
-                f" Saved {queue_item.type} {queue_item.id} with count {queue_item.count} to queue"
+                f" Updated count of queue item {queue_item.type} {queue_item.id} to {queue_item.count}"
             )
 
     return False

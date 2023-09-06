@@ -56,11 +56,8 @@ def parallel_pull(network: str):
 
 
 def pull_from_queue(network: str, types: list[queueItemType] | None = None):
-    # set local database name and create manager
-    local_db = get_default_localdb(network=network)
-
     # get first item from queue
-    if db_queue_item := local_db.get_queue_item(
+    if db_queue_item := get_default_localdb(network=network).get_queue_item(
         types=types, find={"processing": 0}, sort=[("created", 1)]
     ):
         try:
@@ -71,11 +68,14 @@ def pull_from_queue(network: str, types: list[queueItemType] | None = None):
             return process_queue_item_type(network=network, queue_item=queue_item)
 
         except Exception as e:
-            # reset queue item
-            queue_item.processing = 0
-            local_db.replace_item_to_database(
-                data=queue_item.as_dict, collection_name="queue"
-            )
+            # set queue item free but save counter
+            if db_result := get_default_localdb(network=network).free_queue_item(
+                id=queue_item.id, count=queue_item.count
+            ):
+                logging.getLogger(__name__).debug(
+                    f" {network}'s queue item {queue_item.id} has been set as not being processed, and count has been updated"
+                )
+
             raise e
     # else:
     # no item found
@@ -154,11 +154,13 @@ def process_queue_item_type(network: str, queue_item: QueueItem) -> bool:
         # reset queue item
 
         # set queue item as not being processed
-        # queue_item.processing = 0
-        database_local(
-            mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
-            db_name=f"{network}_gamma",
-        ).replace_item_to_database(data=queue_item.as_dict, collection_name="queue")
+        if db_result := get_default_localdb(network=network).free_queue_item(
+            id=queue_item.id
+        ):
+            logging.getLogger(__name__).debug(
+                f" {network}'s queue item {queue_item.id} has been set as not being processed"
+            )
+
         # raise error
         raise ValueError(
             f" Unknown queue item type {queue_item.type} at network {network}"

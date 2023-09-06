@@ -919,18 +919,22 @@ class database_local(db_collections_common):
     def del_queue_item(self, id: str) -> DeleteResult:
         return self.delete_item(collection_name="queue", item_id=id)
 
-    def free_queue_item(self, db_queue_item: dict) -> UpdateResult:
+    def free_queue_item(self, id: str, count: int | None = None) -> UpdateResult:
         """set queue object free to be processed again
 
         Args:
-            db_queue_item (dict):
+            id (str): queue item id
+            count (int | None, optional): if provided, set the count value. Defaults to None.
         """
-        logging.getLogger(__name__).debug(
-            f" freeing {db_queue_item['type']}:  {db_queue_item['id']} from queue"
-        )
-        db_queue_item["processing"] = 0
-        return self.replace_item_to_database(
-            data=db_queue_item, collection_name="queue"
+        logging.getLogger(__name__).debug(f" freeing item from queue: {id}")
+        update = {"$set": {"processing": 0}}
+        if count:
+            update["$set"]["count"] = count
+
+        return self.find_one_and_update(
+            collection_name="queue",
+            find={"id": id},
+            update=update,
         )
 
     # static
@@ -2581,6 +2585,32 @@ class database_local(db_collections_common):
                         },
                     ],
                     "as": "status.rewards_status",
+                }
+            },
+            # find operations sorted by logIndex ( there are hype status without operations [end of period]])
+            {
+                "$lookup": {
+                    "from": "operations",
+                    "let": {"op_block": "$block", "op_address": "$hypervisor_address"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$and": [
+                                        {
+                                            "$eq": [
+                                                "$address",
+                                                "$$op_address",
+                                            ]
+                                        },
+                                        {"$eq": ["$blockNumber", "$$op_block"]},
+                                    ],
+                                }
+                            }
+                        },
+                        {"$sort": {"logIndex": 1}},
+                    ],
+                    "as": "status.operations",
                 }
             },
             {

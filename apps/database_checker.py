@@ -1616,11 +1616,11 @@ def repair_queue_locked_items():
             ):
                 # check seconds passed since processing
                 minutes_passed = (time.time() - queue_item["processing"]) / 60
-                if minutes_passed > 10:
+                if minutes_passed > 15:
                     # free locked processing
-                    database_local(
-                        mongo_url=mongo_url, db_name=db_name
-                    ).free_queue_item(queue_item)
+                    get_default_localdb(network=network).free_queue_item(
+                        id=queue_item["id"]
+                    )
                     logging.getLogger(__name__).debug(
                         f" {network}'s queue item {queue_item['id']} has been in the processing state for {minutes_passed} minutes. It probably halted. Freeing it..."
                     )
