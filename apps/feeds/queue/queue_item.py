@@ -123,7 +123,9 @@ class QueueItem:
             bool:
         """
 
-        time_passed = time.time() - self.creation
-        calculation = (self.count * 300) + (3.3**self.count)
-
-        return self.count == 0 or time_passed >= calculation
+        if self.count > 6:
+            time_passed = time.time() - self.creation
+            calculation = (self.count * 300) + (3.3**self.count)
+            return self.count == 0 or time_passed >= calculation
+        else:
+            return True
