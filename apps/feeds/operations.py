@@ -73,7 +73,7 @@ def feed_operations(
         if not date_end:
             # get configured end date
             date_end = filters.get("force_timeframe", {}).get("end_time", "now")
-            if date_end == "now":
+            if date_end == "now" and not block_end:
                 # set block end to last block number
                 # tmp_w3 = onchain_helper.create_erc20_helper(network)
                 block_end = (
@@ -216,7 +216,6 @@ def feed_operations(
         # feed operations
         feed_operations_hypervisors(
             network=network,
-            protocol=protocol,
             hypervisor_addresses=hypervisor_addresses,
             block_ini=block_ini,
             block_end=block_end,
@@ -230,7 +229,6 @@ def feed_operations(
 
 def feed_operations_hypervisors(
     network: str,
-    protocol: str,
     hypervisor_addresses: list,
     block_ini: int,
     block_end: int,
@@ -239,9 +237,8 @@ def feed_operations_hypervisors(
     data_collector = create_data_collector(network=network)
 
     logging.getLogger(__name__).info(
-        "   Feeding database with {}'s {} operations of {} hypervisors from blocks {} to {}".format(
+        "   Feeding database with {}'s {} operations hypervisors from blocks {} to {}".format(
             network,
-            protocol,
             len(hypervisor_addresses),
             block_ini,
             block_end,

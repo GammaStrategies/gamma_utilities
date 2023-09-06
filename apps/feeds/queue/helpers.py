@@ -21,7 +21,7 @@ def to_free_or_not_to_free_item(
     # do not free items not
     if queue_item.count < 5 and queue_item.can_be_processed:
         if db_return := get_default_localdb(network=network).free_queue_item(
-            db_queue_item=queue_item.as_dict
+            id=queue_item.id, count=queue_item.count
         ):
             if db_return.modified_count or db_return.upserted_id:
                 logging.getLogger(__name__).debug(
