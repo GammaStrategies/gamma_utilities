@@ -42,6 +42,7 @@ class period_timeframe:
         }
 
 
+# TODO: merge token_group with database object
 @dataclass
 class token_group:
     token0: Decimal = None
