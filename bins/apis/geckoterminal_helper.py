@@ -1,6 +1,8 @@
 import logging
 import time
 import re
+
+from bins.general.enums import Protocol
 from ..cache.cache_utilities import pool_token_cache
 
 from ..general import net_utilities
@@ -33,6 +35,15 @@ class geckoterminal_price_helper:
             "mantle": "mantle",
             "base": "base",
             "linea": "linea",
+        }
+
+        self.dexids = {
+            "uniswap_v3_arbitrum": Protocol.UNISWAPv3,
+            "sushiswap-v3-arbitrum": Protocol.SUSHI,
+            # "pancakeswap-v3-arbitrum": Protocol.PANCAKESWAP,
+            "camelot-v3": Protocol.CAMELOT,
+            "zyberswap": Protocol.ZYBERSWAP,
+            "ramses": Protocol.RAMSES,
         }
 
         self.retries = retries
@@ -154,27 +165,51 @@ class geckoterminal_price_helper:
         return None
 
     def _find_pools(
-        self, network: str, token0_address: str, token1_address: str
+        self,
+        network: str,
+        token0_address: str | None = None,
+        token1_address: str | None = None,
     ) -> list[dict]:
         result = []
+
+        # check if any of token addresses is not None
+        if not token0_address and not token1_address:
+            raise ValueError("token0_address and token1_address can't be both None")
+
+        if not token0_address:
+            search_token = token1_address
+        else:
+            search_token = token0_address
+
         # find price searching for pools
         if pools_token_data := self.get_pools_token_data(
-            network=network, token_address=token0_address, use_cache=True
+            network=network, token_address=search_token, use_cache=True
         ):
             # search for the token in the pools:  identify token as base or quote and retrieve its price usd from attributes
             try:
                 for pool_data in pools_token_data["data"]:
+                    token0_valid = False if token0_address else True
+                    token1_valid = False if token1_address else True
+
                     if (
-                        pool_data["relationships"]["base_token"]["data"]["id"]
+                        not token0_valid
+                        and pool_data["relationships"]["base_token"]["data"]["id"]
                         .split("_")[1]
                         .lower()
                         == token0_address.lower()
-                    ) and (
-                        pool_data["relationships"]["quote"]["data"]["id"]
+                    ):
+                        token0_valid = True
+
+                    if (
+                        not token1_valid
+                        and pool_data["relationships"]["quote"]["data"]["id"]
                         .split("_")[1]
                         .lower()
                         == token1_address.lower()
                     ):
+                        token1_valid = True
+
+                    if token0_valid and token1_valid:
                         # this is the pool we seek
                         result.append(pool_data)
 
