@@ -304,10 +304,21 @@ def create_rewards_status_ramses_get_real_rewards(
         network=network,
         block=block,
     )
-    # calculate rewards for this position at period
-    _temp_real_rewards = _temp_hype_status.calculate_rewards(
-        period=_temp_hype_status.current_period, reward_token=rewardToken_address
-    )
+    try:
+        # calculate rewards for this position at period
+        _temp_real_rewards = _temp_hype_status.calculate_rewards(
+            period=_temp_hype_status.current_period, reward_token=rewardToken_address
+        )
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            f" Cant calculate rewards for hype {hypervisor_address}  rewardToken {rewardToken_address}. Returning zero -> {e}"
+        )
+        return {
+            "base_rewards": 0,
+            "boosted_rewards": 0,
+            "total_staked": 0,
+        }
+
     # calculate rewards per second for this position and perood
     baseRewards_per_second = (
         _temp_real_rewards["current_baseRewards"]

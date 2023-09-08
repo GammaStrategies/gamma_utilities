@@ -850,11 +850,17 @@ def build_multiFeeDistribution_from_queueItem(
                     )
 
                     #  get the rewards per second from the last period
-                    _this_period_rewards_rate = hypervisor.calculate_rewards(
-                        period=item["period"],
-                        reward_token=reward_static["rewardToken"],
-                        convert_bint=True,
-                    )
+                    try:
+                        _this_period_rewards_rate = hypervisor.calculate_rewards(
+                            period=item["period"],
+                            reward_token=reward_static["rewardToken"],
+                            convert_bint=True,
+                        )
+                    except Exception as e:
+                        logging.getLogger(__name__).error(
+                            f" Cant calculate latest rewards for hype {hypervisor_address}  rewardToken {reward_static['rewardToken']} -> {e}"
+                        )
+                        continue
 
                     # total mixed rewards
                     item["rewardsSinceLastUpdateTime"] = (
@@ -955,6 +961,10 @@ def build_multiFeeDistribution_from_queueItem(
                     * snapshot.rewardToken_price
                 ) / staked_usd
             except Exception as e:
+                if staked_usd:
+                    logging.getLogger(__name__).warning(
+                        f" No staked hype {hypervisor_address} usd value found for {network} {queue_item.type} {queue_item.id}"
+                    )
                 logging.getLogger(__name__).error(
                     f" using last known rewards apr for {network} {queue_item.type} {queue_item.id} {e}"
                 )
