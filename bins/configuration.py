@@ -424,6 +424,12 @@ DEX_POOLS = {
             "token0": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1".lower(),
             "token1": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9".lower(),
         },
+        "GRAI-LUSD": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0x3df1094722c7368e26a2e7c57c91a0289f6fa732".lower(),
+            "token0": "0x894134a25a5fac1c2c26f1d8fbf05111a3cb9487".lower(),
+            "token1": "0x93b346b6bc2548da6a1e7d98e9a421b42541425b".lower(),
+        },
     },
     Chain.MOONBEAM: {},
     Chain.BASE: {
