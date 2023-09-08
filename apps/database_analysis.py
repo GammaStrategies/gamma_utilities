@@ -719,6 +719,7 @@ def get_list_failing_queue_items(chain: Chain, find: dict | None = None):
                     "type": queue_item.type,
                     "address": queue_item.address,
                     "hypervisor_symbol": hypervisor_static["symbol"],
+                    "dex": hypervisor_static["dex"],
                     "hypervisor_address": hypervisor_static["address"],
                     "rewards_static": [
                         {"token": x["rewardToken_symbol"], "address": x["rewardToken"]}
@@ -752,6 +753,7 @@ def get_list_failing_queue_items(chain: Chain, find: dict | None = None):
                     "hypervisor_address": queue_item.data["hypervisor_status"][
                         "address"
                     ],
+                    "dex": queue_item.data["hypervisor_status"]["dex"],
                     "rewards_static": [
                         {
                             "token": queue_item.data.get("reward_static", {}).get(
@@ -778,6 +780,7 @@ def get_list_failing_queue_items(chain: Chain, find: dict | None = None):
                     "address": queue_item.address,
                     "hypervisor_symbol": hypervisor_static["symbol"],
                     "hypervisor_address": queue_item.address,
+                    "dex": hypervisor_static["dex"],
                     "rewards_static": [],
                     "block": queue_item.block,
                 }
