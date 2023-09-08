@@ -9,6 +9,9 @@ from datetime import datetime, timedelta
 
 from datetime import timezone
 from decimal import Decimal
+from apps.feeds.queue.queue_item import QueueItem
+
+from bins.general.enums import Chain, queueItemType
 
 if __name__ == "__main__":
     # append parent directory pth
@@ -27,7 +30,7 @@ from bins.general import general_utilities, file_utilities
 from bins.apis.thegraph_utilities import gamma_scraper
 
 
-from bins.database.helpers import get_default_localdb
+from bins.database.helpers import get_default_localdb, get_from_localdb
 from .database_checker import get_all_logfiles, load_logFile
 
 
@@ -522,19 +525,32 @@ def analize_benchmark_log(log_file: str) -> dict | None:
         "average_lifetime": 0,
         "networks": {},
         "types": {},
+        "timeframe": {
+            "ini": None,
+            "end": None,
+        },
     }
     # regex
-    regex_search = "\-\s\s(?P<network>.*?)\squeue\sitem\s(?P<type>.*)\sprocessing\stime\:\s(?P<processing>.*?)\sseconds\s\stotal\slifetime\:\s(?P<lifetime>.*?)\s(?P<lifetime_units>days|hours|seconds|weeks)"
+    regex_search = "(?P<datetime>\d{4}\D\d{2}\D\d{2}\s\d{2}\D\d{2}\D\d{2}\D\d{3}).*?\-\s\s(?P<network>.*?)\squeue\sitem\s(?P<type>.*)\sprocessing\stime\:\s(?P<processing>.*?)\sseconds\s\stotal\slifetime\:\s(?P<lifetime>.*?)\s(?P<lifetime_units>days|hours|seconds|weeks)"
     # find all matches in log file
     if matches := re.finditer(regex_search, log_file):
         # analyze
         for match in matches:
             # get matching vars
+            # convert string datetime (2023-09-07 02:09:08,323) to datetime
+            raw_dt = match.group("datetime")
             network = match.group("network")
             type = match.group("type")
             processing = match.group("processing")
             lifetime = match.group("lifetime")
             lifetime_units = match.group("lifetime_units")
+
+            # add timeframe data
+            dtime = datetime.strptime(raw_dt, "%Y-%m-%d %H:%M:%S,%f")
+            if result["timeframe"]["ini"] is None or result["timeframe"]["ini"] > dtime:
+                result["timeframe"]["ini"] = dtime
+            if result["timeframe"]["end"] is None or result["timeframe"]["end"] < dtime:
+                result["timeframe"]["end"] = dtime
 
             # convert lifetime to seconds
             if lifetime_units == "seconds":
@@ -660,6 +676,114 @@ def benchmark_logs_analysis():
         logging.getLogger(__name__).info(f" analyzing {log_file}")
         if result := analize_benchmark_log(log_file=load_logFile(log_file)):
             logging.getLogger(__name__).info(f"  {result}")
+
+
+def get_list_failing_queue_items(chain: Chain, find: dict | None = None):
+    """Get a detailed list of failing queue items for the specified network"""
+
+    result = {}
+
+    for queue_item_db in get_from_localdb(
+        network=chain.database_name,
+        collection="queue",
+        find=find or {"count": {"$gt": 8}},
+    ):
+        # transform
+        queue_item = QueueItem(**queue_item_db)
+
+        # prepare result
+        if queue_item.type not in result:
+            result[queue_item.type] = []
+
+        # check type
+        if queue_item.type == queueItemType.LATEST_MULTIFEEDISTRIBUTION:
+            rewards_static = get_from_localdb(
+                network=chain.database_name,
+                collection="rewards_static",
+                find={"rewarder_registry": queue_item.address},
+            )
+            if not rewards_static:
+                raise Exception(
+                    f"Can't find rewards_static using rewarder_registry {queue_item.address}"
+                )
+
+            hypervisor_static = get_from_localdb(
+                network=chain.database_name,
+                collection="static",
+                find={"address": rewards_static[0]["hypervisor_address"]},
+            )[0]
+
+            result[queue_item.type].append(
+                {
+                    "chain": chain.fantasy_name,
+                    "type": queue_item.type,
+                    "address": queue_item.address,
+                    "hypervisor_symbol": hypervisor_static["symbol"],
+                    "hypervisor_address": hypervisor_static["address"],
+                    "rewards_static": [
+                        {"token": x["rewardToken_symbol"], "address": x["rewardToken"]}
+                        for x in rewards_static
+                    ]
+                    if rewards_static
+                    else [],
+                    "block": queue_item.block,
+                }
+            )
+
+        elif queue_item.type == queueItemType.PRICE:
+            result[queue_item.type].append(
+                {
+                    "chain": chain.fantasy_name,
+                    "type": queue_item.type,
+                    "address": queue_item.address,
+                    "hypervisor_symbol": "",
+                    "hypervisor_address": "",
+                    "rewards_static": [],
+                    "block": queue_item.block,
+                }
+            )
+        elif queue_item.type == queueItemType.REWARD_STATUS:
+            result[queue_item.type].append(
+                {
+                    "chain": chain.fantasy_name,
+                    "type": queue_item.type,
+                    "address": queue_item.address,
+                    "hypervisor_symbol": queue_item.data["hypervisor_status"]["symbol"],
+                    "hypervisor_address": queue_item.data["hypervisor_status"][
+                        "address"
+                    ],
+                    "rewards_static": [
+                        {
+                            "token": queue_item.data.get("reward_static", {}).get(
+                                "rewardToken_symbol", ""
+                            ),
+                            "address": queue_item.data.get("reward_static", {}).get(
+                                "rewardToken", ""
+                            ),
+                        }
+                    ],
+                    "block": queue_item.block,
+                }
+            )
+        elif queue_item.type == queueItemType.HYPERVISOR_STATUS:
+            hypervisor_static = get_from_localdb(
+                network=chain.database_name,
+                collection="static",
+                find={"address": queue_item.address},
+            )[0]
+            result[queue_item.type].append(
+                {
+                    "chain": chain.fantasy_name,
+                    "type": queue_item.type,
+                    "address": queue_item.address,
+                    "hypervisor_symbol": hypervisor_static["symbol"],
+                    "hypervisor_address": queue_item.address,
+                    "rewards_static": [],
+                    "block": queue_item.block,
+                }
+            )
+
+    return result
 
 
 def main(option: str, **kwargs):
