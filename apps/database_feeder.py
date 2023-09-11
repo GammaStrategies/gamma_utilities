@@ -4,8 +4,10 @@ import tqdm
 import concurrent.futures
 import contextlib
 from datetime import datetime, timezone
+from apps.feeds.latest.report.gross_fees import feed_report_ramses_gross_fees
 
 from apps.feeds.queue.pull import pull_from_queue
+from bins.general.enums import Chain
 from .feeds.operations import feed_operations
 
 from bins.configuration import CONFIGURATION
@@ -386,6 +388,8 @@ def main(option="operations"):
                     network=network,
                     types=CONFIGURATION["_custom_"]["cml_parameters"].queue_types,
                 )
+            elif option == "report_ramses":
+                feed_report_ramses_gross_fees(chain=Chain.ARBITRUM, periods_back=1)
             else:
                 raise NotImplementedError(
                     f" Can't find an operation match for {option} "
