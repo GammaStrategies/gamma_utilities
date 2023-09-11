@@ -205,18 +205,47 @@ class databaseSource(str, Enum):
 class queueItemType(str, Enum):
     """Type of the queue database item"""
 
-    REWARD_STATUS = "reward_status"  # database collection is called "rewards_status"
-    REWARD_STATIC = "reward_static"  # database collection is called "rewards_static"
-    HYPERVISOR_STATUS = "hypervisor_status"
-    HYPERVISOR_STATIC = "hypervisor_static"
-    PRICE = "price"
-    BLOCK = "block"
-    OPERATION = "operation"
+    # database collection is called "rewards_status"
+    REWARD_STATUS = ("reward_status", 7, None, None)
+    # database collection is called "rewards_static"
+    REWARD_STATIC = ("reward_static", 2, None, None)
+    HYPERVISOR_STATUS = ("hypervisor_status", 6, None, None)
+    HYPERVISOR_STATIC = ("hypervisor_static", 1)
+    PRICE = ("price", 5, None, None)
+    BLOCK = ("block", 4, None, None)
+    OPERATION = ("operation", 3, None, None)
 
     # latest data
-    LATEST_MULTIFEEDISTRIBUTION = "latest_multifeedistribution"
+    LATEST_MULTIFEEDISTRIBUTION = ("latest_multifeedistribution", 8, None, None)
 
-    # TODO: implement database_name and ...
+    # extra properties
+    order: int  # order of importance to be processed
+    database_name: str
+    fantasy_name: str
+
+    def __new__(
+        self,
+        value: str,
+        order: int,
+        database_name: str | None = None,
+        fantasy_name: str | None = None,
+    ):
+        """_summary_
+
+        Args:
+            value (str): _description_
+            order (int):  order to be processed
+            database_name (str | None, optional): . Defaults to value.
+            fantasy_name (str | None, optional): . Defaults to value.
+
+        """
+        obj = str.__new__(self, value)
+        obj._value_ = value
+        obj.order = order
+        # optional properties
+        obj.database_name = database_name or value.lower()
+        obj.fantasy_name = fantasy_name or value.lower()
+        return obj
 
 
 class rewarderType(str, Enum):
@@ -265,6 +294,18 @@ class Family_type(str, Enum):
         obj.database_name = database_name or value.lower()
         obj.fantasy_name = fantasy_name or value.lower()
         return obj
+
+
+class error_identity(str, Enum):
+    OVERLAPED_PERIODS = "OVERLAPED_PERIODS"
+    SUPPLY_DIFFERENCE = "SUPPLY_DIFFERENCE"
+    NEGATIVE_FEES = "NEGATIVE_FEES"
+    RETURN_NONE = "RETURN_NONE"
+    INVALID_MFD = "INVALID_MFD"
+
+
+class reportType(str, Enum):
+    GROSS_FEES = "gross_fees"
 
 
 # HELPERS
