@@ -613,7 +613,7 @@ def analize_benchmark_log(log_file: str) -> dict | None:
             result["networks"][network]["types"][type]["lifetime"] += float(lifetime)
             result["types"][type]["lifetime"] += float(lifetime)
 
-        logging.getLogger(__name__).info(f" Calculating averages")
+        # logging.getLogger(__name__).debug(f" Calculating averages")
         # calculate averages
         for network in result["networks"]:
             result["networks"][network]["average_processing_time"] = (
@@ -668,14 +668,75 @@ def analize_benchmark_log(log_file: str) -> dict | None:
 
 
 def benchmark_logs_analysis():
+    # get all log files
     log_files = get_all_logfiles(log_names=["benchmark"])
     logging.getLogger(__name__).info(f"Processing {len(log_files)} log files")
-    # get all log files
+    # create aggregated data
+    aggregated_data = []
+    timeframe = {
+        "ini": None,
+        "end": None,
+    }
+    # process logs
     for log_file in log_files:
         # analize log file
-        logging.getLogger(__name__).info(f" analyzing {log_file}")
+        logging.getLogger(__name__).debug(f" analyzing {log_file}")
         if result := analize_benchmark_log(log_file=load_logFile(log_file)):
-            logging.getLogger(__name__).info(f"  {result}")
+            # check if there is data in result
+            if not result["total_items"] > 0:
+                logging.getLogger(__name__).info(
+                    f"    - no data in {log_file}  [skipping]"
+                )
+                continue
+
+            aggregated_data.append(result)
+
+            items_x_second = (
+                result["total_items"]
+                / (
+                    result["timeframe"]["end"] - result["timeframe"]["ini"]
+                ).total_seconds()
+            )
+            items_x_day = items_x_second * 60 * 60 * 24
+            items_x_month = items_x_day * 30
+
+            logging.getLogger(__name__).info(
+                f"    - calculated {items_x_day:,.0f} [ processed {result['total_items']} from {result['timeframe']['ini']} to {result['timeframe']['end']}] "
+            )
+
+            if (
+                timeframe["ini"] is None
+                or timeframe["ini"] > result["timeframe"]["ini"]
+            ):
+                timeframe["ini"] = result["timeframe"]["ini"]
+            if (
+                timeframe["end"] is None
+                or timeframe["end"] < result["timeframe"]["end"]
+            ):
+                timeframe["end"] = result["timeframe"]["end"]
+
+    # log aggregated data
+    logging.getLogger(__name__).info(
+        f"Aggregated data from {timeframe['ini']} to {timeframe['end']}"
+    )
+    logging.getLogger(__name__).info(
+        f"    - processed {len(aggregated_data)} log files"
+    )
+    logging.getLogger(__name__).info(
+        f"    - processed {sum([x['total_items'] for x in aggregated_data]):,.0f} items"
+    )
+    aggregated_items_x_second = (
+        sum([x["total_items"] for x in aggregated_data])
+        / (timeframe["end"] - timeframe["ini"]).total_seconds()
+    )
+    aggregated_items_x_day = aggregated_items_x_second * 60 * 60 * 24
+    aggregated_items_x_month = aggregated_items_x_day * 30
+    logging.getLogger(__name__).info(
+        f"    - calculated {aggregated_items_x_day:,.0f} items per day"
+    )
+    logging.getLogger(__name__).info(
+        f"    - calculated {aggregated_items_x_month:,.0f} items per month"
+    )
 
 
 def get_list_failing_queue_items(chain: Chain, find: dict | None = None):
