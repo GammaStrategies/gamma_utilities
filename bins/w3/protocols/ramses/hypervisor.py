@@ -3,7 +3,7 @@ from web3 import Web3
 
 from bins.errors.general import ProcessingError
 from bins.formulas import dex_formulas
-from ....general.enums import Protocol
+from ....general.enums import Protocol, error_identity, text_to_chain
 from .. import gamma
 from ..general import erc20
 
@@ -92,11 +92,13 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
                 == "0x8DFF6BbEE7A6E5Fe3413a91dBF305C29e8A0Af5F".lower()
             ):
                 raise ProcessingError(
+                    chain=text_to_chain(self._network),
                     item={
                         "hypervisor_address": self.address,
                         "block": self.block,
                         "object": "hypervisor.receiver",
                     },
+                    identity=error_identity.INVALID_MFD,
                     action="remove",
                     message=f"Invalid MFD detected ({tmp_address.lower()}) from hypervisor {self.address.lower()} at block {self.block}",
                 )
@@ -419,11 +421,13 @@ class gamma_hypervisor_cached(gamma.hypervisor.gamma_hypervisor_cached):
                 == "0x8DFF6BbEE7A6E5Fe3413a91dBF305C29e8A0Af5F".lower()
             ):
                 raise ProcessingError(
+                    chain=text_to_chain(self._network),
                     item={
                         "hypervisor_address": self.address,
                         "block": self.block,
                         "object": "hypervisor.receiver",
                     },
+                    identity=error_identity.INVALID_MFD,
                     action="remove",
                     message=f"Invalid MFD detected ({tmp_address.lower()}) from hypervisor {self.address.lower()} at block {self.block}",
                 )

@@ -5,7 +5,7 @@ import logging
 from bins.database.common.database_ids import create_id_hypervisor_returns
 from bins.database.helpers import get_price_from_db
 from bins.errors.general import ProcessingError
-from bins.general.enums import Chain
+from bins.general.enums import Chain, error_identity, text_to_chain
 
 
 @dataclass
@@ -456,12 +456,14 @@ class period_yield_data:
 
             # raise error to rescrape
             raise ProcessingError(
+                chain=text_to_chain(network),
                 item={
                     "hypervisor_address": self.address,
                     "ini_block": self.timeframe.ini.block,
                     "end_block": self.timeframe.end.block,
                     "supply_difference": self.status.supply_difference,
                 },
+                identity=error_identity.SUPPLY_DIFFERENCE,
                 action="rescrape",
                 message=f" Hypervisor supply at START differ {self.status.supply_difference:,.5%} from END, meaning there are missing operations in between. Rescrape.",
             )
@@ -533,15 +535,20 @@ class period_yield_data:
         # check for positive fee growth
         if self.fees.qtty.token0 < 0 or self.fees.qtty.token1 < 0:
             raise ProcessingError(
+                chain=text_to_chain(network),
                 item={
                     "hypervisor_address": self.address,
+                    "hypervisor_symbol": end_hype["symbol"],
+                    "hypervisor_name": end_hype["name"],
+                    "dex": end_hype["dex"],
                     "ini_block": self.timeframe.ini.block,
                     "end_block": self.timeframe.end.block,
                     "fees_token0": self.fees.qtty.token0,
                     "fees_token1": self.fees.qtty.token1,
                     "description": " Check if it is related to the old visor contract.",
                 },
-                action="manual_check",
+                identity=error_identity.NEGATIVE_FEES,
+                action="rescrape",
                 message=f" Fees growth can't be negative and they are [0:{self.fees.qtty.token0} 1:{self.fees.qtty.token1}] for hypervisor {self.address} end block {self.timeframe.end.block}.",
             )
 

@@ -7,7 +7,7 @@ from bins.errors.general import ProcessingError
 
 from ....configuration import WEB3_CHAIN_IDS
 from ....cache import cache_utilities
-from ....general.enums import Protocol
+from ....general.enums import Protocol, error_identity, text_to_chain
 from ....formulas import dex_formulas
 
 from ..general import bep20, web3wrap, erc20, erc20_cached, bep20_cached
@@ -126,11 +126,13 @@ class poolv3(web3wrap):
             }
         else:
             raise ProcessingError(
+                chain=text_to_chain(self._network),
                 item={
                     "pool_address": self.address,
                     "block": self.block,
                     "object": "pool.positions",
                 },
+                identity=error_identity.RETURN_NONE,
                 action="",
                 message=f" positions function of {self.address} at block {self.block} returned none using {position_key} as position_key",
             )
@@ -169,11 +171,13 @@ class poolv3(web3wrap):
             }
         else:
             raise ProcessingError(
+                chain=text_to_chain(self._network),
                 item={
                     "pool_address": self.address,
                     "block": self.block,
                     "object": "pool.slot0",
                 },
+                identity=error_identity.RETURN_NONE,
                 action="",
                 message=f" slot0 of {self.address} at block {self.block} returned none. (Check contract creation block)",
             )
@@ -219,11 +223,13 @@ class poolv3(web3wrap):
             }
         else:
             raise ProcessingError(
+                chain=text_to_chain(self._network),
                 item={
                     "pool_address": self.address,
                     "block": self.block,
                     "object": "pool.ticks",
                 },
+                identity=error_identity.RETURN_NONE,
                 action="",
                 message=f" ticks function of {self.address} at block {self.block} returned none. (Check contract creation block)",
             )

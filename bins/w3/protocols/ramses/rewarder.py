@@ -1,7 +1,7 @@
 from web3 import Web3
 
 from bins.errors.general import ProcessingError
-from ....general.enums import rewarderType
+from ....general.enums import error_identity, rewarderType, text_to_chain
 from ..general import web3wrap
 from .pool import pool
 
@@ -336,11 +336,13 @@ class multiFeeDistribution(web3wrap):
             }
         else:
             raise ProcessingError(
+                chain=text_to_chain(self._network),
                 item={
                     "address": self.address,
                     "block": self.block,
                     "object": "multiFeeDistribution",
                 },
+                identity=error_identity.RETURN_NONE,
                 action="none",
                 message=f" can't get any result of rewardData({rewardToken_address}) call ",
             )
@@ -362,11 +364,13 @@ class multiFeeDistribution(web3wrap):
             }
         else:
             raise ProcessingError(
+                chain=text_to_chain(self._network),
                 item={
                     "address": self.address,
                     "block": self.block,
                     "object": "multiFeeDistribution",
                 },
+                identity=error_identity.RETURN_NONE,
                 action="none",
                 message=f" can't get any result of userData({user_address}) call ",
             )

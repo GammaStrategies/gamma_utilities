@@ -16,6 +16,7 @@ from bins.database.helpers import (
     get_latest_prices_from_db,
     get_price_from_db,
 )
+from bins.errors.actions import process_error
 from bins.errors.general import ProcessingError
 
 from ..status.rewards.general import create_reward_status_from_hype_status
@@ -1014,6 +1015,8 @@ def build_multiFeeDistribution_from_queueItem(
 
     except ProcessingError as e:
         logging.getLogger(__name__).error(f"{e.message}")
+        # process error
+        process_error(e)
 
     except Exception as e:
         logging.getLogger(__name__).exception(

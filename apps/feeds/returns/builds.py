@@ -7,8 +7,9 @@ from bins.database.helpers import (
     get_default_localdb,
     get_from_localdb,
 )
+from bins.errors.actions import process_error
 from bins.errors.general import ProcessingError
-from bins.general.enums import Chain, Protocol
+from bins.general.enums import Chain, Protocol, error_identity
 from bins.w3.builders import build_db_hypervisor
 
 from .objects import period_yield_data
@@ -155,26 +156,21 @@ def create_hypervisor_returns(
                         logging.getLogger(__name__).error(
                             f" Error while creating hype returns. {e.message}"
                         )
-                        if e.action == "rescrape":
-                            rescrape_block_ini = e.item["ini_block"]
-                            rescrape_block_end = e.item["end_block"]
-
-                            # rescrape operations for this chain between defined blocks
-                            logging.getLogger(__name__).info(
-                                f" Rescraping operations for {chain.database_name} between blocks {rescrape_block_ini} and {rescrape_block_end}"
-                            )
-                            feed_operations(
-                                protocol="gamma",
-                                network=chain.database_name,
-                                block_ini=rescrape_block_ini,
-                                block_end=rescrape_block_end,
-                            )
+                        # process error
+                        process_error(e)
 
                     # fill rewards
-                    current_period.fill_from_rewards_data(
-                        ini_rewards=last_item["rewards_status"],
-                        end_rewards=data["rewards_status"],
-                    )
+                    try:
+                        current_period.fill_from_rewards_data(
+                            ini_rewards=last_item["rewards_status"],
+                            end_rewards=data["rewards_status"],
+                        )
+                    except ProcessingError as e:
+                        logging.getLogger(__name__).error(
+                            f" Error while creating hype returns. {e.message}"
+                        )
+                        # process error
+                        process_error(e)
 
                     # convert to dict if needed
                     if convert_to_dict:
@@ -217,11 +213,13 @@ def create_hypervisor_returns(
                         or item1_ini_block > item1_end_block
                     ):
                         raise ProcessingError(
+                            chain=chain,
                             item={
                                 "item0": item0,
                                 "item1": item1,
                                 "description": " check database query and subsequent processing of data bc period data items overlap.",
                             },
+                            identity=error_identity.OVERLAPEDED_PERIODS,
                             action="check_manually",
                             message=f" Overlaped periods found between {item0_end_block} and {item1_ini_block}. Check manually. ",
                         )

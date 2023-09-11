@@ -11,6 +11,7 @@ from apps.feeds.status.rewards.zyberswap import create_rewards_status_zyberswap
 from bins.configuration import CONFIGURATION
 
 from bins.database.common.db_collections_common import database_global, database_local
+from bins.errors.actions import process_error
 
 from bins.errors.general import ProcessingError
 from bins.general.enums import Chain, Protocol, rewarderType, text_to_chain
@@ -244,6 +245,8 @@ def create_reward_status_from_hype_status(
         logging.getLogger(__name__).error(
             f" Unexpected error constructing {network}'s {rewarder_static['rewarder_address']} rewarder data. error-> {e.message}"
         )
+        # process error
+        process_error(e)
         # TODO: code
         # may be better to keep processed items in queue indefinitely
         # if e.action=="remove":
