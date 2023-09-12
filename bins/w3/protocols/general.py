@@ -192,8 +192,8 @@ class web3wrap:
         blocksaway: int = math.floor(blocksaway)
         #
         if blocksaway > 0:
-            block_current: int = self._w3.eth.get_block("latest")
-            block_past: int = self._w3.eth.get_block(block_current.number - blocksaway)
+            block_current: int = self._getBlockData("latest")
+            block_past: int = self._getBlockData(block_current.number - blocksaway)
             result: int = (block_current.timestamp - block_past.timestamp) / blocksaway
         return result
 
@@ -219,21 +219,21 @@ class web3wrap:
             raise ValueError("Timestamp cannot be zero!")
 
         # check min timestamp
-        min_block = self._w3.eth.get_block(1)
+        min_block = self._getBlockData(1)
         if min_block.timestamp > timestamp:
             return 1
 
         queries_cost = 0
         found_exact = False
 
-        block_curr = self._w3.eth.get_block("latest")
+        block_curr = self._getBlockData("latest")
         first_step = math.ceil(block_curr.number * 0.85)
 
         # make sure we have positive block result
         while (block_curr.number + first_step) <= 0:
             first_step -= 1
         # calc blocks to go up/down closer to goal
-        block_past = self._w3.eth.get_block(block_curr.number - (first_step))
+        block_past = self._getBlockData(block_curr.number - (first_step))
         blocks_x_timestamp = (
             abs(block_curr.timestamp - block_past.timestamp) / first_step
         )
@@ -255,7 +255,7 @@ class web3wrap:
                 block_step /= 2
             # go to block
             try:
-                block_curr = self._w3.eth.get_block(
+                block_curr = self._getBlockData(
                     math.floor(block_curr.number + (block_step * block_step_sign))
                 )
             except exceptions.BlockNotFound:
@@ -296,11 +296,11 @@ class web3wrap:
                 if inexact_mode == "before":
                     # select block smaller than objective
                     while block_curr.timestamp > timestamp:
-                        block_curr = self._w3.eth.get_block(block_curr.number - 1)
+                        block_curr = self._getBlockData(block_curr.number - 1)
                 elif inexact_mode == "after":
                     # select block greater than objective
                     while block_curr.timestamp < timestamp:
-                        block_curr = self._w3.eth.get_block(block_curr.number + 1)
+                        block_curr = self._getBlockData(block_curr.number + 1)
                 else:
                     raise ValueError(
                         f" Inexact method chosen is not valid:->  {inexact_mode}"
@@ -336,9 +336,9 @@ class web3wrap:
     def timestampFromBlockNumber(self, block: int) -> int:
         block_obj = None
         if block < 1:
-            block_obj = self._w3.eth.get_block("latest")
+            block_obj = self._getBlockData("latest")
         else:
-            block_obj = self._w3.eth.get_block(block)
+            block_obj = self._getBlockData(block)
 
         # return closest block found
         return block_obj.timestamp
@@ -350,14 +350,14 @@ class web3wrap:
         while curr_block.timestamp == block.timestamp:
             if curr_block.number != block.number:
                 result.append(curr_block.number)
-            curr_block = self._w3.eth.get_block(curr_block.number - 1)
+            curr_block = self._getBlockData(curr_block.number - 1)
             queries_cost += 1
         # try go forward till different timestamp is found
         curr_block = block
         while curr_block.timestamp == block.timestamp:
             if curr_block.number != block.number:
                 result.append(curr_block.number)
-            curr_block = self._w3.eth.get_block(curr_block.number + 1)
+            curr_block = self._getBlockData(curr_block.number + 1)
             queries_cost += 1
 
         return sorted(result)
