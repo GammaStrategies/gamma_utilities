@@ -58,9 +58,7 @@ def parallel_pull(network: str):
 
 def pull_from_queue(network: str, types: list[queueItemType] | None = None):
     # get first item from queue
-    if db_queue_item := get_default_localdb(network=network).get_queue_item(
-        types=types, find={"processing": 0}, sort=[("created", 1)]
-    ):
+    if db_queue_item := get_item_from_queue(network=network, types=types):
         try:
             # convert database queue item to class
             queue_item = QueueItem(**db_queue_item)
@@ -82,6 +80,20 @@ def pull_from_queue(network: str, types: list[queueItemType] | None = None):
     # no item found
 
     return True
+
+
+def get_item_from_queue(
+    network: str, types: list[queueItemType] | None = None
+) -> dict | None:
+    # TODO: implement processing queue : currently FIFO
+
+    # sort types by order field
+    # if types:
+    #     types = sorted(types, key=lambda x: x.order)
+
+    return get_default_localdb(network=network).get_queue_item(
+        types=types, find={"processing": 0}, sort=[("created", 1)]
+    )
 
 
 # classifier
