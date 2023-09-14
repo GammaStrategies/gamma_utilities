@@ -644,8 +644,10 @@ class period_yield_data:
             usd=Decimal("0"), period_yield=Decimal("0"), details=[]
         )
         # init cumulative rewards
-        apr_cumulative = None
-        apy_cumulative = None
+        apr_cumulative = Decimal("0")
+        apr_cumulative_multiplier = None
+        apy_cumulative = Decimal("0")
+        apy_cumulative_multiplier = None
 
         # process grouped rewards
         for item in grouped_rewards.values():
@@ -708,7 +710,15 @@ class period_yield_data:
             # add usd value to self
             self.rewards.usd += Decimal(str(_period_rewards_usd))
 
-            total_staked = ini_reward["total_hypervisorToken_qtty"] / (10**18)
+            total_staked_usd = (
+                int(ini_reward["total_hypervisorToken_qtty"]) / (10**18)
+            ) * ini_reward["hypervisor_share_price_usd"]
+            # when there is no staked value, use total supply
+            total_staked_usd = (
+                self.status.ini.supply * ini_reward["hypervisor_share_price_usd"]
+                if not total_staked_usd
+                else total_staked_usd
+            )
 
             # add reward detail to self
             self.rewards.details.append(
@@ -718,7 +728,7 @@ class period_yield_data:
                     "qtty": _period_rewards_qtty,
                     "usd": _period_rewards_usd,
                     "seconds": period_seconds,
-                    "period yield": _period_rewards_usd / ini_reward["totalSupply"],
+                    "period yield": _period_rewards_usd / total_staked_usd,
                 }
             )
 
@@ -773,20 +783,23 @@ class period_yield_data:
                             ]["counter"] += 1
 
             # add apr and apy to cumulative
-            if not apr_cumulative:
-                apr_cumulative = Decimal("1") + Decimal(str(end_reward["apr"]))
+            apr_cumulative += Decimal(str(item["end"]["apr"]))
+            if not apr_cumulative_multiplier:
+                apr_cumulative_multiplier = Decimal(str(end_reward["apr"]))
             else:
-                apr_cumulative *= Decimal("1") + Decimal(str(end_reward["apr"]))
-            if not apy_cumulative:
-                apy_cumulative = Decimal("1") + Decimal(str(end_reward["apy"]))
+                apr_cumulative_multiplier *= Decimal(str(end_reward["apr"]))
+
+            apy_cumulative += Decimal(str(item["end"]["apy"]))
+            if not apy_cumulative_multiplier:
+                apy_cumulative_multiplier = Decimal(str(end_reward["apy"]))
             else:
-                apy_cumulative *= Decimal("1") + Decimal(str(end_reward["apy"]))
+                apy_cumulative_multiplier *= Decimal(str(end_reward["apy"]))
 
         # Yield percentage: percentage of total value staked at ini
 
         if apr_cumulative:
-            apr_cumulative -= Decimal("1")
-            self.rewards.period_yield = apr_cumulative
+            # apr_cumulative += apr_cumulative_multiplier
+            self.rewards.period_yield = apr_cumulative + apr_cumulative_multiplier
 
         # self.rewards.period_yield = (
         #     self.rewards.usd / self.ini_underlying_usd if self.ini_underlying_usd else 0

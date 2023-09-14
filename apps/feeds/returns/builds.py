@@ -73,6 +73,18 @@ def create_hypervisor_returns(
                 )
                 ordered_hype_status_list.append(last_hype_status)
 
+        # NOT USEFUL:
+        # calculate the number of seconds from defined ini_timestamp/block to first item found
+        # (hypervisor may not be created at the same time as the first item)
+        #
+        last_item_seconds_to_end = 0
+        if timestamp_end:
+            last_item_seconds_to_end = (
+                timestamp_end - ordered_hype_status_list[-1]["timestamp"]
+            )
+        elif block_end:
+            last_item_seconds_to_end = block_end - ordered_hype_status_list[-1]["block"]
+        # # # # # # # # # #
         for idx, data in enumerate(ordered_hype_status_list):
             # zero and par indexes refer to initial values
             if idx == 0 or idx % 2 == 0:
@@ -454,9 +466,11 @@ def get_returns_source_data(
 
     result = {}
     #
-
+    # create chunks of timeframes to process so that we don't receive 16Mb errors
+    # when quering mongodb
+    # try to avoid 16Mb errors by slicing the query in small chunks
     chunks = [(None, None, None, None)]
-    timestamp_chunk_size = 60 * 60 * 24 * 30 * 3  # 3 months
+    timestamp_chunk_size = 60 * 60 * 24 * 30 * 1  # 1 month
     block_chunk_size = 1000000
     # create chunks of timeframes to process so that we don't receive 16Mb errors
     # when quering mongodb
