@@ -865,6 +865,13 @@ class database_local(db_collections_common):
                     },
                     "multi_indexes": [],
                 },
+                "reports": {
+                    "mono_indexes": {
+                        "id": True,
+                        "type": False,
+                    },
+                    "multi_indexes": [],
+                },
             }
 
         else:
@@ -2093,7 +2100,7 @@ class database_local(db_collections_common):
 
     @staticmethod
     def query_operations_summary(
-        hypervisor_address: str | None = None,
+        hypervisor_addresses: list[str] | None = None,
         timestamp_ini: int | None = None,
         timestamp_end: int | None = None,
         block_ini: int | None = None,
@@ -2102,7 +2109,7 @@ class database_local(db_collections_common):
         """_summary_
 
         Args:
-            hypervisor_address (str): _description_
+            hypervisor_addresses (list[str] | None, optional): list of hypervisor addresses
             timestamp_ini (int | None, optional): _description_. Defaults to None.
             timestamp_end (int | None, optional): _description_. Defaults to None.
             block_ini (int | None, optional): _description_. Defaults to None.
@@ -2285,8 +2292,175 @@ class database_local(db_collections_common):
             _and.append({"timestamp": {"$lte": timestamp_end}})
 
         # add hype address
-        if hypervisor_address:
-            _and.append({"address": {"$lte": hypervisor_address}})
+        if hypervisor_addresses:
+            _and.append({"address": {"$in": hypervisor_addresses}})
+
+        # add to query
+        if _and:
+            _match["$and"] = _and
+            query.insert(0, {"$match": _match})
+        # debug_query = f"{query}"
+        return query
+
+    @staticmethod
+    def query_fee_operations_summary(
+        hypervisor_addresses: list[str] | None = None,
+        timestamp_ini: int | None = None,
+        timestamp_end: int | None = None,
+        block_ini: int | None = None,
+        block_end: int | None = None,
+    ) -> list[dict]:
+        """Only rebalance and zeroBurn operations will be considered
+
+        Args:
+            hypervisor_addresses (list[str] | None, optional): list of hypervisor addresses
+            timestamp_ini (int | None, optional): _description_. Defaults to None.
+            timestamp_end (int | None, optional): _description_. Defaults to None.
+            block_ini (int | None, optional): _description_. Defaults to None.
+            block_end (int | None, optional): _description_. Defaults to None.
+
+        Returns:
+            list[dict]: {
+                            "_id" : "0x7f92463e24b2ea1f7267aceed3ad68f7a956d2d8",
+                            "address" : "0x7f92463e24b2ea1f7267aceed3ad68f7a956d2d8",
+                            "block_ini" : NumberInt(13591510),
+                            "block_end" : NumberInt(15785095),
+                            "timestamp_ini" : NumberInt(1636587581),
+                            "timestamp_end" : NumberInt(1666218047),
+                            "collectedFees_token0" : NumberDecimal("27.464269473110871371"),
+                            "collectedFees_token1" : NumberDecimal("1.388745951660998281"),
+                            "zeroBurnFees_token0" : NumberDecimal("0.0000"),
+                            "zeroBurnFees_token1" : NumberDecimal("0.0000")
+                        }
+
+        """
+        query = [
+            {
+                "$project": {
+                    "address": "$address",
+                    "block": "$blockNumber",
+                    "timestamp": "$timestamp",
+                    "topic": "$topic",
+                    "collectedFees_token0": {
+                        "$cond": [
+                            {"$eq": ["$topic", "rebalance"]},
+                            {"$toDecimal": "$qtty_token0"},
+                            0,
+                        ]
+                    },
+                    "collectedFees_token1": {
+                        "$cond": [
+                            {"$eq": ["$topic", "rebalance"]},
+                            {"$toDecimal": "$qtty_token1"},
+                            0,
+                        ]
+                    },
+                    "zeroBurnFees_token0": {
+                        "$cond": [
+                            {"$eq": ["$topic", "zeroBurn"]},
+                            {"$toDecimal": "$qtty_token0"},
+                            0,
+                        ]
+                    },
+                    "zeroBurnFees_token1": {
+                        "$cond": [
+                            {"$eq": ["$topic", "zeroBurn"]},
+                            {"$toDecimal": "$qtty_token1"},
+                            0,
+                        ]
+                    },
+                    "decimals_token0": "$decimals_token0",
+                    "decimals_token1": "$decimals_token1",
+                }
+            },
+            # get hype status related to each operation
+            {
+                "$lookup": {
+                    "from": "status",
+                    "let": {"op_block": "$block", "op_address": "$address"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$or": [
+                                        {
+                                            "$and": [
+                                                {"$eq": ["$address", "$$op_address"]},
+                                                {"$eq": ["$block", "$$op_block"]},
+                                            ]
+                                        },
+                                    ],
+                                }
+                            }
+                        },
+                    ],
+                    "as": "status",
+                }
+            },
+            {"$unwind": "$status"},
+            {
+                "$group": {
+                    "_id": "$address",
+                    "address": {"$first": "$address"},
+                    "block_ini": {"$first": "$block"},
+                    "block_end": {"$last": "$block"},
+                    "timestamp_ini": {"$first": "$timestamp"},
+                    "timestamp_end": {"$last": "$timestamp"},
+                    "items": {"$push": "$$ROOT"},
+                    "collectedFees_token0": {
+                        "$sum": {
+                            "$divide": [
+                                {"$toDecimal": "$collectedFees_token0"},
+                                {"$pow": [10, "$decimals_token0"]},
+                            ]
+                        }
+                    },
+                    "collectedFees_token1": {
+                        "$sum": {
+                            "$divide": [
+                                {"$toDecimal": "$collectedFees_token1"},
+                                {"$pow": [10, "$decimals_token1"]},
+                            ]
+                        }
+                    },
+                    "zeroBurnFees_token0": {
+                        "$sum": {
+                            "$divide": [
+                                {"$toDecimal": "$zeroBurnFees_token0"},
+                                {"$pow": [10, "$decimals_token0"]},
+                            ]
+                        }
+                    },
+                    "zeroBurnFees_token1": {
+                        "$sum": {
+                            "$divide": [
+                                {"$toDecimal": "$zeroBurnFees_token1"},
+                                {"$pow": [10, "$decimals_token1"]},
+                            ]
+                        }
+                    },
+                }
+            },
+            {"$unset": ["_id"]},
+        ]
+
+        # build match
+        _and = []
+        _match = {"topic": {"$in": ["rebalance", "zeroBurn"]}}
+
+        # add block or timestamp in query
+        if block_ini:
+            _and.append({"blockNumber": {"$gte": block_ini}})
+        elif timestamp_ini:
+            _and.append({"timestamp": {"$gte": timestamp_ini}})
+        if block_end:
+            _and.append({"blockNumber": {"$lte": block_end}})
+        elif timestamp_end:
+            _and.append({"timestamp": {"$lte": timestamp_end}})
+
+        # add hype address
+        if hypervisor_addresses:
+            _and.append({"address": {"$in": hypervisor_addresses}})
 
         # add to query
         if _and:
