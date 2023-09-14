@@ -386,6 +386,23 @@ class gamma_hypervisor(erc20):
 
         return {k: base.get(k, 0) + limit.get(k, 0) for k in set(base) & set(limit)}
 
+    def get_fees_collected(self, inDecimal: bool = True) -> dict:
+        # positions
+        base = self.pool.get_fees_collected(
+            ownerAddress=self.address,
+            tickUpper=self.baseUpper,
+            tickLower=self.baseLower,
+            inDecimal=inDecimal,
+        )
+        limit = self.pool.get_fees_collected(
+            ownerAddress=self.address,
+            tickUpper=self.limitUpper,
+            tickLower=self.limitLower,
+            inDecimal=inDecimal,
+        )
+
+        return {k: base.get(k, 0) + limit.get(k, 0) for k in set(base) & set(limit)}
+
     def get_tvl(self, inDecimal=True) -> dict:
         """get total value locked of both positions
            TVL = deployed + parked + owed

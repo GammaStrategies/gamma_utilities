@@ -460,6 +460,71 @@ class poolv3(web3wrap):
         # return result
         return result.copy()
 
+    def get_fees_collected(
+        self, ownerAddress: str, tickUpper: int, tickLower: int, inDecimal: bool = True
+    ) -> dict:
+        """feeGrowthInside_Last * position liquidity:  Retrieve the quantity of fees collected by the deployed position"""
+
+        result = {
+            "qtty_token0": 0,
+            "qtty_token1": 0,
+        }
+
+        # get position data
+        pos = self.position(
+            ownerAddress=Web3.toChecksumAddress(ownerAddress.lower()),
+            tickLower=tickLower,
+            tickUpper=tickUpper,
+        )
+
+        # convert the position known feeGrowth to fees
+        result["qtty_token0"] = dex_formulas.feeGrowth_to_fee(
+            feeGrowthX128=pos["feeGrowthInside0LastX128"], liquidity=pos["liquidity"]
+        )
+        result["qtty_token1"] = dex_formulas.feeGrowth_to_fee(
+            feeGrowthX128=pos["feeGrowthInside1LastX128"], liquidity=pos["liquidity"]
+        )
+
+        # convert to decimal as needed
+        if inDecimal:
+            result["qtty_token0"] = Decimal(result["qtty_token0"]) / Decimal(
+                10**self.token0.decimals
+            )
+            result["qtty_token1"] = Decimal(result["qtty_token1"]) / Decimal(
+                10**self.token1.decimals
+            )
+        # return result
+        return result.copy()
+
+    def get_total_pool_fees(self, inDecimal: bool = True) -> dict:
+        """Retrieve the quantity of fees collected by all current LPs of the pool.
+        This is not all fees all time the pool has accrued but only all time fees collected by current LPs
+        (It will decrease when big withdrawals occur.)"""
+
+        result = {
+            "qtty_token0": 0,
+            "qtty_token1": 0,
+        }
+
+        # convert the position known feeGrowth to fees
+        result["qtty_token0"] = dex_formulas.feeGrowth_to_fee(
+            feeGrowthX128=self.feeGrowthGlobal0X128, liquidity=self.liquidity
+        )
+        result["qtty_token1"] = dex_formulas.feeGrowth_to_fee(
+            feeGrowthX128=self.feeGrowthGlobal1X128, liquidity=self.liquidity
+        )
+
+        # convert to decimal as needed
+        if inDecimal:
+            result["qtty_token0"] = Decimal(result["qtty_token0"]) / Decimal(
+                10**self.token0.decimals
+            )
+            result["qtty_token1"] = Decimal(result["qtty_token1"]) / Decimal(
+                10**self.token1.decimals
+            )
+        # return result
+        return result.copy()
+
     def as_dict(self, convert_bint=False, static_mode: bool = False) -> dict:
         """as_dict _summary_
 

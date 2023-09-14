@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from math import sqrt
 from web3 import Web3
 from decimal import Decimal
@@ -69,6 +70,177 @@ def get_uncollected_fees(
     return float(
         (subIn256(feeGrowthInside, feeGrowthInsideLast) * (liquidity)) / Decimal(X128)
     )
+
+
+def get_fees_collected_inRange():
+    """fees ever minus the fees above and below the position’s range at time
+
+    feeGrowthGlobal - fees collected below the lower tick - fees collected above the upper tick
+    """
+    pass
+
+
+# liquidity * ( pool fee returns at time T - pool fee returns at time 0 )  / 2^128
+
+# pool fee returns at time 0 = feeGrowthInside_LastX128
+# pool fee returns at time T = feeGrowthGlobal_X128 - fees collected below the lower tick - fees collected above the upper tick
+
+# fees collected below the lower tick =
+#       if tick >= tickLower
+#           feeGrowthOutsideLower
+#       else ( if tick < tickLower )
+#           feeGrowthGlobal - feeGrowthOutsideLower
+# fees collected above the upper tick =
+#       if tick >= tickUpper
+#           feeGrowthGlobal - feeGrowthOutsideUpper
+#       else ( if tick < tickUpper )
+#           feeGrowthOutsideUpper
+
+
+# uncollected fees ###########
+@dataclass
+class position:
+    tick: int
+    tickUpper: int
+    tickLower: int
+    feeGrowthGlobal: int
+    feeGrowthOutsideUpper: int
+    feeGrowthOutsideLower: int
+
+
+def fees_collected_below_tickLower(
+    tick: int, tickLower: int, feeGrowthGlobal: int, feeGrowthOutsideLower: int
+) -> int:
+    """fees collected below the lower tick
+
+    Args:
+       tick (int): current tick
+       tickLower (int): lower tick of the position
+       feeGrowthGlobal (int): feeGrowthGlobal
+       feeGrowthOutsideLower (int): feeGrowthOutside_X128 of the lower tick of the position
+
+    Returns:
+       fees collected below the lower tick
+    """
+    if tick >= tickLower:
+        return feeGrowthOutsideLower
+    else:
+        return subIn256(feeGrowthGlobal, feeGrowthOutsideLower)
+
+
+def fees_collected_above_tickUpper(
+    tick: int, tickUpper: int, feeGrowthGlobal: int, feeGrowthOutsideUpper: int
+) -> int:
+    """fees collected above the upper tick
+
+    Args:
+       tick (int): current tick
+       tickUpper (int): upper tick of the position
+       feeGrowthGlobal (int): feeGrowthGlobal
+       feeGrowthOutsideUpper (int): feeGrowthOutside_X128 of the upper tick of the position
+
+    Returns:
+       fees collected above the upper tick
+    """
+    if tick >= tickUpper:
+        return subIn256(feeGrowthGlobal, feeGrowthOutsideUpper)
+    else:
+        return feeGrowthOutsideUpper
+
+
+def fees_returns_at_timeT(
+    tick: int,
+    tickUpper: int,
+    tickLower: int,
+    feeGrowthGlobal: int,
+    feeGrowthOutsideUpper: int,
+    feeGrowthOutsideLower: int,
+) -> int:
+    """fees ever minus the fees above and below the positions range (at time T)
+        feeGrowthGlobal - fees collected below the lower tick - fees collected above the upper tick
+    Args:
+       tick (int): current tick
+       tickUpper (int): upper tick of the position
+       tickLower (int): lower tick of the position
+       feeGrowthGlobal (int): feeGrowthGlobal
+       feeGrowthOutsideUpper (int): feeGrowthOutside_X128 of the upper tick of the position
+       feeGrowthOutsideLower (int): feeGrowthOutside_X128 of the lower tick of the position
+
+    Returns:
+       fees ever minus the fees above and below the positions range at time
+    """
+    return subIn256(
+        subIn256(
+            feeGrowthGlobal,
+            fees_collected_below_tickLower(
+                tick, tickLower, feeGrowthGlobal, feeGrowthOutsideLower
+            ),
+        ),
+        fees_collected_above_tickUpper(
+            tick, tickUpper, feeGrowthGlobal, feeGrowthOutsideUpper
+        ),
+    )
+
+
+def fees_uncollected_inRange(
+    liquidity: int,
+    tick: int,
+    tickUpper: int,
+    tickLower: int,
+    feeGrowthGlobal: int,
+    feeGrowthOutsideUpper: int,
+    feeGrowthOutsideLower: int,
+    feeGrowthInsideLast: int,
+) -> int:
+    """
+
+        liquidity * ( pool fee returns at time T - pool fee returns at time 0 )  / 2^128
+
+    Args:
+        liquidity (int):
+        tick (int): current tick
+        tickUpper (int): upper tick of the position
+        tickLower (int): lower tick of the position
+        feeGrowthGlobal (int): feeGrowthGlobal
+        feeGrowthOutsideUpper (int): feeGrowthOutside_X128 of the upper tick of the position
+        feeGrowthOutsideLower (int): feeGrowthOutside_X128 of the lower tick of the position
+        feeGrowthInsideLast (int): feeGrowthInside_X128 of the position ( pool fee returns at time 0)
+
+    Returns:
+        int: fees uncollected in range
+    """
+    return (
+        liquidity
+        * subIn256(
+            fees_returns_at_timeT(
+                tick=tick,
+                tickUpper=tickUpper,
+                tickLower=tickLower,
+                feeGrowthGlobal=feeGrowthGlobal,
+                feeGrowthOutsideUpper=feeGrowthOutsideUpper,
+                feeGrowthOutsideLower=feeGrowthOutsideLower,
+            ),
+            feeGrowthInsideLast,
+        )
+        / X128
+    )
+
+
+def feeGrowth_to_fee(feeGrowthX128: int, liquidity: int) -> float:
+    """feeGrowth to fee
+
+    Args:
+       feeGrowthX128 (int): feeGrowth
+       liquidity (int): liquidity
+
+    Returns:
+       fee
+    """
+    # return liquidity * feeGrowthX128 / X128
+    return (liquidity * (feeGrowthX128)) / X128
+
+
+##############################
 
 
 def get_positionKey(ownerAddress: str, tickLower: int, tickUpper: int) -> str:
@@ -689,3 +861,53 @@ def get_uncollected_fees_vGammawire(
     ) / X128
 
     return uncollectedFees_0, uncollectedFees_1
+
+
+def my_uncollected_fees(
+    fee_growth_global,
+    tick_current,
+    tick_lower,
+    tick_upper,
+    fee_growth_outside_lower,
+    fee_growth_outside_upper,
+    liquidity,
+    fee_growth_inside_last,
+):
+    fees_accum_now = get_fee_growth_inside_now(
+        fee_growth_global=fee_growth_global,
+        tick_current=tick_current,
+        tick_lower=tick_lower,
+        tick_upper=tick_upper,
+        fee_growth_outside_lower=fee_growth_outside_lower,
+        fee_growth_outside_upper=fee_growth_outside_upper,
+    )
+
+    return (liquidity * (subIn256(fees_accum_now, fee_growth_inside_last))) / X128
+
+
+def get_fee_growth_inside_now(
+    fee_growth_global,
+    tick_current,
+    tick_lower,
+    tick_upper,
+    fee_growth_outside_lower,
+    fee_growth_outside_upper,
+):
+    fee_growth_below_pos = fees_collected_below_tickLower(
+        tick=tick_current,
+        tickLower=tick_lower,
+        feeGrowthGlobal=fee_growth_global,
+        feeGrowthOutsideLower=fee_growth_outside_lower,
+    )
+
+    fee_growth_above_pos = fees_collected_above_tickUpper(
+        tick=tick_current,
+        tickUpper=tick_upper,
+        feeGrowthGlobal=fee_growth_global,
+        feeGrowthOutsideUpper=fee_growth_outside_upper,
+    )
+
+    return subIn256(
+        subIn256(fee_growth_global, fee_growth_below_pos),
+        fee_growth_above_pos,
+    )
