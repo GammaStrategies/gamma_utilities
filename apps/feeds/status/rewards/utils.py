@@ -188,3 +188,36 @@ def get_hypervisor_data_for_apr(
         aggregate=query,
         batch_size=100000,
     )
+
+
+def filter_hypervisor_data_for_apr(
+    data: list[dict], min_period_seconds: int = 60
+) -> list[dict]:
+    """Discard time periods of less than 1 minute -> initial and final periods timestamp difference must be greater than 1 minute.
+
+    Args:
+        data (list[dict]): as returned by query_locs_apr_hypervisor_data_calculation query
+        min_period_seconds (int, optional): Defaults to one minute.
+    Returns:
+        list[dict]: filtered data
+    """
+    for _ordered_hype_status_db in data:
+        items_to_keep = []
+
+        for i in range(0, len(_ordered_hype_status_db["status"]), 2):
+            # calculate seconds between 2 items
+            _seconds_period = (
+                _ordered_hype_status_db["status"][i + 1]["timestamp"]
+                - _ordered_hype_status_db["status"][i]["timestamp"]
+            )
+
+            if _seconds_period >= min_period_seconds:
+                # keep both items
+                items_to_keep.append(_ordered_hype_status_db["status"][i])
+                items_to_keep.append(_ordered_hype_status_db["status"][i + 1])
+
+        # replace status with filtered items
+        _ordered_hype_status_db["status"] = items_to_keep
+
+    # return filtered data
+    return data
