@@ -2,6 +2,7 @@ import logging
 
 
 from apps.feeds.status.rewards.utils import (
+    filter_hypervisor_data_for_apr,
     get_hypervisor_data_for_apr,
     get_hypervisor_price_per_share,
     get_reward_pool_prices,
@@ -25,7 +26,7 @@ def build_angle_merkle_rewards_status(
     # TODO: modify query to adjust to slow/fast networks:  get last x data qtty instead of timestamps or blocks
     # current angle endpoint seems to show snapshot every 6-12 hours
     # define ini timestamp to 2 day data before end ( will only use a maximum of 5 items to optimize performance[time basically])
-    ini_timestamp = hypervisor_status["timestamp"] - (86400 * 2)
+    ini_timestamp = hypervisor_status["timestamp"] - (86400 * 7)
 
     # get hypervisor data for apr
     if apr_ordered_hypervisor_status_db_list := get_hypervisor_data_for_apr(
@@ -34,6 +35,11 @@ def build_angle_merkle_rewards_status(
         timestamp_ini=ini_timestamp,
         timestamp_end=hypervisor_status["timestamp"],
     ):
+        # filter not valid items
+        apr_ordered_hypervisor_status_db_list = filter_hypervisor_data_for_apr(
+            data=apr_ordered_hypervisor_status_db_list
+        )
+
         # create control vars
         last_item = None
         # specific data to save in order to calc apr
@@ -45,22 +51,49 @@ def build_angle_merkle_rewards_status(
 
         # loop thru the list of apr ordered hype status
         for _ordered_hype_status_db in apr_ordered_hypervisor_status_db_list:
-            # add hype status if not already in the list
+            # add hype status if not already in the list and its not a block after the last one
             ids = [x["id"] for x in _ordered_hype_status_db["status"]]
             if (
                 hypervisor_status["id"] not in ids
                 and hypervisor_status["block"]
                 >= _ordered_hype_status_db["status"][-1]["block"]
+                and hypervisor_status["block"] - 1
+                != _ordered_hype_status_db["status"][-1]["block"]
             ):
                 logging.getLogger(__name__).debug(f" adding hype status to list")
                 # add as last item
                 _ordered_hype_status_db["status"].append(hypervisor_status)
 
-            # limit the list to 6 items ( should be par number)
-            max_items = (
-                max_items
-                if len(_ordered_hype_status_db["status"]) > max_items
-                else len(_ordered_hype_status_db["status"])
+            # get as many seconds back as needed to accurately calculate apr
+            # one day seconds back is a minimum
+            min_items = None
+            _tmp_seconds = 0
+            for i in range(len(_ordered_hype_status_db["status"]) - 1, 0, -2):
+                # calculate seconds between 2 items
+                _tmp_seconds += (
+                    _ordered_hype_status_db["status"][i]["timestamp"]
+                    - _ordered_hype_status_db["status"][i - 1]["timestamp"]
+                )
+
+                if _tmp_seconds >= 86400:
+                    min_items = len(_ordered_hype_status_db["status"]) - i
+                    # should be even number
+                    if min_items % 2 != 0:
+                        # if min_items index is out of _ordered_hype_status_db range, reduce it
+                        if min_items > len(_ordered_hype_status_db["status"]) - 1:
+                            min_items -= 1
+                        else:
+                            min_items += 1
+                    break
+
+            # limit the list items to select ( should be even number)
+            max_items = max(
+                min_items,
+                (
+                    max_items
+                    if len(_ordered_hype_status_db["status"]) > max_items
+                    else len(_ordered_hype_status_db["status"])
+                ),
             )
             # get the last max_items from the list
             filtered_status_list = _ordered_hype_status_db["status"][-max_items:]
@@ -77,7 +110,8 @@ def build_angle_merkle_rewards_status(
                 # add distribution data
                 data["distribution_data"] = distribution_data
 
-                # zero and par indexes refer to initial values
+                rewards_aquired_period_end = None
+                # zero and even indexes refer to initial values
                 if idx == 0 or idx % 2 == 0:
                     # this is an initial value.
                     pass
@@ -146,12 +180,20 @@ def build_angle_merkle_rewards_status(
                         )
 
                     # add totals
-                    total_baseRewards += rewards_aquired_period_end
+                    total_baseRewards += (
+                        rewards_aquired_period_end if rewards_aquired_period_end else 0
+                    )
                     total_boostedRewards += 0
                     total_time_passed += time_passed
 
                 # set lastitem
                 last_item = data
+
+        # warn if total time passed is less than 1 day
+        if total_time_passed < 60 * 60 * 24:
+            logging.getLogger(__name__).warning(
+                f" Merkle rewards: total time passed is less than 1 day: {total_time_passed} for {hypervisor_status['symbol']} {hypervisor_status['address']} at block {hypervisor_status['block']}"
+            )
 
         # calculate per second rewards
         baseRewards_per_second = (
@@ -225,6 +267,11 @@ def build_angle_merkle_rewards_status(
             }
             result.append(reward_data)
 
+    else:
+        logging.getLogger(__name__).debug(
+            f" No hype status data to construct APR was found in database for {hypervisor_status['symbol']} {hypervisor_status['address']} at block {hypervisor_status['block']}"
+        )
+
     #
     return result
 
@@ -245,22 +292,29 @@ def build_distribution_data(
     _epoch_duration = distributor_creator.EPOCH_DURATION
 
     # get active distribution data from merkle
-    distributions = distributor_creator.getActivePoolDistributions(address=pool_address)
-    for distribution_data in distributions:
-        # check if reward token is valid
-        if distributor_creator.isValid_reward_token(
-            reward_address=distribution_data["token"].lower()
-        ):
-            distribution_data["epoch_duration"] = _epoch_duration
-            distribution_data[
-                "reward_calculations"
-            ] = distributor_creator.get_reward_calculations(
-                distribution=distribution_data, _epoch_duration=_epoch_duration
-            )
-            result.append(distribution_data)
-        else:
-            # not a valid reward token
-            continue
+    if distributions := distributor_creator.getActivePoolDistributions(
+        address=pool_address
+    ):
+        for distribution_data in distributions:
+            # check if reward token is valid
+            if distributor_creator.isValid_reward_token(
+                reward_address=distribution_data["token"].lower()
+            ):
+                distribution_data["epoch_duration"] = _epoch_duration
+                distribution_data[
+                    "reward_calculations"
+                ] = distributor_creator.get_reward_calculations(
+                    distribution=distribution_data, _epoch_duration=_epoch_duration
+                )
+                result.append(distribution_data)
+            else:
+                # not a valid reward token
+                continue
+    else:
+        # no active distributions
+        logging.getLogger(__name__).debug(
+            f" no active distributions found for {network}'s pool address {pool_address} at block {block}"
+        )
 
     return result
 
@@ -315,14 +369,29 @@ def build_rewards_from_distribution(
 
     # reward x second
     reward_x_second_propFees = (
-        calculations_data["reward_x_second"] * (distribution_data["propFees"] / 10000)
-    ) * (hypervisor_liquidity / pool_liquidity)
+        (calculations_data["reward_x_second"] * (distribution_data["propFees"] / 10000))
+        * (hypervisor_liquidity / pool_liquidity)
+        if pool_liquidity
+        else 0
+    )
     reward_x_second_propToken0 = (
-        calculations_data["reward_x_second"] * (distribution_data["propToken0"] / 10000)
-    ) * (hypervisor_total0 / pool_total0)
+        (
+            calculations_data["reward_x_second"]
+            * (distribution_data["propToken0"] / 10000)
+        )
+        * (hypervisor_total0 / pool_total0)
+        if pool_total0
+        else 0
+    )
     reward_x_second_propToken1 = (
-        calculations_data["reward_x_second"] * (distribution_data["propToken1"] / 10000)
-    ) * (hypervisor_total1 / pool_total1)
+        (
+            calculations_data["reward_x_second"]
+            * (distribution_data["propToken1"] / 10000)
+        )
+        * (hypervisor_total1 / pool_total1)
+        if pool_total1
+        else 0
+    )
 
     return {
         "reward_x_second_propFees": reward_x_second_propFees,
@@ -625,6 +694,203 @@ def create_rewards_status_calculate_apr(
     except Exception as e:
         logging.getLogger(__name__).exception(
             f" Error while calculating rewards yield for ramses hypervisor {hypervisor_address} reward token {rewardToken_address} at block {block} err: {e}"
+        )
+
+    return reward_data
+
+
+def create_rewards_status_calculate_apr_new(
+    hypervisor_address: str,
+    network: str,
+    block: int,
+    rewardToken_address: str,
+    items_to_calc_apr: list,
+) -> dict:
+    """
+
+    Args:
+        hypervisor_address (str):
+        network (str):
+        block (int):
+        rewardToken_address (str):
+        token0_address (str):
+        token1_address (str):
+        items_to_calc_apr (list): {
+                            "base_rewards":
+                            "boosted_rewards":
+                            "time_passed":
+                            "timestamp_ini":
+                            "timestamp_end":
+                            "hypervisor": {
+                                "totalStaked
+                                "totalSupply":
+                                "underlying_token0":
+                                "underlying_token1":
+                            },
+                        }
+
+    Returns:
+        dict:  {
+            "apr": reward_apr,
+            "apy": reward_apy,
+            "rewardToken_price_usd": ,
+            "token0_price_usd": ,
+            "token1_price_usd": ,
+            "hypervisor_share_price_usd": ,
+            "extra": {
+                "baseRewards_apr": ,
+                "baseRewards_apy": ,
+                "boostedRewards_apr": ,
+                "boostedRewards_apy": ,
+            },
+        }
+
+    Yields:
+        Iterator[dict]: _description_
+    """
+    reward_data = {}
+    # apr
+    try:
+        # end control vars
+        cummulative_return = {
+            "total_sum": 0,
+            "total_mult": None,
+            "base_sum": 0,
+            "base_mult": None,
+            "boosted_sum": 0,
+            "boosted_mult": None,
+        }
+        total_base_rewards = 0
+        total_boosted_rewards = 0
+        list_of_denominators = []
+        total_period_seconds = 0
+
+        hypervisor_share_price_usd = 0
+        baseRewards_apr = 0
+        baseRewards_apy = 0
+        boostRewards_apr = 0
+        boostRewards_apy = 0
+
+        # statics
+        day_in_seconds = 60 * 60 * 24
+        year_in_seconds = day_in_seconds * 365
+
+        for item in items_to_calc_apr:
+            # simplify price access
+            hype_token0_price = item["distribution_data"]["reward_calculations"][
+                "token0_price"
+            ]
+            hype_token1_price = item["distribution_data"]["reward_calculations"][
+                "token1_price"
+            ]
+            rewardToken_price = item["distribution_data"]["reward_calculations"][
+                "rewardToken_price"
+            ]
+
+            # discard items with timepassed = 0
+            if item["time_passed"] == 0:
+                logging.getLogger(__name__).debug(
+                    f" ...no time passed found while processing apr for {hypervisor_address} using item {item}"
+                )
+                continue
+            if item["hypervisor"]["totalSupply"] == 0:
+                logging.getLogger(__name__).warning(
+                    f" ...no supply found while processing apr for {hypervisor_address} using item {item}"
+                )
+                continue
+
+            # calculate price per share for each item using current prices
+            tvl = (
+                item["hypervisor"]["underlying_token0"] * hype_token0_price
+                + item["hypervisor"]["underlying_token1"] * hype_token1_price
+            )
+
+            # set price per share var ( the last will remain)
+            hypervisor_share_price_usd = item["distribution_data"][
+                "reward_calculations"
+            ]["hype_price_per_share"]
+
+            item["base_rewards_usd"] = item["base_rewards"] * rewardToken_price
+            item["boosted_rewards_usd"] = item["boosted_rewards"] * rewardToken_price
+            item["total_rewards_usd"] = (
+                item["base_rewards_usd"] + item["boosted_rewards_usd"]
+            )
+
+            # calculate period yield
+            item["period_yield"] = item["total_rewards_usd"] / tvl if tvl else 0
+
+            # filter outliers
+            if item["period_yield"] > 1:
+                logging.getLogger(__name__).warning(
+                    f" found outlier period yield {item['period_yield']} for {hypervisor_address} using item {item}"
+                )
+                item["hypervisor"]["tvl"] = 0
+                item["hypervisor"]["totalStaked_tvl"] = 0
+                item["hypervisor"]["price_per_share"] = 0
+                item["base_rewards_usd"] = 0
+                item["boosted_rewards_usd"] = 0
+                item["total_rewards_usd"] = 0
+                item["period_yield"] = 0
+                continue
+
+            total_base_rewards += item["base_rewards_usd"]
+            total_boosted_rewards += item["boosted_rewards_usd"]
+            list_of_denominators.append(tvl)
+
+            # extrapolate rewards to a year
+
+            item["base_rewards_usd_year"] = (
+                item["base_rewards_usd"] / item["time_passed"]
+            ) * year_in_seconds
+            item["boosted_rewards_usd_year"] = (
+                item["boosted_rewards_usd"] / item["time_passed"]
+            ) * year_in_seconds
+            item["total_rewards_usd_year"] = (
+                item["base_rewards_usd_year"] + item["boosted_rewards_usd_year"]
+            )
+
+            total_period_seconds += item["time_passed"]
+
+        if total_period_seconds < 60:
+            logging.getLogger(__name__).error(
+                f" total period seconds {total_period_seconds} for {hypervisor_address} at block {block} is too low to calculate apr"
+            )
+
+        # average tvl for the period
+        total_tvl_denominator = sum(list_of_denominators) / len(list_of_denominators)
+        # period yield
+        total_yield_period = (
+            total_base_rewards + total_boosted_rewards
+        ) / total_tvl_denominator
+        # calculate apr
+        reward_apr = (total_yield_period / total_period_seconds) * year_in_seconds
+        baseRewards_apr = (
+            (total_base_rewards / total_tvl_denominator) / total_period_seconds
+        ) * year_in_seconds
+        boostRewards_apr = (
+            (total_boosted_rewards / total_tvl_denominator) / total_period_seconds
+        ) * year_in_seconds
+
+        # build reward data
+        reward_data = {
+            "apr": reward_apr if reward_apr > 0 else 0,
+            "apy": reward_apr if reward_apr > 0 else 0,
+            "rewardToken_price_usd": rewardToken_price,
+            "token0_price_usd": hype_token0_price,
+            "token1_price_usd": hype_token1_price,
+            "hypervisor_share_price_usd": hypervisor_share_price_usd,
+            # extra fields
+            "extra": {
+                "baseRewards_apr": baseRewards_apr if baseRewards_apr > 0 else 0,
+                "baseRewards_apy": baseRewards_apy if baseRewards_apy > 0 else 0,
+                "boostedRewards_apr": boostRewards_apr if boostRewards_apr > 0 else 0,
+                "boostedRewards_apy": boostRewards_apy if boostRewards_apy > 0 else 0,
+            },
+        }
+
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            f" Error while calculating angleMerkl rewards yield for hypervisor {hypervisor_address} reward token {rewardToken_address} at block {block} err: {e}"
         )
 
     return reward_data

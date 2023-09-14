@@ -1,5 +1,6 @@
 import logging
 from apps.feeds.status.rewards.utils import (
+    filter_hypervisor_data_for_apr,
     get_hypervisor_data_for_apr,
     get_reward_pool_prices,
 )
@@ -107,6 +108,11 @@ def create_rewards_status_ramses(
         )
 
     if apr_ordered_hypervisor_status_db_list:
+        # filter small periods (less than 1 minute)
+        apr_ordered_hypervisor_status_db_list = filter_hypervisor_data_for_apr(
+            data=apr_ordered_hypervisor_status_db_list
+        )
+
         result = []
         # get reward tokens for this hypervisor
         for reward_token in reward_tokens:
@@ -127,6 +133,8 @@ def create_rewards_status_ramses(
                     hypervisor_status["id"] not in ids
                     and hypervisor_status["block"]
                     >= _ordered_hype_status_db["status"][-1]["block"]
+                    and hypervisor_status["block"] - 1
+                    != _ordered_hype_status_db["status"][-1]["block"]
                 ):
                     logging.getLogger(__name__).debug(f" adding hype status to list")
                     # add as last item
@@ -200,6 +208,12 @@ def create_rewards_status_ramses(
 
                     # set lastitem
                     last_item = data
+
+            # warn if total time passed is less than 1 day
+            if total_time_passed < 60 * 60 * 24:
+                logging.getLogger(__name__).warning(
+                    f" Ramses rewards: total time passed is less than 1 day: {total_time_passed} for {hypervisor_status['symbol']} {hypervisor_status['address']} at block {hypervisor_status['block']}"
+                )
 
             # calculate per second rewards
             baseRewards_per_second = (
@@ -339,7 +353,7 @@ def create_rewards_status_ramses_get_real_rewards(
     }
 
 
-def create_rewards_status_ramses_calculate_apr(
+def create_rewards_status_ramses_calculate_apr_old(
     hypervisor_address: str,
     network: str,
     block: int,
@@ -639,6 +653,213 @@ def create_rewards_status_ramses_calculate_apr(
     except Exception as e:
         logging.getLogger(__name__).exception(
             f" Error while calculating rewards yield for ramses hypervisor {hypervisor_address} reward token {rewardToken_address} at block {block} err: {e}"
+        )
+
+    return reward_data
+
+
+def create_rewards_status_ramses_calculate_apr(
+    hypervisor_address: str,
+    network: str,
+    block: int,
+    rewardToken_address: str,
+    token0_address: str,
+    token1_address: str,
+    items_to_calc_apr: list,
+) -> dict:
+    """
+
+    Args:
+        hypervisor_address (str):
+        network (str):
+        block (int):
+        rewardToken_address (str):
+        token0_address (str):
+        token1_address (str):
+        items_to_calc_apr (list): {
+                            "base_rewards":
+                            "boosted_rewards":
+                            "time_passed":
+                            "timestamp_ini":
+                            "timestamp_end":
+                            "hypervisor": {
+                                "totalStaked
+                                "totalSupply":
+                                "underlying_token0":
+                                "underlying_token1":
+                            },
+                        }
+
+    Returns:
+        dict:  {
+            "apr": reward_apr,
+            "apy": reward_apy,
+            "rewardToken_price_usd": ,
+            "token0_price_usd": ,
+            "token1_price_usd": ,
+            "hypervisor_share_price_usd": ,
+            "extra": {
+                "baseRewards_apr": ,
+                "baseRewards_apy": ,
+                "boostedRewards_apr": ,
+                "boostedRewards_apy": ,
+            },
+        }
+
+    Yields:
+        Iterator[dict]: _description_
+    """
+    reward_data = {}
+    # get prices
+    (
+        rewardToken_price,
+        hype_token0_price,
+        hype_token1_price,
+    ) = get_reward_pool_prices(
+        network=network,
+        block=block,
+        reward_token=rewardToken_address.lower(),
+        token0=token0_address.lower(),
+        token1=token1_address.lower(),
+    )
+
+    # apr
+    try:
+        # end control vars
+        total_base_rewards = 0
+        total_boosted_rewards = 0
+        list_of_denominators = []
+        total_period_seconds = 0
+
+        hypervisor_share_price_usd = 0
+        baseRewards_apr = 0
+        baseRewards_apy = 0
+        boostRewards_apr = 0
+        boostRewards_apy = 0
+
+        # statics
+        day_in_seconds = 60 * 60 * 24
+        year_in_seconds = day_in_seconds * 365
+
+        for item in items_to_calc_apr:
+            # discard items with timepassed = 0
+            if item["time_passed"] == 0:
+                logging.getLogger(__name__).debug(
+                    f" ...no time passed found while processing apr for {hypervisor_address} using item {item}"
+                )
+                continue
+            if item["hypervisor"]["totalSupply"] == 0:
+                logging.getLogger(__name__).warning(
+                    f" ...no supply found while processing apr for {hypervisor_address} using item {item}"
+                )
+                continue
+
+            # calculate price per share for each item using current prices
+            item["hypervisor"]["tvl"] = (
+                item["hypervisor"]["underlying_token0"] * hype_token0_price
+                + item["hypervisor"]["underlying_token1"] * hype_token1_price
+            )
+            item["hypervisor"]["price_per_share"] = (
+                item["hypervisor"]["tvl"] / item["hypervisor"]["totalSupply"]
+            )
+            # calculate how much staked is worth in usd
+            item["hypervisor"]["totalStaked_tvl"] = (
+                item["hypervisor"]["totalStaked"]
+                * item["hypervisor"]["price_per_share"]
+            )
+
+            # set the TVL value to be used as denominator: totalStaked or totalSupply
+            tvl = item["hypervisor"]["totalStaked_tvl"]
+            if not tvl:
+                logging.getLogger(__name__).warning(
+                    f" using total supply to calc ramses reward apr because there is no staked value for {hypervisor_address}"
+                )
+                tvl = item["hypervisor"]["tvl"]
+
+            # set price per share var ( the last will remain)
+            hypervisor_share_price_usd = item["hypervisor"]["price_per_share"]
+
+            item["base_rewards_usd"] = item["base_rewards"] * rewardToken_price
+            item["boosted_rewards_usd"] = item["boosted_rewards"] * rewardToken_price
+            item["total_rewards_usd"] = (
+                item["base_rewards_usd"] + item["boosted_rewards_usd"]
+            )
+
+            # calculate period yield
+            item["period_yield"] = item["total_rewards_usd"] / tvl if tvl else 0
+
+            # filter outliers
+            if item["period_yield"] > 1:
+                logging.getLogger(__name__).warning(
+                    f" found outlier period yield {item['period_yield']} for {hypervisor_address} using item {item}"
+                )
+                item["hypervisor"]["tvl"] = 0
+                item["hypervisor"]["totalStaked_tvl"] = 0
+                item["hypervisor"]["price_per_share"] = 0
+                item["base_rewards_usd"] = 0
+                item["boosted_rewards_usd"] = 0
+                item["total_rewards_usd"] = 0
+                item["period_yield"] = 0
+                continue
+
+            total_base_rewards += item["base_rewards_usd"]
+            total_boosted_rewards += item["boosted_rewards_usd"]
+            list_of_denominators.append(tvl)
+
+            # extrapolate rewards to a year
+
+            item["base_rewards_usd_year"] = (
+                item["base_rewards_usd"] / item["time_passed"]
+            ) * year_in_seconds
+            item["boosted_rewards_usd_year"] = (
+                item["boosted_rewards_usd"] / item["time_passed"]
+            ) * year_in_seconds
+            item["total_rewards_usd_year"] = (
+                item["base_rewards_usd_year"] + item["boosted_rewards_usd_year"]
+            )
+
+            total_period_seconds += item["time_passed"]
+
+        if total_period_seconds < 60:
+            logging.getLogger(__name__).error(
+                f" total period seconds {total_period_seconds} for {hypervisor_address} at block {block} is too low to calculate apr"
+            )
+
+        # average tvl for the period
+        total_tvl_denominator = sum(list_of_denominators) / len(list_of_denominators)
+        # period yield
+        total_yield_period = (
+            total_base_rewards + total_boosted_rewards
+        ) / total_tvl_denominator
+        # calculate apr
+        reward_apr = (total_yield_period / total_period_seconds) * year_in_seconds
+        baseRewards_apr = (
+            (total_base_rewards / total_tvl_denominator) / total_period_seconds
+        ) * year_in_seconds
+        boostRewards_apr = (
+            (total_boosted_rewards / total_tvl_denominator) / total_period_seconds
+        ) * year_in_seconds
+
+        # build reward data
+        reward_data = {
+            "apr": reward_apr if reward_apr > 0 else 0,
+            "apy": reward_apr if reward_apr > 0 else 0,
+            "rewardToken_price_usd": rewardToken_price,
+            "token0_price_usd": hype_token0_price,
+            "token1_price_usd": hype_token1_price,
+            "hypervisor_share_price_usd": hypervisor_share_price_usd,
+            # extra fields
+            "extra": {
+                "baseRewards_apr": baseRewards_apr if baseRewards_apr > 0 else 0,
+                "baseRewards_apy": baseRewards_apy if baseRewards_apy > 0 else 0,
+                "boostedRewards_apr": boostRewards_apr if boostRewards_apr > 0 else 0,
+                "boostedRewards_apy": boostRewards_apy if boostRewards_apy > 0 else 0,
+            },
+        }
+
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            f" Error while calculating ramses rewards yield for hypervisor {hypervisor_address} reward token {rewardToken_address} at block {block} err: {e}"
         )
 
     return reward_data
