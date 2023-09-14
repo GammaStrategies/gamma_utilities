@@ -56,7 +56,7 @@ from .general import dict_to_object, token_group
 
 
 @dataclass
-class time:
+class time_object:
     block: int
     timestamp: int
 
@@ -65,10 +65,19 @@ class time:
 
 
 @dataclass
+class timeframe_object:
+    ini: time_object
+    end: time_object
+
+    def to_dict(self) -> dict:
+        return {"ini": self.ini.to_dict(), "end": self.end.to_dict()}
+
+
+@dataclass
 class token:
     address: str
     decimals: int
-    time: time
+    time: time_object
     symbol: str | None = None
     # hypervisor status
     totalSupply: int | None = None
