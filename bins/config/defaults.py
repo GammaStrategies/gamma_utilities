@@ -489,19 +489,6 @@ USDC_TOKEN_ADDRESSES = {
     #    Chain.CELO:[],
 }
 
-# token without price that need manual conversion to get its value. Specify the address of the corresponding token like, XGAMMA--GAMMA
-TOKEN_ADDRESS_CONVERSION = {
-    Chain.ETHEREUM: {
-        # xGamma--Gamma
-        "0x26805021988F1a45dC708B5FB75Fc75F21747D8c".lower(): "0x6bea7cfef803d1e3d5f7c0103f7ded065644e197".lower(),
-    },
-    Chain.ARBITRUM: {
-        # xRAM--RAM
-        "0xaaa1ee8dc1864ae49185c368e8c64dd780a50fb7".lower(): "0xaaa6c1e32c55a7bfa8066a6fae9b42650f262418".lower()
-    },
-}
-
-
 # exclude list of token addresses
 TOKEN_ADDRESS_EXCLUDE = {
     Chain.POLYGON: {

@@ -4,6 +4,7 @@ import logging
 import time
 
 from ratelimit.exception import RateLimitException
+from bins.config.price.no_priced_tokens import no_priced_token_conversions
 
 from bins.errors.general import ProcessingError
 from ..cache import cache_utilities
@@ -13,7 +14,6 @@ from ..apis.geckoterminal_helper import geckoterminal_price_helper
 from ..configuration import (
     CONFIGURATION,
     DEX_POOLS_PRICE_PATHS,
-    TOKEN_ADDRESS_CONVERSION,
     USDC_TOKEN_ADDRESSES,
 )
 from ..database.common.db_collections_common import database_global
@@ -126,16 +126,18 @@ class price_scraper:
 
         # make address lower case
         token_id = token_id.lower()
-
-        # HARDCODED: change token address if manually specified in configuration
+        no_priced_token_config = None
+        # HARDCODED PRICES: change token address if manually specified in configuration, and apply conversion rate
         try:
             chain = text_to_chain(network)
-            if token_id in TOKEN_ADDRESS_CONVERSION.get(chain, {}):
+            if no_priced_token_config := no_priced_token_conversions(
+                chain=chain, address=token_id
+            ):
                 # change token address
                 logging.getLogger(__name__).debug(
-                    f"  {network} token address {token_id} has changed to {TOKEN_ADDRESS_CONVERSION[chain][token_id]} as set in configuration to gather price of"
+                    f"  {network} token address {token_id} has changed to {no_priced_token_config.converted_token_address} as set in configuration to gather price of"
                 )
-                token_id = TOKEN_ADDRESS_CONVERSION[network][token_id]
+                token_id = no_priced_token_config.converted_token_address
         except Exception as e:
             logging.getLogger(__name__).exception(
                 f" Error while trying to evaluate a change of token address while getting price {e}"
@@ -200,6 +202,10 @@ class price_scraper:
             logging.getLogger(LOG_NAME).warning(
                 f" {network}'s token {token_id} price at block {block} not found"
             )
+
+        if no_priced_token_config:
+            # apply conversion rate
+            _price = _price * no_priced_token_config.conversion_rate
 
         return _price, _source
 
