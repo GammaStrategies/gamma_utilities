@@ -193,6 +193,22 @@ def get_missing_integers(data: list[int], interval: int = 1200) -> list[int]:
     return result_list
 
 
+def create_chunks(min: int, max: int, chunk_size: int) -> list[tuple[int, int]]:
+    """build chunks of data
+
+    Args:
+        min (int): minimum value
+        max (int): maximum value
+        chunk_size (int): size of each chunk
+
+    Returns:
+        list: list of tuples with chunk (start:int, end:int)
+    """
+
+    # create chunks
+    return [(i, i + chunk_size) for i in range(min, max, chunk_size)]
+
+
 # DATETIME
 def convert_string_datetime(string: str) -> dt.datetime:
     if string.lower().strip() == "now":
