@@ -468,6 +468,50 @@ class pool_cached(uniswap.pool.poolv3_cached):
 
     # CUSTOM FUNCTIONS
 
+    def ticks(self, tick: int) -> dict:
+        """
+
+        Args:
+           tick (int):
+
+        Returns:
+           _type_:     liquidityGross   uint128 :  0
+                       liquidityNet   int128 :  0
+                       boostedLiquidityGross   uint128 :  0
+                       boostedLiquidityNet   int128 :  0
+                       feeGrowthOutside0X128   uint256 :  0
+                       feeGrowthOutside1X128   uint256 :  0
+                       tickCumulativeOutside   int56 :  0
+                       secondsPerLiquidityOutsideX128   uint160 :  0
+                       secondsOutside   uint32 :  0
+                       initialized   bool :  false
+        """
+        if result := self.call_function_autoRpc("ticks", None, tick):
+            return {
+                "liquidityGross": result[0],
+                "liquidityNet": result[1],
+                "boostedLiquidityGross": result[2],
+                "boostedLiquidityNet": result[3],
+                "feeGrowthOutside0X128": result[4],
+                "feeGrowthOutside1X128": result[5],
+                "tickCumulativeOutside": result[6],
+                "secondsPerLiquidityOutsideX128": result[7],
+                "secondsOutside": result[8],
+                "initialized": result[9],
+            }
+        else:
+            raise ProcessingError(
+                chain=text_to_chain(self._network),
+                item={
+                    "pool_address": self.address,
+                    "block": self.block,
+                    "object": "pool.ticks",
+                },
+                identity=error_identity.RETURN_NONE,
+                action="",
+                message=f" (ramses pool) ticks function of {self.address} at block {self.block} returned none. (Check contract creation block)",
+            )
+
     def position(self, ownerAddress: str, tickLower: int, tickUpper: int) -> dict:
         """
 
