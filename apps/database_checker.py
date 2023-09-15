@@ -2107,8 +2107,6 @@ def get_all_logfiles(log_names: list = ["error", "debug", "price"]) -> list:
                             any([x.lower() in file.lower() for x in log_names])
                             or len(log_names) == 0
                         ):
-                            #     "debug" in file.lower() or "price" in file.lower()
-                            # ):
                             logfiles.append(os.path.join(root, file))
 
     return logfiles
