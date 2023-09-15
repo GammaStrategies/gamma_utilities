@@ -11,7 +11,7 @@ def calculate_gamma_fee(fee_rate: int, protocol: Protocol) -> float:
     if protocol in [Protocol.CAMELOT, Protocol.RAMSES]:
         return fee_rate / 100
     else:
-        return 1 / fee_rate if fee_rate < 100 else 1 / 10
+        return (1 / fee_rate) if fee_rate < 100 else (1 / 10)
 
 
 def convert_feeProtocol(
