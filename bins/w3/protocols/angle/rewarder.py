@@ -766,7 +766,7 @@ class angle_merkle_distributor_creator(gamma_rewarder):
         }
 
     def isValid_reward_token(self, reward_address: str) -> bool:
-        """Check if rewart token address is a valid enabled address
+        """Check if reward token address is a valid enabled address
 
         Args:
             reward_address (str):

@@ -190,6 +190,11 @@ STATIC_REGISTRY_ADDRESSES = {
         "MasterChefV2Registry": {
             "quickswap": "0x5b8F58a33808222d1fF93C919D330cfA5c8e1B7d".lower(),
         },
+        "angle_merkl": {
+            "distributor": "0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae".lower(),
+            "distributionCreator": "0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd".lower(),
+            "coreMerkl": "0xC16B81Af351BA9e64C1a069E3Ab18c244A1E3049".lower(),
+        },
     },
     "fantom": {
         "hypervisors": {
@@ -224,6 +229,11 @@ STATIC_REGISTRY_ADDRESSES = {
         "synthswap_v1_masterchefs": [
             "0xef153cb7bfc04c657cb7f582c7411556320098b9".lower(),
         ],
+        "angle_merkl": {
+            "distributor": "0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae".lower(),
+            "distributionCreator": "0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd".lower(),
+            "coreMerkl": "0xC16B81Af351BA9e64C1a069E3Ab18c244A1E3049".lower(),
+        },
     },
 }
 
@@ -628,6 +638,9 @@ TOKEN_ADDRESS_CONVERSION = {
 
 # exclude list of token addresses
 TOKEN_ADDRESS_EXCLUDE = {
+    Chain.ETHEREUM: {
+        "0x8d652c6d4a8f3db96cd866c1a9220b1447f29898".lower(): "AnglaMerkl",
+    },
     Chain.POLYGON: {
         "0xd8ef817FFb926370dCaAb8F758DDb99b03591A5e".lower(): "AnglaMerkl",
     },
