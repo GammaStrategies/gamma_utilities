@@ -332,6 +332,8 @@ def create_n_add_reward_static(
 
     rewards_static_lst = []
 
+    # One DEX may have multiple rewarder types
+
     # select reward type to process
     if dex == Protocol.ZYBERSWAP.database_name:
         rewards_static_lst = create_rewards_static_zyberswap(
@@ -361,7 +363,11 @@ def create_n_add_reward_static(
             block=block,
         )
 
-    elif dex in [Protocol.SUSHI.database_name, Protocol.RETRO.database_name]:
+    elif dex in [
+        Protocol.SUSHI.database_name,
+        Protocol.RETRO.database_name,
+        Protocol.UNISWAPv3.database_name,
+    ]:
         rewards_static_lst = create_rewards_static_merkl(
             chain=text_to_chain(network),
             hypervisors=hypervisors,
@@ -378,6 +384,7 @@ def create_n_add_reward_static(
             rewrite=rewrite,
             block=block,
         )
+        # Merkle also ?
 
     elif dex == Protocol.SYNTHSWAP.database_name:
         rewards_static_lst = create_rewards_static_synthswap(
