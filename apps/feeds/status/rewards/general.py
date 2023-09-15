@@ -247,13 +247,6 @@ def create_reward_status_from_hype_status(
         )
         # process error
         process_error(e)
-        # TODO: code
-        # may be better to keep processed items in queue indefinitely
-        # if e.action=="remove":
-        #     # do not remove but set count to 100 to filter those out
-        # #     # create a dummy reward status zero so it gets discarded and not processed again
-        # #     rewards_data = [{"rewards_perSecond":0}]
-        #     pass
 
     except Exception as e:
         logging.getLogger(__name__).exception(

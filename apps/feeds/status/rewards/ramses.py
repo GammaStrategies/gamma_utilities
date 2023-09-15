@@ -28,7 +28,6 @@ def create_rewards_status_ramses(
     Returns:
         list:
     """
-    batch_size = 50000
 
     result = []
     # create ramses hypervisor
@@ -471,6 +470,12 @@ def create_rewards_status_ramses_calculate_apr(
                 )
                 tvl = item["hypervisor"]["tvl"]
 
+            # outlier filter
+            if item["hypervisor"]["totalStaked_tvl"] > 10**9:
+                logging.getLogger(__name__).error(
+                    f" found outlier staked value {item['hypervisor']['totalStaked_tvl']} for {hypervisor_address} using item {item}"
+                )
+
             # set price per share var ( the last will remain)
             hypervisor_share_price_usd = item["hypervisor"]["price_per_share"]
 
@@ -762,6 +767,8 @@ def create_rewards_status_ramses_calculate_apr_otherMethod(
             item["hypervisor"]["price_per_share"] = (
                 item["hypervisor"]["tvl"] / item["hypervisor"]["totalSupply"]
             )
+            # check if the price per share
+
             # calculate how much staked is worth in usd
             item["hypervisor"]["totalStaked_tvl"] = (
                 item["hypervisor"]["totalStaked"]
@@ -775,6 +782,12 @@ def create_rewards_status_ramses_calculate_apr_otherMethod(
                     f" using total supply to calc ramses reward apr because there is no staked value for {hypervisor_address}"
                 )
                 tvl = item["hypervisor"]["tvl"]
+
+            # outlier filter
+            if item["hypervisor"]["totalStaked_tvl"] > 10**9:
+                logging.getLogger(__name__).error(
+                    f" found outlier staked value {item['hypervisor']['totalStaked_tvl']} for {hypervisor_address} using item {item}"
+                )
 
             # set price per share var ( the last will remain)
             hypervisor_share_price_usd = item["hypervisor"]["price_per_share"]
