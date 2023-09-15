@@ -1,5 +1,5 @@
 import logging
-from apps.feeds.status.rewards.utils import (
+from apps.feeds.utils import (
     filter_hypervisor_data_for_apr,
     get_hypervisor_data_for_apr,
     get_reward_pool_prices,
@@ -353,7 +353,7 @@ def create_rewards_status_ramses_get_real_rewards(
     }
 
 
-def create_rewards_status_ramses_calculate_apr_old(
+def create_rewards_status_ramses_calculate_apr(
     hypervisor_address: str,
     network: str,
     block: int,
@@ -658,7 +658,7 @@ def create_rewards_status_ramses_calculate_apr_old(
     return reward_data
 
 
-def create_rewards_status_ramses_calculate_apr(
+def create_rewards_status_ramses_calculate_apr_otherMethod(
     hypervisor_address: str,
     network: str,
     block: int,

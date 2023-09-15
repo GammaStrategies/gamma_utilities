@@ -1,6 +1,6 @@
 import logging
 
-from apps.feeds.status.rewards.utils import add_apr_process01
+from apps.feeds.utils import add_apr_process01
 from bins.general.enums import rewarderType
 from bins.w3.protocols.beamswap.rewarder import beamswap_masterchef_v2
 

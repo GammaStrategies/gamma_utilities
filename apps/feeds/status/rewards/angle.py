@@ -1,7 +1,7 @@
 import logging
 
 
-from apps.feeds.status.rewards.utils import (
+from apps.feeds.utils import (
     filter_hypervisor_data_for_apr,
     get_hypervisor_data_for_apr,
     get_hypervisor_price_per_share,
@@ -699,7 +699,7 @@ def create_rewards_status_calculate_apr(
     return reward_data
 
 
-def create_rewards_status_calculate_apr_new(
+def create_rewards_status_calculate_apr_otherMethod(
     hypervisor_address: str,
     network: str,
     block: int,
@@ -752,14 +752,6 @@ def create_rewards_status_calculate_apr_new(
     # apr
     try:
         # end control vars
-        cummulative_return = {
-            "total_sum": 0,
-            "total_mult": None,
-            "base_sum": 0,
-            "base_mult": None,
-            "boosted_sum": 0,
-            "boosted_mult": None,
-        }
         total_base_rewards = 0
         total_boosted_rewards = 0
         list_of_denominators = []
