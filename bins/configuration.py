@@ -225,6 +225,7 @@ STATIC_REGISTRY_ADDRESSES = {
     "base": {
         "hypervisors": {
             "synthswap": "0x1e86a593e55215957c4755f1be19a229af3286f6".lower(),
+            "sushi": "0x6d5c54F535b073B9C2206Baf721Af2856E5cD683".lower(),
         },
         "synthswap_v1_masterchefs": [
             "0xef153cb7bfc04c657cb7f582c7411556320098b9".lower(),
