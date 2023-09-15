@@ -3,9 +3,14 @@ from decimal import Decimal
 import logging
 
 from bins.database.common.database_ids import create_id_hypervisor_returns
+from bins.database.common.objects.hypervisor import (
+    hypervisor_status,
+    transformer_hypervisor_status,
+)
 from bins.database.helpers import get_price_from_db
 from bins.errors.general import ProcessingError
-from bins.general.enums import Chain, error_identity, text_to_chain
+from bins.formulas.fees import calculate_gamma_fee
+from bins.general.enums import Chain, error_identity, text_to_chain, text_to_protocol
 
 
 @dataclass
@@ -150,6 +155,8 @@ class period_yield_data:
 
     # fees collected during the period ( LPing ) using uncollected fees.
     fees: qtty_usd_yield = None
+    fees_gamma: qtty_usd_yield = None
+    fees_lps: qtty_usd_yield = None
 
     # rewards collected during the period ( LPing ) using uncollected fees. This is not accurate when rewards do not include the "extra" info ( absolute qtty of rewards)
     rewards: rewards_group = None
@@ -369,14 +376,81 @@ class period_yield_data:
     def reset_fees(self):
         self.fees = qtty_usd_yield(qtty=token_group())
 
+        self.fees_gamma = qtty_usd_yield(qtty=token_group())
+        self.fees_lps = qtty_usd_yield(qtty=token_group())
+
     def reset_rewards(self):
         self.rewards = rewards_group()
 
     # check
-    def check_inconsistencies(self):
-        # check impermanent loss per day is reasonable: 0.5% per day
-        if self.period_impermanent_usd > 1500:
-            pass
+    def check_inconsistencies(
+        self,
+        hype_differences: hypervisor_status,
+        network: str | None = None,
+    ):
+        # SUPPLY DIFFERENCE ##########################################################
+        # check if supply at ini and end is the same
+        supply_diff = hype_differences.get_totalSupply_inDecimal()
+        if abs(supply_diff) > Decimal("0.000000999"):
+            # do not process already indentified errors
+            if network == Chain.ETHEREUM.database_name and self.address in [
+                "0xf0a9f5c64f80fa390a46b298791dab9e2bb29bca"  # old visor
+            ]:
+                logging.getLogger(__name__).warning(
+                    f" Hypervisor supply at START differ {supply_diff:,.5%} from END, but hype is identified as old known problem. Skipping."
+                )
+                return
+
+            # raise error to rescrape
+            raise ProcessingError(
+                chain=text_to_chain(network),
+                item={
+                    "hypervisor_address": self.address,
+                    "ini_block": self.timeframe.ini.block,
+                    "end_block": self.timeframe.end.block,
+                    "supply_difference": supply_diff,
+                },
+                identity=error_identity.SUPPLY_DIFFERENCE,
+                action="rescrape",
+                message=f" Hypervisor supply at START differ {supply_diff:,.5%} from END, meaning there are missing operations in between. Rescrape.",
+            )
+        # ###########################################################################
+
+        # PRICES ####################################################################
+        # check if prices are set or can be set from database
+        if not network and (
+            not self.status.ini.prices.token0
+            or not self.status.ini.prices.token1
+            or not self.status.end.prices.token0
+            or not self.status.end.prices.token1
+        ):
+            raise Exception(
+                " Either network variable must be defined or the token prices have to be previously provided using set_prices function "
+            )
+        # ###########################################################################
+
+    def check_fees(
+        self, hypervisor_symbol: str, hypervisor_name: str, dex: str, network: str
+    ):
+        # check for positive fee growth
+        if self.fees.qtty.token0 < 0 or self.fees.qtty.token1 < 0:
+            raise ProcessingError(
+                chain=text_to_chain(network),
+                item={
+                    "hypervisor_address": self.address,
+                    "hypervisor_symbol": hypervisor_symbol,
+                    "hypervisor_name": hypervisor_name,
+                    "dex": dex,
+                    "ini_block": self.timeframe.ini.block,
+                    "end_block": self.timeframe.end.block,
+                    "fees_token0": self.fees.qtty.token0,
+                    "fees_token1": self.fees.qtty.token1,
+                    "description": " Check if it is related to the old visor contract.",
+                },
+                identity=error_identity.NEGATIVE_FEES,
+                action="rescrape",
+                message=f" Fees growth can't be negative and they are [0:{self.fees.qtty.token0} 1:{self.fees.qtty.token1}] for hypervisor {self.address} end block {self.timeframe.end.block}.",
+            )
 
     # SETUP FUNCTIONS
     def set_prices(
@@ -418,13 +492,22 @@ class period_yield_data:
             network (str | None, optional): . Defaults to None.
 
         """
+        # convert hypervisors to objects for easier manipulation
+        _ini_hype = hypervisor_status(
+            transformer=transformer_hypervisor_status, **ini_hype
+        )
+        _end_hype = hypervisor_status(
+            transformer=transformer_hypervisor_status, **end_hype
+        )
+        # calc. hype differences
+        hype_differences = _end_hype - _ini_hype
 
         # setup basic object info
         self.address = end_hype["address"]
         # new timeframe
         self.timeframe = period_timeframe(
-            ini=time_location(timestamp=ini_hype["timestamp"], block=ini_hype["block"]),
-            end=time_location(timestamp=end_hype["timestamp"], block=end_hype["block"]),
+            ini=time_location(timestamp=_ini_hype.timestamp, block=_ini_hype.block),
+            end=time_location(timestamp=_end_hype.timestamp, block=_end_hype.block),
         )
         # new status
         if not self.status:
@@ -437,139 +520,101 @@ class period_yield_data:
             self.reset_rewards()
 
         # set supply
-        self.status.ini.supply = Decimal(ini_hype["totalSupply"]) / (
-            10 ** ini_hype["decimals"]
-        )
-        self.status.end.supply = Decimal(end_hype["totalSupply"]) / (
-            10 ** end_hype["decimals"]
-        )
-        # check if supply at ini and end is the same
-        if abs(self.status.supply_difference) > Decimal("0.000000999"):
-            # do not process already indentified errors
-            if network == Chain.ETHEREUM.database_name and self.address in [
-                "0xf0a9f5c64f80fa390a46b298791dab9e2bb29bca"  # old visor
-            ]:
-                logging.getLogger(__name__).warning(
-                    f" Hypervisor supply at START differ {self.status.supply_difference:,.5%} from END, but hype is identified as old known problem. Skipping."
-                )
-                return
+        self.status.ini.supply = _ini_hype.get_totalSupply_inDecimal()
+        self.status.end.supply = _end_hype.get_totalSupply_inDecimal()
 
-            # raise error to rescrape
-            raise ProcessingError(
-                chain=text_to_chain(network),
-                item={
-                    "hypervisor_address": self.address,
-                    "ini_block": self.timeframe.ini.block,
-                    "end_block": self.timeframe.end.block,
-                    "supply_difference": self.status.supply_difference,
-                },
-                identity=error_identity.SUPPLY_DIFFERENCE,
-                action="rescrape",
-                message=f" Hypervisor supply at START differ {self.status.supply_difference:,.5%} from END, meaning there are missing operations in between. Rescrape.",
-            )
-
-        # check if prices are set or can be set from database
-        if not network and (
-            not self.status.ini.prices.token0
-            or not self.status.ini.prices.token1
-            or not self.status.end.prices.token0
-            or not self.status.end.prices.token1
-        ):
-            raise Exception(
-                " Either network variable must be defined or the token prices have to be previously provided using set_prices function "
-            )
+        # check inconsistencies
+        self.check_inconsistencies(hype_differences=hype_differences, network=network)
 
         # fill missing prices from database
-        if network and not self.status.ini.prices.token0:
-            # get token prices at ini and end blocks from database
-            self.status.ini.prices.token0 = Decimal(
-                str(
-                    get_price_from_db(
-                        network=network,
-                        block=ini_hype["block"],
-                        token_address=ini_hype["pool"]["token0"]["address"],
+        if network:
+            if not self.status.ini.prices.token0:
+                # get token prices at ini and end blocks from database
+                self.status.ini.prices.token0 = Decimal(
+                    str(
+                        get_price_from_db(
+                            network=network,
+                            block=_ini_hype.block,
+                            token_address=_ini_hype.pool.token0.address,
+                        )
                     )
                 )
-            )
-        if network and not self.status.end.prices.token0:
-            self.status.end.prices.token0 = Decimal(
-                str(
-                    get_price_from_db(
-                        network=network,
-                        block=end_hype["block"],
-                        token_address=end_hype["pool"]["token0"]["address"],
+            if not self.status.end.prices.token0:
+                self.status.end.prices.token0 = Decimal(
+                    str(
+                        get_price_from_db(
+                            network=network,
+                            block=_end_hype.block,
+                            token_address=_end_hype.pool.token0.address,
+                        )
                     )
                 )
-            )
-        if network and not self.status.ini.prices.token1:
-            self.status.ini.prices.token1 = Decimal(
-                str(
-                    get_price_from_db(
-                        network=network,
-                        block=ini_hype["block"],
-                        token_address=ini_hype["pool"]["token1"]["address"],
+            if not self.status.ini.prices.token1:
+                self.status.ini.prices.token1 = Decimal(
+                    str(
+                        get_price_from_db(
+                            network=network,
+                            block=_ini_hype.block,
+                            token_address=_ini_hype.pool.token1.address,
+                        )
                     )
                 )
-            )
-        if network and not self.status.end.prices.token1:
-            self.status.end.prices.token1 = Decimal(
-                str(
-                    get_price_from_db(
-                        network=network,
-                        block=end_hype["block"],
-                        token_address=end_hype["pool"]["token1"]["address"],
+            if not self.status.end.prices.token1:
+                self.status.end.prices.token1 = Decimal(
+                    str(
+                        get_price_from_db(
+                            network=network,
+                            block=_end_hype.block,
+                            token_address=_end_hype.pool.token1.address,
+                        )
                     )
                 )
-            )
 
-        # calculate this period's fees:  Sort of fee growth for the period using uncollected fees.
+        # # calculate this period's fees accrued: using uncollected fees
+        (
+            uncollected_fees_gamma,
+            uncollected_fees_lps,
+        ) = hype_differences.get_fees_uncollected()
+        # gamma fees
+        self.fees_gamma.qtty.token0 = uncollected_fees_gamma.token0
+        self.fees_gamma.qtty.token1 = uncollected_fees_gamma.token1
+        # lps fees
+        self.fees_lps.qtty.token0 = uncollected_fees_lps.token0
+        self.fees_lps.qtty.token1 = uncollected_fees_lps.token1
+        # total fees
         self.fees.qtty.token0 = (
-            Decimal(end_hype["fees_uncollected"]["qtty_token0"])
-            - Decimal(ini_hype["fees_uncollected"]["qtty_token0"])
-        ) / (10 ** ini_hype["pool"]["token0"]["decimals"])
+            uncollected_fees_gamma.token0 + uncollected_fees_lps.token0
+        )
         self.fees.qtty.token1 = (
-            Decimal(end_hype["fees_uncollected"]["qtty_token1"])
-            - Decimal(ini_hype["fees_uncollected"]["qtty_token1"])
-        ) / (10 ** ini_hype["pool"]["token1"]["decimals"])
+            uncollected_fees_gamma.token1 + uncollected_fees_lps.token1
+        )
 
-        # check for positive fee growth
-        if self.fees.qtty.token0 < 0 or self.fees.qtty.token1 < 0:
-            raise ProcessingError(
-                chain=text_to_chain(network),
-                item={
-                    "hypervisor_address": self.address,
-                    "hypervisor_symbol": end_hype["symbol"],
-                    "hypervisor_name": end_hype["name"],
-                    "dex": end_hype["dex"],
-                    "ini_block": self.timeframe.ini.block,
-                    "end_block": self.timeframe.end.block,
-                    "fees_token0": self.fees.qtty.token0,
-                    "fees_token1": self.fees.qtty.token1,
-                    "description": " Check if it is related to the old visor contract.",
-                },
-                identity=error_identity.NEGATIVE_FEES,
-                action="rescrape",
-                message=f" Fees growth can't be negative and they are [0:{self.fees.qtty.token0} 1:{self.fees.qtty.token1}] for hypervisor {self.address} end block {self.timeframe.end.block}.",
-            )
+        # check fees
+        self.check_fees(
+            hypervisor_symbol=hype_differences.symbol,
+            hypervisor_name=hype_differences.name,
+            dex=hype_differences.dex.database_name,
+            network=network,
+        )
 
         # get collected fees within the period, if any
-        if ini_hype["operations"]:
+        if _ini_hype.operations:
             # initialize control vars
             lastperiod_fees_token0_collected = Decimal("0")
             lastperiod_fees_token1_collected = Decimal("0")
-            for operation in ini_hype["operations"]:
-                if operation["topic"] in ["rebalance", "zeroBurn"]:
+            for operation in _ini_hype.operations:
+                if operation.topic in ["rebalance", "zeroBurn"]:
                     # add collected fees to control vars
                     lastperiod_fees_token0_collected += Decimal(
                         str(
-                            int(operation["qtty_token0"])
-                            / (10 ** operation["decimals_token0"])
+                            int(operation.qtty_token0)
+                            / (10**operation.decimals_token0)
                         )
                     )
                     lastperiod_fees_token1_collected += Decimal(
                         str(
-                            int(operation["qtty_token1"])
-                            / (10 ** operation["decimals_token1"])
+                            int(operation.qtty_token1)
+                            / (10**operation.decimals_token1)
                         )
                     )
 
@@ -581,25 +626,15 @@ class period_yield_data:
                 )
             )
 
+        # get underlying qtty: LP's underlying qtty only ( so uncollected Gamma fees are not included in the underlying qtty)
+        _underlying_ini = _ini_hype.get_underlying_value(inDecimal=True)
+        _underlying_end = _end_hype.get_underlying_value(inDecimal=True)
         # initial underlying ( including fees uncollected )
-        self.status.ini.underlying.qtty.token0 = (
-            Decimal(ini_hype["totalAmounts"]["total0"])
-            + Decimal(ini_hype["fees_uncollected"]["qtty_token0"])
-        ) / (10 ** ini_hype["pool"]["token0"]["decimals"])
-        self.status.ini.underlying.qtty.token1 = (
-            Decimal(ini_hype["totalAmounts"]["total1"])
-            + Decimal(ini_hype["fees_uncollected"]["qtty_token1"])
-        ) / (10 ** ini_hype["pool"]["token1"]["decimals"])
-
-        # end underlying can differ from ini tvl when asset prices or weights change
-        self.status.end.underlying.qtty.token0 = (
-            Decimal(end_hype["totalAmounts"]["total0"])
-            + Decimal(end_hype["fees_uncollected"]["qtty_token0"])
-        ) / (10 ** end_hype["pool"]["token0"]["decimals"])
-        self.status.end.underlying.qtty.token1 = (
-            Decimal(end_hype["totalAmounts"]["total1"])
-            + Decimal(end_hype["fees_uncollected"]["qtty_token1"])
-        ) / (10 ** end_hype["pool"]["token1"]["decimals"])
+        self.status.ini.underlying.qtty.token0 = _underlying_ini.token0
+        self.status.ini.underlying.qtty.token1 = _underlying_ini.token1
+        # end underlying ( including fees uncollected ) : can differ from ini tvl when asset prices or weights change
+        self.status.end.underlying.qtty.token0 = _underlying_end.token0
+        self.status.end.underlying.qtty.token1 = _underlying_end.token1
 
         # Yield percentage
         self.fees.period_yield = (
@@ -644,10 +679,8 @@ class period_yield_data:
             usd=Decimal("0"), period_yield=Decimal("0"), details=[]
         )
         # init cumulative rewards
-        apr_cumulative = Decimal("0")
-        apr_cumulative_multiplier = None
-        apy_cumulative = Decimal("0")
-        apy_cumulative_multiplier = None
+        yield_cumulative = Decimal("0")
+        total_period_seconds = 0
 
         # process grouped rewards
         for item in grouped_rewards.values():
@@ -668,6 +701,8 @@ class period_yield_data:
                 raise ValueError(
                     f" Rewards period differs from expected. Expected: {self.period_seconds} seconds. Found: {period_seconds} seconds."
                 )
+            # add seconds to total
+            total_period_seconds += period_seconds
 
             # calculate rewards qtty
             _period_rewards_qtty = 0
@@ -714,11 +749,13 @@ class period_yield_data:
                 int(ini_reward["total_hypervisorToken_qtty"]) / (10**18)
             ) * ini_reward["hypervisor_share_price_usd"]
             # when there is no staked value, use total supply
-            total_staked_usd = (
-                self.status.ini.supply * ini_reward["hypervisor_share_price_usd"]
-                if not total_staked_usd
-                else total_staked_usd
-            )
+            if not total_staked_usd:
+                logging.getLogger(__name__).warning(
+                    f" No staked value found processing return rewards for {self.address}. Using total supply."
+                )
+                total_staked_usd = (
+                    self.status.ini.supply * ini_reward["hypervisor_share_price_usd"]
+                )
 
             # add reward detail to self
             self.rewards.details.append(
@@ -783,27 +820,23 @@ class period_yield_data:
                             ]["counter"] += 1
 
             # add apr and apy to cumulative
-            apr_cumulative += Decimal(str(item["end"]["apr"]))
-            if not apr_cumulative_multiplier:
-                apr_cumulative_multiplier = Decimal(str(end_reward["apr"]))
+            # add to cumulative yield
+            if yield_cumulative:
+                yield_cumulative *= 1 + Decimal(
+                    str(_period_rewards_usd / total_staked_usd)
+                )
             else:
-                apr_cumulative_multiplier *= Decimal(str(end_reward["apr"]))
-
-            apy_cumulative += Decimal(str(item["end"]["apy"]))
-            if not apy_cumulative_multiplier:
-                apy_cumulative_multiplier = Decimal(str(end_reward["apy"]))
-            else:
-                apy_cumulative_multiplier *= Decimal(str(end_reward["apy"]))
+                yield_cumulative = 1 + Decimal(
+                    str(_period_rewards_usd / total_staked_usd)
+                )
 
         # Yield percentage: percentage of total value staked at ini
 
-        if apr_cumulative:
-            # apr_cumulative += apr_cumulative_multiplier
-            self.rewards.period_yield = apr_cumulative + apr_cumulative_multiplier
-
-        # self.rewards.period_yield = (
-        #     self.rewards.usd / self.ini_underlying_usd if self.ini_underlying_usd else 0
-        # )
+        if yield_cumulative:
+            day_in_seconds = 24 * 60 * 60
+            year_in_seconds = 365 * day_in_seconds
+            yield_cumulative -= 1
+            self.rewards.period_yield = yield_cumulative
 
     # CONVERTER
     def to_dict(self) -> dict:

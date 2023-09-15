@@ -2,6 +2,7 @@ from decimal import Decimal
 import logging
 import time
 from apps.feeds.operations import feed_operations
+from apps.feeds.utils import filter_hypervisor_data_for_apr, get_hypervisor_data_for_apr
 from bins.database.helpers import (
     get_default_globaldb,
     get_default_localdb,
@@ -10,6 +11,7 @@ from bins.database.helpers import (
 from bins.errors.actions import process_error
 from bins.errors.general import ProcessingError
 from bins.general.enums import Chain, Protocol, error_identity
+from bins.general.general_utilities import create_chunks
 from bins.w3.builders import build_db_hypervisor
 
 from .objects import period_yield_data
@@ -62,16 +64,18 @@ def create_hypervisor_returns(
         }
 
         if len(ordered_hype_status_list):
-            # check if we need another hype status with current latest data
-            if last_hype_status := get_last_returns_source_data(
-                chain=chain,
-                hipervisor_status=ordered_hype_status_list[-1],
-                timestamp_end=timestamp_end,
-            ):
-                logging.getLogger(__name__).debug(
-                    f" Added a last hype status at block {last_hype_status['block']}"
-                )
-                ordered_hype_status_list.append(last_hype_status)
+            # do not continue if the list has an even number of items ( we need pairs of initial and end values)
+            if len(ordered_hype_status_list) % 2 != 0:
+                # check if we need another hype status with current latest data
+                if last_hype_status := get_last_returns_source_data(
+                    chain=chain,
+                    hipervisor_status=ordered_hype_status_list[-1],
+                    timestamp_end=timestamp_end,
+                ):
+                    logging.getLogger(__name__).debug(
+                        f" Added a last hype status at block {last_hype_status['block']}"
+                    )
+                    ordered_hype_status_list.append(last_hype_status)
 
         # NOT USEFUL:
         # calculate the number of seconds from defined ini_timestamp/block to first item found
@@ -152,7 +156,6 @@ def create_hypervisor_returns(
                             ),
                             position="end",
                         )
-
                     except Exception as e:
                         # it will be filled later
                         pass
@@ -238,6 +241,13 @@ def create_hypervisor_returns(
 
             # set lastitem
             last_item = data
+
+    else:
+        logging.getLogger(__name__).info(
+            f" No data found to calculate hypervisor returns for {chain.database_name}'s {hypervisor_address}"
+        )
+        # ??
+        # TODO: create one item at ini and end to get fee + ireturns
 
     # check for inconsistencies in the impermanent loss figures to identify token price errors
     # if list_impermament := [
@@ -396,22 +406,6 @@ def save_hypervisor_returns_to_database(
         )
 
 
-def create_chunks(min: int, max: int, chunk_size: int) -> list[tuple[int, int]]:
-    """build chunks of data
-
-    Args:
-        min (int): minimum value
-        max (int): maximum value
-        chunk_size (int): size of each chunk
-
-    Returns:
-        list: list of tuples with chunk (start:int, end:int)
-    """
-
-    # create chunks
-    return [(i, i + chunk_size) for i in range(min, max, chunk_size)]
-
-
 def get_returns_source_data(
     chain: Chain,
     hypervisor_address: str,
@@ -423,118 +417,34 @@ def get_returns_source_data(
     """Get hypervisor data to create returns from database using chunks to avoid 16Mb errors
 
     Args:
-        chain (Chain): _description_
-        hypervisor_address (str): _description_
-        timestamp_ini (int | None, optional): _description_. Defaults to None.
-        timestamp_end (int | None, optional): _description_. Defaults to None.
-        block_ini (int | None, optional): _description_. Defaults to None.
-        block_end (int | None, optional): _description_. Defaults to None.
+        chain (Chain):
+        hypervisor_address (str):
+        timestamp_ini (int | None, optional): . Defaults to None.
+        timestamp_end (int | None, optional): . Defaults to None.
+        block_ini (int | None, optional): . Defaults to None.
+        block_end (int | None, optional): . Defaults to None.
 
     Returns:
         list[dict]: list of hypervisor status
     """
 
-    batch_size = 50000
-
     # try getting data directly from database
-    try:
-        # build query (ease debuging)
-        query = get_default_localdb(
-            network=chain.database_name
-        ).query_locs_apr_hypervisor_data_calculation(
-            hypervisor_address=hypervisor_address,
-            timestamp_ini=timestamp_ini,
-            timestamp_end=timestamp_end,
-            block_ini=block_ini,
-            block_end=block_end,
+    if ordered_hype_status_list := get_hypervisor_data_for_apr(
+        network=chain.database_name,
+        hypervisor_address=hypervisor_address,
+        timestamp_ini=timestamp_ini,
+        timestamp_end=timestamp_end,
+        block_ini=block_ini,
+        block_end=block_end,
+    ):
+        # filter result
+        ordered_hype_status_list = filter_hypervisor_data_for_apr(
+            data=ordered_hype_status_list
         )
-        # get a list of custom ordered hype status
-        ordered_hype_status_list = get_from_localdb(
-            network=chain.database_name,
-            collection="operations",
-            aggregate=query,
-            batch_size=batch_size,
-        )
-        if ordered_hype_status_list:
-            return ordered_hype_status_list[0]["status"]
-        else:
-            return []
-    except Exception as e:
-        logging.getLogger(__name__).error(
-            f" Error getting {hypervisor_address} hype data to construct returns from { 'blocks' if block_ini and block_end else 'timestamps'} {block_ini if block_ini else timestamp_ini} to {block_end if block_end else timestamp_end}. Trying to slice it in chunks."
-        )
-
-    result = {}
-    #
-    # create chunks of timeframes to process so that we don't receive 16Mb errors
-    # when quering mongodb
-    # try to avoid 16Mb errors by slicing the query in small chunks
-    chunks = [(None, None, None, None)]
-    timestamp_chunk_size = 60 * 60 * 24 * 30 * 1  # 1 month
-    block_chunk_size = 1000000
-    # create chunks of timeframes to process so that we don't receive 16Mb errors
-    # when quering mongodb
-    if timestamp_ini and timestamp_end:
-        if timestamp_end - timestamp_ini > timestamp_chunk_size:
-            # create chunks
-            chunks = [
-                (_ini, _end, None, None)
-                for _ini, _end, in create_chunks(
-                    min=int(timestamp_ini),
-                    max=int(timestamp_end),
-                    chunk_size=timestamp_chunk_size,
-                )
-            ]
-        else:
-            chunks = [(timestamp_ini, timestamp_end, None, None)]
-        logging.getLogger(__name__).debug(
-            f" {len(chunks)} chunks of timestamps created to build returns data. Defined chunk size: {timestamp_chunk_size}"
-        )
-
-    elif block_ini and block_end:
-        if block_end - block_ini > block_chunk_size:
-            # create chunks
-            chunks = [
-                (None, None, _ini, _end)
-                for _ini, _end in create_chunks(
-                    min=block_ini, max=block_end, chunk_size=block_chunk_size
-                )
-            ]
-        else:
-            chunks = [(None, None, block_ini, block_end)]
-
-        logging.getLogger(__name__).debug(
-            f" {len(chunks)} chunks of blocks created to build returns data. Defined chunk size: {block_chunk_size}"
-        )
-    _start_time = time.time()
-    for t_ini, t_end, b_ini, b_end in chunks:
-        # build query (ease debuging)
-        query = get_default_localdb(
-            network=chain.database_name
-        ).query_locs_apr_hypervisor_data_calculation(
-            hypervisor_address=hypervisor_address,
-            timestamp_ini=t_ini,
-            timestamp_end=t_end,
-            block_ini=b_ini,
-            block_end=b_end,
-        )
-        # get a list of custom ordered hype status
-        if ordered_hype_status_list := get_from_localdb(
-            network=chain.database_name,
-            collection="operations",
-            aggregate=query,
-            batch_size=batch_size,
-        ):
-            # add to result if id does not exist
-            for hype_status in ordered_hype_status_list[0]["status"]:
-                if not hype_status["id"] in result:
-                    result[hype_status["id"]] = hype_status
-
-    logging.getLogger(__name__).debug(
-        f"  chunk process->  {len(result)} items found in {time.time() - _start_time} seconds"
-    )
-    # convert result to list and return
-    return list(result.values())
+        # return the status for the specified hype
+        return ordered_hype_status_list[0]["status"]
+    else:
+        return []
 
 
 def get_last_returns_source_data(
@@ -544,6 +454,13 @@ def get_last_returns_source_data(
 ):
     # check if timestamp end is close to current time ( last 24h)
     if timestamp_end and timestamp_end > int(time.time()) - 60 * 60 * 24:
+        # check if last hypervisor status is to close to current time ( >60 minutes)
+        if hipervisor_status["timestamp"] >= int(time.time()) - 60 * 60:
+            logging.getLogger(__name__).debug(
+                f"   last hypervisor status is to close to current time ( 60 minutes)."
+            )
+            return {}
+
         # build the latest hypervisor status
         if result := build_db_hypervisor(
             address=hipervisor_status["address"],

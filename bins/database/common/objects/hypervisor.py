@@ -1,7 +1,11 @@
+from copy import copy, deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 import logging
+
+from bins.formulas.fees import calculate_gamma_fee
+from bins.general.enums import text_to_protocol
 
 from .general import dict_to_object, token_group
 
@@ -167,6 +171,150 @@ class positions:
 # protocol | dex
 
 
+def transformer_hypervisor_status(value, key: str):
+    # convert bson objectID
+    if isinstance(value, str):
+        # check if string is float or int
+        try:
+            return int(value)
+        except Exception:
+            try:
+                return float(value)
+            except Exception:
+                pass
+        # check if string is objectID
+        if key in ["qtty_token0", "qtty_token1"]:
+            return float(value)
+        if key in ["decimals", "block", "timestamp"]:
+            return int(value)
+
+        if key == "dex":
+            # convert dex to protocol
+            return text_to_protocol(value)
+
+        # is actually a string
+        return value
+    else:
+        return value
+
+
+def transformer_clean_all(value, key: str):
+    """All values go to zero of ''"""
+
+    # convert bson objectID
+    if isinstance(value, str):
+        return ""
+    elif isinstance(value, float):
+        return 0.0
+    elif isinstance(value, Decimal):
+        return Decimal("0")
+    else:
+        return value
+
+
 class hypervisor_status(dict_to_object):
     def post_init(self):
         pass
+
+    # inDecimal format
+    def get_totalSupply_inDecimal(self) -> Decimal:
+        return Decimal(str(self.totalSupply)) / (10**self.pool.token0.decimals)
+
+    # fees
+    def get_protocol_fee(self) -> float:
+        """Return Gamma's fee protocol percentage over accrued fees by the positions
+
+        Returns:
+            float: gamma fee percentage
+        """
+        return calculate_gamma_fee(
+            fee_rate=self.fee, protocol=text_to_protocol(self.dex)
+        )
+
+    def get_fees_uncollected(
+        self, inDecimal: bool = True
+    ) -> tuple[token_group, token_group]:
+        """Return Gamma and LPs fees splited from uncollected fees
+
+        Returns:
+            tuple[gamma_fees, lp_fees]: fees split between Gamma and LPs
+        """
+
+        # gamma protocolFee
+        _gamma_feeProtocol = self.get_protocol_fee()
+        _gamma_fees = token_group(
+            token0=self.fees_uncollected.qtty_token0 * _gamma_feeProtocol,
+            token1=self.fees_uncollected.qtty_token1 * _gamma_feeProtocol,
+        )
+
+        # LPs fee
+        _lp_fees = token_group(
+            token0=self.fees_uncollected.qtty_token0 - _gamma_fees.token0,
+            token1=self.fees_uncollected.qtty_token1 - _gamma_fees.token1,
+        )
+
+        # check that fees sum are equal to uncollected fees
+        if (
+            _gamma_fees.token0 + _gamma_fees.token1 + _lp_fees.token0 + _lp_fees.token1
+            != self.fees_uncollected.qtty_token0 + self.fees_uncollected.qtty_token1
+        ):
+            logging.getLogger(__name__).error(
+                f" Fees sum error: {_gamma_fees.token0 + _gamma_fees.token1 + _lp_fees.token0 + _lp_fees.token1} != {self.fees_uncollected.qtty_token0 + self.fees_uncollected.qtty_token1}"
+            )
+
+        if inDecimal:
+            # convert to decimals
+            _gamma_fees.token0 = (
+                Decimal(str(_gamma_fees.token0)) / 10**self.pool.token0.decimals
+            )
+            _gamma_fees.token1 = (
+                Decimal(str(_gamma_fees.token1)) / 10**self.pool.token1.decimals
+            )
+            _lp_fees.token0 = (
+                Decimal(str(_lp_fees.token0)) / 10**self.pool.token0.decimals
+            )
+            _lp_fees.token1 = (
+                Decimal(str(_lp_fees.token1)) / 10**self.pool.token1.decimals
+            )
+
+        return _gamma_fees, _lp_fees
+
+    def get_underlying_value(self, inDecimal: bool = True) -> token_group:
+        """LPs underlying value, uncollected fees included
+
+        Args:
+            inDecimal (bool, optional): . Defaults to True.
+
+        Returns:
+            token_group: hypervisor underlying value qtty
+        """
+
+        # get uncollected fees
+        _gamma_uncollected_fees, _lp_uncollected_fees = self.get_fees_uncollected(
+            inDecimal=False
+        )
+
+        # get totalAmounts
+        _totalAmounts = token_group(
+            token0=self.totalAmounts.total0 + _lp_uncollected_fees.token0,
+            token1=self.totalAmounts.total1 + _lp_uncollected_fees.token1,
+        )
+
+        if inDecimal:
+            # convert to decimals
+            _totalAmounts.token0 = (
+                Decimal(str(_totalAmounts.token0)) / 10**self.pool.token0.decimals
+            )
+            _totalAmounts.token1 = (
+                Decimal(str(_totalAmounts.token1)) / 10**self.pool.token1.decimals
+            )
+
+        return _totalAmounts
+
+    def pre_subtraction(self, key: str, value: any):
+        """Be aware that nested variables will not be considered hypervisor status so
+        will never go thru this function--> use dict_object pre_subtraction instead
+
+        """
+        # call super pre_subtraction function
+        return super().pre_subtraction(key=key, value=value)

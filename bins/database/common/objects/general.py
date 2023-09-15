@@ -1,5 +1,7 @@
+from copy import deepcopy
 from dataclasses import dataclass
 from decimal import Decimal
+import logging
 
 from bson import ObjectId
 
@@ -77,37 +79,21 @@ def filter_mongodb(obj, key: str | None = None):
         return str(obj)
 
 
-def transformer_hypervisor_status(value, key: str):
-    # convert bson objectID
-    if isinstance(value, str):
-        # check if string is float or int
-        try:
-            return int(value)
-        except Exception:
-            try:
-                return float(value)
-            except Exception:
-                pass
-        # check if string is objectID
-        if key in ["qtty_token0", "qtty_token1"]:
-            return float(value)
-        if key in ["decimals", "block", "timestamp"]:
-            return int(value)
-
-
 class dict_to_object:
     def __init__(self, transformer: callable = None, **kwargs):
         for key, value in kwargs.items():
             if isinstance(value, dict):
-                self.__dict__[key] = dict_to_object(**value)
+                self.__dict__[key] = dict_to_object(transformer, **value)
             elif hasattr(value, "__iter__") and not isinstance(value, str):
                 self.__dict__[key] = []
                 for v in value:
                     if isinstance(v, dict):
-                        self.__dict__[key].append(dict_to_object(**v))
+                        self.__dict__[key].append(dict_to_object(transformer, **v))
                     elif isinstance(v, list):
-                        self.__dict__[key].append(dict_to_object(*v))
+                        self.__dict__[key].append(dict_to_object(transformer, *v))
                     else:
+                        if transformer:
+                            v = transformer(value=v, key=key)
                         self.__dict__[key].append(v)
 
             else:
@@ -115,3 +101,54 @@ class dict_to_object:
                 if transformer:
                     value = transformer(value=value, key=key)
                 self.__dict__[key] = value
+
+    def pre_subtraction(self, key: str, value: any):
+        """Called before the subtraction of two objects properties
+
+        Args:
+            key (str):
+            value (any):
+
+        Returns:
+            any: a processed value or None
+        """
+
+        if key == "_id":
+            return value
+        elif key in ["fee", "decimals"]:
+            return value
+
+        if isinstance(value, str):
+            # keep the value
+            return value
+        if isinstance(value, list):
+            # keep the value
+            return value
+
+        return None
+
+    def __sub__(self, other):
+        # create new object
+        result = deepcopy(self)
+        # loop thru all properties and substract from other object properties
+        for key, value in result.__dict__.items():
+            # check if property exists in other object
+            if key in other.__dict__:
+                _value_processed = self.pre_subtraction(key=key, value=value)
+                if _value_processed != None:
+                    result.__dict__[key] = _value_processed
+                    # if processed, continue
+                    continue
+
+                # substract properties and set result
+                try:
+                    result.__dict__[key] = value - other.__dict__[key]
+                except Exception as e:
+                    logging.getLogger(__name__).exception(
+                        f" Error substracting {key}: {e}"
+                    )
+                    result.__dict__[key] = value
+            else:
+                raise Exception(f"Property {key} not found in object to substract from")
+
+        return result
