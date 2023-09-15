@@ -87,6 +87,10 @@ def build_angle_merkle_rewards_status(
                     break
 
             # limit the list items to select ( should be even number)
+            if not min_items:
+                # avoid None error
+                min_items = max_items
+
             max_items = max(
                 min_items,
                 (
@@ -95,6 +99,7 @@ def build_angle_merkle_rewards_status(
                     else len(_ordered_hype_status_db["status"])
                 ),
             )
+
             # get the last max_items from the list
             filtered_status_list = _ordered_hype_status_db["status"][-max_items:]
 
