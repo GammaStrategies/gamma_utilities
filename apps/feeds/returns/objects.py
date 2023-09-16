@@ -4,7 +4,7 @@ import logging
 
 from bins.database.common.database_ids import create_id_hypervisor_returns
 from bins.database.common.objects.hypervisor import (
-    hypervisor_status,
+    hypervisor_status_object,
     transformer_hypervisor_status,
 )
 from bins.database.helpers import get_price_from_db
@@ -385,7 +385,7 @@ class period_yield_data:
     # check
     def check_inconsistencies(
         self,
-        hype_differences: hypervisor_status,
+        hype_differences: hypervisor_status_object,
         network: str | None = None,
     ):
         # SUPPLY DIFFERENCE ##########################################################
@@ -493,10 +493,10 @@ class period_yield_data:
 
         """
         # convert hypervisors to objects for easier manipulation
-        _ini_hype = hypervisor_status(
+        _ini_hype = hypervisor_status_object(
             transformer=transformer_hypervisor_status, **ini_hype
         )
-        _end_hype = hypervisor_status(
+        _end_hype = hypervisor_status_object(
             transformer=transformer_hypervisor_status, **end_hype
         )
         # calc. hype differences

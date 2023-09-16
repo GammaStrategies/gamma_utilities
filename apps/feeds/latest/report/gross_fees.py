@@ -2,7 +2,7 @@ from datetime import datetime
 import logging
 from bins.database.common.db_collections_common import db_collections_common
 from bins.database.common.objects.hypervisor import time_object, timeframe_object
-from bins.database.common.objects.reports import report
+from bins.database.common.objects.reports import report_object
 from bins.database.helpers import (
     get_latest_prices_from_db,
     get_from_localdb,
@@ -22,7 +22,7 @@ from bins.w3.builders import build_erc20_helper, build_hypervisor
 def feed_report_ramses_gross_fees(
     chain: Chain,
     periods_back: int = 3,
-) -> list[report]:
+) -> list[report_object]:
     """
 
     Args:
@@ -72,7 +72,7 @@ def feed_report_ramses_gross_fees(
                 end_timestamp=period["end"],
                 token_prices=token_prices,
             ):
-                rep = report(
+                rep = report_object(
                     type=reportType.GROSS_FEES,
                     protocol=Protocol.RAMSES,
                     timeframe=timeframe_object(

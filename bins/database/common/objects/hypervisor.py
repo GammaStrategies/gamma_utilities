@@ -7,56 +7,7 @@ import logging
 from bins.formulas.fees import calculate_gamma_fee
 from bins.general.enums import text_to_protocol
 
-from .general import dict_to_object, token_group
-
-
-# def convert_object_to_dict(obj, key: str | None = None, filter: callable = None):
-#     """Object to dict converter
-
-#     Args:
-#         obj ():
-#         key (str, optional): . Defaults to None.
-
-#     Returns:
-#         dict | list | str | int | float | bool ...:
-#     """
-#     if isinstance(obj, dict):
-#         data = {}
-#         for k, v in obj.items():
-#             data[k] = convert_object_to_dict(obj=v, key=key, filter=filter)
-#         return data
-#     elif hasattr(obj, "_ast"):
-#         return convert_object_to_dict(obj=obj._ast(), key=key, filter=filter)
-#     elif hasattr(obj, "__iter__") and not isinstance(obj, str):
-#         return [convert_object_to_dict(obj=v, key=key, filter=filter) for v in obj]
-#     elif hasattr(obj, "__dict__"):
-#         data = dict(
-#             [
-#                 (key, convert_object_to_dict(obj=value, key=key, filter=filter))
-#                 for key, value in obj.__dict__.items()
-#                 if not callable(value) and not key.startswith("_")
-#             ]
-#         )
-#         if key is not None and hasattr(obj, "__class__"):
-#             data[key] = obj.__class__.__name__
-#         return data
-#     # ------------------ #
-#     # custom conversions #
-#     # ------------------ #
-#     else:
-#         if isinstance(obj, datetime):
-#             return obj.strftime("%Y-%m-%d %H:%M:%S%z")
-#         elif filter:
-#             # apply filter
-#             return filter(obj, key)
-
-#         return obj
-# def filter_mongodb(obj, key: str | None = None):
-#     """Object to dict filter for mongodb objects"""
-
-#     # convert any int [not timestamp nor block] to avoid mongoDB 8bit errors
-#     if isinstance(obj, int) and key not in ["timestamp", "block"]:
-#         return str(obj)
+from .general import dict_to_object, token_group_object
 
 
 @dataclass
@@ -106,23 +57,23 @@ class token:
 
 
 @dataclass
-class fees:
-    uncollected: token_group
+class fees_object:
+    uncollected: token_group_object
 
 
 @dataclass
-class position:
+class position_object:
     liquidity: int
-    qtty: token_group
+    qtty: token_group_object
     lowerTick: int
     upperTick: int
-    fees: fees
+    fees: fees_object
 
 
 @dataclass
-class positions:
-    base: position | None = None
-    limit: position | None = None
+class positions_object:
+    base: position_object | None = None
+    limit: position_object | None = None
 
 
 # address
@@ -212,7 +163,7 @@ def transformer_clean_all(value, key: str):
         return value
 
 
-class hypervisor_status(dict_to_object):
+class hypervisor_status_object(dict_to_object):
     def post_init(self):
         pass
 
@@ -253,7 +204,7 @@ class hypervisor_status(dict_to_object):
 
     def get_fees_uncollected(
         self, inDecimal: bool = True
-    ) -> tuple[token_group, token_group]:
+    ) -> tuple[token_group_object, token_group_object]:
         """Return Gamma and LPs fees splited from uncollected fees
 
         Returns:
@@ -262,13 +213,13 @@ class hypervisor_status(dict_to_object):
 
         # gamma protocolFee
         _gamma_feeProtocol = self.get_protocol_fee()
-        _gamma_fees = token_group(
+        _gamma_fees = token_group_object(
             token0=self.fees_uncollected.qtty_token0 * _gamma_feeProtocol,
             token1=self.fees_uncollected.qtty_token1 * _gamma_feeProtocol,
         )
 
         # LPs fee
-        _lp_fees = token_group(
+        _lp_fees = token_group_object(
             token0=self.fees_uncollected.qtty_token0 - _gamma_fees.token0,
             token1=self.fees_uncollected.qtty_token1 - _gamma_fees.token1,
         )
@@ -299,7 +250,7 @@ class hypervisor_status(dict_to_object):
 
         return _gamma_fees, _lp_fees
 
-    def get_underlying_value(self, inDecimal: bool = True) -> token_group:
+    def get_underlying_value(self, inDecimal: bool = True) -> token_group_object:
         """LPs underlying value, uncollected fees included
 
         Args:
@@ -315,7 +266,7 @@ class hypervisor_status(dict_to_object):
         )
 
         # get totalAmounts
-        _totalAmounts = token_group(
+        _totalAmounts = token_group_object(
             token0=self.totalAmounts.total0 + _lp_uncollected_fees.token0,
             token1=self.totalAmounts.total1 + _lp_uncollected_fees.token1,
         )

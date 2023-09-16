@@ -4,7 +4,7 @@ from .hypervisor import timeframe_object
 
 
 @dataclass
-class report:
+class report_object:
     type: reportType
     protocol: Protocol | None = None
     timeframe: timeframe_object | None = None

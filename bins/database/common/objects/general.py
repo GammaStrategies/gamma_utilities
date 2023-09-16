@@ -7,7 +7,7 @@ from bson import ObjectId
 
 
 @dataclass
-class token_group:
+class token_group_object:
     token0: int | Decimal = None
     token1: int | Decimal = None
 
