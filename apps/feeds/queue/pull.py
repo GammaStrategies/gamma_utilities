@@ -111,13 +111,6 @@ def process_queue_item_type(network: str, queue_item: QueueItem) -> bool:
         bool: processed successfully or not
     """
 
-    # check if queue item has been processed more than 10 times, and return if so
-    # if queue_item.count > 10:
-    #     logging.getLogger(__name__).error(
-    #         f" {network}'s queue item {queue_item.id} has been processed more than 10 times unsuccessfully. Skipping ( check it manually)"
-    #     )
-    #     return False
-
     if queue_item.can_be_processed == False:
         logging.getLogger(__name__).error(
             f" {network}'s queue item {queue_item.id} cannot be processed yet (more cooldown time defined). Will be processed later"
