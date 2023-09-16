@@ -73,32 +73,30 @@ def create_priority_queueItemType() -> list[list[queueItemType]]:
         queueItemType
     )
 
-    custom_level0 = [
-        queueItemType.OPERATION,
-        queueItemType.BLOCK,
-        queueItemType.HYPERVISOR_STATUS,
-        queueItemType.HYPERVISOR_STATIC,
-    ]
     types_combination = {
         queueItemType.OPERATION: [queueItemType.BLOCK],
         queueItemType.BLOCK: [queueItemType.OPERATION],
         queueItemType.HYPERVISOR_STATUS: [
-            queueItemType.OPERATION,
             queueItemType.BLOCK,
             queueItemType.HYPERVISOR_STATIC,
         ],
-        queueItemType.HYPERVISOR_STATIC: [
-            queueItemType.OPERATION,
+        # only do price when price
+        queueItemType.PRICE: [],
+        queueItemType.LATEST_MULTIFEEDISTRIBUTION: [
             queueItemType.BLOCK,
             queueItemType.PRICE,
+            queueItemType.HYPERVISOR_STATUS,
+            queueItemType.REWARD_STATUS,
         ],
-        queueItemType.PRICE: custom_level0,
-        queueItemType.LATEST_MULTIFEEDISTRIBUTION: custom_level0,
-        queueItemType.REWARD_STATUS: custom_level0,
-        queueItemType.REWARD_STATIC: [
-            queueItemType.OPERATION,
+        queueItemType.REWARD_STATUS: [
             queueItemType.BLOCK,
+            queueItemType.PRICE,
+            queueItemType.HYPERVISOR_STATUS,
+            queueItemType.REWARD_STATIC,
         ],
+        # not used
+        queueItemType.HYPERVISOR_STATIC: [],
+        queueItemType.REWARD_STATIC: [],
     }
 
     # order by priority
