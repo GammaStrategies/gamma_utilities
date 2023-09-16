@@ -216,6 +216,26 @@ class hypervisor_status(dict_to_object):
     def post_init(self):
         pass
 
+    def get_share_price(self, token0_price: Decimal, token1_price: Decimal) -> float:
+        """Return share price, including uncollected fees
+            (excluding gamma uncollected fees)
+
+        Returns:
+            float: share price
+        """
+        # convert to decimal when float
+        if isinstance(token0_price, float):
+            token0_price = Decimal(str(token0_price))
+        if isinstance(token1_price, float):
+            token1_price = Decimal(str(token1_price))
+
+        _lp_underlyingValue = self.get_underlying_value(inDecimal=True)
+        _totalSupply = self.get_totalSupply_inDecimal()
+        return (
+            (_lp_underlyingValue.token0 * token0_price)
+            + (_lp_underlyingValue.token1 * token1_price)
+        ) / _totalSupply
+
     # inDecimal format
     def get_totalSupply_inDecimal(self) -> Decimal:
         return Decimal(str(self.totalSupply)) / (10**self.pool.token0.decimals)
