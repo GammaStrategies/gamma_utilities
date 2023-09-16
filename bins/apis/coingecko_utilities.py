@@ -3,6 +3,8 @@ from pycoingecko import CoinGeckoAPI
 import datetime as dt
 import logging
 
+from bins.configuration import CONFIGURATION
+
 
 class coingecko_price_helper:
     """Coingecko price cache"""
@@ -51,7 +53,10 @@ class coingecko_price_helper:
         """Get current token price"""
 
         # get price from coingecko
-        cg = CoinGeckoAPI(retries=self.retries)
+        cg = CoinGeckoAPI(
+            api_key=CONFIGURATION.get("sources", {}).get("coingeko_api_key", ""),
+            retries=self.retries,
+        )
         # modify cgecko's default timeout
         cg.request_timeout = self.request_timeout
 
@@ -104,7 +109,10 @@ class coingecko_price_helper:
                 timestamp = int(timestamp.split(".")[0])
 
         # get price from coingecko
-        cg = CoinGeckoAPI(retries=self.retries)
+        cg = CoinGeckoAPI(
+            api_key=CONFIGURATION.get("sources", {}).get("coingeko_api_key", ""),
+            retries=self.retries,
+        )
         # modify cgecko's default timeout
         cg.request_timeout = self.request_timeout
         # define a timeframe to query
@@ -183,7 +191,10 @@ class coingecko_price_helper:
             vs_currencies = ["usd"]
         result = {}
         # get price from coingecko
-        cg = CoinGeckoAPI(retries=self.retries)
+        cg = CoinGeckoAPI(
+            api_key=CONFIGURATION.get("sources", {}).get("coingeko_api_key", ""),
+            retries=self.retries,
+        )
         # modify cgecko's default timeout
         cg.request_timeout = self.request_timeout
 
