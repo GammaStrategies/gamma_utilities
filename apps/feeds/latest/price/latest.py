@@ -23,16 +23,31 @@ def feed_latest_usd_prices(threaded: bool = True):
 
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     db = database_global(mongo_url=mongo_url)
-    price_helper = price_scraper(
-        cache=False,
-        thegraph=False,
-        geckoterminal_sleepNretry=True,
-        source_order=[
-            databaseSource.ONCHAIN,
-            databaseSource.GECKOTERMINAL,
-            databaseSource.THEGRAPH,
-        ],
-    )
+
+    if CONFIGURATION["sources"].get("coingeko_api_key", None):
+        price_helper = price_scraper(
+            cache=False,
+            thegraph=False,
+            coingecko=True,
+            geckoterminal_sleepNretry=True,
+            source_order=[
+                databaseSource.COINGECKO,
+                databaseSource.ONCHAIN,
+                databaseSource.GECKOTERMINAL,
+            ],
+        )
+    else:
+        price_helper = price_scraper(
+            cache=False,
+            thegraph=False,
+            coingecko=True,
+            geckoterminal_sleepNretry=True,
+            source_order=[
+                databaseSource.ONCHAIN,
+                databaseSource.GECKOTERMINAL,
+                databaseSource.COINGECKO,
+            ],
+        )
 
     cg_helper = coingecko_price_helper(retries=3, request_timeout=25)
 

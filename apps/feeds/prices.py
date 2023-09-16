@@ -76,6 +76,7 @@ def feed_prices(
         )
 
         logging.getLogger(__name__).debug("   Force disable price cache ")
+
         price_helper = price_scraper(
             cache=False,
             cache_filename="uniswapv3_price_cache",
@@ -83,9 +84,9 @@ def feed_prices(
             thegraph=False,
             geckoterminal_sleepNretry=True,
             source_order=[
+                databaseSource.COINGECKO,
                 databaseSource.ONCHAIN,
                 databaseSource.GECKOTERMINAL,
-                databaseSource.COINGECKO,
             ]
             if coingecko
             else [databaseSource.ONCHAIN, databaseSource.GECKOTERMINAL],

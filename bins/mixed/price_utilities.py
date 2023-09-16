@@ -95,13 +95,23 @@ class price_scraper:
         result = []
         if self.cache:
             result.append(databaseSource.CACHE)
+
+        # coingecko with api key
+        if self.coingecko and CONFIGURATION.get("sources", {}).get(
+            "coingeko_api_key", None
+        ):
+            result.append(databaseSource.COINGECKO)
+
         if self.geckoterminal:
             result.append(databaseSource.GECKOTERMINAL)
         if self.onchain:
             result.append(databaseSource.ONCHAIN)
         if self.thegraph:
             result.append(databaseSource.THEGRAPH)
-        if self.coingecko:
+        # coingeko without api key
+        if self.coingecko and not CONFIGURATION.get("sources", {}).get(
+            "coingeko_api_key", None
+        ):
             result.append(databaseSource.COINGECKO)
         if len(result) == 0:
             raise Exception("No price sources selected")

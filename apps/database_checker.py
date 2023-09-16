@@ -2005,16 +2005,30 @@ def get_price(
     """get price of token at block
     Will return a tuple with price and source
     """
-    return price_scraper(
-        cache=False,
-        thegraph=False,
-        geckoterminal_sleepNretry=True,
-        source_order=[
-            databaseSource.ONCHAIN,
-            databaseSource.GECKOTERMINAL,
-            databaseSource.COINGECKO,
-        ],
-    ).get_price(network=network, token_id=token_address, block=block)
+    if CONFIGURATION.get("sources", {}).get("coingeko_api_key", None):
+        return price_scraper(
+            cache=False,
+            thegraph=False,
+            coingecko=True,
+            geckoterminal_sleepNretry=True,
+            source_order=[
+                databaseSource.COINGECKO,
+                databaseSource.ONCHAIN,
+                databaseSource.GECKOTERMINAL,
+            ],
+        ).get_price(network=network, token_id=token_address, block=block)
+    else:
+        return price_scraper(
+            cache=False,
+            thegraph=False,
+            coingecko=True,
+            geckoterminal_sleepNretry=True,
+            source_order=[
+                databaseSource.ONCHAIN,
+                databaseSource.GECKOTERMINAL,
+                databaseSource.COINGECKO,
+            ],
+        ).get_price(network=network, token_id=token_address, block=block)
 
 
 def auto_get_prices():
