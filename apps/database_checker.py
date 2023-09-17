@@ -1281,6 +1281,11 @@ def repair_missing_rewards_status(
     chain: Chain, max_repair: int = None, hypervisor_addresses: list[str] | None = None
 ):
     """ """
+
+    # TODO: change so that avoids filling rewards status queue with inexistent ones.
+    # Rewards status start in an offchain decision and may start in any block. It may stop n start again in a different block. 
+    
+
     batch_size = 100000
     logging.getLogger(__name__).info(
         f"> Finding missing {chain.database_name}'s rewards status in database"

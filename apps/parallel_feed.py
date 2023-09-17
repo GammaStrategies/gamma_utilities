@@ -95,27 +95,29 @@ def create_priority_queueItemType() -> list[list[queueItemType]]:
         queueItemType.OPERATION: [],
         queueItemType.BLOCK: [],
         queueItemType.HYPERVISOR_STATUS: [
-            queueItemType.BLOCK,
-            queueItemType.HYPERVISOR_STATIC,
-            queueItemType.PRICE,
+            # queueItemType.BLOCK,
+            # queueItemType.HYPERVISOR_STATIC,
+            # queueItemType.PRICE,
         ],
         # only do price when price
-        queueItemType.PRICE: [queueItemType.BLOCK],
+        queueItemType.PRICE: [],
         queueItemType.LATEST_MULTIFEEDISTRIBUTION: [
-            queueItemType.BLOCK,
-            queueItemType.PRICE,
-            queueItemType.HYPERVISOR_STATUS,
-            queueItemType.REWARD_STATUS,
+            # queueItemType.BLOCK,
+            # queueItemType.PRICE,
+            # queueItemType.HYPERVISOR_STATUS,
+            # queueItemType.REWARD_STATUS,
         ],
         queueItemType.REWARD_STATUS: [
-            queueItemType.BLOCK,
-            queueItemType.PRICE,
-            queueItemType.HYPERVISOR_STATUS,
-            queueItemType.REWARD_STATIC,
+            # queueItemType.BLOCK,
+            # queueItemType.PRICE,
+            # queueItemType.HYPERVISOR_STATUS,
+            # queueItemType.REWARD_STATIC,
         ],
         # not used
         queueItemType.HYPERVISOR_STATIC: [],
-        queueItemType.REWARD_STATIC: [queueItemType.HYPERVISOR_STATIC],
+        queueItemType.REWARD_STATIC: [
+            # queueItemType.HYPERVISOR_STATIC
+        ],
     }
 
     # build a result
