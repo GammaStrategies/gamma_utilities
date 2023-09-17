@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import logging
 import time
 import concurrent.futures
@@ -35,7 +36,7 @@ from bins.general.enums import (
     text_to_chain,
     text_to_protocol,
 )
-from bins.general.general_utilities import seconds_to_time_passed
+from bins.general.general_utilities import log_time_passed, seconds_to_time_passed
 from bins.w3.builders import build_db_hypervisor, build_erc20_helper, build_hypervisor
 from bins.mixed.price_utilities import price_scraper
 from bins.w3.protocols.general import erc20, bep20
@@ -63,6 +64,10 @@ def pull_from_queue(network: str, types: list[queueItemType] | None = None):
             # convert database queue item to class
             queue_item = QueueItem(**db_queue_item)
 
+            logging.getLogger(__name__).debug(
+                f" Processing {queue_item.type} queue item -> count: {queue_item.count} creation: {log_time_passed.get_timepassed_string(datetime.fromtimestamp(queue_item.creation,timezone.utc))} ago"
+            )
+
             # process queue item
             return process_queue_item_type(network=network, queue_item=queue_item)
 
@@ -83,16 +88,27 @@ def pull_from_queue(network: str, types: list[queueItemType] | None = None):
 
 
 def get_item_from_queue(
-    network: str, types: list[queueItemType] | None = None
+    network: str,
+    types: list[queueItemType] | None = None,
+    count_lt: int = 5,
+    sort: list = [("count", 1), ("created", 1)],
 ) -> dict | None:
-    # TODO: implement processing queue : currently FIFO
+    """FIFO queue but error count zero have priority over > 0.
+    Get first item not being processed
 
-    # sort types by order field
-    # if types:
-    #     types = sorted(types, key=lambda x: x.order)
+    Args:
+        network (str):
+        types (list[queueItemType] | None, optional): . Defaults to All.
+        count_lt (int, optional): . Defaults to 5.
+        sort (list, optional): . Defaults to [("count", 1), ("created", 1)]. 1 is ascending, -1 is descending
 
+    Returns:
+        dict | None: queue item
+    """
     return get_default_localdb(network=network).get_queue_item(
-        types=types, find={"processing": 0}, sort=[("created", 1)]
+        types=types,
+        find={"processing": 0, "count": {"$lt": count_lt}},
+        sort=sort,
     )
 
 
