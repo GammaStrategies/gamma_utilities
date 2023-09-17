@@ -101,6 +101,9 @@ class QueueItem:
             bool:
         """
 
+        # disable this check
+        return True
+
         if self.count > 20:
             # this item needs to be manually checked
             return False

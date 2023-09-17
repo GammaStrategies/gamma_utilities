@@ -48,18 +48,25 @@ from bins.w3.protocols.general import erc20, bep20
 def parallel_pull(network: str):
     # TEST funcion: use parallel_feed.py instead
     args = [
-        (network, [queueItemType.HYPERVISOR_STATUS, queueItemType.PRICE]),
-        (network, [queueItemType.BLOCK]),
-        (network, [queueItemType.REWARD_STATUS]),
+        (network, [queueItemType.HYPERVISOR_STATUS, queueItemType.PRICE], None, None),
+        (network, [queueItemType.BLOCK], None, None),
+        (network, [queueItemType.REWARD_STATUS], None, None),
     ] * 5
     with concurrent.futures.ThreadPoolExecutor() as ex:
         for n in ex.map(lambda p: pull_from_queue(*p), args):
             pass
 
 
-def pull_from_queue(network: str, types: list[queueItemType] | None = None):
+def pull_from_queue(
+    network: str,
+    types: list[queueItemType] | None = None,
+    find: dict | None = None,
+    sort: list | None = None,
+):
     # get first item from queue
-    if db_queue_item := get_item_from_queue(network=network, types=types):
+    if db_queue_item := get_item_from_queue(
+        network=network, types=types, find=find, sort=sort
+    ):
         try:
             # convert database queue item to class
             queue_item = QueueItem(**db_queue_item)
@@ -90,8 +97,8 @@ def pull_from_queue(network: str, types: list[queueItemType] | None = None):
 def get_item_from_queue(
     network: str,
     types: list[queueItemType] | None = None,
-    count_lt: int = 5,
-    sort: list = [("count", 1), ("created", 1)],
+    find: dict | None = None,
+    sort: list | None = None,
 ) -> dict | None:
     """FIFO queue but error count zero have priority over > 0.
     Get first item not being processed
@@ -99,15 +106,20 @@ def get_item_from_queue(
     Args:
         network (str):
         types (list[queueItemType] | None, optional): . Defaults to All.
-        count_lt (int, optional): . Defaults to 5.
+        find (dict, optional): . Defaults to {"processing": 0, "count": {"$lt": 5}}.
         sort (list, optional): . Defaults to [("count", 1), ("created", 1)]. 1 is ascending, -1 is descending
 
     Returns:
         dict | None: queue item
     """
+    if not find:
+        find = {"processing": 0, "count": {"$lt": 5}}
+    if not sort:
+        sort = [("count", 1), ("created", 1)]
+
     return get_default_localdb(network=network).get_queue_item(
         types=types,
-        find={"processing": 0, "count": {"$lt": count_lt}},
+        find=find,
         sort=sort,
     )
 
