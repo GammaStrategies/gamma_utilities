@@ -375,7 +375,7 @@ class price_scraper:
         #
         if _price and isinstance(_price, dict):
             if token_id.lower() in _price:
-                _price = _price[token_id.lower()]["usd"]
+                _price = _price[token_id.lower()].get("usd", 0)
             else:
                 _price = 0
 

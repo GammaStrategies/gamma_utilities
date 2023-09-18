@@ -215,6 +215,10 @@ def feed_latest_usd_prices(threaded: bool = True):
         logging.getLogger(__name__).info(
             f" {_errors} errors found while feeding current prices"
         )
+    else:
+        logging.getLogger(__name__).error(
+            f" price_token_address.json file not found in data folder"
+        )
 
 
 def create_latest_usd_prices_address_json():
