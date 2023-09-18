@@ -454,21 +454,21 @@ def latest_db_service():
     # time control var to fire callables
     time_control_loop = {
         "latest_prices": {
-            "every": 60,  # in seconds
+            "every": 60,  # 1 minute
             "last": time.time(),
             "callable": feed_latest_usd_prices,
             "args": [(True)],
             "process": None,
         },
         "create_json_prices": {
-            "every": 60 * 60 * 2,  # in seconds
+            "every": 60 * 60 * 2,  # 2 hours
             "last": time.time(),
             "callable": create_latest_usd_prices_address_json,
             "args": (),
             "process": None,
         },
         "latest_multifeedistributor": {
-            "every": 60 * 3,  # in seconds
+            "every": 60 * 3,  # 3 minutes
             "last": time.time(),
             "callable": feed_latest_multifeedistribution_snapshot,
             "args": (),
