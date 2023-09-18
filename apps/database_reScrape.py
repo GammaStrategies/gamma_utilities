@@ -97,7 +97,7 @@ def reScrape_loopWork_hypervisor_status(
 ) -> bool:
     """Rescrape hypervisor status"""
     try:
-        if hypervisor := build_db_hypervisor(
+        if new_hypervisor := build_db_hypervisor(
             address=hype_status["address"],
             network=chain.database_name,
             block=hype_status["block"],
@@ -106,13 +106,47 @@ def reScrape_loopWork_hypervisor_status(
             force_rpcType="private",
         ):
             # TODO: compare n log diffs and rewrite
+            err = False
+            # compare main differences
+            if hype_status["block"] != new_hypervisor["block"]:
+                logging.getLogger(__name__).error(
+                    f" Blocks differ for hype {hype_status['address']} original: {hype_status['block']} -> new: {new_hypervisor['block']}"
+                )
+                err = True
+
+            check_fields = [
+                "totalSupply",
+                "fees_uncollected.qtty_token0",
+                "fees_uncollected.qtty_token0",
+                "dex",
+                "fee",
+                "pool.dex",
+            ]
+            for field in check_fields:
+                original = hype_status
+                new = new_hypervisor
+                for subfield in field.split("."):
+                    original = original.get(subfield)
+                    new = new.get(subfield)
+                if original != new:
+                    logging.getLogger(__name__).debug(
+                        f" {field} differ for hype {hype_status['address']} block {hype_status['block']} original: {original} -> new: {new}"
+                    )
 
             # add to database
-            db_return = get_default_localdb(network=chain.database_name).set_status(
-                data=hypervisor
+            if not err:
+                if db_return := get_default_localdb(
+                    network=chain.database_name
+                ).set_status(data=new_hypervisor):
+                    db_return.modified_count
+                    # log database result
+                    logging.getLogger(__name__).debug(
+                        f" {chain.database_name}'s hypervisor {new_hypervisor['address']} at block {new_hypervisor['block']} dbResult-> mod:{db_return.modified_count} ups:{db_return.upserted_id} match: {db_return.matched_count}"
+                    )
+                    return True
+            logging.getLogger(__name__).debug(
+                f" {chain.database_name}'s hypervisor {new_hypervisor['address']} at block {new_hypervisor['block']} not saved"
             )
-            # todo: log database result
-            return True
     except Exception as e:
         logging.getLogger(__name__).exception(
             f" Unexpected error while processing hypervisor status {hype_status['address']} at block {hype_status['block']} -> error {e}"
