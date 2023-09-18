@@ -463,6 +463,20 @@ DEX_POOLS = {
             "token1": "0x4200000000000000000000000000000000000006".lower(),
         },
     },
+    Chain.CELO: {
+        "agEUR-cEUR": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0x4b7a4530d56ff55a4dce089d917ede812e543307".lower(),
+            "token0": "0xc16b81af351ba9e64c1a069e3ab18c244a1e3049".lower(),
+            "token1": "0xd8763cba276a3738e6de85b4b3bf5fded6d6ca73".lower(),
+        },
+        "agEUR-cUSD": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0x1f18cd7d1c7ba0dbe3d9abe0d3ec84ce1ad10066".lower(),
+            "token0": "0x765de816845861e75a25fca122bb6898b8b1282a".lower(),
+            "token1": "0xd8763cba276a3738e6de85b4b3bf5fded6d6ca73".lower(),
+        },
+    },
 }
 
 
