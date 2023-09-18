@@ -16,7 +16,7 @@ from apps.feeds.latest.mutifeedistribution.currents import (
 
 from bins.general.general_utilities import identify_me
 
-from .parallel_feed import process_all_queues
+from .parallel_feed import process_queues, select_process_queues
 
 from bins.configuration import CONFIGURATION
 
@@ -269,10 +269,10 @@ def queue_db_service():
     )
     logging.getLogger(__name__).info(" Database queue processing loop started")
     try:
-        process_all_queues(
-            maximum_tasks=CONFIGURATION["script"].get("queue_maximum_tasks", 10)
+        select_process_queues(
+            maximum_tasks=CONFIGURATION["script"].get("queue_maximum_tasks", 10),
+            queue_level=CONFIGURATION["_custom_"]["cml_parameters"].queue_level or 0,
         )
-
     except KeyboardInterrupt:
         logging.getLogger(__name__).debug(" Database queue loop stoped by user")
     except Exception:

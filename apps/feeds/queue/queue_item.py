@@ -1,6 +1,7 @@
 import time
 
 from dataclasses import dataclass
+from bins.configuration import CONFIGURATION
 
 from bins.database.common.database_ids import create_id_operation, create_id_queue
 from bins.general.enums import queueItemType
@@ -119,3 +120,165 @@ class QueueItem:
             return time_passed > 60 * 60
 
         return True
+
+
+### Helpers ###
+
+
+def create_priority_queueItemType() -> list[list[queueItemType]]:
+    """This is just all queue items all time in order of priority
+
+    Returns:
+        list[list[queueItemType]]: _description_
+    """
+    # create an ordered list of queue item types
+    queue_items_list = CONFIGURATION["_custom_"]["cml_parameters"].queue_types or list(
+        queueItemType
+    )
+    # order by priority
+    queue_items_list.sort(key=lambda x: x.order, reverse=False)
+
+    # queue is processed in creation order:
+    #   Include for each queue item type the types that need to be processed before it
+    types_combination = {
+        queueItemType.OPERATION: queue_items_list,
+        queueItemType.BLOCK: queue_items_list,
+        queueItemType.HYPERVISOR_STATUS: queue_items_list,
+        # only do price when price
+        queueItemType.PRICE: queue_items_list,
+        queueItemType.LATEST_MULTIFEEDISTRIBUTION: queue_items_list,
+        queueItemType.REWARD_STATUS: queue_items_list,
+        # not used
+        queueItemType.HYPERVISOR_STATIC: queue_items_list,
+        queueItemType.REWARD_STATIC: queue_items_list,
+    }
+
+    # build a result
+    result = []
+    for queue_item in queue_items_list:
+        if queue_item in types_combination:
+            tmp_result = types_combination[queue_item]
+            # tmp_result.append(queue_item)
+            result.append(tmp_result)
+
+    return result
+
+
+def create_priority_queueItemType_inSequence() -> list[list[queueItemType]]:
+    """Will process one type item at a time ( loop)
+
+    Returns:
+        list[list[queueItemType]]: _description_
+    """
+    # create an ordered list of queue item types
+    queue_items_list = CONFIGURATION["_custom_"]["cml_parameters"].queue_types or list(
+        queueItemType
+    )
+    # order by priority
+    queue_items_list.sort(key=lambda x: x.order, reverse=False)
+
+    # queue is processed in creation order:
+    #   Include for each queue item type the types that need to be processed before it
+    types_combination = {
+        queueItemType.OPERATION: [],
+        queueItemType.BLOCK: [],
+        queueItemType.HYPERVISOR_STATUS: [
+            # queueItemType.BLOCK,
+            # queueItemType.HYPERVISOR_STATIC,
+            # queueItemType.PRICE,
+        ],
+        # only do price when price
+        queueItemType.PRICE: [],
+        queueItemType.LATEST_MULTIFEEDISTRIBUTION: [
+            # queueItemType.BLOCK,
+            # queueItemType.PRICE,
+            # queueItemType.HYPERVISOR_STATUS,
+            # queueItemType.REWARD_STATUS,
+        ],
+        queueItemType.REWARD_STATUS: [
+            # queueItemType.BLOCK,
+            # queueItemType.PRICE,
+            # queueItemType.HYPERVISOR_STATUS,
+            # queueItemType.REWARD_STATIC,
+        ],
+        # not used
+        queueItemType.HYPERVISOR_STATIC: [],
+        queueItemType.REWARD_STATIC: [
+            # queueItemType.HYPERVISOR_STATIC
+        ],
+    }
+
+    # build a result
+    result = []
+    for queue_item in queue_items_list:
+        if queue_item in types_combination:
+            tmp_result = types_combination[queue_item]
+            tmp_result.append(queue_item)
+            result.append(tmp_result)
+
+    return result
+
+
+class queue_item_selector:
+    def __init__(
+        self,
+        queue_items_list: list[list[queueItemType]] | None = None,
+        find: dict | None = None,
+        sort: list[tuple[str, int]] | None = None,
+    ):
+        # initialize queue items list
+        self.init_queue_items_list(queue_items_list)
+        # save parameters
+        self._find = find
+        self._sort = sort
+
+    def init_queue_items_list(
+        self, queue_items_list: list[list[queueItemType]] | None = None
+    ):
+        if not queue_items_list:
+            self.queue_items_list = create_priority_queueItemType()
+        self._current_queue_item_index = 0
+
+    @property
+    def current_queue_item_types(self) -> list[queueItemType]:
+        return self.queue_items_list[self._current_queue_item_index]
+
+    @property
+    def find(self) -> dict:
+        return self._find
+
+    @property
+    def sort(self) -> list[tuple[str, int]]:
+        return self._sort
+
+    def next(self):
+        if self._current_queue_item_index + 1 < len(self.queue_items_list):
+            self._current_queue_item_index += 1
+        else:
+            self._current_queue_item_index = 0
+
+
+def create_selector_per_network(
+    queue_items_list: list[list[queueItemType]] | None = None,
+    find: dict | None = None,
+    sort: list | None = None,
+) -> dict[str, dict[str, queue_item_selector]]:
+    result = {}
+
+    for protocol in CONFIGURATION["script"]["protocols"]:
+        if not protocol in result:
+            result[protocol] = {}
+
+        # override networks if specified in cml
+        networks = (
+            CONFIGURATION["_custom_"]["cml_parameters"].networks
+            or CONFIGURATION["script"]["protocols"][protocol]["networks"]
+        )
+
+        for network in networks:
+            # create index
+            result[protocol][network] = queue_item_selector(
+                queue_items_list=queue_items_list, find=find, sort=sort
+            )
+
+    return result

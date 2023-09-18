@@ -88,8 +88,9 @@ def pull_from_queue(
                 )
 
             raise e
-    # else:
-    # no item found
+    else:
+        # no item found
+        logging.getLogger(__name__).debug(f" No queue item found for {network}")
 
     return True
 
