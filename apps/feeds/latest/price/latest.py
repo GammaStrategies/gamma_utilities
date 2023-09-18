@@ -253,6 +253,8 @@ def create_latest_usd_prices_address_json():
         },
         Chain.POLYGON.database_name: {
             "0xef6ab48ef8dfe984fab0d5c4cd6aff2e54dfda14".lower(): {"symbol": "crispm"},
+            "0x27842334C55c01DDFE81Bf687425F906816c5141".lower(): {"symbol": "vext"},
+            "0xbA777aE3a3C91fCD83EF85bfe65410592Bdd0f7c".lower(): {"symbol": "cone"},
         },
         Chain.ETHEREUM.database_name: {
             "0xf5581dfefd8fb0e4aec526be659cfab1f8c781da".lower(): {"symbol": "hopr"},
