@@ -156,6 +156,10 @@ class geckoterminal_price_helper:
                         return float(
                             pool_data["attributes"][f"{base_or_quote}_price_usd"]
                         )
+                    else:
+                        logging.getLogger(__name__).debug(
+                            f"Token {token_address} not found in pool {pool_data['id']}"
+                        )
 
             except Exception as e:
                 logging.getLogger(__name__).error(

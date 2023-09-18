@@ -184,11 +184,11 @@ class price_scraper:
                 )
 
             # if price found, exit for loop
-            if _price not in [None, 0]:
+            if _price not in [None, 0, {}]:
                 break
 
         # SAVE CACHE
-        if _price not in [None, 0]:
+        if _price not in [None, 0, {}]:
             logging.getLogger(LOG_NAME).debug(
                 f" {network}'s token {token_id} price at block {block} was found: {_price}"
             )
@@ -347,6 +347,8 @@ class price_scraper:
     ) -> tuple[float, databaseSource]:
         _source = databaseSource.COINGECKO
         _price = 0
+
+        # logging.getLogger(LOG_NAME).debug(f" "
 
         try:
             if of != "USD":
