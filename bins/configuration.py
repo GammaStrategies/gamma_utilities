@@ -462,6 +462,12 @@ DEX_POOLS = {
             "token0": "0x236aa50979d5f3de3bd1eeb40e81137f22ab794b".lower(),
             "token1": "0x4200000000000000000000000000000000000006".lower(),
         },
+        "SUSHI-USDbC": {
+            "protocol": Protocol.SUSHI,
+            "address": "0x82d22f27d97ce9a93eb68b5b1a43792492fa89c9".lower(),
+            "token0": "0x7d49a065d17d6d4a55dc13649901fdbb98b2afba".lower(),
+            "token1": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca".lower(),
+        },
     },
     Chain.CELO: {
         "agEUR-cEUR": {
@@ -641,7 +647,10 @@ DEX_POOLS_PRICE_PATHS = {
 USDC_TOKEN_ADDRESSES = {
     Chain.ARBITRUM: ["0xff970a61a04b1ca14834a43f5de4533ebddb5cc8".lower()],
     Chain.AVALANCHE: ["0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e".lower()],
-    Chain.BASE: ["0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913".lower()],
+    Chain.BASE: [
+        "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913".lower(),
+        "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca".lower(),
+    ],
     Chain.BSC: ["0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d".lower()],
     # celo is cUSD
     Chain.CELO: ["0x765DE816845861e75A25fCA122bb6898B8B1282a".lower()],
