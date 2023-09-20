@@ -1,6 +1,8 @@
 from decimal import Decimal
 from web3 import Web3
 
+from bins.formulas.fees import calculate_gamma_fee
+
 from ....configuration import WEB3_CHAIN_IDS
 from ....cache import cache_utilities
 from ....general.enums import Protocol
@@ -312,18 +314,15 @@ class gamma_hypervisor(erc20):
 
     # CUSTOM FUNCTIONS
 
-    def get_gamma_fee(self) -> float:
+    def get_gamma_fee(self) -> int:
         """Calculate the gamma fee percentage over accrued fees by the positions
 
         Returns:
-            float: gamma fee percentage
+            int: gamma fee percentage ( 0-100 )
         """
-        fee_rate = self.fee
-
-        if self.identify_dex_name() in [Protocol.CAMELOT, Protocol.RAMSES]:
-            return fee_rate / 100
-        else:
-            return 1 / fee_rate if fee_rate < 100 else 1 / 10
+        return calculate_gamma_fee(
+            fee_rate=self.fee, protocol=Protocol(self.identify_dex_name())
+        )
 
     def get_all_events(self):
         return NotImplementedError("get_all_events not implemented for v1 contracts")
@@ -368,6 +367,10 @@ class gamma_hypervisor(erc20):
             dict: {
                     "qtty_token0":0,  # quantity of uncollected token 0
                     "qtty_token1":0,  # quantity of uncollected token 1
+                    "gamma_qtty_token0":
+                    "gamma_qtty_token1":
+                    "lps_qtty_token0":
+                    "lps_qtty_token1":
                 }
         """
         # positions
@@ -376,15 +379,22 @@ class gamma_hypervisor(erc20):
             tickUpper=self.baseUpper,
             tickLower=self.baseLower,
             inDecimal=inDecimal,
+            protocolFee=self.get_gamma_fee(),
         )
         limit = self.pool.get_fees_uncollected(
             ownerAddress=self.address,
             tickUpper=self.limitUpper,
             tickLower=self.limitLower,
             inDecimal=inDecimal,
+            protocolFee=self.get_gamma_fee(),
         )
 
-        return {k: base.get(k, 0) + limit.get(k, 0) for k in set(base) & set(limit)}
+        result = {k: base.get(k, 0) + limit.get(k, 0) for k in set(base) & set(limit)}
+
+        # result["base_position"] = base
+        # result["limit_position"] = limit
+
+        return result
 
     def get_fees_collected(self, inDecimal: bool = True) -> dict:
         # positions
@@ -852,18 +862,15 @@ class gamma_hypervisor_bep20(bep20):
 
     # CUSTOM FUNCTIONS
 
-    def get_gamma_fee(self) -> float:
+    def get_gamma_fee(self) -> int:
         """Calculate the gamma fee percentage over accrued fees by the positions
 
         Returns:
-            float: gamma fee percentage
+            int: gamma fee percentage ( 0-100)
         """
-        fee_rate = self.fee
-
-        if self.identify_dex_name() in [Protocol.CAMELOT, Protocol.RAMSES]:
-            return fee_rate / 100
-        else:
-            return 1 / fee_rate if fee_rate < 100 else 1 / 10
+        return calculate_gamma_fee(
+            fee_rate=self.fee, protocol=Protocol(self.identify_dex_name())
+        )
 
     def get_all_events(self):
         return NotImplementedError("get_all_events not implemented for v1 contracts")
@@ -903,6 +910,7 @@ class gamma_hypervisor_bep20(bep20):
             dict: {
                     "qtty_token0":0,  # quantity of uncollected token 0
                     "qtty_token1":0,  # quantity of uncollected token 1
+                    ...
                 }
         """
         # positions
@@ -911,15 +919,22 @@ class gamma_hypervisor_bep20(bep20):
             tickUpper=self.baseUpper,
             tickLower=self.baseLower,
             inDecimal=inDecimal,
+            protocolFee=self.get_gamma_fee(),
         )
         limit = self.pool.get_fees_uncollected(
             ownerAddress=self.address,
             tickUpper=self.limitUpper,
             tickLower=self.limitLower,
             inDecimal=inDecimal,
+            protocolFee=self.get_gamma_fee(),
         )
 
-        return {k: base.get(k, 0) + limit.get(k, 0) for k in set(base) & set(limit)}
+        result = {k: base.get(k, 0) + limit.get(k, 0) for k in set(base) & set(limit)}
+
+        # result["base_position"] = base
+        # result["limit_position"] = limit
+
+        return result
 
     def get_tvl(self, inDecimal=True) -> dict:
         """get total value locked of both positions

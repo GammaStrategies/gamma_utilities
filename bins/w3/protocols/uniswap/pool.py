@@ -391,7 +391,12 @@ class poolv3(web3wrap):
         )
 
     def get_fees_uncollected(
-        self, ownerAddress: str, tickUpper: int, tickLower: int, inDecimal: bool = True
+        self,
+        ownerAddress: str,
+        tickUpper: int,
+        tickLower: int,
+        protocolFee: int,
+        inDecimal: bool = True,
     ) -> dict:
         """Retrieve the quantity of fees not collected nor yet owed ( but certain) to the deployed position
 
@@ -399,6 +404,7 @@ class poolv3(web3wrap):
             ownerAddress (str):
             tickUpper (int):
             tickLower (int):
+            protocolFee (int)  gamma protocol fee percentage ( 0-100)
             inDecimal (bool): return result in a decimal format?
 
         Returns:
@@ -411,6 +417,10 @@ class poolv3(web3wrap):
         result = {
             "qtty_token0": 0,
             "qtty_token1": 0,
+            "gamma_qtty_token0": 0,
+            "gamma_qtty_token1": 0,
+            "lps_qtty_token0": 0,
+            "lps_qtty_token1": 0,
         }
 
         # get position data
@@ -425,7 +435,7 @@ class poolv3(web3wrap):
         ticks_lower = self.ticks(tickLower)
         ticks_upper = self.ticks(tickUpper)
 
-        # do not continue if position is outside of the range, return zero
+        # TODO: check if should do something else:  do not continue if position is outside of the range, return zero
         if tickCurrent < tickLower or tickCurrent > tickUpper:
             f"one position of {ownerAddress} is outside of range. No uncollected fees to calculate."
             return result.copy()
@@ -448,12 +458,34 @@ class poolv3(web3wrap):
             fee_growth_inside_last_1=pos["feeGrowthInside1LastX128"],
         )
 
+        # calculate LPs and Gamma fees
+        result["gamma_qtty_token0"] = dex_formulas.mulDiv(
+            result["qtty_token0"], protocolFee, 100
+        )
+        result["gamma_qtty_token1"] = dex_formulas.mulDiv(
+            result["qtty_token1"], protocolFee, 100
+        )
+        result["lps_qtty_token0"] = result["qtty_token0"] - result["gamma_qtty_token0"]
+        result["lps_qtty_token1"] = result["qtty_token1"] - result["gamma_qtty_token1"]
+
         # convert to decimal as needed
         if inDecimal:
             result["qtty_token0"] = Decimal(result["qtty_token0"]) / Decimal(
                 10**self.token0.decimals
             )
             result["qtty_token1"] = Decimal(result["qtty_token1"]) / Decimal(
+                10**self.token1.decimals
+            )
+            result["gamma_qtty_token0"] = Decimal(
+                result["gamma_qtty_token0"]
+            ) / Decimal(10**self.token0.decimals)
+            result["gamma_qtty_token1"] = Decimal(
+                result["gamma_qtty_token1"]
+            ) / Decimal(10**self.token1.decimals)
+            result["lps_qtty_token0"] = Decimal(result["lps_qtty_token0"]) / Decimal(
+                10**self.token0.decimals
+            )
+            result["lps_qtty_token1"] = Decimal(result["lps_qtty_token1"]) / Decimal(
                 10**self.token1.decimals
             )
 
