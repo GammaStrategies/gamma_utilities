@@ -3,9 +3,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 import logging
+from bins.formulas.dex_formulas import mulDiv
 
 from bins.formulas.fees import calculate_gamma_fee
-from bins.general.enums import text_to_protocol
+from bins.general.enums import Chain, Protocol, text_to_protocol
 
 from .general import dict_to_object, token_group_object
 
@@ -14,6 +15,9 @@ from .general import dict_to_object, token_group_object
 class time_object:
     block: int
     timestamp: int
+
+    def datetime(self) -> datetime:
+        return datetime.fromtimestamp(self.timestamp)
 
     def to_dict(self) -> dict:
         return {"block": self.block, "timestamp": self.timestamp}
@@ -29,10 +33,9 @@ class timeframe_object:
 
 
 @dataclass
-class token:
+class token_object:
     address: str
     decimals: int
-    time: time_object
     symbol: str | None = None
     # hypervisor status
     totalSupply: int | None = None
@@ -57,69 +60,37 @@ class token:
 
 
 @dataclass
+class fee_growth_object:
+    index: int
+    feeGrowthGlobalX128: int
+    feeGrowthOutsideLowerX128: int
+    feeGrowthOutsideUpperX128: int
+    feeGrowthInsideLastX128: int
+
+
+@dataclass
 class fees_object:
-    uncollected: token_group_object
+    # all fees collected from current position
+    collected: token_group_object
+
+    # fees uncollected ( not yet collected from current position)
+    # total uncollected fees = lp + gamma
+    uncollected_lp: token_group_object
+    uncollected_gamma: token_group_object
+
+    # fee growth data to calculate fees
+    fee_growth: list[fee_growth_object]
 
 
 @dataclass
 class position_object:
+    name: str
     liquidity: int
     qtty: token_group_object
     lowerTick: int
     upperTick: int
+
     fees: fees_object
-
-
-@dataclass
-class positions_object:
-    base: position_object | None = None
-    limit: position_object | None = None
-
-
-# address
-# name
-# time
-#   block
-#   timestamp
-# positions
-#   base
-#     liquidity
-#     qtty
-#       token0
-#       token1
-#     lowerTick
-#     upperTick
-#     fees
-#       uncollected
-#          token0
-#          token1
-#   limit
-#    ...
-# aggregatedPositions
-#   totalAmounts
-#     token0
-#     token1
-#   totalFees
-#     uncollected
-#       token0
-#       token1
-
-#
-# token
-#   decimals
-#   symbol
-#   totalSupply
-# limits
-#   maxTotalSupply
-#   maxDeposit0
-#   maxDeposit1
-# total
-#   token0
-#   token1
-# pool
-#   ...
-# fee
-# protocol | dex
 
 
 def transformer_hypervisor_status(value, key: str):
@@ -192,7 +163,7 @@ class hypervisor_status_object(dict_to_object):
         return Decimal(str(self.totalSupply)) / (10**self.pool.token0.decimals)
 
     # fees
-    def get_protocol_fee(self) -> float:
+    def get_protocol_fee(self) -> int:
         """Return Gamma's fee protocol percentage over accrued fees by the positions
 
         Returns:
@@ -213,9 +184,11 @@ class hypervisor_status_object(dict_to_object):
 
         # gamma protocolFee
         _gamma_feeProtocol = self.get_protocol_fee()
+        # gamma will take fees only if the uncollected fee qtty is greater than the minimum divisible unit per token
+        # at least 2
         _gamma_fees = token_group_object(
-            token0=self.fees_uncollected.qtty_token0 * _gamma_feeProtocol,
-            token1=self.fees_uncollected.qtty_token1 * _gamma_feeProtocol,
+            token0=mulDiv(self.fees_uncollected.qtty_token0, _gamma_feeProtocol, 100),
+            token1=mulDiv(self.fees_uncollected.qtty_token1, _gamma_feeProtocol, 100),
         )
 
         # LPs fee
@@ -289,3 +262,104 @@ class hypervisor_status_object(dict_to_object):
         """
         # call super pre_subtraction function
         return super().pre_subtraction(key=key, value=value)
+
+
+############################################################################
+
+
+@dataclass
+class pool_database_object:
+    address: str
+    fee: int
+
+    chain: Chain
+    protocol: Protocol
+    # dex
+
+    time: time_object
+    # block: int
+    # timestamp: int
+
+    tickSpacing: int
+
+    tokens: list[token_object]
+
+    protocolFees: list
+
+    feeGrowthGlobal0X128: int
+    feeGrowthGlobal1X128: int
+    liquidity: int
+    maxLiquidityPerTick: int
+
+    slot0: dict
+
+    sqrtPriceX96: int
+    tick: int
+
+    # {"sqrtPriceX96": "1947807860919824762980545924",
+    # "tick": "-74117",
+    # "observationIndex": "7",
+    # "observationCardinality": "8",
+    # "observationCardinalityNext": "8",
+    # "feeProtocol": NumberInt(0),
+    # "unlocked": true,}
+
+
+@dataclass
+class hypervisor_database_object:
+    # _id:ObjectId
+    id: str
+
+    chain: Chain
+    protocol: Protocol
+    # dex
+
+    token_info: token_object
+    # address: str
+    # name: str
+    # symbol: str
+    # decimals: int
+    # totalSupply: int
+
+    time: time_object
+    # block: int
+    # timestamp: int
+
+    positions: list[position_object]
+    # baseLower / limitLower / baseUpper / limitUpper:int
+    # basePosition / limitPosition : {
+    #     liquidity:int
+    #     amount0:int
+    #     amount1:int
+
+    maxTotalSupply: int
+    deposit0Max: int
+    deposit1Max: int
+
+    # totalAmounts
+    #   "total0": "96899826009063741615533",
+    #   "total1": "58274707216027826624",
+
+    fee: int
+
+    pool: pool_database_object
+
+    # po = {
+    #     "fees_uncollected": {"qtty_token0": "0.0", "qtty_token1": "0.0"},
+    #     "qtty_depoloyed": {
+    #         "qtty_token0": "87894155111268607852544",
+    #         "qtty_token1": "52895224729826058320",
+    #         "fees_owed_token1": "7175975284136330",
+    #         "fees_owed_token0": "2295857379051732021",
+    #     },
+    #     "tvl": {
+    #         "parked_token0": "9003375040416080851840",
+    #         "parked_token1": "5372306510917633682",
+    #         "deployed_token0": "87894155111268607852544",
+    #         "deployed_token1": "52895224729826058320",
+    #         "fees_owed_token0": "2295857379051732021",
+    #         "fees_owed_token1": "7175975284136330",
+    #         "tvl_token0": "96899826009063740436405",
+    #         "tvl_token1": "58274707216027828332",
+    #     },
+    # }
