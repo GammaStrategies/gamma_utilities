@@ -3,7 +3,7 @@ import logging
 import tqdm
 from bins.configuration import CONFIGURATION, DEX_POOLS, USDC_TOKEN_ADDRESSES
 from bins.database.common.db_collections_common import database_local
-from bins.database.helpers import get_default_globaldb
+from bins.database.helpers import get_default_globaldb, get_from_localdb
 from bins.general.enums import Chain
 from bins.general.file_utilities import save_json
 from bins.w3.builders import build_protocol_pool, convert_dex_protocol
@@ -205,14 +205,12 @@ def add_database_pools_to_paths(token_pools: dict, chain: Chain):
         chain (Chain):
     """
 
-    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     batch_size = 10000
 
     # 0) add all database pools available
-    for hype_pool in database_local(
-        mongo_url=mongo_url, db_name=f"{chain.database_name}_gamma"
-    ).get_items_from_database(
-        collection_name="static",
+    for hype_pool in get_from_localdb(
+        network=chain.database_name,
+        collection="static",
         find={},
         batch_size=batch_size,
         projection={"pool"},

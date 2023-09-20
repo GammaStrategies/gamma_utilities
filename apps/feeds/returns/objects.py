@@ -9,7 +9,6 @@ from bins.database.common.objects.hypervisor import (
 )
 from bins.database.helpers import get_price_from_db
 from bins.errors.general import ProcessingError
-from bins.formulas.fees import calculate_gamma_fee
 from bins.general.enums import Chain, error_identity, text_to_chain, text_to_protocol
 
 
