@@ -1,19 +1,25 @@
+import logging
+
+from bins.formulas.constants import X128
+from .solidity_logic import solidity_operations
 from bins.general.enums import Protocol
 
 
-def calculate_gamma_fee(fee_rate: int, protocol: Protocol) -> float:
+# gamma fee
+def calculate_gamma_fee(fee_rate: int, protocol: Protocol) -> int:
     """Calculate the gamma fee percentage over accrued fees by the positions
 
     Returns:
-        float: gamma fee percentage
+        int: gamma fee percentage as int
     """
 
     if protocol in [Protocol.CAMELOT, Protocol.RAMSES]:
-        return fee_rate / 100
+        return fee_rate
     else:
-        return (1 / fee_rate) if fee_rate < 100 else (1 / 10)
+        return int((1 / fee_rate) * 100) if fee_rate < 100 else 10
 
 
+# non gamma protocol fee  #
 def convert_feeProtocol(
     feeProtocol0: int,
     feeProtocol1: int,
@@ -66,4 +72,151 @@ def convert_feeProtocol(
         protocol_fee_0 = (100 / feeProtocol0) // 1 if feeProtocol0 else 0
         protocol_fee_1 = (100 / feeProtocol1) // 1 if feeProtocol1 else 0
 
-    return protocol_fee_0, protocol_fee_1
+    # should not happen
+    if not protocol_fee_0.is_integer():
+        logging.getLogger(__name__).error(
+            f" convert_feeProtocol protocol_fee_0 {protocol_fee_0} is not integer !"
+        )
+    if not protocol_fee_1.is_integer():
+        logging.getLogger(__name__).error(
+            f" convert_feeProtocol protocol_fee_1 {protocol_fee_1} is not integer !"
+        )
+
+    return int(protocol_fee_0), int(protocol_fee_1)
+
+
+# fee growth
+def fees_collected_below_tickLower(
+    tick: int, tickLower: int, feeGrowthGlobal: int, feeGrowthOutsideLower: int
+) -> int:
+    """fees collected below the lower tick
+
+    Args:
+       tick (int): current tick
+       tickLower (int): lower tick of the position
+       feeGrowthGlobal (int): feeGrowthGlobal
+       feeGrowthOutsideLower (int): feeGrowthOutside_X128 of the lower tick of the position
+
+    Returns:
+       fees collected below the lower tick
+    """
+    if tick >= tickLower:
+        return feeGrowthOutsideLower
+    else:
+        return solidity_operations().sub(feeGrowthGlobal, feeGrowthOutsideLower)
+
+
+def fees_collected_above_tickUpper(
+    tick: int, tickUpper: int, feeGrowthGlobal: int, feeGrowthOutsideUpper: int
+) -> int:
+    """fees collected above the upper tick
+
+    Args:
+       tick (int): current tick
+       tickUpper (int): upper tick of the position
+       feeGrowthGlobal (int): feeGrowthGlobal
+       feeGrowthOutsideUpper (int): feeGrowthOutside_X128 of the upper tick of the position
+
+    Returns:
+       fees collected above the upper tick
+    """
+    if tick >= tickUpper:
+        return solidity_operations().sub(feeGrowthGlobal, feeGrowthOutsideUpper)
+    else:
+        return feeGrowthOutsideUpper
+
+
+def fees_returns_at_timeT(
+    tick: int,
+    tickUpper: int,
+    tickLower: int,
+    feeGrowthGlobal: int,
+    feeGrowthOutsideUpper: int,
+    feeGrowthOutsideLower: int,
+) -> int:
+    """fees ever minus the fees above and below the positions range (at time T)
+        feeGrowthGlobal - fees collected below the lower tick - fees collected above the upper tick
+    Args:
+       tick (int): current tick
+       tickUpper (int): upper tick of the position
+       tickLower (int): lower tick of the position
+       feeGrowthGlobal (int): feeGrowthGlobal
+       feeGrowthOutsideUpper (int): feeGrowthOutside_X128 of the upper tick of the position
+       feeGrowthOutsideLower (int): feeGrowthOutside_X128 of the lower tick of the position
+
+    Returns:
+       fees ever minus the fees above and below the positions range at time
+    """
+    return solidity_operations().sub(
+        solidity_operations().sub(
+            feeGrowthGlobal,
+            fees_collected_below_tickLower(
+                tick, tickLower, feeGrowthGlobal, feeGrowthOutsideLower
+            ),
+        ),
+        fees_collected_above_tickUpper(
+            tick, tickUpper, feeGrowthGlobal, feeGrowthOutsideUpper
+        ),
+    )
+
+
+def fees_uncollected_inRange(
+    liquidity: int,
+    tick: int,
+    tickUpper: int,
+    tickLower: int,
+    feeGrowthGlobal: int,
+    feeGrowthOutsideUpper: int,
+    feeGrowthOutsideLower: int,
+    feeGrowthInsideLast: int,
+) -> int:
+    """
+
+        liquidity * ( pool fee returns at time T - pool fee returns at time 0 )  / 2^128
+
+    Args:
+        liquidity (int):
+        tick (int): current tick
+        tickUpper (int): upper tick of the position
+        tickLower (int): lower tick of the position
+        feeGrowthGlobal (int): feeGrowthGlobal
+        feeGrowthOutsideUpper (int): feeGrowthOutside_X128 of the upper tick of the position
+        feeGrowthOutsideLower (int): feeGrowthOutside_X128 of the lower tick of the position
+        feeGrowthInsideLast (int): feeGrowthInside_X128 of the position ( pool fee returns at time 0)
+
+    Returns:
+        int: fees uncollected in range
+    """
+    solidity_operations().div(
+        solidity_operations().mul(
+            liquidity,
+            solidity_operations().sub(
+                fees_returns_at_timeT(
+                    tick=tick,
+                    tickUpper=tickUpper,
+                    tickLower=tickLower,
+                    feeGrowthGlobal=feeGrowthGlobal,
+                    feeGrowthOutsideUpper=feeGrowthOutsideUpper,
+                    feeGrowthOutsideLower=feeGrowthOutsideLower,
+                ),
+                feeGrowthInsideLast,
+            ),
+        ),
+        X128,
+    )
+
+
+def feeGrowth_to_fee(feeGrowthX128: int, liquidity: int) -> int:
+    """feeGrowth to fee
+
+    Args:
+       feeGrowthX128 (int): feeGrowth
+       liquidity (int): liquidity
+
+    Returns:
+       fee
+    """
+    solidity_operations().div(solidity_operations().mul(liquidity, feeGrowthX128), X128)
+
+
+#

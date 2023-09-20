@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import logging
 from math import sqrt
 from web3 import Web3
 from decimal import Decimal
@@ -16,6 +17,20 @@ def subIn256(x, y):
         difference += X256
 
     return difference
+
+
+def mulDiv(a, b, c):
+    result = (a * b) // c
+
+    if not isinstance(result, int):
+        logging.getLogger(__name__).error(
+            f" -->>  mulDiv error: {a} * {b} // {c} = {result} converting to {int(result)}"
+        )
+        return int(result)
+    if result < 0:
+        raise ValueError(f"mulDiv: result is negative -->  {a} * {b} // {c} = {result}")
+
+    return result
 
 
 def get_uncollected_fees(
@@ -70,14 +85,6 @@ def get_uncollected_fees(
     return float(
         (subIn256(feeGrowthInside, feeGrowthInsideLast) * (liquidity)) / Decimal(X128)
     )
-
-
-def get_fees_collected_inRange():
-    """fees ever minus the fees above and below the position’s range at time
-
-    feeGrowthGlobal - fees collected below the lower tick - fees collected above the upper tick
-    """
-    pass
 
 
 # liquidity * ( pool fee returns at time T - pool fee returns at time 0 )  / 2^128
@@ -855,10 +862,10 @@ def get_uncollected_fees_vGammawire(
 
     uncollectedFees_0 = (
         liquidity * (subIn256(fees_accum_now_0, fee_growth_inside_last_0))
-    ) / X128
+    ) // X128
     uncollectedFees_1 = (
         liquidity * (subIn256(fees_accum_now_1, fee_growth_inside_last_1))
-    ) / X128
+    ) // X128
 
     return uncollectedFees_0, uncollectedFees_1
 
