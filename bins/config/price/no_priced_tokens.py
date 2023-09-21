@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import logging
+from bins.configuration import CONFIGURATION
 from bins.general.enums import Chain
 from bins.w3.builders import build_erc20_helper
 
@@ -46,6 +47,30 @@ def xram(chain: Chain, address: str) -> NoPricedToken_conversion:
     )
 
 
+def oretro(chain: Chain, address: str) -> NoPricedToken_conversion:
+    # oRETRO is a call option token that is used as the emission token for the Retro protocol
+    # The discount rate is subject to change and based on market conditions.
+    retro_token = "0xbfa35599c7aebb0dace9b5aa3ca5f2a79624d8eb".lower()
+    oretro_token = "0x3a29cab2e124919d14a6f735b6033a3aad2b260f".lower()
+
+    # get the discount rate from the contract
+    erc20 = build_erc20_helper(
+        chain=chain,
+        address=oretro_token,
+        abi_filename="oretro",
+        abi_path=(CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi")
+        + "/retro",
+    )
+    discount_rate = erc20.call_function_autoRpc("discount")
+    conversion_rate = (100 - discount_rate) / 100
+
+    return NoPricedToken_conversion(
+        original_token_address=oretro_token,
+        converted_token_address=retro_token,
+        conversion_rate=conversion_rate,
+    )
+
+
 # ADD HERE THE TOKENS THAT ARE NOT PRICED IN ANY POOL
 TOKEN_ADDRESS_CONVERSION = {
     Chain.ETHEREUM: {
@@ -55,6 +80,10 @@ TOKEN_ADDRESS_CONVERSION = {
     Chain.ARBITRUM: {
         # xRAM--RAM
         "0xaaa1ee8dc1864ae49185c368e8c64dd780a50fb7".lower(): xram
+    },
+    Chain.POLYGON: {
+        # oRETRO--RETRO
+        "0x3a29cab2e124919d14a6f735b6033a3aad2b260f".lower(): oretro
     },
 }
 

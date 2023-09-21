@@ -522,7 +522,15 @@ def build_protocol_pool(
 
 
 def build_erc20_helper(
-    chain: Chain, address: str | None = None, cached: bool = False
+    chain: Chain,
+    address: str | None = None,
+    cached: bool = False,
+    abi_filename: str = "",
+    abi_path: str = "",
+    block: int = 0,
+    timestamp: int = 0,
+    custom_web3: Web3 | None = None,
+    custom_web3Url: str | None = None,
 ) -> bep20 | erc20:
     """Create a bep20 or erc20 with the zero address
 
@@ -538,11 +546,23 @@ def build_erc20_helper(
             bep20_cached(
                 address=address or "0x0000000000000000000000000000000000000000",
                 network=chain.database_name,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
+                block=block,
+                timestamp=timestamp,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
             )
             if chain == Chain.BSC
             else erc20_cached(
                 address=address or "0x0000000000000000000000000000000000000000",
                 network=chain.database_name,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
+                block=block,
+                timestamp=timestamp,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
             )
         )
 
@@ -550,10 +570,22 @@ def build_erc20_helper(
         bep20(
             address=address or "0x0000000000000000000000000000000000000000",
             network=chain.database_name,
+            abi_filename=abi_filename,
+            abi_path=abi_path,
+            block=block,
+            timestamp=timestamp,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
         )
         if chain == Chain.BSC
         else erc20(
             address=address or "0x0000000000000000000000000000000000000000",
             network=chain.database_name,
+            abi_filename=abi_filename,
+            abi_path=abi_path,
+            block=block,
+            timestamp=timestamp,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
         )
     )
