@@ -3,11 +3,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 import logging
-from bins.formulas.dex_formulas import mulDiv
 
-from bins.formulas.fees import calculate_gamma_fee
-from bins.general.enums import Chain, Protocol, text_to_protocol
 
+from ....formulas.full_math import mulDiv
+from ....formulas.fees import calculate_gamma_fee
+from ....general.enums import Chain, Protocol, text_to_protocol
 from .general import dict_to_object, token_group_object
 
 

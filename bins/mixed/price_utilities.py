@@ -17,7 +17,8 @@ from ..configuration import (
     USDC_TOKEN_ADDRESSES,
 )
 from ..database.common.db_collections_common import database_global
-from ..formulas.dex_formulas import sqrtPriceX96_to_price_float
+from ..formulas.tick_math import sqrtPriceX96_to_price_float
+
 from ..general import file_utilities
 from ..general.enums import Chain, Protocol, databaseSource, text_to_chain
 from ..w3.builders import build_protocol_pool

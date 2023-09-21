@@ -2,7 +2,7 @@ import logging
 from web3 import Web3
 
 from bins.errors.general import ProcessingError
-from bins.formulas import dex_formulas
+from ....formulas.position import get_positionKey_ramses
 from ....general.enums import Protocol, error_identity, text_to_chain
 from .. import gamma
 from ..general import erc20
@@ -330,7 +330,7 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
         """
         _base_position = self.gauge.periodClaimedAmount(
             period=period,
-            positionHash=dex_formulas.get_positionKey_ramses(
+            positionHash=get_positionKey_ramses(
                 ownerAddress=Web3.toChecksumAddress(self.address),
                 tickLower=self.baseLower,
                 tickUpper=self.baseUpper,
@@ -340,7 +340,7 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
         )
         _limit_position = self.gauge.periodClaimedAmount(
             period=period,
-            positionHash=dex_formulas.get_positionKey_ramses(
+            positionHash=get_positionKey_ramses(
                 ownerAddress=Web3.toChecksumAddress(self.address),
                 tickLower=self.limitLower,
                 tickUpper=self.limitUpper,
@@ -708,7 +708,7 @@ class gamma_hypervisor_cached(gamma.hypervisor.gamma_hypervisor_cached):
         """
         _base_position = self.gauge.periodClaimedAmount(
             period=period,
-            positionHash=dex_formulas.get_positionKey_ramses(
+            positionHash=get_positionKey_ramses(
                 ownerAddress=Web3.toChecksumAddress(self.address),
                 tickLower=self.baseLower,
                 tickUpper=self.baseUpper,
@@ -718,7 +718,7 @@ class gamma_hypervisor_cached(gamma.hypervisor.gamma_hypervisor_cached):
         )
         _limit_position = self.gauge.periodClaimedAmount(
             period=period,
-            positionHash=dex_formulas.get_positionKey_ramses(
+            positionHash=get_positionKey_ramses(
                 ownerAddress=Web3.toChecksumAddress(self.address),
                 tickLower=self.limitLower,
                 tickUpper=self.limitUpper,

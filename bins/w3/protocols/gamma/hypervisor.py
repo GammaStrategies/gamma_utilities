@@ -378,15 +378,15 @@ class gamma_hypervisor(erc20):
             ownerAddress=self.address,
             tickUpper=self.baseUpper,
             tickLower=self.baseLower,
-            inDecimal=inDecimal,
             protocolFee=self.get_gamma_fee(),
+            inDecimal=inDecimal,
         )
         limit = self.pool.get_fees_uncollected(
             ownerAddress=self.address,
             tickUpper=self.limitUpper,
             tickLower=self.limitLower,
-            inDecimal=inDecimal,
             protocolFee=self.get_gamma_fee(),
+            inDecimal=inDecimal,
         )
 
         result = {k: base.get(k, 0) + limit.get(k, 0) for k in set(base) & set(limit)}
@@ -402,12 +402,14 @@ class gamma_hypervisor(erc20):
             ownerAddress=self.address,
             tickUpper=self.baseUpper,
             tickLower=self.baseLower,
+            protocolFee=self.get_gamma_fee(),
             inDecimal=inDecimal,
         )
         limit = self.pool.get_fees_collected(
             ownerAddress=self.address,
             tickUpper=self.limitUpper,
             tickLower=self.limitLower,
+            protocolFee=self.get_gamma_fee(),
             inDecimal=inDecimal,
         )
 

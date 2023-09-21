@@ -2,7 +2,7 @@ from hexbytes import HexBytes
 from web3 import Web3
 
 from bins.errors.general import ProcessingError
-from ....formulas import dex_formulas
+from ....formulas.position import get_positionKey_ramses
 from ....general.enums import Protocol, error_identity, text_to_chain
 from .. import uniswap
 
@@ -225,7 +225,7 @@ class pool(uniswap.pool.poolv3):
                    tokensOwed1   uint128 :  0
         """
         return self.positions(
-            dex_formulas.get_positionKey_ramses(
+            get_positionKey_ramses(
                 ownerAddress=ownerAddress,
                 tickLower=tickLower,
                 tickUpper=tickUpper,
@@ -524,7 +524,7 @@ class pool_cached(uniswap.pool.poolv3_cached):
                    tokensOwed1   uint128 :  0
         """
         return self.positions(
-            dex_formulas.get_positionKey_ramses(
+            get_positionKey_ramses(
                 ownerAddress=ownerAddress,
                 tickLower=tickLower,
                 tickUpper=tickUpper,

@@ -6,9 +6,17 @@ from hexbytes import HexBytes
 from web3 import Web3
 
 from bins.errors.general import ProcessingError
+from bins.formulas.fees import feeGrowth_to_fee, fees_uncollected_inRange
 
 from ....configuration import WEB3_CHAIN_IDS
-from ....formulas import dex_formulas
+from ....formulas.full_math import mulDiv
+from ....formulas.position import (
+    get_positionKey_algebra,
+    get_positionKey_ramses,
+    get_positionKey,
+)
+from ....formulas.tick_math import getSqrtRatioAtTick
+from ....formulas.liquidity_math import getAmountsForLiquidity
 from ....general.enums import Protocol, error_identity, text_to_chain
 from ..general import (
     bep20,
@@ -425,7 +433,7 @@ class poolv3(web3wrap):
                    tokensOwed1   uint128 :  0
         """
         return self.positions(
-            dex_formulas.get_positionKey_algebra(
+            get_positionKey_algebra(
                 ownerAddress=ownerAddress,
                 tickLower=tickLower,
                 tickUpper=tickUpper,
@@ -471,13 +479,13 @@ class poolv3(web3wrap):
         # get current tick from slot
         tickCurrent = slot0["tick"]
         sqrtRatioX96 = slot0["sqrtPriceX96"]
-        sqrtRatioAX96 = dex_formulas.TickMath.getSqrtRatioAtTick(tickLower)
-        sqrtRatioBX96 = dex_formulas.TickMath.getSqrtRatioAtTick(tickUpper)
+        sqrtRatioAX96 = getSqrtRatioAtTick(tickLower)
+        sqrtRatioBX96 = getSqrtRatioAtTick(tickUpper)
         # calc quantity from liquidity
         (
             result["qtty_token0"],
             result["qtty_token1"],
-        ) = dex_formulas.LiquidityAmounts.getAmountsForLiquidity(
+        ) = getAmountsForLiquidity(
             sqrtRatioX96, sqrtRatioAX96, sqrtRatioBX96, pos["liquidity"]
         )
 
@@ -561,31 +569,30 @@ class poolv3(web3wrap):
             )
             return result.copy()
 
-        (
-            result["qtty_token0"],
-            result["qtty_token1"],
-        ) = dex_formulas.get_uncollected_fees_vGammawire(
-            fee_growth_global_0=self.feeGrowthGlobal0X128,
-            fee_growth_global_1=self.feeGrowthGlobal1X128,
-            tick_current=tickCurrent,
-            tick_lower=tickLower,
-            tick_upper=tickUpper,
-            fee_growth_outside_0_lower=ticks_lower["feeGrowthOutside0X128"],
-            fee_growth_outside_1_lower=ticks_lower["feeGrowthOutside1X128"],
-            fee_growth_outside_0_upper=ticks_upper["feeGrowthOutside0X128"],
-            fee_growth_outside_1_upper=ticks_upper["feeGrowthOutside1X128"],
+        result["qtty_token0"] = fees_uncollected_inRange(
             liquidity=pos["liquidity"],
-            fee_growth_inside_last_0=pos["feeGrowthInside0LastX128"],
-            fee_growth_inside_last_1=pos["feeGrowthInside1LastX128"],
+            tick=tickCurrent,
+            tickLower=tickLower,
+            tickUpper=tickUpper,
+            feeGrowthGlobal=self.feeGrowthGlobal0X128,
+            feeGrowthOutsideLower=ticks_lower["feeGrowthOutside0X128"],
+            feeGrowthOutsideUpper=ticks_upper["feeGrowthOutside0X128"],
+            feeGrowthInsideLast=pos["feeGrowthInside0LastX128"],
+        )
+        result["qtty_token1"] = fees_uncollected_inRange(
+            liquidity=pos["liquidity"],
+            tick=tickCurrent,
+            tickLower=tickLower,
+            tickUpper=tickUpper,
+            feeGrowthGlobal=self.feeGrowthGlobal1X128,
+            feeGrowthOutsideLower=ticks_lower["feeGrowthOutside1X128"],
+            feeGrowthOutsideUpper=ticks_upper["feeGrowthOutside1X128"],
+            feeGrowthInsideLast=pos["feeGrowthInside1LastX128"],
         )
 
         # calculate LPs and Gamma fees
-        result["gamma_qtty_token0"] = dex_formulas.mulDiv(
-            result["qtty_token0"], protocolFee, 100
-        )
-        result["gamma_qtty_token1"] = dex_formulas.mulDiv(
-            result["qtty_token1"], protocolFee, 100
-        )
+        result["gamma_qtty_token0"] = mulDiv(result["qtty_token0"], protocolFee, 100)
+        result["gamma_qtty_token1"] = mulDiv(result["qtty_token1"], protocolFee, 100)
         result["lps_qtty_token0"] = result["qtty_token0"] - result["gamma_qtty_token0"]
         result["lps_qtty_token1"] = result["qtty_token1"] - result["gamma_qtty_token1"]
 
@@ -614,13 +621,22 @@ class poolv3(web3wrap):
         return result.copy()
 
     def get_fees_collected(
-        self, ownerAddress: str, tickUpper: int, tickLower: int, inDecimal: bool = True
+        self,
+        ownerAddress: str,
+        tickUpper: int,
+        tickLower: int,
+        protocolFee: int,
+        inDecimal: bool = True,
     ) -> dict:
         """Retrieve the quantity of fees collected by the deployed position"""
 
         result = {
             "qtty_token0": 0,
             "qtty_token1": 0,
+            "gamma_qtty_token0": 0,
+            "gamma_qtty_token1": 0,
+            "lps_qtty_token0": 0,
+            "lps_qtty_token1": 0,
         }
 
         # get position data
@@ -631,12 +647,18 @@ class poolv3(web3wrap):
         )
 
         # convert the position known feeGrowth to fees
-        result["qtty_token0"] = dex_formulas.feeGrowth_to_fee(
+        result["qtty_token0"] = feeGrowth_to_fee(
             feeGrowthX128=pos["feeGrowthInside0LastX128"], liquidity=pos["liquidity"]
         )
-        result["qtty_token1"] = dex_formulas.feeGrowth_to_fee(
+        result["qtty_token1"] = feeGrowth_to_fee(
             feeGrowthX128=pos["feeGrowthInside1LastX128"], liquidity=pos["liquidity"]
         )
+
+        # calculate LPs and Gamma fees
+        result["gamma_qtty_token0"] = mulDiv(result["qtty_token0"], protocolFee, 100)
+        result["gamma_qtty_token1"] = mulDiv(result["qtty_token1"], protocolFee, 100)
+        result["lps_qtty_token0"] = result["qtty_token0"] - result["gamma_qtty_token0"]
+        result["lps_qtty_token1"] = result["qtty_token1"] - result["gamma_qtty_token1"]
 
         # convert to decimal as needed
         if inDecimal:
@@ -644,6 +666,18 @@ class poolv3(web3wrap):
                 10**self.token0.decimals
             )
             result["qtty_token1"] = Decimal(result["qtty_token1"]) / Decimal(
+                10**self.token1.decimals
+            )
+            result["gamma_qtty_token0"] = Decimal(
+                result["gamma_qtty_token0"]
+            ) / Decimal(10**self.token0.decimals)
+            result["gamma_qtty_token1"] = Decimal(
+                result["gamma_qtty_token1"]
+            ) / Decimal(10**self.token1.decimals)
+            result["lps_qtty_token0"] = Decimal(result["lps_qtty_token0"]) / Decimal(
+                10**self.token0.decimals
+            )
+            result["lps_qtty_token1"] = Decimal(result["lps_qtty_token1"]) / Decimal(
                 10**self.token1.decimals
             )
         # return result
@@ -658,10 +692,10 @@ class poolv3(web3wrap):
         }
 
         # convert the position known feeGrowth to fees
-        result["qtty_token0"] = dex_formulas.feeGrowth_to_fee(
+        result["qtty_token0"] = feeGrowth_to_fee(
             feeGrowthX128=self.feeGrowthGlobal0X128, liquidity=self.liquidity
         )
-        result["qtty_token1"] = dex_formulas.feeGrowth_to_fee(
+        result["qtty_token1"] = feeGrowth_to_fee(
             feeGrowthX128=self.feeGrowthGlobal1X128, liquidity=self.liquidity
         )
 

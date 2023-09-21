@@ -463,7 +463,8 @@ DEX_POOLS = {
             "token1": "0x4200000000000000000000000000000000000006".lower(),
         },
         "SUSHI-USDbC": {
-            "protocol": Protocol.SUSHI,
+            # sushiswap v3
+            "protocol": Protocol.UNISWAPv3,
             "address": "0x82d22f27d97ce9a93eb68b5b1a43792492fa89c9".lower(),
             "token0": "0x7d49a065d17d6d4a55dc13649901fdbb98b2afba".lower(),
             "token1": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca".lower(),
