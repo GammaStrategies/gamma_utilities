@@ -901,7 +901,7 @@ class database_local(db_collections_common):
         Args:
             types (list[queueItemType] | None, optional): queue types to handle. Defaults to any.
             find (dict | None, optional): custom find command. Defaults to {"processing": 0}.
-            sort (list[tuple] | None, optional): custom sort command. Defaults to [("created", ASCENDING)].
+            sort (list[tuple] | None, optional): custom sort command. Defaults to [("creation", ASCENDING)].
 
         Returns:
             dict | None: queue dict item
@@ -913,7 +913,7 @@ class database_local(db_collections_common):
             find["type"] = {"$in": types}
 
         if not sort:
-            sort = [("created", ASCENDING)]
+            sort = [("creation", ASCENDING)]
 
         # get one item from queue
         return self.find_one_and_update(

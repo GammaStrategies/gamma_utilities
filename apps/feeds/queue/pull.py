@@ -108,7 +108,7 @@ def get_item_from_queue(
         network (str):
         types (list[queueItemType] | None, optional): . Defaults to All.
         find (dict, optional): . Defaults to {"processing": 0, "count": {"$lt": 5}}.
-        sort (list, optional): . Defaults to [("count", 1), ("created", 1)]. 1 is ascending, -1 is descending
+        sort (list, optional): . Defaults to [("count", 1), ("creation", 1)]. 1 is ascending, -1 is descending
 
     Returns:
         dict | None: queue item
@@ -116,7 +116,7 @@ def get_item_from_queue(
     if not find:
         find = {"processing": 0, "count": {"$lt": 5}}
     if not sort:
-        sort = [("count", 1), ("created", 1)]
+        sort = [("count", 1), ("creation", 1)]
 
     return get_default_localdb(network=network).get_queue_item(
         types=types,
