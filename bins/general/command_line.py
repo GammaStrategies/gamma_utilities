@@ -108,8 +108,8 @@ def parse_commandLine_args():
     # analysis
     par_analysis = exGroup.add_argument(
         "--analysis",
-        choices=[Chain.database_name for Chain in Chain],
-        help=" execute analysis ",
+        choices=["user", "network", "queue", "benchmark_logs"],
+        help=" execute analysis",
     )
 
     par_rescrape = exGroup.add_argument(

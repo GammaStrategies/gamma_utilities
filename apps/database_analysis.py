@@ -12,6 +12,7 @@ from decimal import Decimal
 from apps.feeds.queue.queue_item import QueueItem
 
 from bins.general.enums import Chain, queueItemType
+from bins.performance.benchmark_logs import analize_benchmark_log
 
 if __name__ == "__main__":
     # append parent directory pth
@@ -505,159 +506,6 @@ def sumary_user(network, protocol, user_address, ini_date=None, end_date=None):
             logging.getLogger(__name__).exception(" error ")
 
 
-# benchmark analysis
-def analize_benchmark_log(log_file: str) -> dict | None:
-    # result
-    result = {
-        "total_items": 0,
-        "processing_time": 0,  # seconds
-        "lifetime": 0,  # seconds
-        "average_processing_time": 0,
-        "average_lifetime": 0,
-        "networks": {},
-        "types": {},
-        "timeframe": {
-            "ini": None,
-            "end": None,
-        },
-    }
-    # regex
-    regex_search = "(?P<datetime>\d{4}\D\d{2}\D\d{2}\s\d{2}\D\d{2}\D\d{2}\D\d{3}).*?\-\s\s(?P<network>.*?)\squeue\sitem\s(?P<type>.*)\sprocessing\stime\:\s(?P<processing>.*?)\sseconds\s\stotal\slifetime\:\s(?P<lifetime>.*?)\s(?P<lifetime_units>days|hours|seconds|weeks)"
-    # find all matches in log file
-    if matches := re.finditer(regex_search, log_file):
-        # analyze
-        for match in matches:
-            # get matching vars
-            # convert string datetime (2023-09-07 02:09:08,323) to datetime
-            raw_dt = match.group("datetime")
-            network = match.group("network")
-            type = match.group("type")
-            processing = match.group("processing")
-            lifetime = match.group("lifetime")
-            lifetime_units = match.group("lifetime_units")
-
-            # add timeframe data
-            dtime = datetime.strptime(raw_dt, "%Y-%m-%d %H:%M:%S,%f")
-            if result["timeframe"]["ini"] is None or result["timeframe"]["ini"] > dtime:
-                result["timeframe"]["ini"] = dtime
-            if result["timeframe"]["end"] is None or result["timeframe"]["end"] < dtime:
-                result["timeframe"]["end"] = dtime
-
-            # convert lifetime to seconds
-            if lifetime_units == "seconds":
-                lifetime = float(lifetime)
-            elif lifetime_units == "minutes":
-                lifetime = float(lifetime) * 60
-            elif lifetime_units == "hours":
-                lifetime = float(lifetime) * 60 * 60
-            elif lifetime_units == "days":
-                lifetime = float(lifetime) * 60 * 60 * 24
-            elif lifetime_units == "weeks":
-                lifetime = float(lifetime) * 60 * 60 * 24 * 7
-
-            # add network
-            if network not in result["networks"]:
-                result["networks"][network] = {
-                    "total_items": 0,
-                    "processing_time": 0,  # seconds
-                    "average_processing_time": 0,
-                    "average_lifetime": 0,
-                    "lifetime": 0,  # seconds
-                    "types": {},
-                }
-
-            # add types
-            if type not in result["networks"][network]["types"]:
-                result["networks"][network]["types"][type] = {
-                    "total_items": 0,
-                    "processing_time": 0,  # seconds
-                    "lifetime": 0,  # seconds
-                    "average_processing_time": 0,
-                    "average_lifetime": 0,
-                }
-            if type not in result["types"]:
-                result["types"][type] = {
-                    "total_items": 0,
-                    "processing_time": 0,  # seconds
-                    "lifetime": 0,  # seconds
-                    "average_processing_time": 0,
-                    "average_lifetime": 0,
-                }
-
-            # add total items
-            result["total_items"] += 1
-
-            # add items
-            result["networks"][network]["total_items"] += 1
-            result["networks"][network]["types"][type]["total_items"] += 1
-            result["types"][type]["total_items"] += 1
-
-            # add processing time
-            result["networks"][network]["processing_time"] += float(processing)
-            result["networks"][network]["types"][type]["processing_time"] += float(
-                processing
-            )
-            result["types"][type]["processing_time"] += float(processing)
-
-            # add lifetime
-            result["networks"][network]["lifetime"] += float(lifetime)
-            result["networks"][network]["types"][type]["lifetime"] += float(lifetime)
-            result["types"][type]["lifetime"] += float(lifetime)
-
-        # logging.getLogger(__name__).debug(f" Calculating averages")
-        # calculate averages
-        for network in result["networks"]:
-            result["networks"][network]["average_processing_time"] = (
-                result["networks"][network]["processing_time"]
-                / result["networks"][network]["total_items"]
-            )
-            result["networks"][network]["average_lifetime"] = (
-                result["networks"][network]["lifetime"]
-                / result["networks"][network]["total_items"]
-            )
-            for type in result["networks"][network]["types"]:
-                result["networks"][network]["types"][type][
-                    "average_processing_time"
-                ] = (
-                    result["networks"][network]["types"][type]["processing_time"]
-                    / result["networks"][network]["types"][type]["total_items"]
-                )
-                result["networks"][network]["types"][type]["average_lifetime"] = (
-                    result["networks"][network]["types"][type]["lifetime"]
-                    / result["networks"][network]["types"][type]["total_items"]
-                )
-
-        for type in result["types"]:
-            result["types"][type]["average_processing_time"] = (
-                result["types"][type]["processing_time"]
-                / result["types"][type]["total_items"]
-            )
-            result["types"][type]["average_lifetime"] = (
-                result["types"][type]["lifetime"] / result["types"][type]["total_items"]
-            )
-
-        # totals
-        result["processing_time"] = sum(
-            [
-                result["networks"][network]["processing_time"]
-                for network in result["networks"]
-            ]
-        )
-        result["lifetime"] = sum(
-            [result["networks"][network]["lifetime"] for network in result["networks"]]
-        )
-        result["average_processing_time"] = (
-            result["processing_time"] / result["total_items"]
-            if result["total_items"]
-            else 0
-        )
-        result["average_lifetime"] = (
-            result["lifetime"] / result["total_items"] if result["total_items"] else 0
-        )
-
-    return result
-
-
 def benchmark_logs_analysis():
     # get all log files
     log_files = get_all_logfiles(log_names=["benchmark"])
@@ -706,6 +554,14 @@ def benchmark_logs_analysis():
             ):
                 timeframe["end"] = result["timeframe"]["end"]
 
+    # calculate items per day
+    aggregated_items_x_second = (
+        sum([x["total_items"] for x in aggregated_data])
+        / (timeframe["end"] - timeframe["ini"]).total_seconds()
+    )
+    aggregated_items_x_day = aggregated_items_x_second * 60 * 60 * 24
+    aggregated_items_x_month = aggregated_items_x_day * 30
+
     # log aggregated data
     logging.getLogger(__name__).info(
         f"Aggregated data from {timeframe['ini']} to {timeframe['end']}"
@@ -716,18 +572,19 @@ def benchmark_logs_analysis():
     logging.getLogger(__name__).info(
         f"    - processed {sum([x['total_items'] for x in aggregated_data]):,.0f} items"
     )
-    aggregated_items_x_second = (
-        sum([x["total_items"] for x in aggregated_data])
-        / (timeframe["end"] - timeframe["ini"]).total_seconds()
-    )
-    aggregated_items_x_day = aggregated_items_x_second * 60 * 60 * 24
-    aggregated_items_x_month = aggregated_items_x_day * 30
     logging.getLogger(__name__).info(
         f"    - calculated {aggregated_items_x_day:,.0f} items per day"
     )
     logging.getLogger(__name__).info(
         f"    - calculated {aggregated_items_x_month:,.0f} items per month"
     )
+
+    # log data per type
+    # logging.getLogger(__name__).info(f"Data per type")
+    # for type in aggregated_data[0]["types"]:
+    #     logging.getLogger(__name__).info(
+    #         f"    - {type} -> {sum([x['types'][type]['total_items'] for x in aggregated_data]):,.0f} items"
+    #     )
 
 
 def get_list_failing_queue_items(chain: Chain, find: dict | None = None):
@@ -961,24 +818,50 @@ def main(option: str, **kwargs):
     except Exception:
         end_datetime = None
 
-    # check if user address to analyze
-    if CONFIGURATION["_custom_"]["cml_parameters"].user_address:
-        sumary_user(
-            network=option,
-            protocol="gamma",
-            user_address=CONFIGURATION["_custom_"][
-                "cml_parameters"
-            ].user_address.lower(),
-            ini_date=ini_datetime,
-            end_date=end_datetime,
-        )
-    # elif not CONFIGURATION["_custom_"]["cml_parameters"].hypervisor_address:
-    #     # TODO:
-    else:
-        # execute summary
-        sumary_network(
-            network=option,
-            protocol="gamma",
-            ini_date=ini_datetime,
-            end_date=end_datetime,
-        )
+    if option == "user":
+        # check if user address to analyze
+        if CONFIGURATION["_custom_"]["cml_parameters"].user_address:
+            for protocol in CONFIGURATION["script"]["protocols"]:
+                # override networks if specified in cml
+                networks = (
+                    CONFIGURATION["_custom_"]["cml_parameters"].networks
+                    or CONFIGURATION["script"]["protocols"][protocol]["networks"]
+                )
+                for network in networks:
+                    sumary_user(
+                        network=network,
+                        protocol="gamma",
+                        user_address=CONFIGURATION["_custom_"][
+                            "cml_parameters"
+                        ].user_address.lower(),
+                        ini_date=ini_datetime,
+                        end_date=end_datetime,
+                    )
+        else:
+            raise ValueError("user address not provided. Use --user_address <address>")
+    elif option == "network":
+        for protocol in CONFIGURATION["script"]["protocols"]:
+            # override networks if specified in cml
+            networks = (
+                CONFIGURATION["_custom_"]["cml_parameters"].networks
+                or CONFIGURATION["script"]["protocols"][protocol]["networks"]
+            )
+            for network in networks:
+                # execute summary
+                sumary_network(
+                    network=network,
+                    protocol=protocol,
+                    ini_date=ini_datetime,
+                    end_date=end_datetime,
+                )
+    elif option == "benchmark_logs":
+        benchmark_logs_analysis()
+
+    elif option == "queue":
+        for protocol in CONFIGURATION["script"]["protocols"]:
+            # override networks if specified in cml
+            networks = (
+                CONFIGURATION["_custom_"]["cml_parameters"].networks
+                or CONFIGURATION["script"]["protocols"][protocol]["networks"]
+            )
+            analize_queues(chains=[Chain(network) for network in networks])
