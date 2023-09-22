@@ -11,7 +11,7 @@ from datetime import timezone
 from decimal import Decimal
 from apps.feeds.queue.queue_item import QueueItem
 
-from bins.general.enums import Chain, queueItemType
+from bins.general.enums import Chain, queueItemType, text_to_chain
 from bins.performance.benchmark_logs import analize_benchmark_log
 
 if __name__ == "__main__":
@@ -884,4 +884,5 @@ def main(option: str, **kwargs):
                 CONFIGURATION["_custom_"]["cml_parameters"].networks
                 or CONFIGURATION["script"]["protocols"][protocol]["networks"]
             )
-            analize_queues(chains=[Chain(network) for network in networks])
+
+            analize_queues(chains=[text_to_chain(network) for network in networks])
