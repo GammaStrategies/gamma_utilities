@@ -535,7 +535,11 @@ def benchmark_logs_analysis():
             total_seconds_in_period = (
                 result["timeframe"]["end"] - result["timeframe"]["ini"]
             ).total_seconds()
-            total_items_x_second = result["total_items"] / total_seconds_in_period
+            total_items_x_second = (
+                result["total_items"] / total_seconds_in_period
+                if total_seconds_in_period > 0
+                else 0
+            )
             total_items_x_day = total_items_x_second * 60 * 60 * 24
             items_x_month = total_items_x_day * 30
 
@@ -558,6 +562,8 @@ def benchmark_logs_analysis():
             for type in result["types"]:
                 percentage = (
                     result["types"][type]["total_items"] / result["total_items"]
+                    if result["total_items"] > 0
+                    else 0
                 )
                 logging.getLogger(__name__).info(
                     f"        - type {type} -> {result['types'][type]['average_processing_time']:,.0f} sec. [ processed {result['types'][type]['total_items']:,.0f}  {percentage:,.0%} of total  ] "
@@ -566,15 +572,19 @@ def benchmark_logs_analysis():
             for network in result["networks"]:
                 percentage = (
                     result["networks"][network]["total_items"] / result["total_items"]
+                    if result["total_items"] > 0
+                    else 0
                 )
                 logging.getLogger(__name__).info(
                     f"        - chain {network} -> {result['networks'][network]['average_processing_time']:,.0f} sec. [ processed {result['networks'][network]['total_items']:,.0f}  {percentage:,.0%} of total] "
                 )
 
     # calculate items per day
+    total_seconds_in_period = (timeframe["end"] - timeframe["ini"]).total_seconds()
     aggregated_items_x_second = (
-        sum([x["total_items"] for x in aggregated_data])
-        / (timeframe["end"] - timeframe["ini"]).total_seconds()
+        (sum([x["total_items"] for x in aggregated_data]) / total_seconds_in_period)
+        if total_seconds_in_period > 0
+        else 0
     )
     aggregated_items_x_day = aggregated_items_x_second * 60 * 60 * 24
     aggregated_items_x_month = aggregated_items_x_day * 30
