@@ -651,12 +651,12 @@ def benchmark_logs_analysis():
             if values["total_items"] > 0
             else 0
         )
-        it_x_day = it_x_sec * 60 * 60 * 24
+        # it_x_day = it_x_sec * 60 * 60 * 24
         percentage = (
             values["total_items"] / aggregated_items if aggregated_items > 0 else 0
         )
         logging.getLogger(__name__).info(
-            f"        type {type} -> {it_x_day:,.0f} it/day [{sec_x_it:,.0f} sec/it] [ processed {values['total_items']:,.0f} -> {percentage:,.0%} of total]"
+            f"        type {type} ->  {sec_x_it:,.0f} sec/it [ processed {values['total_items']:,.0f} -> {percentage:,.0%} of total]"
         )
 
     # log aggregated networks
@@ -672,12 +672,12 @@ def benchmark_logs_analysis():
             if values["total_items"] > 0
             else 0
         )
-        it_x_day = it_x_sec * 60 * 60 * 24
+        # it_x_day = it_x_sec * 60 * 60 * 24
         percentage = (
             values["total_items"] / aggregated_items if aggregated_items > 0 else 0
         )
         logging.getLogger(__name__).info(
-            f"        network {network} -> {it_x_day:,.0f} it/day [{sec_x_it:,.0f} sec/it] [ processed {values['total_items']:,.0f} -> {percentage:,.0%} of total]"
+            f"        network {network} -> {sec_x_it:,.0f} sec/it [ processed {values['total_items']:,.0f} -> {percentage:,.0%} of total]"
         )
 
 
