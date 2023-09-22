@@ -516,6 +516,8 @@ def benchmark_logs_analysis():
         "ini": None,
         "end": None,
     }
+    aggregated_types = {}
+    aggregated_networks = {}
     # process logs
     for log_file in log_files:
         # analize log file
@@ -523,7 +525,7 @@ def benchmark_logs_analysis():
         if result := analize_benchmark_log(log_file=load_logFile(log_file)):
             # check if there is data in result
             if not result["total_items"] > 0:
-                logging.getLogger(__name__).info(
+                logging.getLogger(__name__).debug(
                     f"    - no data in {log_file}  [skipping]"
                 )
                 continue
@@ -568,6 +570,20 @@ def benchmark_logs_analysis():
                 logging.getLogger(__name__).info(
                     f"        - type {type} -> {result['types'][type]['average_processing_time']:,.0f} sec. [ processed {result['types'][type]['total_items']:,.0f}  {percentage:,.0%} of total  ] "
                 )
+
+                # add to aggregated types
+                if type not in aggregated_types:
+                    aggregated_types[type] = {
+                        "total_items": 0,
+                        "total_processing_time": 0,
+                    }
+                aggregated_types[type]["total_items"] += result["types"][type][
+                    "total_items"
+                ]
+                aggregated_types[type]["total_processing_time"] += result["types"][
+                    type
+                ]["processing_time"]
+
             # per network log ( log averagee per network )
             for network in result["networks"]:
                 percentage = (
@@ -579,10 +595,28 @@ def benchmark_logs_analysis():
                     f"        - chain {network} -> {result['networks'][network]['average_processing_time']:,.0f} sec. [ processed {result['networks'][network]['total_items']:,.0f}  {percentage:,.0%} of total] "
                 )
 
+                # add to aggregated networks
+                if network not in aggregated_networks:
+                    aggregated_networks[network] = {
+                        "total_items": 0,
+                        "total_processing_time": 0,
+                    }
+                aggregated_networks[network]["total_items"] += result["networks"][
+                    network
+                ]["total_items"]
+                aggregated_networks[network]["total_processing_time"] += result[
+                    "networks"
+                ][network]["processing_time"]
+
     # calculate items per day
-    total_seconds_in_period = (timeframe["end"] - timeframe["ini"]).total_seconds()
+    total_seconds_in_period = (
+        (timeframe["end"] - timeframe["ini"]).total_seconds()
+        if timeframe["ini"] and timeframe["end"]
+        else 0
+    )
+    aggregated_items = sum([x["total_items"] for x in aggregated_data])
     aggregated_items_x_second = (
-        (sum([x["total_items"] for x in aggregated_data]) / total_seconds_in_period)
+        (aggregated_items / total_seconds_in_period)
         if total_seconds_in_period > 0
         else 0
     )
@@ -596,15 +630,55 @@ def benchmark_logs_analysis():
     logging.getLogger(__name__).info(
         f"    - processed {len(aggregated_data)} log files"
     )
-    logging.getLogger(__name__).info(
-        f"    - processed {sum([x['total_items'] for x in aggregated_data]):,.0f} items"
-    )
+    logging.getLogger(__name__).info(f"    - processed {aggregated_items:,.0f} items")
     logging.getLogger(__name__).info(
         f"    - calculated {aggregated_items_x_day:,.0f} items per day"
     )
     logging.getLogger(__name__).info(
         f"    - calculated {aggregated_items_x_month:,.0f} items per month"
     )
+
+    # log aggregated types
+    logging.getLogger(__name__).info(f"    - calculated items by type")
+    for type, values in aggregated_types.items():
+        it_x_sec = (
+            values["total_items"] / values["total_processing_time"]
+            if values["total_processing_time"] > 0
+            else 0
+        )
+        sec_x_it = (
+            values["total_processing_time"] / values["total_items"]
+            if values["total_items"] > 0
+            else 0
+        )
+        it_x_day = it_x_sec * 60 * 60 * 24
+        percentage = (
+            values["total_items"] / aggregated_items if aggregated_items > 0 else 0
+        )
+        logging.getLogger(__name__).info(
+            f"        type {type} -> {it_x_day:,.0f} it/day [{sec_x_it:,.0f} sec/it] [ processed {values['total_items']:,.0f} -> {percentage:,.0%} of total]"
+        )
+
+    # log aggregated networks
+    logging.getLogger(__name__).info(f"    - calculated items by network")
+    for network, values in aggregated_networks.items():
+        it_x_sec = (
+            values["total_items"] / values["total_processing_time"]
+            if values["total_processing_time"] > 0
+            else 0
+        )
+        sec_x_it = (
+            values["total_processing_time"] / values["total_items"]
+            if values["total_items"] > 0
+            else 0
+        )
+        it_x_day = it_x_sec * 60 * 60 * 24
+        percentage = (
+            values["total_items"] / aggregated_items if aggregated_items > 0 else 0
+        )
+        logging.getLogger(__name__).info(
+            f"        network {network} -> {it_x_day:,.0f} it/day [{sec_x_it:,.0f} sec/it] [ processed {values['total_items']:,.0f} -> {percentage:,.0%} of total]"
+        )
 
 
 def get_list_failing_queue_items(chain: Chain, find: dict | None = None):
