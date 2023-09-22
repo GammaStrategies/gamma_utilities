@@ -148,13 +148,18 @@ def fees_returns_at_timeT(
     Returns:
        fees ever minus the fees above and below the positions range at time
     """
-    return (
-        feeGrowthGlobal
-        - fees_collected_below_tickLower(
-            tick, tickLower, feeGrowthGlobal, feeGrowthOutsideLower
-        )
-    ) - fees_collected_above_tickUpper(
-        tick, tickUpper, feeGrowthGlobal, feeGrowthOutsideUpper
+    return sub(
+        sub(
+            feeGrowthGlobal,
+            fees_collected_below_tickLower(
+                tick, tickLower, feeGrowthGlobal, feeGrowthOutsideLower
+            ),
+            True,
+        ),
+        fees_collected_above_tickUpper(
+            tick, tickUpper, feeGrowthGlobal, feeGrowthOutsideUpper
+        ),
+        True,
     )
 
 
