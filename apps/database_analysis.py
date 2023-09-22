@@ -556,7 +556,7 @@ def benchmark_logs_analysis():
 
             # summary log
             logging.getLogger(__name__).info(
-                f"    - {total_items_x_day:,.0f} it/day [ processed {result['total_items']} from {result['timeframe']['ini']} to {result['timeframe']['end']}] "
+                f"    - {total_items_x_day:,.0f} it/day [ processed {result['total_items']} in {general_utilities.log_time_passed.get_timepassed_string(result['timeframe']['ini'],result['timeframe']['end'])} from {result['timeframe']['ini']} to {result['timeframe']['end']}] "
             )
             # per type log ( log averagee per type )
             for type in result["types"]:
