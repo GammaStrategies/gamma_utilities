@@ -1283,8 +1283,7 @@ def repair_missing_rewards_status(
     """ """
 
     # TODO: change so that avoids filling rewards status queue with inexistent ones.
-    # Rewards status start in an offchain decision and may start in any block. It may stop n start again in a different block. 
-    
+    # Rewards status start in an offchain decision and may start in any block. It may stop n start again in a different block.
 
     batch_size = 100000
     logging.getLogger(__name__).info(
@@ -2102,31 +2101,38 @@ def auto_get_prices():
                     )
 
 
-def get_all_logfiles(log_names: list = ["error", "debug", "price"]) -> list:
+def get_all_logfiles(
+    log_names: list = ["error", "debug", "price"],
+    avoid_path_names: list = ["check", "analysis"],
+) -> list:
     """get all logfiles from config or default"""
 
     logfiles = []
 
-    for logPath in CONFIGURATION["_custom_"]["cml_parameters"].check_logs or [
-        CONFIGURATION["logs"]["save_path"]
-    ]:
+    check_logs = CONFIGURATION["_custom_"]["cml_parameters"].check_logs
+    if not check_logs:
+        # we shall use the logs directory saved in configuration file
+        # one directory up from the current file
+        if os.path.isdir(CONFIGURATION["logs"]["save_path"]):
+            # get the root directory from path
+            check_logs = [os.path.dirname(CONFIGURATION["logs"]["save_path"])]
+
+    for logPath in check_logs:
         if os.path.isfile(logPath):
             logfiles.append(logPath)
         elif os.path.isdir(logPath):
             for root, dirs, files in os.walk(logPath):
                 # avoid to load "check" related logs ( current app log)
-                if (
-                    # CONFIGURATION["_custom_"]["cml_parameters"].log_subfolder
-                    # or
-                    "check"
-                    not in root.lower()
-                ):
-                    for file in files:
-                        if file.endswith(".log") and (
-                            any([x.lower() in file.lower() for x in log_names])
-                            or len(log_names) == 0
-                        ):
-                            logfiles.append(os.path.join(root, file))
+                if any(name in root for name in avoid_path_names):
+                    # loop to next
+                    continue
+
+                for file in files:
+                    if file.endswith(".log") and (
+                        any([x.lower() in file.lower() for x in log_names])
+                        or len(log_names) == 0
+                    ):
+                        logfiles.append(os.path.join(root, file))
 
     return logfiles
 

@@ -528,20 +528,16 @@ def benchmark_logs_analysis():
                 )
                 continue
 
+            # add raw to result
             aggregated_data.append(result)
 
-            items_x_second = (
-                result["total_items"]
-                / (
-                    result["timeframe"]["end"] - result["timeframe"]["ini"]
-                ).total_seconds()
-            )
-            items_x_day = items_x_second * 60 * 60 * 24
-            items_x_month = items_x_day * 30
-
-            logging.getLogger(__name__).info(
-                f"    - calculated {items_x_day:,.0f} [ processed {result['total_items']} from {result['timeframe']['ini']} to {result['timeframe']['end']}] "
-            )
+            # calculate items per day
+            total_seconds_in_period = (
+                result["timeframe"]["end"] - result["timeframe"]["ini"]
+            ).total_seconds()
+            total_items_x_second = result["total_items"] / total_seconds_in_period
+            total_items_x_day = total_items_x_second * 60 * 60 * 24
+            items_x_month = total_items_x_day * 30
 
             if (
                 timeframe["ini"] is None
@@ -553,6 +549,27 @@ def benchmark_logs_analysis():
                 or timeframe["end"] < result["timeframe"]["end"]
             ):
                 timeframe["end"] = result["timeframe"]["end"]
+
+            # summary log
+            logging.getLogger(__name__).info(
+                f"    - {total_items_x_day:,.0f} it/day [ processed {result['total_items']} from {result['timeframe']['ini']} to {result['timeframe']['end']}] "
+            )
+            # per type log ( log averagee per type )
+            for type in result["types"]:
+                percentage = (
+                    result["types"][type]["total_items"] / result["total_items"]
+                )
+                logging.getLogger(__name__).info(
+                    f"        - type {type} -> {result['types'][type]['average_processing_time']:,.0f} sec. [ processed {result['types'][type]['total_items']:,.0f}  {percentage:,.0%} of total  ] "
+                )
+            # per network log ( log averagee per network )
+            for network in result["networks"]:
+                percentage = (
+                    result["networks"][network]["total_items"] / result["total_items"]
+                )
+                logging.getLogger(__name__).info(
+                    f"        - chain {network} -> {result['networks'][network]['average_processing_time']:,.0f} sec. [ processed {result['networks'][network]['total_items']:,.0f}  {percentage:,.0%} of total] "
+                )
 
     # calculate items per day
     aggregated_items_x_second = (
@@ -578,13 +595,6 @@ def benchmark_logs_analysis():
     logging.getLogger(__name__).info(
         f"    - calculated {aggregated_items_x_month:,.0f} items per month"
     )
-
-    # log data per type
-    # logging.getLogger(__name__).info(f"Data per type")
-    # for type in aggregated_data[0]["types"]:
-    #     logging.getLogger(__name__).info(
-    #         f"    - {type} -> {sum([x['types'][type]['total_items'] for x in aggregated_data]):,.0f} items"
-    #     )
 
 
 def get_list_failing_queue_items(chain: Chain, find: dict | None = None):
