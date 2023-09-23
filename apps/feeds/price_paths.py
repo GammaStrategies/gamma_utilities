@@ -85,19 +85,16 @@ def convert_DEX_POOLS(DEX_POOLS: dict) -> dict:
             if token1 not in token_pools[chain]:
                 token_pools[chain][token1] = {}
 
-            # if token1 in token_pools[chain][token0]:
-            #     po = ""
-            # if token0 in token_pools[chain][token1]:
-            #     po = ""
-
             # add tokens as keys
             token_pools[chain][token0][token1] = {
                 "protocol": pool["protocol"],
                 "address": address,
+                "min_block": pool["min_block"],
             }
             token_pools[chain][token1][token0] = {
                 "protocol": pool["protocol"],
                 "address": address,
+                "min_block": pool["min_block"],
             }
 
     return token_pools
@@ -155,6 +152,7 @@ def build_token_paths(max_depth: int = 6):
                                         "token_from": token,
                                         "protocol": pool_data["protocol"],
                                         "address": pool_data["address"],
+                                        "min_block": pool_data["min_block"],
                                     }
                                 ]
                             )
@@ -164,6 +162,11 @@ def build_token_paths(max_depth: int = 6):
                             f""" Chain: {chain} USDC paths: {len(token_pools_paths)}""",
                             0,
                         )
+
+                else:
+                    logging.getLogger(__name__).warning(
+                        f" {usdc_token_address} token defined as USD for {chain} was not found in token_pools ( gamma's + manual DEX POOLS)."
+                    )
 
             # 2) add non usdc tokens to paths
             for path in token_pools_paths:
@@ -190,6 +193,13 @@ def build_token_paths(max_depth: int = 6):
                         result[chain][path[0]["token_from"]] = path
                 else:
                     result[chain][path[0]["token_from"]] = path
+
+                # update min_block as the maximum "min_block" field of all pools in the path
+                min_block = 0
+                for pool in path:
+                    if pool["min_block"] > min_block:
+                        min_block = pool["min_block"]
+                path[0]["min_block"] = min_block
 
             # update progress bar
             progress_hook("", 1)
@@ -227,12 +237,14 @@ def add_database_pools_to_paths(token_pools: dict, chain: Chain):
         token_pools[chain][token0_address][token1_address] = {
             "protocol": convert_dex_protocol(hype_pool["pool"]["dex"]),
             "address": hype_pool["pool"]["address"],
+            "min_block": hype_pool["pool"]["block"],
         }
 
         # add token1 as key
         token_pools[chain][token1_address][token0_address] = {
             "protocol": convert_dex_protocol(hype_pool["pool"]["dex"]),
             "address": hype_pool["pool"]["address"],
+            "min_block": hype_pool["pool"]["block"],
         }
 
 
@@ -249,6 +261,7 @@ def create_paths(
     path_result = []
     # get path last token from ( bc we go in reverse order)
     token_from = path[-1]["token_from"]
+    # min_block_from = path[-1]["min_block"]
 
     # get already processed items
     processed_pools = []
@@ -274,6 +287,7 @@ def create_paths(
                         "token_from": token,
                         "protocol": pool_data["protocol"],
                         "address": pool_data["address"],
+                        "min_block": pool_data["min_block"],
                     }
                 )
                 # add new path to result ( this is a closed path)

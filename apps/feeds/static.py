@@ -10,7 +10,14 @@ from bins.configuration import (
 )
 from bins.database.common.database_ids import create_id_rewards_static
 from bins.database.common.db_collections_common import database_local
-from bins.general.enums import Chain, Protocol, rewarderType, text_to_chain
+from bins.errors.general import ProcessingError
+from bins.general.enums import (
+    Chain,
+    Protocol,
+    error_identity,
+    rewarderType,
+    text_to_chain,
+)
 from bins.w3.builders import build_erc20_helper, build_hypervisor, convert_dex_protocol
 
 from bins.w3.protocols.general import erc20, bep20
@@ -140,27 +147,64 @@ def _create_hypervisor_static_dbObject(
         dict: hypervisor object ready to be saved in database
     """
 
-    # create hypervisor object
-    hypervisor = build_hypervisor(
-        network=network,
-        protocol=convert_dex_protocol(dex),
-        block=0,
-        hypervisor_address=address,
-        cached=False,
-    )
+    try:
+        # create hypervisor object
+        hypervisor = build_hypervisor(
+            network=network,
+            protocol=convert_dex_protocol(dex),
+            block=0,
+            hypervisor_address=address,
+            cached=False,
+            check=True,
+        )
 
-    # convert hypervisor to dictionary static mode on
-    hypervisor_data = hypervisor.as_dict(convert_bint=True, static_mode=True)
+        # convert hypervisor to dictionary static mode on
+        hypervisor_data = hypervisor.as_dict(convert_bint=True, static_mode=True)
 
-    # add contract block and timestamp at creation
-    if creation_data := _get_contract_creation_block(
-        network=network, contract_address=address
+    except Exception as e:
+        # could be that this is not a hypervisor?
+        logging.getLogger(__name__).error(
+            f" Cant convert {network}'s hypervisor {address.lower()} to dictionary because it seems this address is not a hypervisor. -> err: {e}"
+        )
+        return None
+
+    # add creation  block and timestamp for hypervisor
+    if creation_data_hype := _get_contract_creation_block(
+        network=network, contract_address=address.lower()
     ):
         logging.getLogger(__name__).debug(
-            f"     setting creation block and timestamp for {network}'s {address.lower()}"
+            f"     setting creation block and timestamp for {network}'s hypervisor {address.lower()}"
         )
-        hypervisor_data["block"] = creation_data["block"]
-        hypervisor_data["timestamp"] = creation_data["timestamp"]
+        hypervisor_data["block"] = creation_data_hype["block"]
+        hypervisor_data["timestamp"] = creation_data_hype["timestamp"]
+    else:
+        # cannot process hype static info correctly. Log it and return None
+        logging.getLogger(__name__).error(
+            f"Could not get creation block and timestamp for {network}'s hypervisor {address.lower()}. This hype static info will not be saved."
+        )
+        return None
+        # raise ProcessingError(
+        #     chain=text_to_chain(network),
+        #     item = hypervisor_data,
+        #     identity= error_identity.RETURN_NONE,
+        #     action="rescrape",
+        #     message=f" Could not get creation block and timestamp for {network}'s hypervisor {address.lower()}"
+        # )
+
+    # add creation  block and timestamp for pool
+    if creation_data_pool := _get_contract_creation_block(
+        network=network, contract_address=hypervisor_data["pool"]["address"]
+    ):
+        logging.getLogger(__name__).debug(
+            f"     setting creation block and timestamp for {network}'s pool {hypervisor_data['pool']['address'].lower()}"
+        )
+        hypervisor_data["pool"]["block"] = creation_data_pool["block"]
+        hypervisor_data["pool"]["timestamp"] = creation_data_pool["timestamp"]
+    else:
+        logging.getLogger(__name__).error(
+            f"     could not get creation block and timestamp for {network}'s pool {hypervisor_data['pool']['address'].lower()}. Setting to hypervisor's creation block and timestamp"
+        )
+        hypervisor_data["pool"]["block"] = hypervisor_data["block"]
 
     return hypervisor_data
 
@@ -1150,7 +1194,7 @@ def _get_filtered_hypervisor_addresses_from_registry(
             for x in filters.get("hypervisors_not_included", {}).get(network, [])
         ]
         logging.getLogger(__name__).debug(
-            f"   excluding hypervisors: {exclude_addresses}"
+            f"   excluding {len(exclude_addresses)} hypervisors: {exclude_addresses}"
         )
         # apply filters
         gamma_registry.apply_blacklist(blacklist=exclude_addresses)

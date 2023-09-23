@@ -87,22 +87,23 @@ class gamma_hypervisor_registry(web3wrap):
 
         #
         total_hypervisors_qtty = self.counter
+        addresses_scraped = []
         result = []
         disabled = []
         # retrieve all valid hypervisors addresses
         # loop until all hypervisors have been retrieved ( no while loop to avoid infinite loop)
         for i in range(10000):
             # exit
-            if len(result) >= total_hypervisors_qtty:
+            if len(addresses_scraped) >= total_hypervisors_qtty:
                 break
 
             try:
                 hypervisor_id, idx = self.hypeByIndex(index=i)
 
                 if idx:
-                    result.append(hypervisor_id)
+                    addresses_scraped.append(hypervisor_id.lower())
                 else:
-                    disabled.append(hypervisor_id)
+                    disabled.append(hypervisor_id.lower())
 
             except TypeError as e:
                 # hype index is out of bounds
@@ -121,14 +122,12 @@ class gamma_hypervisor_registry(web3wrap):
                     f" Error while retrieving addresses from registry {self._network} {self.address}  error-> {e} "
                 )
 
-        # remove blacklisted addresses
-        for address in result:
-            if (
-                self._network in self.__blacklist_addresses
-                and address.lower() in self.__blacklist_addresses[self._network]
-            ):
+        # build result only with those addresses that are not blacklisted
+
+        for address in addresses_scraped:
+            if not address.lower() in self.__blacklist_addresses.get(self._network, []):
                 # address is blacklisted
-                result.remove(address)
+                result.append(address)
 
         return result, disabled
 
