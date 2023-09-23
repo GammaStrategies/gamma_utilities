@@ -93,7 +93,7 @@ def select_process_queues(maximum_tasks: int = 10, queue_level: int | None = Non
         queue_level (int, optional): . Defaults to 0.
     """
     # maximum count variable to process when queue level is > 0
-    maximum_count = 5
+    maximum_count = CONFIGURATION["_custom_"]["cml_parameters"].max_queue_count or 5
     # create queue item selector per network
     item_selector_per_network = None
 

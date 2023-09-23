@@ -231,6 +231,12 @@ def parse_commandLine_args():
         help=" queue count gte to process ",
     )
     par_main.add_argument(
+        "--max_queue_count",
+        type=int,
+        help=" queue count lte to process ",
+    )
+
+    par_main.add_argument(
         "--queue_level",
         type=int,
         help=" queue item's count variable number to process first",
