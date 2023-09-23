@@ -5,14 +5,20 @@ from bins.configuration import CONFIGURATION, DEX_POOLS, USDC_TOKEN_ADDRESSES
 from bins.database.common.db_collections_common import database_local
 from bins.database.helpers import get_default_globaldb, get_from_localdb
 from bins.general.enums import Chain
-from bins.general.file_utilities import save_json
+from bins.general.file_utilities import save_json, load_json
 from bins.w3.builders import build_protocol_pool, convert_dex_protocol
 
 
 def create_price_paths_json():
     """Create json file with all price paths"""
+
+    # load old token paths if exist
+    old_token_price_paths = load_json(filename="token_paths", folder_path="data")
+
     # build token paths
-    token_price_paths = build_token_paths(max_depth=6)
+    token_price_paths = build_token_paths(
+        max_depth=6, old_token_price_paths=old_token_price_paths
+    )
 
     save_json(filename="token_paths", data=token_price_paths, folder_path="data")
     logging.getLogger(__name__).info(
@@ -53,6 +59,12 @@ def convert_DEX_POOLS(DEX_POOLS: dict) -> dict:
     """
     # prepare token_pools
     token_pools = {}
+
+    # load old conversion, if exist, or initialize it
+    dex_pools_converted = load_json(filename="dex_pools_converted", folder_path="data")
+    if not dex_pools_converted:
+        dex_pools_converted = {}
+
     for chain, data_dict in tqdm.tqdm(DEX_POOLS.items()):
         token_pools[chain] = {}
         for name, pool in data_dict.items():
@@ -65,19 +77,37 @@ def convert_DEX_POOLS(DEX_POOLS: dict) -> dict:
                 token1 = pool["token1"].lower()
                 address = pool["address"].lower()
             else:
-                logging.getLogger(__name__).debug(
-                    f" pool {name} does not have token0 or token1 keys. Scraping it"
-                )
-                # build pool from scratch
-                w3pool = build_protocol_pool(
-                    chain=chain,
-                    protocol=convert_dex_protocol(pool["protocol"]),
-                    pool_address=pool["address"].lower(),
-                    cached=True,
-                )
-                token0 = w3pool.token0.address.lower()
-                token1 = w3pool.token1.address.lower()
-                address = pool["address"].lower()
+                # check if pool is already converted
+                if chain in dex_pools_converted and name in dex_pools_converted[chain]:
+                    logging.getLogger(__name__).debug(
+                        f" pool {name} does not have token0 or token1 keys. Using latest saved conversion file."
+                    )
+                    token0 = dex_pools_converted[chain][name]["token0"]
+                    token1 = dex_pools_converted[chain][name]["token1"]
+                    address = dex_pools_converted[chain][name]["address"]
+                else:
+                    logging.getLogger(__name__).debug(
+                        f" pool {name} does not have token0 or token1 keys. Scraping it"
+                    )
+                    # build pool from scratch
+                    w3pool = build_protocol_pool(
+                        chain=chain,
+                        protocol=convert_dex_protocol(pool["protocol"]),
+                        pool_address=pool["address"].lower(),
+                        cached=True,
+                    )
+                    token0 = w3pool.token0.address.lower()
+                    token1 = w3pool.token1.address.lower()
+                    address = pool["address"].lower()
+
+                    # add to dex_pools_converted
+                    if chain not in dex_pools_converted:
+                        dex_pools_converted[chain] = {}
+                    dex_pools_converted[chain][name] = {
+                        "token0": token0,
+                        "token1": token1,
+                        "address": address,
+                    }
 
             # token is already in token_pools
             if token0 not in token_pools[chain]:
@@ -97,10 +127,16 @@ def convert_DEX_POOLS(DEX_POOLS: dict) -> dict:
                 "min_block": pool["min_block"],
             }
 
+    # save conversion
+    if dex_pools_converted:
+        save_json(
+            filename="dex_pools_converted", data=dex_pools_converted, folder_path="data"
+        )
+
     return token_pools
 
 
-def build_token_paths(max_depth: int = 6):
+def build_token_paths(max_depth: int = 6, old_token_price_paths: dict = None) -> dict:
     logging.getLogger(__name__).info(" Building all network pools paths to USDC price")
     result = {}
     with tqdm.tqdm(total=len(Chain)) as progress_bar:
@@ -194,12 +230,13 @@ def build_token_paths(max_depth: int = 6):
                 else:
                     result[chain][path[0]["token_from"]] = path
 
-                # update min_block as the maximum "min_block" field of all pools in the path
-                min_block = 0
-                for pool in path:
-                    if pool["min_block"] > min_block:
-                        min_block = pool["min_block"]
-                path[0]["min_block"] = min_block
+                if len(path) > 1:
+                    # update min_block as the maximum "min_block" field of all pools in the path
+                    min_block = 0
+                    for pool in path:
+                        if pool["min_block"] > min_block:
+                            min_block = pool["min_block"]
+                    path[0]["min_block"] = min_block
 
             # update progress bar
             progress_hook("", 1)
