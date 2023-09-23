@@ -188,7 +188,28 @@ def build_hypervisor(
     custom_web3: Web3 | None = None,
     custom_web3Url: str | None = None,
     cached: bool = False,
+    check: bool = False,
 ) -> protocols.uniswap.hypervisor.gamma_hypervisor:
+    """Create a hypervisor
+
+    Args:
+        network (str): _description_
+        protocol (Protocol): _description_
+        block (int): _description_
+        hypervisor_address (str): _description_
+        custom_web3 (Web3 | None, optional): _description_. Defaults to None.
+        custom_web3Url (str | None, optional): _description_. Defaults to None.
+        cached (bool, optional): _description_. Defaults to False.
+        check (bool, optional): Check wether this is actually a hypervisor. Defaults to False.
+
+    Raises:
+        NotImplementedError: _description_
+        ValueError: _description_
+
+    Returns:
+        protocols.uniswap.hypervisor.gamma_hypervisor: _description_
+    """
+
     # choose type based on Protocol
     if protocol == Protocol.UNISWAPv3:
         hypervisor = (
@@ -410,7 +431,31 @@ def build_hypervisor(
     else:
         raise NotImplementedError(f" {protocol} has not been implemented yet")
 
+    # check if the hypervisor is actually a hypervisor
+    if check:
+        if not check_hypervisor(hypervisor=hypervisor):
+            raise ValueError(
+                f" {hypervisor._network}'s hype {hypervisor.address} at block {hypervisor.block} is not a hypervisor"
+            )
+
     return hypervisor
+
+
+def check_hypervisor(hypervisor: protocols.uniswap.hypervisor.gamma_hypervisor) -> bool:
+    """Check if the hypervisor is actually a hypervisor. A false statement can be thrown if the choosen block is before creation (or after deletion, if that can happen)
+
+    Args:
+        hypervisor (protocols.uniswap.hypervisor.gamma_hypervisor): hypervisor to check
+
+    Returns:
+        bool: is a hypervisor?
+    """
+    try:
+        if hypervisor.getTotalAmounts:
+            return True
+    except Exception as e:
+        pass
+    return False
 
 
 def build_hypervisor_registry(
