@@ -290,9 +290,9 @@ def main(option="operations"):
 
         for network in networks:
             if option == "static":
-                for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][
-                    network
-                ]:
+                for dex in CONFIGURATION["script"]["protocols"][protocol][
+                    "networks"
+                ].get(network, []):
                     # filter if dex not in cml ( when cml is used )
                     if CONFIGURATION["_custom_"]["cml_parameters"].protocols:
                         if (
