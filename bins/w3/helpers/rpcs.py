@@ -162,7 +162,11 @@ class w3Providers:
                     )
 
     def get_rpc_list(
-        self, network: str, rpcKey_names: list[str] | None = None, shuffle: bool = True
+        self,
+        network: str,
+        rpcKey_names: list[str] | None = None,
+        shuffle: bool = True,
+        availability_filter: bool = True,
     ) -> list[w3Provider]:
         """Get a list of w3Provider from configuration file
 
@@ -170,6 +174,7 @@ class w3Providers:
             network (str): network name
             rpcKey_names (list[str] | None, optional): private or public or whatever is placed in config w3Providers. Defaults to None.
             shuffle (bool, optional): shuffle configured order. Defaults to True.
+            availability_filter (bool, optional): return only available rpc's. Defaults to True.
 
         Returns:
             list[w3Provider]: w3Provider list
@@ -185,7 +190,10 @@ class w3Providers:
                     random.shuffle(rpcUrls)
 
                 # add to result
-                result.extend([x for x in rpcUrls if x.is_available])
+                if availability_filter:
+                    result.extend([x for x in rpcUrls if x.is_available])
+                else:
+                    result.extend(rpcUrls)
         #
         return result
 

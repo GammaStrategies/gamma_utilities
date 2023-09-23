@@ -7,13 +7,14 @@ import requests
 from web3 import Web3, exceptions, types
 from web3.contract import Contract
 from web3.middleware import geth_poa_middleware, simple_cache_middleware
+from bins.errors.general import ProcessingError
 
 from bins.w3.helpers.rpcs import RPC_MANAGER, w3Provider
 
 from ...configuration import CONFIGURATION, WEB3_CHAIN_IDS
 from ...general import file_utilities
 from ...cache import cache_utilities
-from ...general.enums import Chain
+from ...general.enums import Chain, error_identity, text_to_chain
 
 
 # main base class
@@ -95,9 +96,25 @@ class web3wrap:
             else:
                 # there are no public nor private RPCs available
                 logging.getLogger(__name__).error(
-                    f"  no public nor private RPCs available for network {self._network} address {self._address}..."
+                    f"  no public nor private RPCs available for network {self._network} address {self._address}. Forcing the use of any private RPC."
                 )
-                raise Exception(f" No RPCs available for network {self._network}.")
+                # force the use any private RPC
+                web3Url = RPC_MANAGER.get_rpc_list(
+                    network=self._network,
+                    rpcKey_names=["private"],
+                    availability_filter=False,
+                )[0].url
+
+                # raise ProcessingError(
+                #     chain=text_to_chain(self._network),
+                #     item={
+                #         "address": self._address,
+                #         "type": type(self).__name__,
+                #     },
+                #     itentity=error_identity.NO_RPC_AVAILABLE,
+                #     action="sleepNretry",
+                #     message=f"  no public nor private RPCs available for network {self._network}",
+                # )
 
         result = Web3(
             Web3.HTTPProvider(

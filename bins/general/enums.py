@@ -302,6 +302,7 @@ class error_identity(str, Enum):
     NEGATIVE_FEES = "NEGATIVE_FEES"
     RETURN_NONE = "RETURN_NONE"
     INVALID_MFD = "INVALID_MFD"
+    NO_RPC_AVAILABLE = "NO_RPC_AVAILABLE"
 
 
 class reportType(str, Enum):
