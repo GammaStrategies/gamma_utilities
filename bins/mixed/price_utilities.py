@@ -591,7 +591,11 @@ class usdc_price_scraper:
                 # follow the path to get USDC price of token address
                 for dex_pool_config, i in DEX_POOLS_PRICE_PATHS[chain][token_address]:
                     # check if block is higher than the minimum block defined at pool
-                    if block and block < dex_pool_config["min_block"]:
+                    if (
+                        block
+                        and not isinstance(block, str)
+                        and block < dex_pool_config["min_block"]
+                    ):
                         logging.getLogger(__name__).debug(
                             f" block {block} is lower than the minimum block {dex_pool_config['min_block']} defined at pool {dex_pool_config['address']}. Cant get onchain price"
                         )
@@ -653,7 +657,12 @@ class usdc_price_scraper:
                     # follow the path to get USDC price of token address
                     for operation in price_paths[chain][token_address]:
                         # check if block is higher than the minimum block defined at pool
-                        if block and block < operation["min_block"]:
+                        # block can be a string or an int
+                        if (
+                            block
+                            and not isinstance(block, str)
+                            and block < operation["min_block"]
+                        ):
                             logging.getLogger(__name__).debug(
                                 f" block {block} is lower than the minimum block {operation['min_block']} defined at pool {operation['address']}. Cant get onchain price"
                             )

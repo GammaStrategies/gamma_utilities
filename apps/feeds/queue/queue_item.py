@@ -164,6 +164,49 @@ def create_priority_queueItemType() -> list[list[queueItemType]]:
     return result
 
 
+def create_priority_queueItemType_latestOut() -> list[list[queueItemType]]:
+    """Only process latest items when the item turn happens ( not on the other type¡s turn)
+
+    Returns:
+        list[list[queueItemType]]: _description_
+    """
+    # create an ordered list of queue item types
+    queue_items_list = CONFIGURATION["_custom_"]["cml_parameters"].queue_types or list(
+        queueItemType
+    )
+    # order by priority
+    queue_items_list.sort(key=lambda x: x.order, reverse=False)
+
+    # create a list without latest type
+    queue_items_list_withoutLatest = queue_items_list.copy()
+    queue_items_list_withoutLatest.remove(queueItemType.LATEST_MULTIFEEDISTRIBUTION)
+
+    # queue is processed in creation order:
+    #   Include for each queue item type the types that need to be processed before it
+    types_combination = {
+        queueItemType.OPERATION: queue_items_list_withoutLatest,
+        queueItemType.BLOCK: queue_items_list_withoutLatest,
+        queueItemType.HYPERVISOR_STATUS: queue_items_list_withoutLatest,
+        # only do price when price
+        queueItemType.PRICE: queue_items_list_withoutLatest,
+        queueItemType.LATEST_MULTIFEEDISTRIBUTION: queue_items_list,
+        queueItemType.REWARD_STATUS: queue_items_list,
+        # not used
+        queueItemType.HYPERVISOR_STATIC: queue_items_list,
+        queueItemType.REWARD_STATIC: queue_items_list,
+    }
+
+    # build a result
+    result = []
+    for queue_item in queue_items_list:
+        if queue_item in types_combination:
+            tmp_result = types_combination[queue_item]
+            # tmp_result.append(queue_item)
+            result.append(tmp_result)
+
+    return result
+
+
 def create_priority_queueItemType_inSequence() -> list[list[queueItemType]]:
     """Will process one type item at a time ( loop)
 
@@ -236,7 +279,9 @@ class queue_item_selector:
         self, queue_items_list: list[list[queueItemType]] | None = None
     ):
         if not queue_items_list:
-            self.queue_items_list = create_priority_queueItemType()
+            self.queue_items_list = (
+                create_priority_queueItemType_latestOut()
+            )  # create_priority_queueItemType()
         self._current_queue_item_index = 0
 
     @property

@@ -296,16 +296,18 @@ def filter_hypervisor_data_for_apr(
         items_to_keep = []
 
         for i in range(0, len(_ordered_hype_status_db["status"]), 2):
-            # calculate seconds between 2 items
-            _seconds_period = (
-                _ordered_hype_status_db["status"][i + 1]["timestamp"]
-                - _ordered_hype_status_db["status"][i]["timestamp"]
-            )
+            # make sure there is a next item
+            if i + 1 < len(_ordered_hype_status_db["status"]):
+                # calculate seconds between 2 items
+                _seconds_period = (
+                    _ordered_hype_status_db["status"][i + 1]["timestamp"]
+                    - _ordered_hype_status_db["status"][i]["timestamp"]
+                )
 
-            if _seconds_period >= min_period_seconds:
-                # keep both items
-                items_to_keep.append(_ordered_hype_status_db["status"][i])
-                items_to_keep.append(_ordered_hype_status_db["status"][i + 1])
+                if _seconds_period >= min_period_seconds:
+                    # keep both items
+                    items_to_keep.append(_ordered_hype_status_db["status"][i])
+                    items_to_keep.append(_ordered_hype_status_db["status"][i + 1])
 
         # replace status with filtered items
         _ordered_hype_status_db["status"] = items_to_keep

@@ -725,9 +725,9 @@ def build_multiFeeDistribution_from_queueItem(
                 )
                 # remove item from queue if count > 5
                 # this item will never be pushed again by the last data script unless it diapear from the queue. So it will be processed again
-                if queue_item.count > 5:
+                if queue_item.count >= 5:
                     logging.getLogger(__name__).warning(
-                        f"  queue's {network} {queue_item.type} {queue_item.id} has been processed more than 5 times. Removing from queue"
+                        f"  queue's {network} {queue_item.type} {queue_item.id} has been processed 5 or more times. Removing from queue"
                     )
                     get_default_localdb(network=network).del_queue_item(
                         id=queue_item.id

@@ -1,7 +1,9 @@
 import logging
 from apps.feeds.operations import feed_operations
+from apps.feeds.queue.queue_item import QueueItem
+from bins.database.helpers import get_default_localdb, get_from_localdb
 from bins.errors.general import ProcessingError
-from bins.general.enums import error_identity, text_to_protocol
+from bins.general.enums import error_identity, queueItemType, text_to_protocol
 from bins.w3.builders import build_hypervisor
 
 
@@ -99,6 +101,45 @@ def process_error(error: ProcessingError):
         if error.action == "remove":
             # remove invalid mfd? TODO
             pass
+    elif error.identity == error_identity.PRICE_NOT_FOUND:
+        if error.action == "scrape_price":
+            logging.getLogger(__name__).debug(
+                f" Reaction to price not found -> Creating queueItem price for {error.item}"
+            )
+            try:
+                # add a new queue item to scrape price.
+                # If the item is already in the database, its count will be reset to zero but not the creation time
+                price_item_db = QueueItem(
+                    type=queueItemType.PRICE,
+                    block=error.item["block"],
+                    address=error.item["address"],
+                    data={},
+                ).as_dict
+
+                # get queue item if exists in database
+                if dbItem := get_from_localdb(
+                    network=error.chain.database_name,
+                    collection="queue",
+                    find={"id": price_item_db["id"]},
+                ):
+                    logging.getLogger(__name__).debug(
+                        f" Reaction to price not found -> Reseting count field for existing queueItem price for {error.item}"
+                    )
+                    # modify count and replace
+                    dbItem["count"] = 0
+                    get_default_localdb(
+                        network=error.chain.database_name
+                    ).set_queue_item(data=dbItem)
+                else:
+                    # add to database
+                    get_default_localdb(
+                        network=error.chain.database_name
+                    ).set_queue_item(data=price_item_db)
+            except Exception as e:
+                logging.getLogger(__name__).exception(
+                    f"  Error while trying to solve an error (wtf loop): {e}"
+                )
+
     else:
         logging.getLogger(__name__).warning(
             f"Unknown error identity {error.identity}. Can't process error"

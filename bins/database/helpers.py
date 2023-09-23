@@ -1,7 +1,9 @@
 import logging
+
+from bins.errors.general import ProcessingError
 from ..configuration import CONFIGURATION
 from ..database.common.db_collections_common import database_global, database_local
-from ..general.enums import Chain
+from ..general.enums import Chain, error_identity, text_to_chain
 
 
 def get_default_localdb(network: str) -> database_local:
@@ -76,9 +78,16 @@ def get_price_from_db(
         )
         return token_price[0]["price"]
 
-    raise ValueError(
-        f" No price for {token_address} on {network} at blocks {block}, {block+1} and {block-1} in database."
+    raise ProcessingError(
+        chain=text_to_chain(network),
+        item={"address": token_address, "block": block},
+        identity=error_identity.PRICE_NOT_FOUND,
+        action=f"scrape_price",
+        message=f" No price for {token_address} on {network} at blocks {block}, {block+1} and {block-1} in database.",
     )
+    # raise ValueError(
+    #     f" No price for {token_address} on {network} at blocks {block}, {block+1} and {block-1} in database."
+    # )
 
 
 def get_prices_from_db(

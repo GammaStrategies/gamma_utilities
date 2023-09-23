@@ -215,6 +215,13 @@ def build_angle_merkle_rewards_status(
         ):
             totalRewards_per_second = int(totalRewards_per_second)
 
+
+        if len(items_to_calc_apr) == 0:
+            logging.getLogger(__name__).warning(
+                f" Merkle rewards: There are no items to calc rewards for {network}'s {hypervisor_status['symbol']} {hypervisor_status['address']} at block {hypervisor_status['block']}"
+            )
+            return
+
         # calculate apr
         if reward_apr_data_to_save := create_rewards_status_calculate_apr(
             hypervisor_address=hypervisor_status["address"],
@@ -469,6 +476,9 @@ def create_rewards_status_calculate_apr(
     reward_data = {}
     # apr
     try:
+        if len(items_to_calc_apr) == 0:
+            raise ValueError(f" There are no items to calc rewards")
+
         # end control vars
         cum_reward_return = 0
         cum_baseReward_return = 0

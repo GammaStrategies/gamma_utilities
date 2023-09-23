@@ -3,6 +3,8 @@ from pycoingecko import CoinGeckoAPI
 import datetime as dt
 import logging
 
+import requests
+
 from bins.configuration import CONFIGURATION
 
 
@@ -131,17 +133,36 @@ class coingecko_price_helper:
                 to_timestamp=to_timestamp,
             )
         except ValueError as err:
-            if "error" in err.args[0]:
-                _data = {"prices": [[]], "error": err.args[0]["error"]}
-            else:
-                logging.getLogger(__name__).exception(
-                    f"Unexpected error while getting price  of {contract_address} at {network} from coinGecko       .error: {sys.exc_info()[0]}"
-                )
+            if err.args:
+                # try get error code: can be "error": "coin not found"
+                if isinstance(err.args[0], dict):
+                    code = err.args[0].get("status", {}).get("error_code", 0)
+                    if not code:
+                        code = err.args[0].get("error_code", 0)
+
+                if code == 429:
+                    logging.getLogger(__name__).warning(
+                        f"Too many requests error while getting price  of {contract_address} at {network} from coinGecko       .error: {err}"
+                    )
+                    return 0
+                elif code == 404:
+                    logging.getLogger(__name__).warning(
+                        f"Price not found for contract {contract_address} at {network}  for timestamp {timestamp}"
+                    )
+                    return 0
+                elif code == 0 and "error" in err.args[0]:
+                    logging.getLogger(__name__).warning(
+                        f" {err.args[0]['error']} error while getting price  of {contract_address} at {network} from coinGecko."
+                    )
+                else:
+                    logging.getLogger(__name__).exception(
+                        f"Unexpected value error while getting price  of {contract_address} at {network} from coinGecko       .error: {err}"
+                    )
 
                 _data = {"prices": [[]], "error": err.args[0]}
-        except Exception:
+        except Exception as err:
             logging.getLogger(__name__).exception(
-                f"Unexpected error while getting price  of {contract_address} at {network} from coinGecko       .error: {sys.exc_info()[0]}"
+                f"Unexpected error while getting price  of {contract_address} at {network} from coinGecko       .error: {err}"
             )
 
             _data = {"prices": [[]], "error": "dontknow"}
