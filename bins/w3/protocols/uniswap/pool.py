@@ -507,7 +507,7 @@ class poolv3(web3wrap):
         protocolFee: int,
         inDecimal: bool = True,
     ) -> dict:
-        """feeGrowthInside_Last * position liquidity:  Retrieve the quantity of fees collected by the deployed position"""
+        """feeGrowthInside_Last * position liquidity:  Retrieve the quantity of fees collected by the currently deployed position"""
 
         result = {
             "qtty_token0": 0,

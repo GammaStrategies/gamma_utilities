@@ -548,6 +548,12 @@ class gamma_hypervisor(erc20):
             for k in result["fees_uncollected"].keys():
                 result["fees_uncollected"][k] = str(result["fees_uncollected"][k])
 
+        # collected fees
+        result["fees_collected"] = self.get_fees_collected(inDecimal=(not convert_bint))
+        if convert_bint:
+            for k in result["fees_collected"].keys():
+                result["fees_collected"][k] = str(result["fees_collected"][k])
+
         # positions
         result["basePosition"] = self.getBasePosition
         if convert_bint:
@@ -1070,6 +1076,12 @@ class gamma_hypervisor_bep20(bep20):
         if convert_bint:
             for k in result["fees_uncollected"].keys():
                 result["fees_uncollected"][k] = str(result["fees_uncollected"][k])
+
+        # uncollected fees
+        result["fees_collected"] = self.get_fees_collected(inDecimal=(not convert_bint))
+        if convert_bint:
+            for k in result["fees_collected"].keys():
+                result["fees_collected"][k] = str(result["fees_collected"][k])
 
         # positions
         result["basePosition"] = self.getBasePosition
