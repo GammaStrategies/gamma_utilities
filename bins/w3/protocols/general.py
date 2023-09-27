@@ -612,6 +612,16 @@ class web3wrap:
 
         return None
 
+    def isContract(self) -> bool:
+        """Check if an address corresponds to a contract or not using the contract's bytecodeode."""
+        # check if address corresponds to a contract or not
+        if contract_bytecode := self._w3.eth.get_code(
+            Web3.toChecksumAddress(self.address)
+        ):
+            return True
+
+        return False
+
 
 # ERC20
 
