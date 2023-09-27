@@ -308,6 +308,10 @@ def filter_hypervisor_data_for_apr(
                     # keep both items
                     items_to_keep.append(_ordered_hype_status_db["status"][i])
                     items_to_keep.append(_ordered_hype_status_db["status"][i + 1])
+                else:
+                    logging.getLogger(__name__).debug(
+                        f" Discarding period {_seconds_period} seconds long for hype {_ordered_hype_status_db['status'][i]['address']}"
+                    )
 
         # replace status with filtered items
         _ordered_hype_status_db["status"] = items_to_keep
