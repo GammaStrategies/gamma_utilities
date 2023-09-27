@@ -613,14 +613,32 @@ class web3wrap:
         return None
 
     def isContract(self) -> bool:
-        """Check if an address corresponds to a contract or not using the contract's bytecodeode."""
-        # check if address corresponds to a contract or not
-        if contract_bytecode := self._w3.eth.get_code(
-            Web3.toChecksumAddress(self.address)
-        ):
-            return True
+        """Check if an address corresponds to a contract or not using the contract's bytecode.
+        If connection RPC errors do not let the check thru, return True
+        """
 
-        return False
+        # get w3Provider list
+        for rpc in RPC_MANAGER.get_rpc_list(network=self._network):
+            try:
+                rpc.add_attempt()
+                _w3 = self.setup_w3(network=self._network, web3Url=rpc.url)
+                if contract_bytecode := self._w3.eth.get_code(
+                    Web3.toChecksumAddress(self.address)
+                ):
+                    return True
+                else:
+                    return False
+            except Exception as e:
+                logging.getLogger(__name__).debug(
+                    f" error getting contract's bytecode data using {rpc.url} rpc: {e}"
+                )
+                rpc.add_failed(error=e)
+                continue
+
+        logging.getLogger(__name__).error(
+            f" Could not use any rpcProvider to check if {self.address} is a contract. Return true."
+        )
+        return True
 
 
 # ERC20

@@ -79,6 +79,9 @@ def pull_from_queue(
             return process_queue_item_type(network=network, queue_item=queue_item)
 
         except Exception as e:
+            logging.getLogger(__name__).exception(
+                f" Unexpected error processing {queue_item.type} queue item: {e}"
+            )
             # set queue item free but save counter
             if db_result := get_default_localdb(network=network).free_queue_item(
                 id=queue_item.id, count=queue_item.count
