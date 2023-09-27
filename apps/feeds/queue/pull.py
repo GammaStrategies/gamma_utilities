@@ -389,6 +389,16 @@ def pull_from_queue_price(network: str, queue_item: QueueItem) -> bool:
         # remove from queue
         return True
 
+    # check if address is actually a contract
+    if not build_erc20_helper(
+        chain=text_to_chain(network), address=queue_item.address, block=queue_item.block
+    ).isContract():
+        # remove from queue
+        logging.getLogger(__name__).debug(
+            f" {network} queue item {queue_item.id} address {queue_item.address} is not a contract. Removing from queue"
+        )
+        return True
+
     # debug variables
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     try:
