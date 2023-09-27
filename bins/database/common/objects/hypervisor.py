@@ -4,6 +4,8 @@ from datetime import datetime
 from decimal import Decimal
 import logging
 
+from bins.formulas.checks import toUint256
+
 
 from ....formulas.full_math import mulDiv
 from ....formulas.fees import calculate_gamma_fee
@@ -71,7 +73,8 @@ class fee_growth_object:
 @dataclass
 class fees_object:
     # all fees collected from current position
-    collected: token_group_object
+    collected_lp: token_group_object
+    collected_gamma: token_group_object
 
     # fees uncollected ( not yet collected from current position)
     # total uncollected fees = lp + gamma
@@ -96,6 +99,20 @@ class position_object:
 def transformer_hypervisor_status(value, key: str):
     # convert bson objectID
     if isinstance(value, str):
+        # check if string is objectID
+        if key in ["qtty_token0", "qtty_token1"]:
+            _tmp = float(value)
+            if _tmp.is_integer():
+                return toUint256(int(_tmp))
+            else:
+                return _tmp
+        if key in ["decimals", "block", "timestamp"]:
+            return int(value)
+
+        if key == "dex":
+            # convert dex to protocol
+            return text_to_protocol(value)
+
         # check if string is float or int
         try:
             return int(value)
@@ -104,15 +121,6 @@ def transformer_hypervisor_status(value, key: str):
                 return float(value)
             except Exception:
                 pass
-        # check if string is objectID
-        if key in ["qtty_token0", "qtty_token1"]:
-            return float(value)
-        if key in ["decimals", "block", "timestamp"]:
-            return int(value)
-
-        if key == "dex":
-            # convert dex to protocol
-            return text_to_protocol(value)
 
         # is actually a string
         return value
@@ -314,12 +322,17 @@ class hypervisor_database_object:
     protocol: Protocol
     # dex
 
+    # token_info: is the LP token information
     token_info: token_object
     # address: str
     # name: str
     # symbol: str
     # decimals: int
     # totalSupply: int
+
+    maxTotalSupply: int
+    deposit0Max: int
+    deposit1Max: int
 
     time: time_object
     # block: int
@@ -331,10 +344,6 @@ class hypervisor_database_object:
     #     liquidity:int
     #     amount0:int
     #     amount1:int
-
-    maxTotalSupply: int
-    deposit0Max: int
-    deposit1Max: int
 
     # totalAmounts
     #   "total0": "96899826009063741615533",

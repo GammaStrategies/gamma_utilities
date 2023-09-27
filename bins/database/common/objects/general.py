@@ -148,6 +148,17 @@ class dict_to_object:
                         f" Error substracting {key}: {e}"
                     )
                     result.__dict__[key] = value
+
+                    # TODO: REMOVE ##############################
+                    try:
+                        if key == "fees_uncollected" and (
+                            other.__dict__[key].qtty_token0 > 0
+                            or other.__dict__[key].qtty_token1 > 0
+                        ):
+                            po_debug = "stop here fridman"
+                    except:
+                        pass
+                    # END REMOVE ##############################
             else:
                 raise Exception(f"Property {key} not found in object to substract from")
 
