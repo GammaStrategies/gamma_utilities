@@ -9,6 +9,7 @@ from apps.feeds.queue.push import (
     build_and_save_queue_from_operation,
 )
 from apps.feeds.queue.queue_item import QueueItem
+from bins.checkers.address import check_is_token
 from bins.database.helpers import (
     get_default_globaldb,
     get_default_localdb,
@@ -393,9 +394,7 @@ def pull_from_queue_price(network: str, queue_item: QueueItem) -> bool:
         return True
 
     # check if address is actually a contract
-    if not build_erc20_helper(
-        chain=text_to_chain(network), address=queue_item.address, block=queue_item.block
-    ).isContract():
+    if not check_is_token(chain=text_to_chain(network), address=queue_item.address):
         # remove from queue
         logging.getLogger(__name__).debug(
             f" {network} queue item {queue_item.id} address {queue_item.address} is not a contract. Removing from queue"
