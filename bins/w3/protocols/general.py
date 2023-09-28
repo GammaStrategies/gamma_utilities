@@ -562,7 +562,16 @@ class web3wrap:
                 f" Could not use any rpcProvider calling function {function_name} with params {args} on {self._network} network {self.address} block {self.block}"
             )
 
-        return None
+        raise ProcessingError(
+            chain=text_to_chain(self._network),
+            item={
+                "address": self._address,
+                "type": type(self).__name__,
+            },
+            itentity=error_identity.NO_RPC_AVAILABLE,
+            action="sleepNretry",
+            message=f"  no public nor private RPCs available for network {self._network}",
+        )
 
     def _getTransactionReceipt(self, txHash: str):
         """Get transaction receipt
