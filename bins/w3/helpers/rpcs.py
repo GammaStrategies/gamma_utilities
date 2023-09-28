@@ -223,10 +223,10 @@ def cooldown_severity(error: Exception, rpc: w3Provider) -> int:
         int: cooldown severity
     """
     # default cooldown
-    cooldown = random.randint(120, 240)
+    cooldown = random.randint(40, 120)
 
     if rpc.type == "private":
-        cooldown = random.randint(60, 120)
+        cooldown = random.randint(10, 40)
 
     try:
         # Process dict info only
@@ -240,8 +240,8 @@ def cooldown_severity(error: Exception, rpc: w3Provider) -> int:
                 .startswith("Upgrade to an archive plan add-on for your account")
             ):
                 logging.getLogger(__name__).debug(f"  too many requests for {rpc.url}")
-                # return random cooldown between 5 and 10 minutes
-                cooldown = random.randint(300, 600)
+                # return random cooldown between 2.5 and 5 minutes
+                cooldown = random.randint(150, 300)
 
             elif error.args[0].get("code", 0) == -32000 and error.args[0].get(
                 "message", ""
@@ -251,7 +251,7 @@ def cooldown_severity(error: Exception, rpc: w3Provider) -> int:
                     f"  rpc {rpc.url} has no data at the specified block (public node)"
                 )
                 # return random cooldown
-                cooldown = random.randint(90, 150)
+                cooldown = random.randint(40, 90)
 
         # there are plenty of error types to handle here .. like MaxRetryError
 

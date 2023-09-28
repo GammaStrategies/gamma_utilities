@@ -146,7 +146,7 @@ def fees_returns_at_timeT(
        feeGrowthOutsideLower (int): feeGrowthOutside_X128 of the lower tick of the position
 
     Returns:
-       fees ever minus the fees above and below the positions range at time
+       fees ever minus the fees above and below the positions range at time ( feeGrowthInside )
     """
     return sub(
         sub(

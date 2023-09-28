@@ -508,15 +508,21 @@ class gamma_hypervisor(erc20):
         return result
 
     def _as_dict_not_static_items(self, convert_bint, result):
-        result["baseLower"] = str(self.baseLower) if convert_bint else self.baseLower
-        result["baseUpper"] = str(self.baseUpper) if convert_bint else self.baseUpper
+        # cached variables
+        _baseLower = self.baseLower
+        _baseUpper = self.baseUpper
+        _limitLower = self.limitLower
+        _limitUpper = self.limitUpper
+
+        result["baseLower"] = str(_baseLower) if convert_bint else _baseLower
+        result["baseUpper"] = str(_baseUpper) if convert_bint else _baseUpper
         result["currentTick"] = (
             str(self.currentTick) if convert_bint else self.currentTick
         )
 
-        result["limitLower"] = str(self.limitLower) if convert_bint else self.limitLower
+        result["limitLower"] = str(_limitLower) if convert_bint else _limitLower
 
-        result["limitUpper"] = str(self.limitUpper) if convert_bint else self.limitUpper
+        result["limitUpper"] = str(_limitUpper) if convert_bint else _limitUpper
 
         # getTotalAmounts
         result["totalAmounts"] = self.getTotalAmounts
@@ -565,10 +571,76 @@ class gamma_hypervisor(erc20):
             str(self.tickSpacing) if convert_bint else self.tickSpacing
         )
 
+        # positions specifics
+        result["basePosition_data"] = self.pool.position(
+            ownerAddress=Web3.toChecksumAddress(self.address.lower()),
+            tickLower=_baseLower,
+            tickUpper=_baseUpper,
+        )
+        if convert_bint:
+            self._as_dict_convert_helper_positions(
+                result=result,
+                position_key="basePosition_data",
+                exclue_conversion=["lastLiquidityAddTimestamp"],
+            )
+        result["basePosition_ticksLower"] = self.pool.ticks(_baseLower)
+        if convert_bint:
+            self._as_dict_convert_helper_positions(
+                result=result,
+                position_key="basePosition_ticksLower",
+                exclue_conversion=[""],
+            )
+        result["basePosition_ticksUpper"] = self.pool.ticks(_baseUpper)
+        if convert_bint:
+            self._as_dict_convert_helper_positions(
+                result=result,
+                position_key="basePosition_ticksUpper",
+                exclue_conversion=[""],
+            )
+
+        result["limitPosition_data"] = self.pool.position(
+            ownerAddress=Web3.toChecksumAddress(self.address.lower()),
+            tickLower=_limitLower,
+            tickUpper=_limitUpper,
+        )
+        if convert_bint:
+            self._as_dict_convert_helper_positions(
+                result=result,
+                position_key="limitPosition_data",
+                exclue_conversion=["lastLiquidityAddTimestamp"],
+            )
+        result["limitPosition_ticksLower"] = self.pool.ticks(_limitLower)
+        if convert_bint:
+            self._as_dict_convert_helper_positions(
+                result=result,
+                position_key="limitPosition_ticksLower",
+                exclue_conversion=[""],
+            )
+
+        result["limitPosition_ticksUpper"] = self.pool.ticks(_limitUpper)
+        if convert_bint:
+            self._as_dict_convert_helper_positions(
+                result=result,
+                position_key="limitPosition_ticksUpper",
+                exclue_conversion=[""],
+            )
+
     def _as_dict_convert_helper(self, result, arg1):
         result[arg1]["liquidity"] = str(result[arg1]["liquidity"])
         result[arg1]["amount0"] = str(result[arg1]["amount0"])
         result[arg1]["amount1"] = str(result[arg1]["amount1"])
+
+    def _as_dict_convert_helper_positions(
+        self, result: dict, position_key: str, exclue_conversion: list[str] = []
+    ):
+        # convert to string all fields but lastLiquidityAddTimestamp
+        for k in result[position_key].keys():
+            # do not convert boolean
+            if isinstance(result[position_key][k], bool):
+                continue
+
+            if k not in exclue_conversion:
+                result[position_key][k] = str(result[position_key][k])
 
 
 # TODO: simplify with inheritance
@@ -1094,10 +1166,76 @@ class gamma_hypervisor_bep20(bep20):
             str(self.tickSpacing) if convert_bint else self.tickSpacing
         )
 
+        # positions specifics
+        result["basePosition_data"] = self.pool.position(
+            ownerAddress=Web3.toChecksumAddress(self.address.lower()),
+            tickLower=self.baseLower,
+            tickUpper=self.baseUpper,
+        )
+        if convert_bint:
+            self._as_dict_convert_helper_positions(
+                result=result,
+                position_key="basePosition_data",
+                exclue_conversion=["lastLiquidityAddTimestamp"],
+            )
+        result["basePosition_ticksLower"] = self.pool.ticks(self.baseLower)
+        if convert_bint:
+            self._as_dict_convert_helper_positions(
+                result=result,
+                position_key="basePosition_ticksLower",
+                exclue_conversion=[""],
+            )
+        result["basePosition_ticksUpper"] = self.pool.ticks(self.baseUpper)
+        if convert_bint:
+            self._as_dict_convert_helper_positions(
+                result=result,
+                position_key="basePosition_ticksUpper",
+                exclue_conversion=[""],
+            )
+
+        result["limitPosition_data"] = self.pool.position(
+            ownerAddress=Web3.toChecksumAddress(self.address.lower()),
+            tickLower=self.limitLower,
+            tickUpper=self.limitUpper,
+        )
+        if convert_bint:
+            self._as_dict_convert_helper_positions(
+                result=result,
+                position_key="limitPosition_data",
+                exclue_conversion=["lastLiquidityAddTimestamp"],
+            )
+        result["limitPosition_ticksLower"] = self.pool.ticks(self.limitLower)
+        if convert_bint:
+            self._as_dict_convert_helper_positions(
+                result=result,
+                position_key="limitPosition_ticksLower",
+                exclue_conversion=[""],
+            )
+
+        result["limitPosition_ticksUpper"] = self.pool.ticks(self.limitUpper)
+        if convert_bint:
+            self._as_dict_convert_helper_positions(
+                result=result,
+                position_key="limitPosition_ticksUpper",
+                exclue_conversion=[""],
+            )
+
     def _as_dict_convert_helper(self, result, arg1):
         result[arg1]["liquidity"] = str(result[arg1]["liquidity"])
         result[arg1]["amount0"] = str(result[arg1]["amount0"])
         result[arg1]["amount1"] = str(result[arg1]["amount1"])
+
+    def _as_dict_convert_helper_positions(
+        self, result: dict, position_key: str, exclue_conversion: list[str] = []
+    ):
+        # convert to string all fields but lastLiquidityAddTimestamp
+        for k in result[position_key].keys():
+            # do not convert boolean
+            if isinstance(result[position_key][k], bool):
+                continue
+
+            if k not in exclue_conversion:
+                result[position_key][k] = str(result[position_key][k])
 
 
 # -> Cached version of the hypervisor
