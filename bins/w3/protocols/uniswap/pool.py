@@ -164,7 +164,7 @@ class poolv3(web3wrap):
                    observationIndex   uint16 :  198
                    observationCardinality   uint16 :  300
                    observationCardinalityNext   uint16 :  300
-                   feeProtocol   uint8 :  0
+                   feeProtocol   uint8 :  the current protocol fee as a percentage of the swap fee taken on withdrawal represented as an integer denominator (1/x)%
                    unlocked   bool :  true
         """
         if tmp := self.call_function_autoRpc("slot0"):

@@ -1,7 +1,9 @@
+import logging
 from hexbytes import HexBytes
 from web3 import Web3
 
-from bins.errors.general import ProcessingError
+from ....cache import cache_utilities
+from ....errors.general import ProcessingError
 from ....formulas.position import get_positionKey_ramses
 from ....general.enums import Protocol, error_identity, text_to_chain
 from .. import uniswap
@@ -65,6 +67,33 @@ class pool(uniswap.pool.poolv3):
             }
         return
 
+    # RAMSES uses a mutable fee that we will map to fee for our internal coherence but reality is
+    # that this fee property is mapped to currentFee prop. in RAMSES.
+    # so:
+    # in RAMSES contract terms: "currentFee" is the fee charged by the pool for swaps and liquidity provision and "fee" is the initial fee used for mapping tickspacing
+    # in our terms: "fee" is the fee charged by the pool for swaps and liquidity provision and "initialFee" is the initial fee used for mapping tickspacing
+    @property
+    def fee(self) -> int:
+        """Returns the fee charged by the pool for swaps and liquidity provision ( can change over time)
+        Returns uint24
+        """
+        return self.currentFee
+
+    @property
+    def currentFee(self) -> int:
+        """Returns the fee charged by the pool for swaps and liquidity provision ( can change over time)
+        Returns uint24
+        """
+        return self.call_function_autoRpc("currentFee")
+
+    @property
+    def initialFee(self) -> int:
+        """The pool's initial fee in hundredths of a bip, i.e. 1e-6
+           Ramses original inmutable fee made at pool creation ( used for mapping tickspacing )
+        Returns uint24
+        """
+        return self.call_function_autoRpc("fee")
+
     @property
     def boostedLiquidity(self) -> int:
         return self.call_function_autoRpc("boostedLiquidity")
@@ -76,6 +105,14 @@ class pool(uniswap.pool.poolv3):
     @property
     def nfpManager(self) -> str:
         return self.call_function_autoRpc("nfpManager")
+
+    @property
+    def protocolFees(self):
+        """Fees collected by the protocol
+        Returns:
+            token0 uint128, token1 uint128
+        """
+        return self.call_function_autoRpc("protocolFees")
 
     def periodCumulativesInside(self, period: int, tickLower: int, tickUpper: int):
         """
@@ -234,133 +271,90 @@ class pool(uniswap.pool.poolv3):
         )
 
 
-class pool_cached(uniswap.pool.poolv3_cached):
+class pool_cached(pool):
+    SAVE2FILE = True
+
     # SETUP
-    def __init__(
-        self,
-        address: str,
-        network: str,
-        abi_filename: str = "",
-        abi_path: str = "",
-        block: int = 0,
-        timestamp: int = 0,
-        custom_web3: Web3 | None = None,
-        custom_web3Url: str | None = None,
-    ):
-        self._abi_filename = abi_filename or "RamsesV2Pool"
-        self._abi_path = abi_path or f"{self.abi_root_path}/ramses"
+    def setup_cache(self):
+        # define network
 
-        super().__init__(
-            address=address,
-            network=network,
-            abi_filename=self._abi_filename,
-            abi_path=self._abi_path,
-            block=block,
-            timestamp=timestamp,
-            custom_web3=custom_web3,
-            custom_web3Url=custom_web3Url,
+        try:
+            self._chain_id = text_to_chain(self._network).id
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f" Can't get chain id for {self._network} {self.address} cahced pool->  {e}"
+            )
+            self._chain_id = self.w3.eth.chain_id
+
+        # made up a descriptive cahce file name
+        cache_filename = f"{self._chain_id}_{self.address.lower()}"
+
+        fixed_fields = {
+            "decimals": False,
+            "symbol": False,
+            "factory": False,
+            "fee": False,
+        }
+
+        # create cache helper
+        self._cache = cache_utilities.mutable_property_cache(
+            filename=cache_filename,
+            folder_name="data/cache/onchain",
+            reset=False,
+            fixed_fields=fixed_fields,
         )
-
-    def identify_dex_name(self) -> str:
-        return Protocol.RAMSES.database_name
-
-    def boostInfos(self, period: int):
-        """
-
-        Returns:
-            totalBoostAmount uint128, totalVeRamAmount int128
-        """
-        return self.call_function_autoRpc("boostInfos", None, period)
-
-    def boostInfos_2(self, period: int, key: str):
-        """
-
-        Returns:
-            boostAmount uint128, veRamAmount int128, secondsDebtX96 int256, boostedSecondsDebtX96 int256
-        """
-        return self.call_function_autoRpc("boostInfos", None, period, key)
-
-    def periodCumulativesInside(self, period: int, tickLower: int, tickUpper: int):
-        """
-        Returns:
-            secondsPerLiquidityInsideX128 uint160, secondsPerBoostedLiquidityInsideX128 uint160
-        """
-        return self.call_function_autoRpc(
-            "periodCumulativesInside", None, period, tickLower, tickUpper
-        )
-
-    def periods(self, period: int):
-        """
-        Returns:
-            previousPeriod uint32, startTick int24, lastTick int24, endSecondsPerLiquidityPeriodX128 uint160, endSecondsPerBoostedLiquidityPeriodX128 uint160, boostedInRange uint32
-        """
-        return self.call_function_autoRpc("periods", None, period)
-
-    def positionPeriodDebt(
-        self, period: int, owner: str, index: int, tickLower: int, tickUpper: int
-    ):
-        """
-        Returns:
-            secondsDebtX96 int256, boostedSecondsDebtX96 int256
-        """
-        return self.call_function_autoRpc(
-            "positionPeriodDebt",
-            None,
-            period,
-            Web3.toChecksumAddress(owner),
-            index,
-            tickLower,
-            tickUpper,
-        )
-
-    def positionPeriodSecondsInRange(
-        self, period: int, owner: str, index: int, tickLower: int, tickUpper: int
-    ):
-        """
-        Returns:
-            periodSecondsInsideX96 uint256, periodBoostedSecondsInsideX96 uint256
-        """
-        return self.call_function_autoRpc(
-            "positionPeriodSecondsInRange",
-            None,
-            period,
-            Web3.toChecksumAddress(owner),
-            index,
-            tickLower,
-            tickUpper,
-        )
-
-    def positions(self, position_key: str) -> dict:
-        """
-
-        Args:
-           position_key (str): 0x....
-
-        Returns:
-           _type_:
-                   liquidity   uint128 :  99225286851746
-                   feeGrowthInside0LastX128   uint256 :  0
-                   feeGrowthInside1LastX128   uint256 :  0
-                   tokensOwed0   uint128 :  0
-                   tokensOwed1   uint128 :  0
-                   attachedVeRamId uint256
-        """
-        position_key = (
-            HexBytes(position_key) if type(position_key) == str else position_key
-        )
-        if result := self.call_function_autoRpc("positions", None, position_key):
-            return {
-                "liquidity": result[0],
-                "feeGrowthInside0LastX128": result[1],
-                "feeGrowthInside1LastX128": result[2],
-                "tokensOwed0": result[3],
-                "tokensOwed1": result[4],
-                "attachedVeRamId": result[5],
-            }
-        else:
-            raise ValueError(f" positions function call returned None")
 
     # PROPERTIES
+    @property
+    def fee(self) -> int:
+        """The pool's initial fee in hundredths of a bip, i.e. 1e-6
+        Ramses original fee made at pool creation (used for mapping to ticks for all intents and purposes)
+        Returns uint24
+        """
+        prop_name = "fee"
+        result = self._cache.get_data(
+            chain_id=self._chain_id,
+            address=self.address,
+            block=self.block,
+            key=prop_name,
+        )
+        if result is None:
+            result = getattr(super(), prop_name)
+            self._cache.add_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+                data=result,
+                save2file=self.SAVE2FILE,
+            )
+        return result
+
+    @property
+    def currentFee(self) -> int:
+        """The pool's current fee in hundredths of a bip, i.e. 1e-6
+        returns the real fee that can change over time
+        Returns uint24
+        """
+        prop_name = "currentFee"
+        result = self._cache.get_data(
+            chain_id=self._chain_id,
+            address=self.address,
+            block=self.block,
+            key=prop_name,
+        )
+        if result is None:
+            result = getattr(super(), prop_name)
+            self._cache.add_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+                data=result,
+                save2file=self.SAVE2FILE,
+            )
+        return result
+
     @property
     def boostedLiquidity(self) -> int:
         prop_name = "boostedLiquidity"
@@ -466,67 +460,23 @@ class pool_cached(uniswap.pool.poolv3_cached):
             )
         return result
 
-    # CUSTOM FUNCTIONS
-
-    def ticks(self, tick: int) -> dict:
-        """
-
-        Args:
-           tick (int):
-
-        Returns:
-           _type_:     liquidityGross   uint128 :  0
-                       liquidityNet   int128 :  0
-                       boostedLiquidityGross   uint128 :  0
-                       boostedLiquidityNet   int128 :  0
-                       feeGrowthOutside0X128   uint256 :  0
-                       feeGrowthOutside1X128   uint256 :  0
-                       tickCumulativeOutside   int56 :  0
-                       secondsPerLiquidityOutsideX128   uint160 :  0
-                       secondsOutside   uint32 :  0
-                       initialized   bool :  false
-        """
-        if result := self.call_function_autoRpc("ticks", None, tick):
-            return {
-                "liquidityGross": result[0],
-                "liquidityNet": result[1],
-                "boostedLiquidityGross": result[2],
-                "boostedLiquidityNet": result[3],
-                "feeGrowthOutside0X128": result[4],
-                "feeGrowthOutside1X128": result[5],
-                "tickCumulativeOutside": result[6],
-                "secondsPerLiquidityOutsideX128": result[7],
-                "secondsOutside": result[8],
-                "initialized": result[9],
-            }
-        else:
-            raise ProcessingError(
-                chain=text_to_chain(self._network),
-                item={
-                    "pool_address": self.address,
-                    "block": self.block,
-                    "object": "pool.ticks",
-                },
-                identity=error_identity.RETURN_NONE,
-                action="",
-                message=f" (ramses pool) ticks function of {self.address} at block {self.block} returned none. (Check contract creation block)",
-            )
-
-    def position(self, ownerAddress: str, tickLower: int, tickUpper: int) -> dict:
-        """
-
-        Returns:
-           dict:
-                   liquidity   uint128 :  99225286851746
-                   feeGrowthInside0LastX128   uint256 :  0
-                   feeGrowthInside1LastX128   uint256 :  0
-                   tokensOwed0   uint128 :  0
-                   tokensOwed1   uint128 :  0
-        """
-        return self.positions(
-            get_positionKey_ramses(
-                ownerAddress=ownerAddress,
-                tickLower=tickLower,
-                tickUpper=tickUpper,
-            )
+    @property
+    def protocolFees(self):
+        prop_name = "protocolFees"
+        result = self._cache.get_data(
+            chain_id=self._chain_id,
+            address=self.address,
+            block=self.block,
+            key=prop_name,
         )
+        if result is None:
+            result = getattr(super(), prop_name)
+            self._cache.add_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+                data=result,
+                save2file=self.SAVE2FILE,
+            )
+        return result

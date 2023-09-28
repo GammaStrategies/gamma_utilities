@@ -94,12 +94,8 @@ class pool(algebra.pool.poolv3):
             raise ValueError(f" globalState function call returned None")
 
 
-# TODO: simplify class with inheritance
 class pool_cached(pool):
     SAVE2FILE = True
-
-    def identify_dex_name(self) -> str:
-        return Protocol.CAMELOT.database_name
 
     # PROPERTIES
 
