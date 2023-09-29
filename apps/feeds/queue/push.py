@@ -9,7 +9,10 @@ from bins.database.common.database_ids import (
     create_id_rewards_status,
 )
 from bins.database.common.db_collections_common import database_global, database_local
+from bins.database.helpers import get_default_localdb
 from bins.general.enums import (
+    Chain,
+    Protocol,
     queueItemType,
 )
 
@@ -232,3 +235,78 @@ def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network
     # add all items to database at once
     if items:
         local_db.replace_items_to_database(data=items, collection_name="queue")
+
+
+def build_and_save_queue_from_hypervisor_static(hypervisor_static: dict, network: str):
+    pass
+
+
+# hypervisor static
+def build_hypervisor_static_queueItems(
+    hypervisor_addresses: list[str],
+    chain: Chain,
+    protocol: Protocol,
+    create_reward_static: bool = True,
+):
+    """Create queue items of type hypervisor static using a list of hypervisor addresses
+
+    Args:
+        hypervisor_addresses (list[str]):
+        create_reward_static (bool, optional): After the hype static queue item is processed, would u like to enqueue a reward static work ? Defaults to True.
+    """
+    qitems_list = []
+    for hypervisor_address in hypervisor_addresses:
+        # create queue item
+        qitems_list.append(
+            QueueItem(
+                type=queueItemType.HYPERVISOR_STATIC,
+                block=0,
+                address=hypervisor_address.lower(),
+                data={
+                    "chain": chain.database_name,
+                    "protocol": protocol.database_name,
+                    "create_reward_static": create_reward_static,
+                },
+            ).as_dict
+        )
+
+    return qitems_list
+
+
+def build_and_save_queue_items_from_hypervisor_addresses(
+    hypervisor_addresses: list[str], chain: Chain, protocol: Protocol
+):
+    """Create queue items of type hypervisor static using a list of hypervisor addresses
+
+    Args:
+        hypervisor_addresses (list[str]):
+        network (str):
+    """
+    # create queue items list
+    qitems_list = build_hypervisor_static_queueItems(
+        hypervisor_addresses=hypervisor_addresses, chain=chain, protocol=protocol
+    )
+
+    # save to database
+    if db_return := get_default_localdb(
+        network=chain.database_name
+    ).replace_items_to_database(
+        data=qitems_list,
+        collection_name="queue",
+    ):
+        logging.getLogger(__name__).debug(
+            f"     db return-> del: {db_return.deleted_count}  ins: {db_return.inserted_count}  mod: {db_return.modified_count}  ups: {db_return.upserted_count} matched: {db_return.matched_count}"
+        )
+    else:
+        logging.getLogger(__name__).error(
+            f"  database did not return anything while saving {queueItemType.HYPERVISOR_STATIC}s to queue"
+        )
+
+
+# rewards static
+
+
+def build_reward_static_queueItem(
+    chain: Chain, protocol: Protocol, hypervisor_address: str
+) -> QueueItem:
+    pass

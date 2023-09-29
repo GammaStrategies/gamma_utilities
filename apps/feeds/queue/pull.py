@@ -5,10 +5,12 @@ import concurrent.futures
 from apps.feeds.latest.mutifeedistribution.item import multifeeDistribution_snapshot
 from apps.feeds.queue.helpers import to_free_or_not_to_free_item
 from apps.feeds.queue.push import (
+    build_and_save_queue_from_hypervisor_static,
     build_and_save_queue_from_hypervisor_status,
     build_and_save_queue_from_operation,
 )
 from apps.feeds.queue.queue_item import QueueItem
+from apps.feeds.static import _create_hypervisor_static_dbObject
 from bins.checkers.address import check_is_token
 from bins.database.helpers import (
     get_default_globaldb,
@@ -189,6 +191,14 @@ def process_queue_item_type(network: str, queue_item: QueueItem) -> bool:
             queue_item=queue_item,
             pull_func=pull_from_queue_latest_multiFeeDistribution,
         )
+
+    elif queue_item.type == queueItemType.HYPERVISOR_STATIC:
+        return pull_common_processing_work(
+            network=network,
+            queue_item=queue_item,
+            pull_func=pull_from_queue_hypervisor_static,
+        )
+
     else:
         # reset queue item
 
@@ -594,6 +604,39 @@ def pull_from_queue_operation(network: str, queue_item: QueueItem) -> bool:
         )
 
     # return result
+    return False
+
+
+def pull_from_queue_hypervisor_static(network: str, queue_item: QueueItem) -> bool:
+    if hype_static := _create_hypervisor_static_dbObject(
+        address=queue_item.address,
+        network=network,
+        dex=queue_item.data["protocol"],
+    ):
+        # add hypervisor static data to database
+        if db_return := get_default_localdb(network=network).set_static(
+            data=hype_static
+        ):
+            logging.getLogger(__name__).debug(
+                f" {network}'s hypervisor {queue_item.address} static dbResult-> mod:{db_return.modified_count} ups:{db_return.upserted_id} match: {db_return.matched_count}"
+            )
+
+            # create a reward static queue item for this hypervisor, if needed
+            if queue_item.data.get("create_reward_static", False):
+                build_and_save_queue_from_hypervisor_static(
+                    hypervisor_static=hype_static, network=network
+                )
+
+            return True
+
+        logging.getLogger(__name__).debug(
+            f" {network}'s hypervisor {queue_item.address} static could not be saved"
+        )
+
+    else:
+        logging.getLogger(__name__).debug(
+            f" {network}'s hypervisor {queue_item.address} static dictionary object could not be created"
+        )
     return False
 
 

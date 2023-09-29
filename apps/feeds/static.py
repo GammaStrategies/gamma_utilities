@@ -2,7 +2,9 @@
 import contextlib
 import logging
 import concurrent.futures
+from requests import HTTPError
 import tqdm
+from apps.feeds.queue.push import build_and_save_queue_items_from_hypervisor_addresses
 
 from bins.configuration import (
     CONFIGURATION,
@@ -128,6 +130,36 @@ def feed_hypervisor_static(
             )
 
 
+def feed_queue_with_hypervisor_static(
+    chain: Chain, protocol: Protocol, rewrite: bool = False
+):
+    """Create and add queue items to database using hypervisors static data
+
+    Args:
+        network (str):
+        dex (str):
+        rewrite (bool, optional): . Defaults to False.
+    """
+    logging.getLogger(__name__).info(
+        f">Feeding queue with {chain.fantasy_name}'s {protocol.fantasy_name} hypervisors static queue items"
+    )
+
+    # create hypervisor addresses to process
+    (
+        hypervisor_addresses_to_process,
+        hypervisor_addresses_disabled,
+    ) = _get_static_hypervisor_addresses_to_process(
+        network=chain.database_name, dex=protocol.database_name, rewrite=rewrite
+    )
+
+    # build and save queue items to database
+    build_and_save_queue_items_from_hypervisor_addresses(
+        hypervisor_addresses=hypervisor_addresses_to_process,
+        chain=chain,
+        protocol=protocol,
+    )
+
+
 def _create_hypervisor_static_dbObject(
     address: str,
     network: str,
@@ -161,6 +193,11 @@ def _create_hypervisor_static_dbObject(
         # convert hypervisor to dictionary static mode on
         hypervisor_data = hypervisor.as_dict(convert_bint=True, static_mode=True)
 
+    except HTTPError as e:
+        logging.getLogger(__name__).error(
+            f" Cant convert {network}'s hypervisor {address.lower()} to dictionary because of a network error. -> err: {e}"
+        )
+        return None
     except Exception as e:
         # could be that this is not a hypervisor?
         logging.getLogger(__name__).error(
@@ -1110,7 +1147,6 @@ def create_rewards_static_gamma(
 
 # helpers
 def _get_static_hypervisor_addresses_to_process(
-    protocol: str,
     network: str,
     dex: str,
     rewrite: bool = False,
@@ -1131,7 +1167,7 @@ def _get_static_hypervisor_addresses_to_process(
     # debug variables
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     # set local database name and create manager
-    local_db = database_local(mongo_url=mongo_url, db_name=f"{network}_{protocol}")
+    local_db = database_local(mongo_url=mongo_url, db_name=f"{network}_gamma")
 
     hypervisor_addresses_database = []
     if not rewrite:
@@ -1140,14 +1176,13 @@ def _get_static_hypervisor_addresses_to_process(
         )
     else:
         logging.getLogger(__name__).info(
-            f"   Rewriting all hypervisors static information of {network}'s {protocol} {dex} "
+            f"   Rewriting all hypervisors static information of {network}'s {dex} "
         )
 
     # return filtered hypervisor addresses from registry
     return _get_filtered_hypervisor_addresses_from_registry(
         network=network,
         dex=dex,
-        protocol=protocol,
         exclude_addresses=hypervisor_addresses_database,
     )
 
