@@ -154,7 +154,9 @@ def SaveCSV_row(filename, columns, row):
 
 
 # YIELD FILES IN SPECIFIED PATH
-def get_files(path: str):
+def get_files(path: str, subfolders: bool = False):
     for file in os.listdir(path):
         if os.path.isfile(os.path.join(path, file)):
             yield file
+        elif subfolders and os.path.isdir(os.path.join(path, file)):
+            yield from get_files(path=os.path.join(path, file), subfolders=subfolders)
