@@ -1,3 +1,4 @@
+from http.client import RemoteDisconnected
 import logging
 import random
 import math
@@ -550,29 +551,23 @@ class web3wrap:
                                     f" {rpc.type} RPC {rpc.url} is not responding. Adding failed attempt. err: {err.get('message')}"
                                 )
                                 rpc.add_failed(error=e)
+                            elif code in [-32005]:
+                                logging.getLogger(__name__).debug(
+                                    f" {rpc.type} RPC {rpc.url} current plan is not enough to place this kind of calls. Adding failed attempt. err: {err.get('message')}"
+                                )
+                                rpc.add_failed(error=e)
                             else:
                                 # "Your app has exceeded its concurrent requests capacity. If you have retries enabled, you can safely ignore this message
                                 logging.getLogger(__name__).error(
                                     f" Unknown ValueError: {err}"
                                 )
-
-                    elif isinstance(err, tuple) or isinstance(err, list):
-                        for err in err:
-                            if isinstance(err, dict):
-                                if code := err.get("code", None):
-                                    if code == -3200:
-                                        # 'missing trie node': this rpc endpoint does not have the data. Try another one and do not add failed attempt.
-                                        # 'header not found'
-                                        continue
-                                else:
-                                    logging.getLogger(__name__).error(
-                                        f" Unknown ValueError: {err}"
-                                    )
+                                rpc.add_failed(error=e)
 
                     else:
                         logging.getLogger(__name__).exception(
                             f" Unknown ValueError: {err}"
                         )
+                        rpc.add_failed(error=e)
 
             except requests.HTTPError as e:
                 for err in e.args:
@@ -582,10 +577,29 @@ class web3wrap:
                             f" Too many requests made to the {rpc.type} RPC {rpc.url} Continue adding failed attempt."
                         )
                         rpc.add_failed(error=e)
+                    elif "401" in err:
+                        # Unknown requests.HTTPError: 401 Client Error: Unauthorized for url
+                        logging.getLogger(__name__).debug(
+                            f" Too many requests made to the {rpc.type} RPC {rpc.url} Disabling it for 120 sec."
+                        )
+                        rpc._set_unavailable(cooldown=120)
                     else:
                         logging.getLogger(__name__).exception(
                             f" Unknown requests.HTTPError: {e}"
                         )
+                        rpc.add_failed(error=e)
+            except RemoteDisconnected as e:
+                logging.getLogger(__name__).debug(
+                    f" {rpc.type} RPC {rpc.url} disconnected without response. adding failed attempt."
+                )
+                rpc.add_failed(error=e)
+
+            except exceptions.BadFunctionCallOutput as e:
+                # web3.exceptions.BadFunctionCallOutput: Could not decode contract ..... with return data: b''
+                logging.getLogger(__name__).debug(
+                    f" {rpc.type} RPC {rpc.url} returned a BadFunctionCallOutput while calling function {function_name} in {self._network}'s contract {self.address} at block {self.block}. adding failed attempt. err: {e}"
+                )
+                rpc.add_failed(error=e)
 
             except Exception as e:
                 # check if error is due to this contract not being deployed or unexistant at this address+block
@@ -834,7 +848,7 @@ class erc20_cached(erc20):
         # made up a descriptive cahce file name
         cache_filename = f"{self._chain_id}_{self.address.lower()}"
 
-        fixed_fields = {"decimals": False, "symbol": False}
+        fixed_fields = {"decimals": True, "symbol": False}
 
         # create cache helper
         self._cache = cache_utilities.mutable_property_cache(
@@ -954,7 +968,7 @@ class bep20_cached(bep20):
         # made up a descriptive cahce file name
         cache_filename = f"{self._chain_id}_{self.address.lower()}"
 
-        fixed_fields = {"decimals": False, "symbol": False}
+        fixed_fields = {"decimals": True, "symbol": False}
 
         # create cache helper
         self._cache = cache_utilities.mutable_property_cache(
