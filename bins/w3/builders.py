@@ -2,10 +2,12 @@ import logging
 
 from web3 import Web3
 
+from bins.errors.general import ProcessingError
+
 from ..configuration import STATIC_REGISTRY_ADDRESSES
 
 from ..w3.protocols.gamma.registry import gamma_hypervisor_registry
-from ..general.enums import Chain, Protocol
+from ..general.enums import Chain, Protocol, error_identity
 
 from ..w3 import protocols
 from ..w3.protocols.general import bep20, bep20_cached, erc20, erc20_cached
@@ -42,6 +44,7 @@ def build_db_hypervisor(
     force_rpcType: str | None = None,
 ) -> dict():
     try:
+        # build hypervisor
         hypervisor = build_hypervisor(
             network=network,
             protocol=convert_dex_protocol(dex=dex),
@@ -67,8 +70,18 @@ def build_db_hypervisor(
         # return converted hypervisor
         return hype_as_dict
 
+    except ProcessingError as e:
+        if e.identity == error_identity.NO_RPC_AVAILABLE:
+            logging.getLogger(__name__).error(
+                f" There are no RPCs available error while converting {network}'s hypervisor {address} [dex: {dex}] at block {block}] to dictionary"
+            )
+        else:
+            logging.getLogger(__name__).error(
+                f" Unexpected error while converting {network}'s hypervisor {address} [dex: {dex}] at block {block}] to dictionary ->    error:{e.message}"
+            )
+
     except Exception as e:
-        logging.getLogger(__name__).error(
+        logging.getLogger(__name__).exception(
             f" Unexpected error while converting {network}'s hypervisor {address} [dex: {dex}] at block {block}] to dictionary ->    error:{e}"
         )
 

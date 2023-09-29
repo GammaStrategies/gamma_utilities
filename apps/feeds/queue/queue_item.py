@@ -179,7 +179,8 @@ def create_priority_queueItemType_latestOut() -> list[list[queueItemType]]:
 
     # create a list without latest type
     queue_items_list_withoutLatest = queue_items_list.copy()
-    queue_items_list_withoutLatest.remove(queueItemType.LATEST_MULTIFEEDISTRIBUTION)
+    if queueItemType.LATEST_MULTIFEEDISTRIBUTION in queue_items_list_withoutLatest:
+        queue_items_list_withoutLatest.remove(queueItemType.LATEST_MULTIFEEDISTRIBUTION)
 
     # queue is processed in creation order:
     #   Include for each queue item type the types that need to be processed before it

@@ -307,6 +307,8 @@ class gamma_hypervisor(erc20):
     @custom_rpcType.setter
     def custom_rpcType(self, value: str | None):
         """ """
+        if not isinstance(value, str):
+            raise ValueError(f"custom_rpcType must be a string")
         self._custom_rpcType = value
         self.pool.custom_rpcType = value
         self.token0.custom_rpcType = value

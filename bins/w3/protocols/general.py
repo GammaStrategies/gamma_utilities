@@ -511,32 +511,103 @@ class web3wrap:
                 contract = chain_connection.eth.contract(
                     address=self._address, abi=self._abi
                 )
-                # execute function
-                return getattr(contract.functions, function_name)(*args).call(
+                # execute function ( result can be zero )
+                result = getattr(contract.functions, function_name)(*args).call(
                     block_identifier=self.block
                 )
+                logging.getLogger(__name__).debug(
+                    f" {rpc.type} RPC {rpc.url} successfully returned result when calling function {function_name} in {self._network}'s contract {self.address} at block {self.block}"
+                )
+                return result
+
+            except ValueError as e:
+                for err in e.args:
+                    if isinstance(err, dict):
+                        # {'message': 'header not found', 'code': 4294935296}
+                        if code := err.get("code", None):
+                            if code in [4294935296, -32000]:
+                                # 'header not found' / 'missing trie node': this rpc endpoint does not have the data. Try another one and do not add failed attempt.
+                                logging.getLogger(__name__).debug(
+                                    f" {rpc.type} RPC {rpc.url} seems to not return information when calling function {function_name} in {self._network}'s contract {self.address} at block {self.block} message: {err.get('message')}. Continue without adding failed attempt."
+                                )
+                                continue
+                            elif code in [
+                                429,
+                                4294935297,
+                            ] or "exceeded its concurrent requests capacity" in err.get(
+                                "message", ""
+                            ):
+                                # exceeded concurrent requests capacity
+                                logging.getLogger(__name__).debug(
+                                    f" {rpc.type} RPC {rpc.url} exceeded its concurrent requests capacity. Adding failed attempt. err: {err.get('message')}"
+                                )
+                                rpc.add_failed(error=e)
+                                # exit loop
+                                break
+                            elif code == 1:
+                                # {'message': 'No response or no available upstream for eth_call', 'code': 1}
+                                logging.getLogger(__name__).debug(
+                                    f" {rpc.type} RPC {rpc.url} is not responding. Adding failed attempt. err: {err.get('message')}"
+                                )
+                                rpc.add_failed(error=e)
+                            else:
+                                # "Your app has exceeded its concurrent requests capacity. If you have retries enabled, you can safely ignore this message
+                                logging.getLogger(__name__).error(
+                                    f" Unknown ValueError: {err}"
+                                )
+
+                    elif isinstance(err, tuple) or isinstance(err, list):
+                        for err in err:
+                            if isinstance(err, dict):
+                                if code := err.get("code", None):
+                                    if code == -3200:
+                                        # 'missing trie node': this rpc endpoint does not have the data. Try another one and do not add failed attempt.
+                                        # 'header not found'
+                                        continue
+                                else:
+                                    logging.getLogger(__name__).error(
+                                        f" Unknown ValueError: {err}"
+                                    )
+
+                    else:
+                        logging.getLogger(__name__).exception(
+                            f" Unknown ValueError: {err}"
+                        )
+
+            except requests.HTTPError as e:
+                for err in e.args:
+                    if "too many requests" in err.lower() or "429" in err:
+                        # "Too Many Requests": adding failed attempt  ('429 Client Error: Too Many Requests for url)
+                        logging.getLogger(__name__).debug(
+                            f" Too many requests made to the {rpc.type} RPC {rpc.url} Continue adding failed attempt."
+                        )
+                        rpc.add_failed(error=e)
+                    else:
+                        logging.getLogger(__name__).exception(
+                            f" Unknown requests.HTTPError: {e}"
+                        )
 
             except Exception as e:
                 # check if error is due to this contract not being deployed or unexistant at this address+block
-                if (
-                    "Could not transact with/call contract function, is contract deployed correctly and chain synced"
-                    in e
-                ):
-                    # contract not deployed
-                    raise ProcessingError(
-                        chain=text_to_chain(self._network),
-                        item={
-                            "address": self._address,
-                            "block": self.block,
-                            "type": type(self).__name__,
-                        },
-                        identity=error_identity.CONTRACT_NOT_DEPLOYED,
-                        action="remove",
-                        message=f"  {self._network}'s contract {self.address} is either not deployed at block {self.block} or is not what it should be. Remove it.",
-                    )
+                # if (
+                #     "Could not transact with/call contract function, is contract deployed correctly and chain synced"
+                #     in e
+                # ):
+                #     # contract not deployed
+                #     raise ProcessingError(
+                #         chain=text_to_chain(self._network),
+                #         item={
+                #             "address": self._address,
+                #             "block": self.block,
+                #             "type": type(self).__name__,
+                #         },
+                #         identity=error_identity.CONTRACT_NOT_DEPLOYED,
+                #         action="remove",
+                #         message=f"  {self._network}'s contract {self.address} is either not deployed at block {self.block} or is not what it should be. Remove it.",
+                #     )
 
                 # not working rpc or function at block has no data
-                logging.getLogger(__name__).debug(
+                logging.getLogger(__name__).exception(
                     f"  Error calling function {function_name} using {rpc.url} rpc: {e}  address: {self._address}"
                 )
                 rpc.add_failed(error=e)
@@ -568,11 +639,6 @@ class web3wrap:
             RPC_MANAGER.get_rpc_list(network=self._network, rpcKey_names=rpcKey_names),
             *args,
         )
-        # result = self.call_function(
-        #     function_name,
-        #     self.get_rpcUrls(rpcKey_names=rpcKey_names),
-        #     *args,
-        # )
         if not result is None:
             return result
         else:
