@@ -1252,12 +1252,20 @@ def _get_contract_creation_block(network: str, contract_address: str) -> dict:
                         )
                     )
                     # retrieve block data
-                    creation_tx = dummyw3._getTransactionReceipt(txHash=item["txHash"])
-                    block_data = dummyw3._getBlockData(block=creation_tx.blockNumber)
-                    return {
-                        "block": block_data.number,
-                        "timestamp": block_data.timestamp,
-                    }
+                    if creation_tx := dummyw3._getTransactionReceipt(
+                        txHash=item["txHash"]
+                    ):
+                        block_data = dummyw3._getBlockData(
+                            block=creation_tx.blockNumber
+                        )
+                        return {
+                            "block": block_data.number,
+                            "timestamp": block_data.timestamp,
+                        }
+                    else:
+                        logging.getLogger(__name__).error(
+                            f" Can't get the tx receipt for {item['txHash']}"
+                        )
             except Exception as e:
                 logging.getLogger(__name__).error(
                     f" Error while fetching contract creation data from etherscan. error: {e}"
