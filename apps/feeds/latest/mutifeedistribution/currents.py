@@ -5,7 +5,6 @@ from apps.feeds.operations import task_enqueue_operations
 
 from bins.database.helpers import get_from_localdb
 from bins.general.enums import Chain, Protocol, queueItemType, rewarderType
-from bins.w3.builders import build_hypervisor
 from bins.w3.protocols.ramses.collectors import (
     create_multiFeeDistribution_data_collector,
 )

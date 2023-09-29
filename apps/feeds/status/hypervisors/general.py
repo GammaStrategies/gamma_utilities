@@ -200,6 +200,7 @@ def feed_hypervisor_status(
                     network=network,
                     block=item["block"],
                     dex=static_info[item["address"]]["dex"],
+                    cached=False,
                     static_mode=False,
                 )
                 if not create_and_save_hypervisor_status(

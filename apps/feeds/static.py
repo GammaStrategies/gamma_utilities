@@ -186,7 +186,6 @@ def _create_hypervisor_static_dbObject(
             protocol=convert_dex_protocol(dex),
             block=0,
             hypervisor_address=address,
-            cached=True,
             check=True,
         )
 

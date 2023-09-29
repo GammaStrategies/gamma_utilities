@@ -40,7 +40,7 @@ def build_db_hypervisor(
     static_mode=False,
     custom_web3: Web3 | None = None,
     custom_web3Url: str | None = None,
-    cached: bool = True,
+    cached: bool = False,
     force_rpcType: str | None = None,
 ) -> dict():
     try:

@@ -56,14 +56,12 @@ def process_error(error: ProcessingError):
                     protocol=text_to_protocol(error.item["dex"]),
                     hypervisor_address=error.item["hypervisor_address"],
                     block=error.item["ini_block"],
-                    cached=True,
                 )
                 end_hype = build_hypervisor(
                     network=error.chain.database_name,
                     protocol=text_to_protocol(error.item["dex"]),
                     hypervisor_address=error.item["hypervisor_address"],
                     block=error.item["end_block"],
-                    cached=True,
                 )
                 ini_uncollected = ini_hype.get_fees_uncollected()
                 end_uncollected = end_hype.get_fees_uncollected()
