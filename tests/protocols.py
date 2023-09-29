@@ -52,7 +52,7 @@ def test_protocols(
                     addresses,
                     addresses_disabled,
                 ) = _get_static_hypervisor_addresses_to_process(
-                    protocol="gamma", network=network, dex=dex, rewrite=True
+                    network=network, dex=dex, rewrite=True
                 )
 
             # get hypervisor addresses to process

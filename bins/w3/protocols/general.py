@@ -111,7 +111,7 @@ class web3wrap:
                 #         "address": self._address,
                 #         "type": type(self).__name__,
                 #     },
-                #     itentity=error_identity.NO_RPC_AVAILABLE,
+                #     identity=error_identity.NO_RPC_AVAILABLE,
                 #     action="sleepNretry",
                 #     message=f"  no public nor private RPCs available for network {self._network}",
                 # )
@@ -517,6 +517,24 @@ class web3wrap:
                 )
 
             except Exception as e:
+                # check if error is due to this contract not being deployed or unexistant at this address+block
+                if (
+                    "Could not transact with/call contract function, is contract deployed correctly and chain synced"
+                    in e
+                ):
+                    # contract not deployed
+                    raise ProcessingError(
+                        chain=text_to_chain(self._network),
+                        item={
+                            "address": self._address,
+                            "block": self.block,
+                            "type": type(self).__name__,
+                        },
+                        identity=error_identity.CONTRACT_NOT_DEPLOYED,
+                        action="remove",
+                        message=f"  {self._network}'s contract {self.address} is either not deployed at block {self.block} or is not what it should be. Remove it.",
+                    )
+
                 # not working rpc or function at block has no data
                 logging.getLogger(__name__).debug(
                     f"  Error calling function {function_name} using {rpc.url} rpc: {e}  address: {self._address}"
@@ -568,7 +586,7 @@ class web3wrap:
                 "address": self._address,
                 "type": type(self).__name__,
             },
-            itentity=error_identity.NO_RPC_AVAILABLE,
+            identity=error_identity.NO_RPC_AVAILABLE,
             action="sleepNretry",
             message=f"  no public nor private RPCs available for network {self._network}",
         )
@@ -588,6 +606,12 @@ class web3wrap:
             try:
                 rpc.add_attempt()
                 _w3 = self.setup_w3(network=self._network, web3Url=rpc.url)
+                if "GENESIS" in txHash:
+                    logging.getLogger(__name__).debug(
+                        f" txHash [{txHash}] is a genesis tx, so it will fail to be retrieved from any rpc. Return none"
+                    )
+                    return None
+
                 return _w3.eth.get_transaction_receipt(txHash)
             except Exception as e:
                 logging.getLogger(__name__).debug(

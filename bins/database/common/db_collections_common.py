@@ -946,9 +946,9 @@ class database_local(db_collections_common):
 
     # static
 
-    def set_static(self, data: dict):
+    def set_static(self, data: dict) -> UpdateResult:
         data["id"] = data["address"]
-        self.save_item_to_database(data=data, collection_name="static")
+        return self.save_item_to_database(data=data, collection_name="static")
 
     def get_gamma_service_fees(self) -> dict:
         """Get the agreed service fee (%) to be collected by the gamma protocol for each hypervisor
