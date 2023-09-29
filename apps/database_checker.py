@@ -945,6 +945,7 @@ def repair_binance_hypervisor_status():
             protocol=convert_dex_protocol(dex),
             block=hype_status["block"],
             hypervisor_address=hype_status["address"],
+            cached=True,
         )
         # check fields
         if check_erc20_fields(
@@ -1012,6 +1013,7 @@ def repair_binance_queue_hype_status():
             protocol=convert_dex_protocol(dex),
             block=queue_item["data"]["hypervisor_status"]["block"],
             hypervisor_address=queue_item["data"]["hypervisor_status"]["address"],
+            cached=True,
         )
         # check fields
         if check_erc20_fields(

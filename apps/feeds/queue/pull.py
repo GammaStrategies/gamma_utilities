@@ -815,7 +815,7 @@ def build_multiFeeDistribution_from_queueItem(
                     protocol=protocol,
                     block=queue_item.block,
                     hypervisor_address=hypervisor_address,
-                    cached=False,
+                    cached=True,
                 ):
                     # set custom rpc type
                     hypervisor.custom_rpcType = "private"
@@ -909,7 +909,7 @@ def build_multiFeeDistribution_from_queueItem(
                                     protocol=protocol,
                                     block=reward_status["block"],
                                     hypervisor_address=hypervisor_address,
-                                    cached=False,
+                                    cached=True,
                                 ):
                                     # set custom rpc type
                                     _tempHypervisor.custom_rpcType = "private"

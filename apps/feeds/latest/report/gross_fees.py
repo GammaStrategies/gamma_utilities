@@ -245,12 +245,14 @@ def create_report_data_ramses___OOO(
                 protocol=Protocol.RAMSES,
                 block=_start_block,
                 hypervisor_address=hype_summary["address"],
+                cached=True,
             )
             hype_status_ini_end = build_hypervisor(
                 network=chain.database_name,
                 protocol=Protocol.RAMSES,
                 block=hype_summary["block_ini"],
                 hypervisor_address=hype_summary["address"],
+                cached=True,
             )
             # check if we need to calc initial uncollected fees
             if hype_summary["block_ini"] > _start_block:
@@ -279,12 +281,14 @@ def create_report_data_ramses___OOO(
                 protocol=Protocol.RAMSES,
                 block=_end_block,
                 hypervisor_address=hype_summary["address"],
+                cached=True,
             )
             hype_status_end_end = build_hypervisor(
                 network=chain.database_name,
                 protocol=Protocol.RAMSES,
                 block=hype_summary["block_end"],
                 hypervisor_address=hype_summary["address"],
+                cached=True,
             )
             if hype_summary["block_end"] < _end_block:
                 logging.getLogger(__name__).debug(
@@ -585,12 +589,14 @@ def create_report_data_ramses(
                 protocol=Protocol.RAMSES,
                 block=_start_block,
                 hypervisor_address=hype_summary["address"],
+                cached=True,
             )
             hype_status_ini222 = build_hypervisor(
                 network=chain.database_name,
                 protocol=Protocol.RAMSES,
                 block=hype_summary["block_ini"] - 1,
                 hypervisor_address=hype_summary["address"],
+                cached=True,
             )
             ini_uncollected_fees2222 = hype_status_ini222.get_fees_uncollected()
             # check if we need to calc initial uncollected fees
@@ -605,6 +611,7 @@ def create_report_data_ramses(
                 protocol=Protocol.RAMSES,
                 block=_end_block,
                 hypervisor_address=hype_summary["address"],
+                cached=True,
             )
 
             if hype_summary["block_end"] < _end_block:
