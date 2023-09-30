@@ -4,6 +4,11 @@ from .. import algebra
 from ..general import erc20_cached
 
 
+ABI_FILENAME = "camelot_pool"
+ABI_FOLDERNAME = "camelot"
+DEX_NAME = Protocol.CAMELOT.database_name
+
+
 class pool(algebra.pool.poolv3):
     # SETUP
     def __init__(
@@ -17,8 +22,8 @@ class pool(algebra.pool.poolv3):
         custom_web3: Web3 | None = None,
         custom_web3Url: str | None = None,
     ):
-        self._abi_filename = abi_filename or "camelot_pool"
-        self._abi_path = abi_path or f"{self.abi_root_path}/camelot"
+        self._abi_filename = abi_filename or ABI_FILENAME
+        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
 
         super().__init__(
             address=address,
@@ -32,7 +37,7 @@ class pool(algebra.pool.poolv3):
         )
 
     def identify_dex_name(self) -> str:
-        return Protocol.CAMELOT.database_name
+        return DEX_NAME
 
     @property
     def comunityFeeLastTimestamp(self) -> int:
@@ -124,11 +129,26 @@ class pool_cached(pool):
     def dataStorageOperator(self) -> algebra.pool.dataStorageOperator_cached:
         """ """
         if self._dataStorage is None:
+            # check if cached
+            prop_name = "dataStorageOperator"
+            result = self._cache.get_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+            )
+            if result is None:
+                result = self.call_function_autoRpc(prop_name)
+                self._cache.add_data(
+                    chain_id=self._chain_id,
+                    address=self.address,
+                    block=self.block,
+                    key=prop_name,
+                    data=result,
+                    save2file=self.SAVE2FILE,
+                )
             self._dataStorage = algebra.pool.dataStorageOperator_cached(
-                address=self.call_function_autoRpc("dataStorageOperator"),
-                # address=self._contract.functions.dataStorageOperator().call(
-                #     block_identifier=self.block
-                # ),
+                address=result,
                 network=self._network,
                 block=self.block,
             )
@@ -268,8 +288,26 @@ class pool_cached(pool):
            erc20:
         """
         if self._token0 is None:
+            # check if cached
+            prop_name = "token0"
+            result = self._cache.get_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+            )
+            if result is None:
+                result = self.call_function_autoRpc(prop_name)
+                self._cache.add_data(
+                    chain_id=self._chain_id,
+                    address=self.address,
+                    block=self.block,
+                    key=prop_name,
+                    data=result,
+                    save2file=self.SAVE2FILE,
+                )
             self._token0 = erc20_cached(
-                address=self.call_function_autoRpc("token0"),
+                address=result,
                 network=self._network,
                 block=self.block,
             )
@@ -278,8 +316,26 @@ class pool_cached(pool):
     @property
     def token1(self) -> erc20_cached:
         if self._token1 is None:
+            # check if cached
+            prop_name = "token1"
+            result = self._cache.get_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+            )
+            if result is None:
+                result = self.call_function_autoRpc(prop_name)
+                self._cache.add_data(
+                    chain_id=self._chain_id,
+                    address=self.address,
+                    block=self.block,
+                    key=prop_name,
+                    data=result,
+                    save2file=self.SAVE2FILE,
+                )
             self._token1 = erc20_cached(
-                address=self.call_function_autoRpc("token1"),
+                address=result,
                 network=self._network,
                 block=self.block,
             )

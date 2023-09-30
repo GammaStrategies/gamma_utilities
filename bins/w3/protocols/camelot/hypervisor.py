@@ -3,10 +3,12 @@ from .. import algebra
 
 from ..camelot.pool import pool, pool_cached
 
+DEX_NAME = Protocol.CAMELOT.database_name
+
 
 class gamma_hypervisor(algebra.hypervisor.gamma_hypervisor):
     def identify_dex_name(self) -> str:
-        return Protocol.CAMELOT.database_name
+        return DEX_NAME
 
     @property
     def pool(self) -> pool:
@@ -22,13 +24,31 @@ class gamma_hypervisor(algebra.hypervisor.gamma_hypervisor):
 # TODO: simplify with class inheritance
 class gamma_hypervisor_cached(algebra.hypervisor.gamma_hypervisor_cached):
     def identify_dex_name(self) -> str:
-        return Protocol.CAMELOT.database_name
+        return DEX_NAME
 
     @property
     def pool(self) -> pool_cached:
         if self._pool is None:
+            # check if cached
+            prop_name = "pool"
+            result = self._cache.get_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+            )
+            if result is None:
+                result = self.call_function_autoRpc(prop_name)
+                self._cache.add_data(
+                    chain_id=self._chain_id,
+                    address=self.address,
+                    block=self.block,
+                    key=prop_name,
+                    data=result,
+                    save2file=self.SAVE2FILE,
+                )
             self._pool = pool_cached(
-                address=self.call_function_autoRpc("pool"),
+                address=result,
                 network=self._network,
                 block=self.block,
             )

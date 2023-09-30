@@ -5,9 +5,12 @@ from ..general import bep20_cached
 from ..thena.pool import pool, pool_cached
 
 
+DEX_NAME = Protocol.THENA.database_name
+
+
 class gamma_hypervisor(algebra.hypervisor.gamma_hypervisor_bep20):
     def identify_dex_name(self) -> str:
-        return Protocol.THENA.database_name
+        return DEX_NAME
 
     @property
     def pool(self) -> pool:
@@ -25,7 +28,7 @@ class gamma_hypervisor_cached(gamma_hypervisor):
     SAVE2FILE = True
 
     def identify_dex_name(self) -> str:
-        return Protocol.THENA.database_name
+        return DEX_NAME
 
     # PROPERTIES
     @property
@@ -369,8 +372,26 @@ class gamma_hypervisor_cached(gamma_hypervisor):
     @property
     def pool(self) -> pool_cached:
         if self._pool is None:
+            # check if cached
+            prop_name = "pool"
+            result = self._cache.get_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+            )
+            if result is None:
+                result = self.call_function_autoRpc(prop_name)
+                self._cache.add_data(
+                    chain_id=self._chain_id,
+                    address=self.address,
+                    block=self.block,
+                    key=prop_name,
+                    data=result,
+                    save2file=self.SAVE2FILE,
+                )
             self._pool = pool_cached(
-                address=self.call_function_autoRpc("pool"),
+                address=result,
                 network=self._network,
                 block=self.block,
             )
@@ -400,8 +421,26 @@ class gamma_hypervisor_cached(gamma_hypervisor):
     @property
     def token0(self) -> bep20_cached:
         if self._token0 is None:
+            # check if cached
+            prop_name = "token0"
+            result = self._cache.get_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+            )
+            if result is None:
+                result = self.call_function_autoRpc(prop_name)
+                self._cache.add_data(
+                    chain_id=self._chain_id,
+                    address=self.address,
+                    block=self.block,
+                    key=prop_name,
+                    data=result,
+                    save2file=self.SAVE2FILE,
+                )
             self._token0 = bep20_cached(
-                address=self.call_function_autoRpc("token0"),
+                address=result,
                 network=self._network,
                 block=self.block,
             )
@@ -410,8 +449,26 @@ class gamma_hypervisor_cached(gamma_hypervisor):
     @property
     def token1(self) -> bep20_cached:
         if self._token1 is None:
+            # check if cached
+            prop_name = "token1"
+            result = self._cache.get_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+            )
+            if result is None:
+                result = self.call_function_autoRpc(prop_name)
+                self._cache.add_data(
+                    chain_id=self._chain_id,
+                    address=self.address,
+                    block=self.block,
+                    key=prop_name,
+                    data=result,
+                    save2file=self.SAVE2FILE,
+                )
             self._token1 = bep20_cached(
-                address=self.call_function_autoRpc("token1"),
+                address=result,
                 network=self._network,
                 block=self.block,
             )

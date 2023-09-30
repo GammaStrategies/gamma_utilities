@@ -2,6 +2,8 @@ from web3 import Web3
 from ....general.enums import Protocol
 from .. import uniswap
 
+DEX_NAME = Protocol.PANCAKESWAP.database_name
+
 
 class pool(uniswap.pool.poolv3_bep20):
     # SETUP
@@ -31,7 +33,7 @@ class pool(uniswap.pool.poolv3_bep20):
         )
 
     def identify_dex_name(self) -> str:
-        return Protocol.PANCAKESWAP.database_name
+        return DEX_NAME
 
 
 class pool_cached(uniswap.pool.poolv3_bep20_cached):
@@ -62,4 +64,4 @@ class pool_cached(uniswap.pool.poolv3_bep20_cached):
         )
 
     def identify_dex_name(self) -> str:
-        return Protocol.PANCAKESWAP.database_name
+        return DEX_NAME

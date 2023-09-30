@@ -5,12 +5,16 @@ from bins.errors.general import ProcessingError
 from ....formulas.position import get_positionKey_ramses
 from ....general.enums import Protocol, error_identity, text_to_chain
 from .. import gamma
-from ..general import erc20
+from ..general import erc20, erc20_cached
 
 from ..ramses.pool import pool, pool_cached
 from ..ramses.rewarder import gauge, multiFeeDistribution
 
 WEEK = 60 * 60 * 24 * 7
+
+ABI_FILENAME = "hypervisor"
+ABI_FOLDERNAME = "ramses"
+DEX_NAME = Protocol.RAMSES.database_name
 
 
 # Hype v1.3
@@ -27,8 +31,8 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
         custom_web3: Web3 | None = None,
         custom_web3Url: str | None = None,
     ):
-        self._abi_filename = abi_filename or "hypervisor"
-        self._abi_path = abi_path or f"{self.abi_root_path}/ramses"
+        self._abi_filename = abi_filename or ABI_FILENAME
+        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
 
         self._pool: pool | None = None
         self._token0: erc20 | None = None
@@ -49,7 +53,7 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
         )
 
     def identify_dex_name(self) -> str:
-        return Protocol.RAMSES.database_name
+        return DEX_NAME
 
     # PROPERTIES
     @property
@@ -366,12 +370,12 @@ class gamma_hypervisor_cached(gamma.hypervisor.gamma_hypervisor_cached):
         custom_web3: Web3 | None = None,
         custom_web3Url: str | None = None,
     ):
-        self._abi_filename = abi_filename or "hypervisor"
-        self._abi_path = abi_path or f"{self.abi_root_path}/ramses"
+        self._abi_filename = abi_filename or ABI_FILENAME
+        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
 
-        self._pool: pool | None = None
-        self._token0: erc20 | None = None
-        self._token1: erc20 | None = None
+        self._pool: pool_cached | None = None
+        self._token0: erc20_cached | None = None
+        self._token1: erc20_cached | None = None
 
         self._gauge: gauge | None = None
         self._multiFeeDistribution: multiFeeDistribution | None = None
@@ -388,13 +392,31 @@ class gamma_hypervisor_cached(gamma.hypervisor.gamma_hypervisor_cached):
         )
 
     def identify_dex_name(self) -> str:
-        return Protocol.RAMSES.database_name
+        return DEX_NAME
 
     @property
     def pool(self) -> pool_cached:
         if self._pool is None:
+            # check if cached
+            prop_name = "pool"
+            result = self._cache.get_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+            )
+            if result is None:
+                result = self.call_function_autoRpc(prop_name)
+                self._cache.add_data(
+                    chain_id=self._chain_id,
+                    address=self.address,
+                    block=self.block,
+                    key=prop_name,
+                    data=result,
+                    save2file=self.SAVE2FILE,
+                )
             self._pool = pool_cached(
-                address=self.call_function_autoRpc("pool"),
+                address=result,
                 network=self._network,
                 block=self.block,
             )
@@ -403,8 +425,26 @@ class gamma_hypervisor_cached(gamma.hypervisor.gamma_hypervisor_cached):
     @property
     def gauge(self) -> gauge:
         if self._gauge is None:
+            # check if cached
+            prop_name = "gauge"
+            result = self._cache.get_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+            )
+            if result is None:
+                result = self.call_function_autoRpc(prop_name)
+                self._cache.add_data(
+                    chain_id=self._chain_id,
+                    address=self.address,
+                    block=self.block,
+                    key=prop_name,
+                    data=result,
+                    save2file=self.SAVE2FILE,
+                )
             self._gauge = gauge(
-                address=self.call_function_autoRpc("gauge"),
+                address=result,
                 network=self._network,
                 block=self.block,
             )
@@ -415,11 +455,26 @@ class gamma_hypervisor_cached(gamma.hypervisor.gamma_hypervisor_cached):
         """multiFeeDistribution receiver"""
 
         if self._multiFeeDistribution is None:
-            tmp_address = self.call_function_autoRpc("receiver")
-            if (
-                tmp_address.lower()
-                == "0x8DFF6BbEE7A6E5Fe3413a91dBF305C29e8A0Af5F".lower()
-            ):
+            # check if cached
+            prop_name = "receiver"
+            result = self._cache.get_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+            )
+            if result is None:
+                result = self.call_function_autoRpc(prop_name)
+                self._cache.add_data(
+                    chain_id=self._chain_id,
+                    address=self.address,
+                    block=self.block,
+                    key=prop_name,
+                    data=result,
+                    save2file=self.SAVE2FILE,
+                )
+
+            if result.lower() == "0x8DFF6BbEE7A6E5Fe3413a91dBF305C29e8A0Af5F".lower():
                 raise ProcessingError(
                     chain=text_to_chain(self._network),
                     item={
@@ -429,11 +484,10 @@ class gamma_hypervisor_cached(gamma.hypervisor.gamma_hypervisor_cached):
                     },
                     identity=error_identity.INVALID_MFD,
                     action="remove",
-                    message=f"Invalid MFD detected ({tmp_address.lower()}) from hypervisor {self.address.lower()} at block {self.block}",
+                    message=f"Invalid MFD detected ({result.lower()}) from hypervisor {self.address.lower()} at block {self.block}",
                 )
-
             self._multiFeeDistribution = multiFeeDistribution(
-                address=tmp_address,
+                address=result,
                 network=self._network,
                 block=self.block,
             )

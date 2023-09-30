@@ -22,6 +22,19 @@ from ..general import bep20, web3wrap, erc20, erc20_cached, bep20_cached
 
 
 # UNISWAP POOL
+ABI_FILENAME = "univ3_pool"
+ABI_FOLDERNAME = "uniswap/v3"
+DEX_NAME = Protocol.UNISWAPv3.database_name
+INMUTABLE_FIELDS = {
+    "symbol": False,
+    "fee": False,
+    "decimals": True,
+    "factory": True,
+    "token0": True,
+    "token1": True,
+    "maxLiquidityPerTick": True,
+    "tickSpacing": True,
+}
 
 
 class poolv3(web3wrap):
@@ -37,8 +50,8 @@ class poolv3(web3wrap):
         custom_web3: Web3 | None = None,
         custom_web3Url: str | None = None,
     ):
-        self._abi_filename = abi_filename or "univ3_pool"
-        self._abi_path = abi_path or f"{self.abi_root_path}/uniswap/v3"
+        self._abi_filename = abi_filename or ABI_FILENAME
+        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
 
         self._token0: erc20 = None
         self._token1: erc20 = None
@@ -55,7 +68,15 @@ class poolv3(web3wrap):
         )
 
     def identify_dex_name(self) -> str:
-        return Protocol.UNISWAPv3.database_name
+        return DEX_NAME
+
+    def inmutable_fields(self) -> dict[str, bool]:
+        """uniswapv3 inmutable fields by contract
+            https://vscode.blockscan.com/optimism/0x2f449bd78a72b18f8758ac38c3ff8dcb094416f6
+        Returns:
+            dict[str, bool]:  field name: is inmutable?
+        """
+        return INMUTABLE_FIELDS
 
     # PROPERTIES
     @property
@@ -676,8 +697,8 @@ class poolv3_bep20(poolv3):
         custom_web3: Web3 | None = None,
         custom_web3Url: str | None = None,
     ):
-        self._abi_filename = abi_filename or "univ3_pool"
-        self._abi_path = abi_path or f"{self.abi_root_path}/uniswap/v3"
+        self._abi_filename = abi_filename or ABI_FILENAME
+        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
 
         self._token0: bep20 = None
         self._token1: bep20 = None
@@ -726,9 +747,6 @@ class poolv3_bep20(poolv3):
 # -> Cached version of the pool
 
 
-# TODO: cache token0 and token1 addresses
-
-
 class poolv3_cached(poolv3):
     SAVE2FILE = True
 
@@ -743,12 +761,8 @@ class poolv3_cached(poolv3):
         # made up a descriptive cahce file name
         cache_filename = f"{self._chain_id}_{self.address.lower()}"
 
-        fixed_fields = {
-            "decimals": False,
-            "symbol": False,
-            "factory": False,
-            "fee": False,
-        }
+        # define fixed fields
+        fixed_fields = self.inmutable_fields()
 
         # create cache helper
         self._cache = cache_utilities.mutable_property_cache(
@@ -981,8 +995,27 @@ class poolv3_cached(poolv3):
            erc20:
         """
         if self._token0 is None:
+            # check if token0 is cached
+            prop_name = "token0"
+            result = self._cache.get_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+            )
+            if result is None:
+                result = self.call_function_autoRpc(prop_name)
+                self._cache.add_data(
+                    chain_id=self._chain_id,
+                    address=self.address,
+                    block=self.block,
+                    key=prop_name,
+                    data=result,
+                    save2file=self.SAVE2FILE,
+                )
+            # create token0 object with cached address
             self._token0 = erc20_cached(
-                address=self.call_function_autoRpc("token0"),
+                address=result,  # self.call_function_autoRpc("token0"),
                 network=self._network,
                 block=self.block,
             )
@@ -996,8 +1029,27 @@ class poolv3_cached(poolv3):
            erc20:
         """
         if self._token1 is None:
+            # check if token is cached
+            prop_name = "token1"
+            result = self._cache.get_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+            )
+            if result is None:
+                result = self.call_function_autoRpc(prop_name)
+                self._cache.add_data(
+                    chain_id=self._chain_id,
+                    address=self.address,
+                    block=self.block,
+                    key=prop_name,
+                    data=result,
+                    save2file=self.SAVE2FILE,
+                )
+            # create token object with cached address
             self._token1 = erc20_cached(
-                address=self.call_function_autoRpc("token1"),
+                address=result,  # self.call_function_autoRpc("token1"),
                 network=self._network,
                 block=self.block,
             )
@@ -1018,12 +1070,8 @@ class poolv3_bep20_cached(poolv3_bep20):
         # made up a descriptive cahce file name
         cache_filename = f"{self._chain_id}_{self.address.lower()}"
 
-        fixed_fields = {
-            "decimals": False,
-            "symbol": False,
-            "factory": False,
-            "fee": False,
-        }
+        # define fixed fields
+        fixed_fields = self.inmutable_fields()
 
         # create cache helper
         self._cache = cache_utilities.mutable_property_cache(
@@ -1255,8 +1303,27 @@ class poolv3_bep20_cached(poolv3_bep20):
         Returns: bep20
         """
         if self._token0 is None:
+            # check if token is cached
+            prop_name = "token0"
+            result = self._cache.get_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+            )
+            if result is None:
+                result = self.call_function_autoRpc(prop_name)
+                self._cache.add_data(
+                    chain_id=self._chain_id,
+                    address=self.address,
+                    block=self.block,
+                    key=prop_name,
+                    data=result,
+                    save2file=self.SAVE2FILE,
+                )
+
             self._token0 = bep20_cached(
-                address=self.call_function_autoRpc("token0"),
+                address=result,  # self.call_function_autoRpc("token0"),
                 network=self._network,
                 block=self.block,
             )
@@ -1269,8 +1336,27 @@ class poolv3_bep20_cached(poolv3_bep20):
         Returns: bep20
         """
         if self._token1 is None:
+            # check if token is cached
+            prop_name = "token1"
+            result = self._cache.get_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+            )
+            if result is None:
+                result = self.call_function_autoRpc(prop_name)
+                self._cache.add_data(
+                    chain_id=self._chain_id,
+                    address=self.address,
+                    block=self.block,
+                    key=prop_name,
+                    data=result,
+                    save2file=self.SAVE2FILE,
+                )
+            # create object with cached address
             self._token1 = bep20_cached(
-                address=self.call_function_autoRpc("token1"),
+                address=result,  # self.call_function_autoRpc("token1"),
                 network=self._network,
                 block=self.block,
             )
