@@ -191,6 +191,13 @@ class standard_property_cache(file_backend):
            bool: success or fail
         """
 
+        # avoid saving None values
+        if data is None:
+            logging.getLogger(__name__).debug(
+                f" {key}=None value not saved to cache for {address} {block} "
+            )
+            return False
+
         # convert to lower
         address = address.lower()
         key = key.lower()
