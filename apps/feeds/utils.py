@@ -282,7 +282,7 @@ def get_hypervisor_data_for_apr(
 
 
 def filter_hypervisor_data_for_apr(
-    data: list[dict], min_period_seconds: int = 60
+    data: list[dict], min_period_seconds: int = 40
 ) -> list[dict]:
     """Discard time periods of less than 1 minute -> initial and final periods timestamp difference must be greater than 1 minute.
 
