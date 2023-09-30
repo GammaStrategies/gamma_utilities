@@ -18,6 +18,7 @@ from apps import (
     database_analysis,
     database_reScrape,
 )
+from bins.cache.files_manager import reset_cache_files
 
 
 # START ####################################################################################################################
@@ -69,6 +70,9 @@ if __name__ == "__main__":
             logging.getLogger(__name__).error(
                 f" Can't convert command line passed end datetime-> {CONFIGURATION['_custom_']['cml_parameters'].end_datetime}"
             )
+
+    # reset cache files
+    reset_cache_files()
 
     # choose the first of the  parsed options
     if CONFIGURATION["_custom_"]["cml_parameters"].db_feed:
