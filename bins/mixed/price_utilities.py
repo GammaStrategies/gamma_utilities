@@ -607,6 +607,7 @@ class usdc_price_scraper:
                         protocol=dex_pool_config["protocol"],
                         pool_address=dex_pool_config["address"].lower(),
                         block=block,
+                        cached=True,
                     )
 
                     # get price
@@ -674,6 +675,7 @@ class usdc_price_scraper:
                             protocol=operation["protocol"],
                             pool_address=operation["address"],
                             block=block,
+                            cached=True,
                         )
 
                         if sqrtPriceX96 := dex_pool.sqrtPriceX96:

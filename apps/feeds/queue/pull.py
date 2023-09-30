@@ -278,6 +278,7 @@ def pull_from_queue_hypervisor_status(network: str, queue_item: QueueItem) -> bo
                 block=queue_item.block,
                 dex=hypervisor_static["dex"],
                 force_rpcType="private",
+                cached=True,
             ):
                 # save hype
                 if db_return := local_db.set_status(data=hypervisor):
@@ -814,6 +815,7 @@ def build_multiFeeDistribution_from_queueItem(
                     protocol=protocol,
                     block=queue_item.block,
                     hypervisor_address=hypervisor_address,
+                    cached=True,
                 ):
                     # set custom rpc type
                     hypervisor.custom_rpcType = "private"
@@ -907,6 +909,7 @@ def build_multiFeeDistribution_from_queueItem(
                                     protocol=protocol,
                                     block=reward_status["block"],
                                     hypervisor_address=hypervisor_address,
+                                    cached=True,
                                 ):
                                     # set custom rpc type
                                     _tempHypervisor.custom_rpcType = "private"

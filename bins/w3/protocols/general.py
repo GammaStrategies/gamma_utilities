@@ -522,9 +522,27 @@ class web3wrap:
                 return result
 
             except ValueError as e:
-                for err in e.args:
-                    if isinstance(err, dict):
-                        # {'message': 'header not found', 'code': 4294935296}
+                if isinstance(e, exceptions.ContractLogicError):
+                    # function not found in contract, maybe this function was not available at this block, etc...
+                    if function_name == "currentFee":
+                        # Ramses added this function to the contract after launch, so it will fail for older blocks.
+                        # This is a known error, so do not add failed attempt and return 0
+                        logging.getLogger(__name__).debug(
+                            f" function {function_name} in {self._network}'s contract {self.address} at block {self.block} is called but does not exist. Returned 0"
+                        )
+                        return 0
+
+                    # log error
+                    logging.getLogger(__name__).debug(
+                        f" function {function_name} in {self._network}'s contract {self.address} at block {self.block} seems to not exist. Check it. err: {err}"
+                    )
+                    # return so the other rpcs are not futil used
+                    return None
+
+                else:
+                    #
+                    for err in e.args:
+                        # try to react from the code
                         if code := err.get("code", None):
                             if code in [4294935296, -32000]:
                                 # 'header not found' / 'missing trie node': this rpc endpoint does not have the data. Try another one and do not add failed attempt.
@@ -570,27 +588,12 @@ class web3wrap:
                                 )
                                 rpc.add_failed(error=e)
 
-                    if isinstance(e, exceptions.ContractLogicError):
-                        # function not found in contract, maybe this function was not available at this block, etc...
-                        if function_name == "currentFee":
-                            # Ramses added this function to the contract after launch, so it will fail for older blocks.
-                            # This is a known error, so do not add failed attempt and return 0
-                            logging.getLogger(__name__).debug(
-                                f" function {function_name} in {self._network}'s contract {self.address} at block {self.block} is called but does not exist. Returned 0"
+                        else:
+                            # {'message': 'Upgrade to an archive plan add-on for your account. Max height of block allowed on archive for your current plan: 128', 'code': -32005}
+                            logging.getLogger(__name__).exception(
+                                f" [2]Unknown ValueError: {rpc.type} RPC {rpc.url} function {function_name}   -> {err}"
                             )
-                            return 0
-
-                        # log error
-                        logging.getLogger(__name__).debug(
-                            f" function {function_name} in {self._network}'s contract {self.address} at block {self.block} seems to not exist. Check it. err: {err}"
-                        )
-                        # return so the other rpcs are not futil used
-                        return None
-                    else:
-                        logging.getLogger(__name__).exception(
-                            f" [2]Unknown ValueError: {rpc.type} RPC {rpc.url} function {function_name}   -> {err}"
-                        )
-                        rpc.add_failed(error=e)
+                            rpc.add_failed(error=e)
 
             except requests.HTTPError as e:
                 for err in e.args:

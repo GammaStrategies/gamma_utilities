@@ -1457,7 +1457,7 @@ def repair_hype_status_from_user(min_count: int = 1):
                                 network=network,
                                 block=block,
                                 dex=dex,
-                                cached=False,
+                                cached=True,
                             )
                             if hype_status:
                                 # add hypervisor status to database

@@ -467,6 +467,7 @@ def get_last_returns_source_data(
             network=chain.database_name,
             block=0,
             dex=hipervisor_status["dex"],
+            cached=True,
         ):
             # return only if supply is equal to hypervisor status
             if result["totalSupply"] == hipervisor_status["totalSupply"]:
