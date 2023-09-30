@@ -556,16 +556,39 @@ class web3wrap:
                                     f" {rpc.type} RPC {rpc.url} current plan is not enough to place this kind of calls. Adding failed attempt. err: {err.get('message')}"
                                 )
                                 rpc.add_failed(error=e)
-                            else:
-                                # "Your app has exceeded its concurrent requests capacity. If you have retries enabled, you can safely ignore this message
-                                logging.getLogger(__name__).error(
-                                    f" Unknown ValueError: {err}"
+                            elif code == 0:
+                                # {'code': 0, 'message': "we can't execute this request"}
+                                logging.getLogger(__name__).debug(
+                                    f" {rpc.type} RPC {rpc.url} returned a code 0 while querying function {function_name}. Adding failed attempt. err: {err.get('message')}"
                                 )
                                 rpc.add_failed(error=e)
 
+                            else:
+                                # "Your app has exceeded its concurrent requests capacity. If you have retries enabled, you can safely ignore this message
+                                logging.getLogger(__name__).exception(
+                                    f" [1]Unknown ValueError: {rpc.type} RPC {rpc.url} function {function_name}   -> {err}"
+                                )
+                                rpc.add_failed(error=e)
+
+                    if isinstance(e, exceptions.ContractLogicError):
+                        # function not found in contract, maybe this function was not available at this block, etc...
+                        if function_name == "currentFee":
+                            # Ramses added this function to the contract after launch, so it will fail for older blocks.
+                            # This is a known error, so do not add failed attempt and return 0
+                            logging.getLogger(__name__).debug(
+                                f" function {function_name} in {self._network}'s contract {self.address} at block {self.block} is called but does not exist. Returned 0"
+                            )
+                            return 0
+
+                        # log error
+                        logging.getLogger(__name__).debug(
+                            f" function {function_name} in {self._network}'s contract {self.address} at block {self.block} seems to not exist. Check it. err: {err}"
+                        )
+                        # return so the other rpcs are not futil used
+                        return None
                     else:
                         logging.getLogger(__name__).exception(
-                            f" Unknown ValueError: {err}"
+                            f" [2]Unknown ValueError: {rpc.type} RPC {rpc.url} function {function_name}   -> {err}"
                         )
                         rpc.add_failed(error=e)
 
@@ -602,24 +625,7 @@ class web3wrap:
                 rpc.add_failed(error=e)
 
             except Exception as e:
-                # check if error is due to this contract not being deployed or unexistant at this address+block
-                # if (
-                #     "Could not transact with/call contract function, is contract deployed correctly and chain synced"
-                #     in e
-                # ):
-                #     # contract not deployed
-                #     raise ProcessingError(
-                #         chain=text_to_chain(self._network),
-                #         item={
-                #             "address": self._address,
-                #             "block": self.block,
-                #             "type": type(self).__name__,
-                #         },
-                #         identity=error_identity.CONTRACT_NOT_DEPLOYED,
-                #         action="remove",
-                #         message=f"  {self._network}'s contract {self.address} is either not deployed at block {self.block} or is not what it should be. Remove it.",
-                #     )
-
+                # unknown error
                 # not working rpc or function at block has no data
                 logging.getLogger(__name__).exception(
                     f"  Error calling function {function_name} using {rpc.url} rpc: {e}  address: {self._address}"
@@ -784,6 +790,17 @@ class erc20(web3wrap):
             custom_web3Url=custom_web3Url,
         )
 
+    def inmutable_fields(self) -> dict[str, bool]:
+        """inmutable fields by contract
+
+        Returns:
+            dict[str, bool]:  field name: is inmutable?
+        """
+        return {
+            "decimals": True,  # decimals should be always fixed
+            "symbol": False,
+        }
+
     # PROPERTIES
     @property
     def decimals(self) -> int:
@@ -848,7 +865,7 @@ class erc20_cached(erc20):
         # made up a descriptive cahce file name
         cache_filename = f"{self._chain_id}_{self.address.lower()}"
 
-        fixed_fields = {"decimals": True, "symbol": False}
+        fixed_fields = self.inmutable_fields()
 
         # create cache helper
         self._cache = cache_utilities.mutable_property_cache(
@@ -968,7 +985,7 @@ class bep20_cached(bep20):
         # made up a descriptive cahce file name
         cache_filename = f"{self._chain_id}_{self.address.lower()}"
 
-        fixed_fields = {"decimals": True, "symbol": False}
+        fixed_fields = self.inmutable_fields()
 
         # create cache helper
         self._cache = cache_utilities.mutable_property_cache(
