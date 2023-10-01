@@ -708,6 +708,13 @@ class usdc_price_scraper:
                     price = 1
                     # follow the path to get USDC price of token address
                     for operation in price_paths[chain][token_address]:
+                        # check operation
+                        if "min_block" not in operation and "address" not in operation:
+                            logging.getLogger(__name__).debug(
+                                f" operation {operation} not valid found in price_paths {chain} {token_address}. Should have min_block and address fields. Cant get onchain price"
+                            )
+                            return None
+
                         # check if block is higher than the minimum block defined at pool
                         # block can be a string or an int
                         if (
