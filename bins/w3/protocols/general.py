@@ -731,6 +731,8 @@ class web3wrap:
 
         """
 
+        last_error = None
+
         # get w3Provider list
         for rpc in RPC_MANAGER.get_rpc_list(network=self._network):
             try:
@@ -742,7 +744,9 @@ class web3wrap:
                 logging.getLogger(__name__).error(
                     f" Block {block} not found at {self._network} using {rpc.url}"
                 )
-                raise e
+                last_error = exceptions.BlockNotFound(
+                    f"Block {block} not found at {self._network} using {rpc.url}"
+                )
             except Exception as e:
                 for err in e.args:
                     if isinstance(err, dict):
@@ -751,7 +755,7 @@ class web3wrap:
                             logging.getLogger(__name__).error(
                                 f" Block {block} not found at {self._network} using {rpc.url}"
                             )
-                            raise exceptions.BlockNotFound(
+                            last_error = exceptions.BlockNotFound(
                                 f"Block {block} not found at {self._network} using {rpc.url}"
                             )
                         else:
@@ -762,7 +766,7 @@ class web3wrap:
                         logging.getLogger(__name__).error(
                             f" Block {block} not found at {self._network} using {rpc.url}"
                         )
-                        raise exceptions.BlockNotFound(
+                        last_error = exceptions.BlockNotFound(
                             f"Block {block} not found at {self._network} using {rpc.url}"
                         )
                     else:
@@ -770,11 +774,15 @@ class web3wrap:
                         logging.getLogger(__name__).debug(
                             f" [2]error getting block: {block}  data using {rpc.url} rpc: {e}"
                         )
-                        raise exceptions.BlockNotFound(
+                        last_error = exceptions.BlockNotFound(
                             f"Block {block} not found at {self._network} using {rpc.url}"
                         )
                 rpc.add_failed(error=e)
                 continue
+
+        # raise last error if there is no result to return, and there was an error
+        if last_error:
+            raise last_error
 
         return None
 
