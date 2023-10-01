@@ -128,12 +128,47 @@ class coingecko_apiMod(CoinGeckoAPI):
             # get from coingecko
             try:
                 response = self.__request(api_url)
+
+            except requests.HTTPError as e:
+                for err in e.args:
+                    if "too many requests" in err.lower() or "429" in err:
+                        # "Too Many Requests"
+                        logging.getLogger(__name__).debug(
+                            f" Too many requests made to coingecko."
+                        )
+                        # do not add to cache
+                        return None
+            except ValueError as e:
+                for err in e.args:
+                    # try to react from the code
+                    if error_message := err.get("error", None):
+                        if error_message.lower() == "coin not found":
+                            logging.getLogger(__name__).warning(
+                                f" Token {contract_address} not found at coingecko. Error: {e}"
+                            )
+                            # add to cache
+                            response = {"prices": [[]], "error": e}
+                        else:
+                            # "Your app has exceeded its concurrent requests capacity. If you have retries enabled, you can safely ignore this message
+                            logging.getLogger(__name__).exception(
+                                f" [1]Unknown coingecko ValueError:    -> {err}"
+                            )
+                            # do not add to cache
+                            return None
+                    else:
+                        logging.getLogger(__name__).exception(
+                            f" [2]Unknown coingecko ValueError:  -> {err}"
+                        )
+                        # do not add to cache
+                        return None
+
             except Exception as e:
-                # {'error': 'coin not found'}
                 logging.getLogger(__name__).exception(
                     f" Exception at coingecko's get_coin_market_chart_range_from_contract_address_by_id. Error: {e}"
                 )
-                response = {"prices": [[]], "error": e}
+                # do not add to cache
+                return None
+
             # save response to cache
             self.cache.add_data(url=api_url_base, data=response, save2file=True)
 
