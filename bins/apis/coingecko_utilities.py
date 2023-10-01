@@ -59,7 +59,7 @@ class coingecko_cache(file_backend):
 class coingecko_apiMod(CoinGeckoAPI):
     def __init__(self, api_key: str = "", retries=5):
         self.cache = coingecko_cache(
-            filename="coingecko_cache.json",
+            filename="coingecko_cache",
             folder_name=CONFIGURATION.get("cache", {}).get("save_path", None)
             or "data/cache",
         )
