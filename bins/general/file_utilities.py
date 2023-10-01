@@ -6,6 +6,7 @@ import logging
 import csv
 
 from pathlib import Path
+import time
 
 
 # ENCODER/DECODER to format json datetime items
@@ -57,8 +58,11 @@ def save_json(filename: str, data, folder_path: str) -> bool:
     Returns:
        bool: Returns true when successfull
     """
+    timestamp = time.time()
     path_to_file = "{}/{}.json".format(folder_path, filename)  # full filename
-    path_to_tempfile = "{}/{}.tmp".format(folder_path, filename)  # full filename
+    path_to_tempfile = "{}/{}_{}.tmp".format(
+        folder_path, filename, timestamp
+    )  # full filename
     # check if folder exists
     if not os.path.exists(folder_path):
         # Create a new directory
@@ -75,6 +79,7 @@ def save_json(filename: str, data, folder_path: str) -> bool:
                 )
             )
             return False
+
         # remove old file
         try:
             os.remove(path_to_file)
