@@ -4,7 +4,10 @@ import logging
 import time
 
 from ratelimit.exception import RateLimitException
-from bins.config.price.no_priced_tokens import no_priced_token_conversions
+from bins.config.price.no_priced_tokens import (
+    NoPricedToken_conversion,
+    no_priced_token_conversions,
+)
 
 from bins.errors.general import ProcessingError
 from ..cache import cache_utilities
@@ -107,13 +110,15 @@ class price_scraper:
             result.append(databaseSource.GECKOTERMINAL)
         if self.onchain:
             result.append(databaseSource.ONCHAIN)
-        if self.thegraph:
-            result.append(databaseSource.THEGRAPH)
         # coingeko without api key
         if self.coingecko and not CONFIGURATION.get("sources", {}).get(
             "coingeko_api_key", None
         ):
             result.append(databaseSource.COINGECKO)
+        # thegraph is the last option ( careful )
+        if self.thegraph:
+            result.append(databaseSource.THEGRAPH)
+
         if len(result) == 0:
             raise Exception("No price sources selected")
         return result
@@ -130,6 +135,14 @@ class price_scraper:
         """
         return: price_usd_token, source
         """
+        # make sure blocks are integers
+        try:
+            block = int(block)
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f"Error while converting block: {block} to int. Setting to 0.   Error: {e}"
+            )
+            block = 0
 
         # result var
         _price = None
@@ -137,18 +150,34 @@ class price_scraper:
 
         # make address lower case
         token_id = token_id.lower()
-        no_priced_token_config = None
+        no_priced_token_config: NoPricedToken_conversion | None = None
+        # convert network string to chain enum
+        chain = text_to_chain(network)
+        # define a search token id and chain to be used in case of a change of token address/chain
+        search_token_id = token_id
+        search_chain = chain
+        search_block = block
+        search_timestamp = None
         # HARDCODED PRICES: change token address if manually specified in configuration, and apply conversion rate
         try:
-            chain = text_to_chain(network)
             if no_priced_token_config := no_priced_token_conversions(
-                chain=chain, address=token_id
+                chain=search_chain, address=search_token_id, block=block
             ):
-                # change token address
+                # change token address and chain ( if specified in configuration)
                 logging.getLogger(__name__).debug(
-                    f"  {network} token address {token_id} has changed to {no_priced_token_config.converted_token_address} as set in configuration to gather price of"
+                    f"  {chain.database_name} token address {token_id} at block {block} has changed to {no_priced_token_config.converted.chain.database_name} {no_priced_token_config.converted.token_address} at block {no_priced_token_config.converted.block} as set in configuration to gather price of"
                 )
-                token_id = no_priced_token_config.converted_token_address
+                search_token_id = no_priced_token_config.converted.token_address
+                search_chain = no_priced_token_config.converted.chain
+                search_block = no_priced_token_config.converted.block
+                search_timestamp = no_priced_token_config.converted.timestamp
+
+                # check that block has changed when Chain has changed
+                if search_chain != chain and search_block == block:
+                    raise ValueError(
+                        f" Chain has changed but block remains the same!! Can't be. Check no_priced_tokens.py setup for {chain.database_name} token address {token_id}"
+                    )
+
         except Exception as e:
             logging.getLogger(__name__).exception(
                 f" Error while trying to evaluate a change of token address while getting price {e}"
@@ -158,30 +187,40 @@ class price_scraper:
         for source in source_order or self.source_order or self.create_source_order():
             if source == databaseSource.CACHE:
                 _price, _source = self._get_price_from_cache(
-                    network, token_id, block, of
+                    search_chain.database_name, search_token_id, search_block, of
                 )
             elif (
                 source == databaseSource.GECKOTERMINAL
-                and network in self.geckoterminal_price_connector.networks
+                and search_chain.database_name
+                in self.geckoterminal_price_connector.networks
             ):
                 _price, _source = self._get_price_from_geckoterminal(
-                    network, token_id, block, of
+                    search_chain.database_name,
+                    search_token_id,
+                    search_block,
+                    of,
+                    search_timestamp,
                 )
             elif (
                 source == databaseSource.COINGECKO
-                and network in self.coingecko_price_connector.networks
+                and search_chain.database_name
+                in self.coingecko_price_connector.networks
             ):
                 _price, _source = self._get_price_from_coingecko(
-                    network, token_id, block, of
+                    search_chain.database_name,
+                    search_token_id,
+                    search_block,
+                    of,
+                    search_timestamp,
                 )
             elif source == databaseSource.ONCHAIN:
                 _price, _source = self._get_price_from_onchain_data(
-                    network, token_id, block
+                    search_chain.database_name, search_token_id, search_block
                 )
 
             elif source == databaseSource.THEGRAPH:
                 _price, _source = self._get_price_from_thegraph(
-                    network, token_id, block
+                    search_chain.database_name, search_token_id, search_block
                 )
 
             # if price found, exit for loop
@@ -344,7 +383,12 @@ class price_scraper:
         return _price, _source
 
     def _get_price_from_coingecko(
-        self, network: str, token_id: str, block: int, of: str
+        self,
+        network: str,
+        token_id: str,
+        block: int,
+        of: str,
+        timestamp: int | None = None,
     ) -> tuple[float, databaseSource]:
         _source = databaseSource.COINGECKO
         _price = 0
@@ -358,10 +402,11 @@ class price_scraper:
                 )
 
             if block != 0:
-                # convert block to timestamp
-                if timestamp := self._convert_block_to_timestamp(
+                timestamp = timestamp or self._convert_block_to_timestamp(
                     network=network, block=block
-                ):
+                )
+                # convert block to timestamp
+                if timestamp:
                     # get price at block
                     _price = self.coingecko_price_connector.get_price_historic(
                         network, token_id, timestamp
@@ -385,7 +430,12 @@ class price_scraper:
         return _price, _source
 
     def _get_price_from_geckoterminal(
-        self, network: str, token_id: str, block: int, of: str
+        self,
+        network: str,
+        token_id: str,
+        block: int,
+        of: str,
+        timestamp: int | None = None,
     ) -> tuple[float, databaseSource]:
         _price = 0
         _source = databaseSource.GECKOTERMINAL
@@ -397,10 +447,11 @@ class price_scraper:
                 )
 
             if block != 0:
-                # convert block to timestamp
-                if timestamp := self._convert_block_to_timestamp(
+                timestamp = timestamp or self._convert_block_to_timestamp(
                     network=network, block=block
-                ):
+                )
+                # convert block to timestamp
+                if timestamp:
                     try:
                         # get price at block
                         _price = self.geckoterminal_price_connector.get_price_historic(
