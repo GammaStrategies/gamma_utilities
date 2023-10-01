@@ -1,4 +1,6 @@
 import logging
+import os
+import time
 from bins.configuration import CONFIGURATION
 from bins.general.file_utilities import get_files, load_json, save_json
 
@@ -14,6 +16,14 @@ def reset_cache_files():
     logging.getLogger(__name__).info(f" Resetting cache files from {folder_path}")
     for file in get_files(path=folder_path):
         try:
+            # if file has been created in the last 24 hours, skip it
+            creation_time = os.path.getmtime(folder_path + "/" + file)
+            if creation_time > time.time() - 24 * 60 * 60:
+                logging.getLogger(__name__).debug(
+                    f" File {file} has been created in the last 24 hours. Skipping reset"
+                )
+                continue
+
             # load file
             file_json = load_json(filename=file.split(".")[0], folder_path=folder_path)
             new_file_json = {}
