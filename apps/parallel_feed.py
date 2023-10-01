@@ -60,9 +60,9 @@ def process_queues(
                 for network in networks:
                     if len(PARALEL_TASKS) < maximum_tasks:
                         # select current item
-                        queue_item_selector = item_selector_per_network[protocol][
-                            network
-                        ]
+                        queue_item_selector_obj: queue_item_selector = (
+                            item_selector_per_network[protocol][network]
+                        )
 
                         # add to the queue
                         PARALEL_TASKS.append(
@@ -70,15 +70,15 @@ def process_queues(
                                 pull_from_queue,
                                 (
                                     network,
-                                    queue_item_selector.current_queue_item_types,
-                                    queue_item_selector.find,
-                                    queue_item_selector.sort,
+                                    queue_item_selector_obj.current_queue_item_types,
+                                    queue_item_selector_obj.find,
+                                    queue_item_selector_obj.sort,
                                 ),
                             )
                         )
 
                         # select nex item type
-                        queue_item_selector.next()
+                        queue_item_selector_obj.next()
 
 
 def select_process_queues(maximum_tasks: int = 10, queue_level: int | None = None):
