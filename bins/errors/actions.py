@@ -124,6 +124,8 @@ def process_error(error: ProcessingError):
                     collection="queue",
                     find={"id": price_item_db["id"]},
                 ):
+                    # select first and lonely item from list
+                    dbItem = dbItem[0]
                     logging.getLogger(__name__).debug(
                         f" Reaction to price not found -> Reseting count field for existing queueItem price for {error.item}"
                     )
