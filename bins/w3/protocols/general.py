@@ -731,10 +731,42 @@ class web3wrap:
                 rpc.add_attempt()
                 _w3 = self.setup_w3(network=self._network, web3Url=rpc.url)
                 return _w3.eth.get_block(block)
-            except Exception as e:
-                logging.getLogger(__name__).debug(
-                    f" error getting block data using {rpc.url} rpc: {e}"
+
+            except exceptions.BlockNotFound as e:
+                logging.getLogger(__name__).error(
+                    f" Block {block} not found at {self._network} using {rpc.url}"
                 )
+                raise e
+            except Exception as e:
+                for err in e.args:
+                    if isinstance(err, dict):
+                        if err.get("code", None) in [-32005, -32001]:
+                            # {'code': -32001, 'message': 'Resource not found.'}
+                            logging.getLogger(__name__).error(
+                                f" Block {block} not found at {self._network} using {rpc.url}"
+                            )
+                            raise exceptions.BlockNotFound(
+                                f"Block {block} not found at {self._network} using {rpc.url}"
+                            )
+                        else:
+                            logging.getLogger(__name__).debug(
+                                f" [1]error getting block: {block}  data using {rpc.url} rpc: {e}"
+                            )
+                    elif isinstance(err, str) and "not found" in err.lower():
+                        logging.getLogger(__name__).error(
+                            f" Block {block} not found at {self._network} using {rpc.url}"
+                        )
+                        raise exceptions.BlockNotFound(
+                            f"Block {block} not found at {self._network} using {rpc.url}"
+                        )
+                    else:
+                        #  Block with id: '0x1167a59' not found.
+                        logging.getLogger(__name__).debug(
+                            f" [2]error getting block: {block}  data using {rpc.url} rpc: {e}"
+                        )
+                        raise exceptions.BlockNotFound(
+                            f"Block {block} not found at {self._network} using {rpc.url}"
+                        )
                 rpc.add_failed(error=e)
                 continue
 
