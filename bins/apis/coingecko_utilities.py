@@ -138,16 +138,23 @@ class coingecko_apiMod(CoinGeckoAPI):
                         )
                         # do not add to cache
                         return None
+                    if "not found" in err.lower() or "404" in err:
+                        # "Not Found"
+                        logging.getLogger(__name__).debug(
+                            f" Token not found at coingecko."
+                        )
+                        # add to cache
+                        response = {"prices": [[]], "error": err}
             except ValueError as e:
                 for err in e.args:
                     # try to react from the code
                     if error_message := err.get("error", None):
                         if error_message.lower() == "coin not found":
                             logging.getLogger(__name__).warning(
-                                f" Token {contract_address} not found at coingecko. Error: {e}"
+                                f" Token {contract_address} not found at coingecko. Error: {err}"
                             )
                             # add to cache
-                            response = {"prices": [[]], "error": e}
+                            response = {"prices": [[]], "error": err}
                         else:
                             # "Your app has exceeded its concurrent requests capacity. If you have retries enabled, you can safely ignore this message
                             logging.getLogger(__name__).exception(
