@@ -1,5 +1,4 @@
 import json
-import sys
 from pycoingecko import CoinGeckoAPI
 from pycoingecko.utils import func_args_preprocessing
 import datetime as dt
