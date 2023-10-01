@@ -1,11 +1,143 @@
+import json
 import sys
 from pycoingecko import CoinGeckoAPI
+from pycoingecko.utils import func_args_preprocessing
 import datetime as dt
 import logging
 
 import requests
+from bins.cache.cache_utilities import CACHE_LOCK, file_backend
 
 from bins.configuration import CONFIGURATION
+
+
+class coingecko_cache(file_backend):
+    def _init_cache(self):
+        self._cache = self._load_cache_file() or {}
+
+    def add_data(self, url: str, data, save2file=False) -> bool:
+        """
+        Args:
+           data (dict): data to cache
+        Returns:
+           bool: success or fail
+        """
+
+        # avoid saving None values
+        if data is None:
+            logging.getLogger(__name__).debug(
+                f" None value not saved to coingecko's cache"
+            )
+            return False
+
+        with CACHE_LOCK:
+            # NETWORK and BLOCK must be present when caching
+            if not url in self._cache:
+                self._cache[url] = data
+            else:
+                logging.getLogger(__name__).warning(
+                    f" {url} already in cache. Updating data"
+                )
+                self._cache[url] = data
+
+        if save2file:
+            # save file to disk
+            self._save_tofile()
+
+        return True
+
+    def get_data(self, url: str):
+        """Retrieves data from cache
+
+        Returns:
+           dict: Can return None if not found
+        """
+        # use it for key in cache
+        return self._cache.get(url, None)
+
+
+class coingecko_apiMod(CoinGeckoAPI):
+    def __init__(self, api_key: str = "", retries=5):
+        self.cache = coingecko_cache(
+            filename="coingecko_cache.json",
+            folder_name=CONFIGURATION.get("cache", {}).get("save_path", None)
+            or "data/cache",
+        )
+
+        super().__init__(api_key, retries)
+
+    def __request(self, url):
+        try:
+            response = self.session.get(url, timeout=self.request_timeout)
+        except requests.exceptions.RequestException:
+            raise
+
+        try:
+            response.raise_for_status()
+            content = json.loads(response.content.decode("utf-8"))
+            return content
+        except Exception as e:
+            # check if json (with error message) is returned
+            try:
+                content = json.loads(response.content.decode("utf-8"))
+                raise ValueError(content)
+            # if no json
+            except json.decoder.JSONDecodeError:
+                pass
+
+            raise
+
+    def __api_url_params(self, api_url, params, api_url_has_params=False):
+        # if using pro version of CoinGecko, inject key in every call
+        if self.api_key:
+            params["x_cg_pro_api_key"] = self.api_key
+
+        if params:
+            # if api_url contains already params and there is already a '?' avoid
+            # adding second '?' (api_url += '&' if '?' in api_url else '?'); causes
+            # issues with request parametes (usually for endpoints with required
+            # arguments passed as parameters)
+            api_url += "&" if api_url_has_params else "?"
+            for key, value in params.items():
+                if type(value) == bool:
+                    value = str(value).lower()
+
+                api_url += "{0}={1}&".format(key, value)
+            api_url = api_url[:-1]
+        return api_url
+
+    @func_args_preprocessing
+    def get_coin_market_chart_range_from_contract_address_by_id(
+        self, id, contract_address, vs_currency, from_timestamp, to_timestamp, **kwargs
+    ):
+        """Get historical market data include price, market cap, and 24h volume within a range of timestamp (granularity auto) from a contract address"""
+
+        api_url_base = "{0}coins/{1}/contract/{2}/market_chart/range?vs_currency={3}&from={4}&to={5}".format(
+            self.api_base_url,
+            id,
+            contract_address,
+            vs_currency,
+            from_timestamp,
+            to_timestamp,
+        )
+        api_url = self.__api_url_params(api_url_base, kwargs, api_url_has_params=True)
+
+        # search in cache
+        response = self.cache.get_data(api_url_base)
+        if response == None:
+            # get from coingecko
+            try:
+                response = self.__request(api_url)
+            except Exception as e:
+                # {'error': 'coin not found'}
+                logging.getLogger(__name__).exception(
+                    f" Exception at coingecko's get_coin_market_chart_range_from_contract_address_by_id. Error: {e}"
+                )
+                response = {"prices": [[]], "error": e}
+            # save response to cache
+            self.cache.add_data(url=api_url_base, data=response, save2file=True)
+
+        return response
 
 
 class coingecko_price_helper:
@@ -55,7 +187,7 @@ class coingecko_price_helper:
         """Get current token price"""
 
         # get price from coingecko
-        cg = CoinGeckoAPI(
+        cg = coingecko_apiMod(
             api_key=CONFIGURATION.get("sources", {}).get("coingeko_api_key", ""),
             retries=self.retries,
         )
@@ -111,7 +243,7 @@ class coingecko_price_helper:
                 timestamp = int(timestamp.split(".")[0])
 
         # get price from coingecko
-        cg = CoinGeckoAPI(
+        cg = coingecko_apiMod(
             api_key=CONFIGURATION.get("sources", {}).get("coingeko_api_key", ""),
             retries=self.retries,
         )
@@ -212,7 +344,7 @@ class coingecko_price_helper:
             vs_currencies = ["usd"]
         result = {}
         # get price from coingecko
-        cg = CoinGeckoAPI(
+        cg = coingecko_apiMod(
             api_key=CONFIGURATION.get("sources", {}).get("coingeko_api_key", ""),
             retries=self.retries,
         )
