@@ -399,6 +399,13 @@ DEX_POOLS = {
             "token1": "0xba777ae3a3c91fcd83ef85bfe65410592bdd0f7c".lower(),
             "min_block": 42902919,
         },
+        "USDC-EUROe": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0x50ac505af93eff6a650531ab001206cfa213bb85".lower(),
+            "token0": "0x2791bca1f2de4661ed88a30c99a7a9449aa84174".lower(),
+            "token1": "0x820802fa8a99901f52e39acd21177b0be6ee2974".lower(),
+            "min_block": 40602008,
+        },
     },
     Chain.POLYGON_ZKEVM: {
         "WETH_USDC": {
@@ -538,6 +545,20 @@ DEX_POOLS = {
             "token1": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca".lower(),
             "min_block": 3571306,
         },
+        "WETH-SYNTH": {
+            "protocol": Protocol.SYNTHSWAP,
+            "address": "0xac5af1706cc42a7c398c274c3b8ecf735e7ecb28".lower(),
+            "token0": "0x4200000000000000000000000000000000000006".lower(),
+            "token1": "0xbd2dbb8ecea9743ca5b16423b4eaa26bdcfe5ed2".lower(),
+            "min_block": 2014951,
+        },
+        "WETH-USDbC": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0x4c36388be6f416a29c8d8eee81c771ce6be14b18".lower(),
+            "token0": "0x4200000000000000000000000000000000000006".lower(),
+            "token1": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca".lower(),
+            "min_block": 2112314,
+        },
     },
     Chain.CELO: {
         "agEUR-cEUR": {
@@ -661,6 +682,10 @@ DEX_POOLS_PRICE_PATHS = {
         "0x8bae3f5eb10f39663e57be19741fd9ccef0e113a".lower(): [
             (DEX_POOLS[Chain.POLYGON]["USDC_axlPEPE"], 0),
         ],
+        # EUROe
+        "0x820802fa8a99901f52e39acd21177b0be6ee2974".lower(): [
+            (DEX_POOLS[Chain.POLYGON]["USDC-EUROe"], 0),
+        ],
     },
     Chain.POLYGON_ZKEVM: {
         # WMATIC
@@ -722,6 +747,18 @@ DEX_POOLS_PRICE_PATHS = {
         ],
     },
     Chain.MOONBEAM: {},
+    Chain.BASE: {
+        # SYNTH
+        "0xbd2dbb8ecea9743ca5b16423b4eaa26bdcfe5ed2".lower(): [
+            (DEX_POOLS[Chain.BASE]["WETH-SYNTH"], 0),
+            (DEX_POOLS[Chain.BASE]["WETH-USDbC"], 1),
+        ],
+        # TBTC
+        "0x236aa50979d5f3de3bd1eeb40e81137f22ab794b".lower(): [
+            (DEX_POOLS[Chain.BASE]["TBTC-WETH"], 0),
+            (DEX_POOLS[Chain.BASE]["WETH-USDbC"], 1),
+        ],
+    },
 }
 
 
