@@ -575,6 +575,16 @@ def build_protocol_pool(
                 address=pool_address, network=chain.database_name, block=block
             )
         )
+    elif protocol == Protocol.SYNTHSWAP:
+        return (
+            protocols.algebra.pool.poolv3(
+                address=pool_address, network=chain.database_name, block=block
+            )
+            if not cached
+            else protocols.algebra.pool.poolv3_cached(
+                address=pool_address, network=chain.database_name, block=block
+            )
+        )
     else:
         raise NotImplementedError(f"Protocol {protocol} not implemented")
 
