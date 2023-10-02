@@ -485,12 +485,40 @@ DEX_POOLS = {
             "token1": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9".lower(),
             "min_block": 302082,
         },
-        "GRAI-LUSD": {
+        # "GRAI-LUSD": {
+        #     "protocol": Protocol.UNISWAPv3,
+        #     "address": "0x3df1094722c7368e26a2e7c57c91a0289f6fa732".lower(),
+        #     "token0": "0x894134a25a5fac1c2c26f1d8fbf05111a3cb9487".lower(),
+        #     "token1": "0x93b346b6bc2548da6a1e7d98e9a421b42541425b".lower(),
+        #     "min_block": 113253265,
+        # },
+        "LUSD-USDC": {
             "protocol": Protocol.UNISWAPv3,
-            "address": "0x3df1094722c7368e26a2e7c57c91a0289f6fa732".lower(),
+            "address": "0x1557fdfda61f135baf1a1682eebaa086a0fcab6e".lower(),
+            "token0": "0x93b346b6bc2548da6a1e7d98e9a421b42541425b".lower(),
+            "token1": "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8".lower(),
+            "min_block": 20148926,
+        },
+        "GRAI-LUSD": {
+            "protocol": Protocol.RAMSES,
+            "address": "0x92e305a63646e76bdd3681f7ece7529cd4e8ed5b".lower(),
             "token0": "0x894134a25a5fac1c2c26f1d8fbf05111a3cb9487".lower(),
             "token1": "0x93b346b6bc2548da6a1e7d98e9a421b42541425b".lower(),
-            "min_block": 113253265,
+            "min_block": 106262769,
+        },
+        "ARB-USDC": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0xcda53b1f66614552f834ceef361a8d12a0b8dad8".lower(),
+            "token0": "0x912ce59144191c1204e64559fe8253a0e49e6548".lower(),
+            "token1": "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8".lower(),
+            "min_block": 71876737,
+        },
+        "OATH-ERN": {
+            "protocol": Protocol.RAMSES,
+            "address": "0x07b6699a5163e076498ed7511b7d4778e3949a31".lower(),
+            "token0": "0xa1150db5105987cec5fd092273d1e3cbb22b378b".lower(),
+            "token1": "0xa334884bf6b0a066d553d19e507315e839409e62".lower(),
+            "min_block": 103382549,
         },
     },
     Chain.MOONBEAM: {},
@@ -682,6 +710,15 @@ DEX_POOLS_PRICE_PATHS = {
         # USDT
         "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9".lower(): [
             (DEX_POOLS[Chain.ARBITRUM]["USDT_USDC"], 1),
+        ],
+        # GRAI
+        "0x894134a25a5fac1c2c26f1d8fbf05111a3cb9487".lower(): [
+            (DEX_POOLS[Chain.ARBITRUM]["GRAI-LUSD"], 0),
+            (DEX_POOLS[Chain.ARBITRUM]["LUSD-USDC"], 1),
+        ],
+        # ARB
+        "0x912ce59144191c1204e64559fe8253a0e49e6548".lower(): [
+            (DEX_POOLS[Chain.ARBITRUM]["ARB-USDC"], 1),
         ],
     },
     Chain.MOONBEAM: {},

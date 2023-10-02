@@ -78,6 +78,13 @@ def oretro(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
     oretro_token = "0x3a29cab2e124919d14a6f735b6033a3aad2b260f".lower()
 
     if address.lower() == oretro_token:
+        # the contract was deployed in block 45556777, so no data before that
+        if chain == Chain.POLYGON and block < 45556777:
+            logging.getLogger(__name__).warning(
+                f" No data for {chain.fantasy_name} oRETRO before block 45556777"
+            )
+            return None
+
         # get the discount rate from the contract
         erc20 = build_erc20_helper(
             chain=chain,
@@ -87,6 +94,7 @@ def oretro(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
             + "/retro",
             block=block,
         )
+
         discount_rate = erc20.call_function_autoRpc("discount")
         conversion_rate = (100 - discount_rate) / 100
 
@@ -175,6 +183,51 @@ def angle(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
             )
 
 
+def csushi(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
+    csushi_ethereum = "0x4b0181102a0112a2ef11abee5563bb4a3176c9d7".lower()
+    csushi_polygon = "0x26aa9b3d8a49a2ed849ac66ea9aa37ee36bc6b24".lower()
+    # cToken compound.finance
+
+    # we convert to ethereum
+    if chain != Chain.ETHEREUM:
+        try:
+            _ethereum_block = None
+
+            # Polygon
+            if chain == Chain.POLYGON and address.lower() == csushi_polygon:
+                # change the block from optimism to ethereum using timestamps
+                _timestamp = build_erc20_helper(
+                    chain=chain, address=csushi_polygon, block=block
+                )._timestamp
+                _ethereum_block = build_erc20_helper(
+                    chain=Chain.ETHEREUM,
+                    address=csushi_ethereum,
+                    timestamp=_timestamp,
+                ).blockNumberFromTimestamp(timestamp=_timestamp)
+
+            # return if found
+            if _ethereum_block:
+                return NoPricedToken_conversion(
+                    original=NoPricedToken_item(
+                        token_address=csushi_polygon,
+                        chain=chain,
+                        block=block,
+                        timestamp=_timestamp,
+                    ),
+                    converted=NoPricedToken_item(
+                        token_address=csushi_ethereum,
+                        chain=Chain.ETHEREUM,
+                        block=_ethereum_block,
+                        timestamp=_timestamp,
+                    ),
+                    conversion_rate=1,
+                )
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f" Can't build cSushi NoPricedToken conversion object. Error: {e} "
+            )
+
+
 # ADD HERE THE TOKENS THAT ARE NOT PRICED IN ANY POOL
 TOKEN_ADDRESS_CONVERSION = {
     Chain.ETHEREUM: {
@@ -188,11 +241,13 @@ TOKEN_ADDRESS_CONVERSION = {
     Chain.POLYGON: {
         # oRETRO--RETRO
         "0x3a29cab2e124919d14a6f735b6033a3aad2b260f".lower(): oretro,
-        # ANGLE
+        # ANGLE -> ethereum
         "0x900f717ea076e1e7a484ad9dd2db81ceec60ebf1".lower(): angle,
+        # CSUSHI (cToken) -> ethereum
+        "0x26aa9b3d8a49a2ed849ac66ea9aa37ee36bc6b24".lower(): csushi,
     },
     Chain.OPTIMISM: {
-        # ANGLE
+        # ANGLE -> ethereum
         "0x58441e37255b09f9f545e9dc957f1c41658ff665".lower(): angle,
     },
 }
