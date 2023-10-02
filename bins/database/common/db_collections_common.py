@@ -324,6 +324,25 @@ class db_collections_common:
                 upsert=upsert,
             )
 
+    def update_many(
+        self,
+        collection_name: str,
+        find: dict,
+        update: dict,
+        upsert: bool = False,
+    ) -> UpdateResult:
+        with MongoDbManager(
+            url=self._db_mongo_url,
+            db_name=self._db_name,
+            collections=self._db_collections,
+        ) as _db_manager:
+            return _db_manager.update_many(
+                coll_name=collection_name,
+                dbFilter=find,
+                update=update,
+                upsert=upsert,
+            )
+
     @property
     def db_manager(self) -> MongoDbManager:
         return MongoDbManager(
@@ -941,6 +960,26 @@ class database_local(db_collections_common):
         return self.find_one_and_update(
             collection_name="queue",
             find={"id": id},
+            update=update,
+        )
+
+    def free_queue_items(
+        self, ids: list[str], count: int | None = None
+    ) -> UpdateResult:
+        """set a list of queue objects free to be processed again
+
+        Args:
+            ids (list[str]): queue item ids to free
+            count (int | None, optional): if provided, set the count value. Defaults to None.
+        """
+        logging.getLogger(__name__).debug(f" freeing {len(ids)} items from queue ")
+        update = {"$set": {"processing": 0}}
+        if count:
+            update["$set"]["count"] = count
+
+        return self.update_many(
+            collection_name="queue",
+            find={"id": {"$in": ids}},
             update=update,
         )
 

@@ -457,6 +457,27 @@ class MongoDbManager:
             filter=dbFilter, update=update, upsert=True
         )
 
+    def update_many(
+        self,
+        coll_name: str,
+        dbFilter: dict,
+        update: dict,
+        upsert: bool = False,
+    ) -> UpdateResult:
+        """
+         Update many documents in a collection from one search.
+
+        Args:
+            coll_name (str):
+            dbFilter (dict):  like  {"_id": "counter-id"}
+            update (dict):  like  {"$inc":{"sequence_value":1}}
+        """
+        return self.database[coll_name].update_many(
+            filter=dbFilter,
+            update=update,
+            upsert=upsert,
+        )
+
     @staticmethod
     def create_database_name(network: str, protocol: str) -> str:
         return f"{protocol}_{network}"
