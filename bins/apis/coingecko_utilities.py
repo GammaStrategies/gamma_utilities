@@ -52,7 +52,11 @@ class coingecko_cache(file_backend):
            dict: Can return None if not found
         """
         # use it for key in cache
-        return self._cache.get(url, None)
+        if result := self._cache.get(url, None):
+            # add cached flag
+            result["cached"] = True
+            return result
+        return None
 
 
 class coingecko_apiMod(CoinGeckoAPI):
@@ -123,6 +127,7 @@ class coingecko_apiMod(CoinGeckoAPI):
 
         # search in cache
         response = self.cache.get_data(api_url_base)
+
         if response == None:
             # get from coingecko
             try:
