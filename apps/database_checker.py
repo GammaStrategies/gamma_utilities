@@ -1599,9 +1599,6 @@ def repair_queue_locked_items():
     logging.getLogger(__name__).info(
         f">Repair queue items that are locked for more than 10 minutes..."
     )
-    # get all operation blocks from database
-    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-
     for protocol in CONFIGURATION["script"]["protocols"]:
         # override networks if specified in cml
         networks = (
@@ -1610,25 +1607,37 @@ def repair_queue_locked_items():
         )
         for network in networks:
             logging.getLogger(__name__).info(f"          processing {network} ...")
+
+            ids = []
+
             # get a list of queue items with processing >0
-            db_name = f"{network}_{protocol}"
             for queue_item in tqdm.tqdm(
-                database_local(
-                    mongo_url=mongo_url, db_name=db_name
-                ).get_items_from_database(
-                    collection_name="queue",
-                    find={"processing": {"$gt": 0}, "count": {"$lt": 10}},
+                get_from_localdb(
+                    network=network,
+                    collection="queue",
+                    find={"processing": {"$gt": 0}},
                 )
             ):
                 # check seconds passed since processing
                 minutes_passed = (time.time() - queue_item["processing"]) / 60
                 if minutes_passed > 15:
-                    # free locked processing
-                    get_default_localdb(network=network).free_queue_item(
-                        id=queue_item["id"]
-                    )
+                    # add item id to queue
+                    ids.append(queue_item["id"])
+
+                    # # free locked processing
+                    # get_default_localdb(network=network).free_queue_item(
+                    #     id=queue_item["id"]
+                    # )
+                    # logging.getLogger(__name__).debug(
+                    #     f" {network}'s queue item {queue_item['id']} has been in the processing state for {minutes_passed} minutes. It probably halted. Freeing it..."
+                    # )
+            if ids:
+                # free locked processing
+                if db_return := get_default_localdb(network=network).free_queue_items(
+                    ids=ids
+                ):
                     logging.getLogger(__name__).debug(
-                        f" {network}'s queue item {queue_item['id']} has been in the processing state for {minutes_passed} minutes. It probably halted. Freeing it..."
+                        f" {network}'s queue items {db_return.modified_count} have been in the processing state for more than 15 minutes thus are now free."
                     )
 
 
