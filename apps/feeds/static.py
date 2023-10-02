@@ -69,7 +69,7 @@ def feed_hypervisor_static(
         hypervisor_addresses_to_process,
         hypervisor_addresses_disabled,
     ) = _get_static_hypervisor_addresses_to_process(
-        protocol=protocol, network=network, dex=dex, rewrite=rewrite
+        network=network, dex=dex, rewrite=rewrite
     )
 
     # set log list of hypervisors with errors
