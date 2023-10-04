@@ -68,6 +68,9 @@ def build_db_hypervisor(
                 hypervisor=hypervisor, hype=hype_as_dict, convert_bint=True
             )
 
+        # check hypervisor validity
+        check_hypervisor_is_valid(hypervisor=hype_as_dict)
+
         # return converted hypervisor
         return hype_as_dict
 
