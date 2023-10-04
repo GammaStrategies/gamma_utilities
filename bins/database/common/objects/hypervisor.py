@@ -190,29 +190,84 @@ class hypervisor_status_object(dict_to_object):
             tuple[gamma_fees, lp_fees]: fees split between Gamma and LPs
         """
 
-        # gamma protocolFee
-        _gamma_feeProtocol = self.get_protocol_fee()
-        # gamma will take fees only if the uncollected fee qtty is greater than the minimum divisible unit per token
-        # at least 2
-        _gamma_fees = token_group_object(
-            token0=mulDiv(self.fees_uncollected.qtty_token0, _gamma_feeProtocol, 100),
-            token1=mulDiv(self.fees_uncollected.qtty_token1, _gamma_feeProtocol, 100),
-        )
-
-        # LPs fee
-        _lp_fees = token_group_object(
-            token0=self.fees_uncollected.qtty_token0 - _gamma_fees.token0,
-            token1=self.fees_uncollected.qtty_token1 - _gamma_fees.token1,
-        )
-
-        # check that fees sum are equal to uncollected fees
-        if (
-            _gamma_fees.token0 + _gamma_fees.token1 + _lp_fees.token0 + _lp_fees.token1
-            != self.fees_uncollected.qtty_token0 + self.fees_uncollected.qtty_token1
-        ):
-            logging.getLogger(__name__).error(
-                f" Fees sum error: {_gamma_fees.token0 + _gamma_fees.token1 + _lp_fees.token0 + _lp_fees.token1} != {self.fees_uncollected.qtty_token0 + self.fees_uncollected.qtty_token1}"
+        # check if the object has already the fees calculated
+        if hasattr(self.fees_uncollected, "gamma_qtty_token0"):
+            _gamma_fees = token_group_object(
+                token0=self.fees_uncollected.gamma_qtty_token0,
+                token1=self.fees_uncollected.gamma_qtty_token1,
             )
+            _lp_fees = token_group_object(
+                token0=self.fees_uncollected.lps_qtty_token0,
+                token1=self.fees_uncollected.lps_qtty_token1,
+            )
+        else:
+            # calculate
+
+            # gamma protocolFee
+            _gamma_feeProtocol = self.get_protocol_fee()
+            # gamma will take fees only if the uncollected fee qtty is greater than the minimum divisible unit per token
+            # at least 2
+            _gamma_fees = token_group_object(
+                token0=mulDiv(
+                    int(self.fees_uncollected.qtty_token0), _gamma_feeProtocol, 100
+                ),
+                token1=mulDiv(
+                    int(self.fees_uncollected.qtty_token1), _gamma_feeProtocol, 100
+                ),
+            )
+
+            # LPs fee
+            _lp_fees = token_group_object(
+                token0=int(self.fees_uncollected.qtty_token0) - _gamma_fees.token0,
+                token1=int(self.fees_uncollected.qtty_token1) - _gamma_fees.token1,
+            )
+
+            # check that fees sum are equal to uncollected fees
+            if (
+                _gamma_fees.token0
+                + _gamma_fees.token1
+                + _lp_fees.token0
+                + _lp_fees.token1
+                != int(self.fees_uncollected.qtty_token0)
+                + int(self.fees_uncollected.qtty_token1)
+            ):
+                logging.getLogger(__name__).error(
+                    f" Fees sum error: {_gamma_fees.token0 + _gamma_fees.token1 + _lp_fees.token0 + _lp_fees.token1} != {self.fees_uncollected.qtty_token0 + self.fees_uncollected.qtty_token1}"
+                )
+
+        if inDecimal:
+            # convert to decimals
+            _gamma_fees.token0 = (
+                Decimal(str(_gamma_fees.token0)) / 10**self.pool.token0.decimals
+            )
+            _gamma_fees.token1 = (
+                Decimal(str(_gamma_fees.token1)) / 10**self.pool.token1.decimals
+            )
+            _lp_fees.token0 = (
+                Decimal(str(_lp_fees.token0)) / 10**self.pool.token0.decimals
+            )
+            _lp_fees.token1 = (
+                Decimal(str(_lp_fees.token1)) / 10**self.pool.token1.decimals
+            )
+
+        return _gamma_fees, _lp_fees
+
+    def get_fees_collected(
+        self, inDecimal: bool = True
+    ) -> tuple[token_group_object, token_group_object]:
+        # check if the object has already the fees calculated
+        if hasattr(self, "fees_collected"):
+            _gamma_fees = token_group_object(
+                token0=self.fees_collected.gamma_qtty_token0,
+                token1=self.fees_collected.gamma_qtty_token1,
+            )
+            _lp_fees = token_group_object(
+                token0=self.fees_collected.lps_qtty_token0,
+                token1=self.fees_collected.lps_qtty_token1,
+            )
+        else:
+            # TODO: calculate
+            return None, None
 
         if inDecimal:
             # convert to decimals
@@ -263,6 +318,30 @@ class hypervisor_status_object(dict_to_object):
 
         return _totalAmounts
 
+    def get_inRange_liquidity(self) -> int:
+        """Return liquidity in range of current tick
+
+        Returns:
+            int: liquidity in range
+        """
+        # get current tick
+        try:
+            current_tick = self.pool.slot0.tick
+        except Exception:
+            current_tick = self.pool.globalState.tick
+
+        # get Gamma's inRange liquidity
+        gamma_liquidity_in_range = 0
+        if int(self.baseUpper) >= current_tick and int(self.baseLower) <= current_tick:
+            gamma_liquidity_in_range += int(self.basePosition.liquidity)
+        if (
+            int(self.limitUpper) >= current_tick
+            and int(self.limitLower) <= current_tick
+        ):
+            gamma_liquidity_in_range += int(self.limitPosition.liquidity)
+
+        return gamma_liquidity_in_range
+
     def pre_subtraction(self, key: str, value: any):
         """Be aware that nested variables will not be considered hypervisor status so
         will never go thru this function--> use dict_object pre_subtraction instead
@@ -270,6 +349,14 @@ class hypervisor_status_object(dict_to_object):
         """
         # call super pre_subtraction function
         return super().pre_subtraction(key=key, value=value)
+
+    # def get_basePosition_data(self):
+
+    #     if hasattr(self, "basePosition_data"):
+    #         feeGrowthInside0LastX128 = self.basePosition_data.feeGrowthInside0LastX128
+    #         feeGrowthInside1LastX128 = self.basePosition_data.feeGrowthInside1LastX128
+    #     else:
+    #         # calculate
 
 
 ############################################################################
