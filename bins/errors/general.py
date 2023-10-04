@@ -27,3 +27,27 @@ class ProcessingError(Exception):
         self.action = action
         self.message = message
         super().__init__(self.message)
+
+
+class CheckingError(Exception):
+    """Exception raised for errors during checking.
+
+    Attributes:
+        item -- error item
+        identity -- error identification
+        action -- conclusion action to be taken a posteriori
+        message -- explanation of the error
+    """
+
+    def __init__(
+        self,
+        item: dict,
+        identity: error_identity = None,
+        action: str = "none",
+        message="Error during checking",
+    ):
+        self.item = item
+        self.identity = identity
+        self.action = action
+        self.message = message
+        super().__init__(self.message)

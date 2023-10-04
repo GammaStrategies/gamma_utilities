@@ -1,8 +1,9 @@
 import logging
 
 from web3 import Web3
+from bins.checkers.hypervisor import check_hypervisor_is_valid
 
-from bins.errors.general import ProcessingError
+from bins.errors.general import CheckingError, ProcessingError
 
 from ..configuration import STATIC_REGISTRY_ADDRESSES
 
@@ -69,6 +70,22 @@ def build_db_hypervisor(
 
         # return converted hypervisor
         return hype_as_dict
+
+    except CheckingError as e:
+        if e.identity == error_identity.RETURN_NONE and network == "binance":
+            # try to recover
+            if check_erc20_fields(
+                hypervisor=hypervisor, hype=hype_as_dict, convert_bint=True
+            ):
+                # check if is valid, quietly
+                if check_hypervisor_is_valid(hypervisor=hypervisor, quiet=True):
+                    logging.getLogger(__name__).debug(
+                        f"  {network}'s hypervisor {address} [dex: {dex}] at block {block}] to dictionary process recovered from 'None field' error "
+                    )
+
+        logging.getLogger(__name__).debug(
+            f"  Unrecoverable error while converting {network}'s hypervisor {address} [dex: {dex}] at block {block}] to dictionary"
+        )
 
     except ProcessingError as e:
         if e.identity == error_identity.NO_RPC_AVAILABLE:

@@ -106,6 +106,12 @@ class poolv3(web3wrap):
 
     @property
     def liquidity(self) -> int:
+        """The currently in range liquidity available to the pool
+            This value has no relationship to the total liquidity across all ticks
+
+        Returns:
+            int: _description_
+        """
         return self.call_function_autoRpc("liquidity")
 
     @property
@@ -168,7 +174,8 @@ class poolv3(web3wrap):
 
     @property
     def protocolFees(self) -> list[int]:
-        """
+        """The amounts of token0 and token1 that are owed to the protocol
+            Protocol fees will never exceed uint128 max in either token
         Returns:
            list: [0,0]
 
