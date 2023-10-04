@@ -31,6 +31,9 @@ class QueueItem:
             # add a counter to avoid infinite info gathering loops on errors
             self.count += 1
 
+        # make sure block is an int
+        self.block = int(self.block)
+
     def _setup_id(self):
         # setup id
         if self.type == queueItemType.REWARD_STATUS:

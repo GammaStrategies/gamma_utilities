@@ -113,7 +113,7 @@ def process_error(error: ProcessingError):
                 # If the item is already in the database, its count will be reset to zero but not the creation time
                 price_item_db = QueueItem(
                     type=queueItemType.PRICE,
-                    block=error.item["block"],
+                    block=int(error.item["block"]),
                     address=error.item["address"],
                     data={},
                 ).as_dict

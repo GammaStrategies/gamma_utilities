@@ -405,7 +405,7 @@ def repair_prices_from_status(
                             network, block, address = price_id.split("_")
                             return QueueItem(
                                 type=queueItemType.PRICE,
-                                block=block,
+                                block=int(block),
                                 address=address,
                                 data={},
                             ).as_dict
