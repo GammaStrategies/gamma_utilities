@@ -2683,8 +2683,9 @@ class database_local(db_collections_common):
         # build match
         _and = []
         _match = {
-            "qtty_token0": {"$ne": "0"},
-            "qtty_token1": {"$ne": "0"},
+            # "qtty_token0": {"$ne": "0"},
+            # "qtty_token1": {"$ne": "0"},
+            "$or": [{"qtty_token0": {"$ne": "0"}}, {"qtty_token1": {"$ne": "0"}}],
             "src": {"$ne": "0x0000000000000000000000000000000000000000"},
             "dst": {"$ne": "0x0000000000000000000000000000000000000000"},
             "topic": {
@@ -2860,7 +2861,7 @@ class database_local(db_collections_common):
 
     @staticmethod
     def query_hypervisor_periods(
-        hypervisor_address: str | None = None,
+        hypervisor_addresses: list[str] | None = None,
         timestamp_ini: int | None = None,
         timestamp_end: int | None = None,
         block_ini: int | None = None,
@@ -2881,8 +2882,7 @@ class database_local(db_collections_common):
         # build match
         _and = []
         _match = {
-            "qtty_token0": {"$ne": "0"},
-            "qtty_token1": {"$ne": "0"},
+            "$or": [{"qtty_token0": {"$ne": "0"}}, {"qtty_token1": {"$ne": "0"}}],
             "src": {"$ne": "0x0000000000000000000000000000000000000000"},
             "dst": {"$ne": "0x0000000000000000000000000000000000000000"},
             "topic": {
@@ -3033,8 +3033,8 @@ class database_local(db_collections_common):
             _and.append({"timestamp": {"$lte": timestamp_end}})
 
         # add hype address
-        if hypervisor_address:
-            _and.append({"address": hypervisor_address})
+        if hypervisor_addresses:
+            _and.append({"address": {"$in": hypervisor_addresses}})
 
         # add to query
         if _and:

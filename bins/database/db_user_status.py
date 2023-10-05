@@ -1068,8 +1068,12 @@ class user_status_hypervisor_builder:
                     condition={
                         "address": self.address,
                         "blockNumber": {"$nin": user_status_blocks_processed},
-                        "qtty_token0": {"$ne": "0"},
-                        "qtty_token1": {"$ne": "0"},
+                        "$or": [
+                            {"qtty_token0": {"$ne": "0"}},
+                            {"qtty_token1": {"$ne": "0"}},
+                        ],
+                        # "qtty_token0": {"$ne": "0"},
+                        # "qtty_token1": {"$ne": "0"},
                         "src": {"$ne": "0x0000000000000000000000000000000000000000"},
                         "dst": {"$ne": "0x0000000000000000000000000000000000000000"},
                         "topic": {
@@ -2169,8 +2173,9 @@ class user_status_hypervisor_builder:
         # build find and sort
         find = {
             "address": self.address.lower(),
-            "qtty_token0": {"$ne": "0"},
-            "qtty_token1": {"$ne": "0"},
+            # "qtty_token0": {"$ne": "0"},
+            # "qtty_token1": {"$ne": "0"},
+            "$or": [{"qtty_token0": {"$ne": "0"}}, {"qtty_token1": {"$ne": "0"}}],
             "src": {"$ne": "0x0000000000000000000000000000000000000000"},
             "dst": {"$ne": "0x0000000000000000000000000000000000000000"},
         }
@@ -2200,8 +2205,9 @@ class user_status_hypervisor_builder:
         # build find and sort
         find = {
             "address": self.address.lower(),
-            "qtty_token0": {"$ne": "0"},
-            "qtty_token1": {"$ne": "0"},
+            # "qtty_token0": {"$ne": "0"},
+            # "qtty_token1": {"$ne": "0"},
+            "$or": [{"qtty_token0": {"$ne": "0"}}, {"qtty_token1": {"$ne": "0"}}],
             "src": {"$ne": "0x0000000000000000000000000000000000000000"},
             "dst": {"$ne": "0x0000000000000000000000000000000000000000"},
             "topic": {
