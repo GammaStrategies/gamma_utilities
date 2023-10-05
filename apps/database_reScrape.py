@@ -149,7 +149,7 @@ def reScrape_loopWork_hypervisor_status(
                         f" {chain.database_name}'s hypervisor {new_hypervisor['address']} at block {new_hypervisor['block']} dbResult-> mod:{db_return.modified_count} ups:{db_return.upserted_id} match: {db_return.matched_count}"
                     )
 
-                    curr_time = {seconds_to_time_passed(time.time() - _starttime)}
+                    curr_time = seconds_to_time_passed(time.time() - _starttime)
                     logging.getLogger("benchmark").info(
                         f" {chain.database_name} queue item {queueItemType.HYPERVISOR_STATUS}  processing time: {curr_time}  total lifetime: {curr_time}"
                     )
@@ -269,7 +269,7 @@ def reScrape_loopWork_rewards_status(
                         f" {chain.database_name}'s hypervisor {new_rewarder_status['hypervisor_address']} at block {new_rewarder_status['block']} not saved bc has 0 rewards per second"
                     )
 
-                    curr_time = {seconds_to_time_passed(time.time() - _starttime)}
+                    curr_time = seconds_to_time_passed(time.time() - _starttime)
                     logging.getLogger("benchmark").info(
                         f" {chain.database_name} queue item {queueItemType.REWARD_STATUS}  processing time: {curr_time}  total lifetime: {curr_time}"
                     )
