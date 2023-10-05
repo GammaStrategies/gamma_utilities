@@ -232,7 +232,18 @@ def feed_operations_hypervisors(
     hypervisor_addresses: list,
     block_ini: int,
     block_end: int,
+    max_blocks_step: int = 1000,
 ):
+    """Scrape and process logs from the hypervisors and save em to the database
+
+    Args:
+        network (str): Network to scrape
+        hypervisor_addresses (list): Addresses of the hypervisors to scrape
+        block_ini (int): Initial block to scrape
+        block_end (int): End block to scrape
+        max_blocks_step (int, optional): Maximum blocks to scrape at once in one query (seee operations_generator) Careful bc some RPCs do not like respond well to high values. Defaults to 1000.
+    """
+
     # set global protocol helper
     data_collector = create_data_collector(network=network)
 
@@ -269,7 +280,7 @@ def feed_operations_hypervisors(
             block_ini=block_ini,
             block_end=block_end,
             contracts=[Web3.toChecksumAddress(x) for x in hypervisor_addresses],
-            max_blocks=1000,
+            max_blocks=max_blocks_step,
         ):
             # process operation
             task_enqueue_operations(
