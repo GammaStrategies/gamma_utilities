@@ -1,5 +1,6 @@
 import logging
 import concurrent.futures
+import time
 import tqdm
 
 from apps.feeds.status.rewards.general import create_reward_status_from_hype_status
@@ -7,7 +8,8 @@ from bins.configuration import CONFIGURATION
 from bins.database.common.database_ids import create_id_rewards_static
 from bins.database.common.db_collections_common import database_local
 from bins.database.helpers import get_default_localdb, get_from_localdb
-from bins.general.enums import Chain, Protocol, text_to_chain
+from bins.general.enums import Chain, Protocol, queueItemType, text_to_chain
+from bins.general.general_utilities import seconds_to_time_passed
 from bins.w3.builders import build_db_hypervisor
 
 
@@ -97,6 +99,7 @@ def reScrape_loopWork_hypervisor_status(
 ) -> bool:
     """Rescrape hypervisor status"""
     try:
+        _starttime = time.time()
         if new_hypervisor := build_db_hypervisor(
             address=hype_status["address"],
             network=chain.database_name,
@@ -145,6 +148,12 @@ def reScrape_loopWork_hypervisor_status(
                     logging.getLogger(__name__).debug(
                         f" {chain.database_name}'s hypervisor {new_hypervisor['address']} at block {new_hypervisor['block']} dbResult-> mod:{db_return.modified_count} ups:{db_return.upserted_id} match: {db_return.matched_count}"
                     )
+
+                    curr_time = {seconds_to_time_passed(time.time() - _starttime)}
+                    logging.getLogger("benchmark").info(
+                        f" {chain.database_name} queue item {queueItemType.HYPERVISOR_STATUS}  processing time: {curr_time}  total lifetime: {curr_time}"
+                    )
+
                     return True
             logging.getLogger(__name__).debug(
                 f" {chain.database_name}'s hypervisor {new_hypervisor['address']} at block {new_hypervisor['block']} not saved"
@@ -162,6 +171,7 @@ def reScrape_loopWork_rewards_status(
 ) -> bool:
     """Rescrape rewarder status"""
     try:
+        _starttime = time.time()
         # get hypervisor static data from database
         if hypervisor_status := get_from_localdb(
             network=chain.database_name,
@@ -249,11 +259,21 @@ def reScrape_loopWork_rewards_status(
                             network=chain.database_name
                         ).set_rewards_status(data=new_rewarder_status)
                         # TODO: log database result
+                        curr_time = {seconds_to_time_passed(time.time() - _starttime)}
+                        logging.getLogger("benchmark").info(
+                            f" {chain.database_name} queue item {queueItemType.REWARD_STATUS}  processing time: {curr_time}  total lifetime: {curr_time}"
+                        )
                         return True
                 else:
                     logging.getLogger(__name__).debug(
                         f" {chain.database_name}'s hypervisor {new_rewarder_status['hypervisor_address']} at block {new_rewarder_status['block']} not saved bc has 0 rewards per second"
                     )
+
+                    curr_time = {seconds_to_time_passed(time.time() - _starttime)}
+                    logging.getLogger("benchmark").info(
+                        f" {chain.database_name} queue item {queueItemType.REWARD_STATUS}  processing time: {curr_time}  total lifetime: {curr_time}"
+                    )
+
                     return True
 
     except Exception as e:
