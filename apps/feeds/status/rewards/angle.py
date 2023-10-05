@@ -392,6 +392,17 @@ def build_rewards_from_distribution(
     )
     pool_tvl_usd = pool_total0 * token0_price + pool_total1 * token1_price
 
+    # check
+    if (
+        distribution_data["propFees"] / 10000
+        + distribution_data["propToken0"] / 10000
+        + distribution_data["propToken1"] / 10000
+        != 1
+    ):
+        logging.getLogger(__name__).error(
+            f" {distribution_data['token']} distribution data is not valid for hype {hypervisor_status['address']} at block {hypervisor_status['block']}"
+        )
+
     # reward x second
     reward_x_second_propFees = (
         (calculations_data["reward_x_second"] * (distribution_data["propFees"] / 10000))
@@ -459,12 +470,36 @@ def create_rewards_status_calculate_apr(
                             "time_passed":
                             "timestamp_ini":
                             "timestamp_end":
+                            "pool": {
+                                    "address":
+                                    "liquidity":
+                                },
                             "hypervisor": {
-                                "totalStaked
+                                "block
+                                base_liquidity
+                                limit_liquidity
                                 "totalSupply":
                                 "underlying_token0":
                                 "underlying_token1":
                             },
+                            distribution_data: {'token1_balance_in_pool':
+                                                'token_symbol':
+                                                'token_decimals':
+                                                'epoch_duration':
+                                                'reward_calculations':
+                                                    {'reward_x_epoch': , 'reward_x_second': , 'reward_yearly': , 'reward_yearly_token0': , 'reward_yearly_token1': 1.1380178571428571e+21, 'reward_yearly_fees': 1.1152574999999998e+23, 'reward_x_epoch_decimal': 12.991071428571429, 'reward_x_second_decimal': 0.0036086309523809526, 'reward_yearly_decimal': 113801.78571428571, 'reward_yearly_token0_decimal': 1138.017857142857, 'reward_yearly_token1_decimal': 1138.017857142857, 'reward_yearly_fees_decimal': 111525.75}
+                                                'reward_x_epoch':
+                                                'reward_x_second':
+                                                'reward_yearly':
+                                                'reward_yearly_token0':
+                                                'reward_yearly_token1':
+                                                'reward_yearly_fees':
+                                                'reward_x_epoch_decimal':
+                                                'reward_x_second_decimal':
+                                                'reward_yearly_decimal':
+                                                'reward_yearly_token0_decimal':
+                                                'reward_yearly_token1_decimal':
+                                                'reward_yearly_fees_decimal':}
                         }
 
     Returns:
@@ -487,6 +522,7 @@ def create_rewards_status_calculate_apr(
         Iterator[dict]: _description_
     """
     reward_data = {}
+
     # apr
     try:
         if len(items_to_calc_apr) == 0:
