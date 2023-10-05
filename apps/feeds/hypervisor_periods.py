@@ -18,14 +18,14 @@ def execute_processes_within_hypervisor_periods(
     try_solve_errors: bool = False,
 ):
     # check if any of block or timestamp has been supplied
-    if (not block_ini and not block_end) or (not timestamp_ini and not timestamp_end):
-        raise ValueError("No block or timestamp has been supplied")
+    if not timestamp_end and not block_ini or not timestamp_end and not block_end:
+        raise ValueError("timestamps or blocks must be provided")
 
     # get data from database
     if data_list := get_hypervisors_data_for_apr(
         network=chain.database_name,
         hypervisor_addresses=[hypervisor_address],
-        timestamp_ini=timestamp_ini,
+        timestamp_ini=timestamp_ini or 1400000000,
         timestamp_end=timestamp_end,
         block_ini=block_ini,
         block_end=block_end,
