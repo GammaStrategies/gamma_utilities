@@ -114,11 +114,7 @@ def parse_commandLine_args():
 
     par_rescrape = exGroup.add_argument(
         "--rescrape",
-        choices=[
-            "all",
-            "status",
-            "rewards_status",
-        ],
+        choices=["all", "status", "rewards_status", "status_fees_collected"],
         help=" execute a rescraping of the current database items",
     )
 

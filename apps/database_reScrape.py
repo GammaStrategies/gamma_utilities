@@ -93,7 +93,7 @@ def manual_reScrape(
 def reScrape_loopWork_hypervisor_status(
     hype_status: dict,
     chain: Chain,
-    rewrite: bool | None = None,
+    rewrite: bool = False,
 ) -> bool:
     """Rescrape hypervisor status"""
     try:
@@ -102,36 +102,38 @@ def reScrape_loopWork_hypervisor_status(
             network=chain.database_name,
             block=hype_status["block"],
             dex=hype_status["dex"],
-            cached=False,
+            cached=True,
             force_rpcType="private",
         ):
             # TODO: compare n log diffs and rewrite
             err = False
-            # compare main differences
-            if hype_status["block"] != new_hypervisor["block"]:
-                logging.getLogger(__name__).error(
-                    f" Blocks differ for hype {hype_status['address']} original: {hype_status['block']} -> new: {new_hypervisor['block']}"
-                )
-                err = True
 
-            check_fields = [
-                "totalSupply",
-                "fees_uncollected.qtty_token0",
-                "fees_uncollected.qtty_token0",
-                "dex",
-                "fee",
-                "pool.dex",
-            ]
-            for field in check_fields:
-                original = hype_status
-                new = new_hypervisor
-                for subfield in field.split("."):
-                    original = original.get(subfield)
-                    new = new.get(subfield)
-                if original != new:
-                    logging.getLogger(__name__).debug(
-                        f" {field} differ for hype {hype_status['address']} block {hype_status['block']} original: {original} -> new: {new}"
+            if not rewrite:
+                # compare main differences
+                if hype_status["block"] != new_hypervisor["block"]:
+                    logging.getLogger(__name__).error(
+                        f" Blocks differ for hype {hype_status['address']} original: {hype_status['block']} -> new: {new_hypervisor['block']}"
                     )
+                    err = True
+
+                check_fields = [
+                    "totalSupply",
+                    "fees_uncollected.qtty_token0",
+                    "fees_uncollected.qtty_token0",
+                    "dex",
+                    "fee",
+                    "pool.dex",
+                ]
+                for field in check_fields:
+                    original = hype_status
+                    new = new_hypervisor
+                    for subfield in field.split("."):
+                        original = original.get(subfield)
+                        new = new.get(subfield)
+                    if original != new:
+                        logging.getLogger(__name__).debug(
+                            f" {field} differ for hype {hype_status['address']} block {hype_status['block']} original: {original} -> new: {new}"
+                        )
 
             # add to database
             if not err:
@@ -298,6 +300,19 @@ def main(option=None):
                     find={"dex": protocol},
                     sort=[("block", -1)],
                     db_collection="rewards_status",
+                    threaded=True,
+                    rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
+                )
+
+            # special option
+            if option == "status_fees_collected":
+                # rescrape when fees_collected field does not exist
+                manual_reScrape(
+                    chain=text_to_chain(network),
+                    loop_work=reScrape_loopWork_hypervisor_status,
+                    find={"dex": protocol, "fees_collected": {"$exists": False}},
+                    sort=[("block", 1)],
+                    db_collection="status",
                     threaded=True,
                     rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
                 )
