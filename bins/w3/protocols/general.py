@@ -609,6 +609,13 @@ class web3wrap:
                             f" Too many requests made to the {rpc.type} RPC {rpc.url} Disabling it for 120 sec."
                         )
                         rpc._set_unavailable(cooldown=120)
+                    elif "402" in err:
+                        # Unknown requests.HTTPError: 402 Client Error: Payment Required for url:
+                        logging.getLogger(__name__).debug(
+                            f" Too many requests made to the {rpc.type} RPC {rpc.url} Payment required... Disabling it for 120 hours"
+                        )
+                        rpc._set_unavailable(cooldown=60 * 60 * 120)
+
                     elif "403" in err:
                         # Unknown requests.HTTPError: 403 Client Error: Forbidden for url
                         logging.getLogger(__name__).debug(
