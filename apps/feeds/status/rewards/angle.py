@@ -111,6 +111,7 @@ def build_angle_merkle_rewards_status(
                     distributor_address=rewarder_static["rewarder_registry"],
                     block=data["block"],
                     pool_address=data["pool"]["address"],
+                    hypervisor_address=data["address"],
                 )
                 # add distribution data
                 data["distribution_data"] = distribution_data
@@ -215,7 +216,6 @@ def build_angle_merkle_rewards_status(
         ):
             totalRewards_per_second = int(totalRewards_per_second)
 
-
         if len(items_to_calc_apr) == 0:
             logging.getLogger(__name__).warning(
                 f" Merkle rewards: There are no items to calc rewards for {network}'s {hypervisor_status['symbol']} {hypervisor_status['address']} at block {hypervisor_status['block']}"
@@ -289,7 +289,11 @@ def build_angle_merkle_rewards_status(
 
 
 def build_distribution_data(
-    network: str, distributor_address: str, block: int, pool_address: str
+    network: str,
+    distributor_address: str,
+    block: int,
+    pool_address: str,
+    hypervisor_address: str,
 ) -> list:
     result = []
 
@@ -309,19 +313,28 @@ def build_distribution_data(
     ):
         for distribution_data in distributions:
             # check if reward token is valid
-            if distributor_creator.isValid_reward_token(
+            if not distributor_creator.isValid_reward_token(
                 reward_address=distribution_data["token"].lower()
             ):
-                distribution_data["epoch_duration"] = _epoch_duration
-                distribution_data[
-                    "reward_calculations"
-                ] = distributor_creator.get_reward_calculations(
-                    distribution=distribution_data, _epoch_duration=_epoch_duration
-                )
-                result.append(distribution_data)
-            else:
                 # not a valid reward token
                 continue
+            if distributor_creator.isBlacklisted(
+                reward_data=distribution_data, hypervisor_address=hypervisor_address
+            ):
+                # blacklisted
+                logging.getLogger(__name__).debug(
+                    f" {distribution_data['token']} is blacklisted for hype {hypervisor_address} at block {block}"
+                )
+                continue
+
+            distribution_data["epoch_duration"] = _epoch_duration
+            distribution_data[
+                "reward_calculations"
+            ] = distributor_creator.get_reward_calculations(
+                distribution=distribution_data, _epoch_duration=_epoch_duration
+            )
+            result.append(distribution_data)
+
     else:
         # no active distributions
         logging.getLogger(__name__).debug(

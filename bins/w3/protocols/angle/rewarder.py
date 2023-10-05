@@ -172,6 +172,7 @@ class angle_merkle_distributor_creator(gamma_rewarder):
                     uniV3Pool address,              Address of the Uniswap V3 pool
                     rewardToken address,            Address of the token to be distributed
                     amount uint256,                 Amount of tokens to be distributed
+
                     propToken0 uint32,              Proportion of rewards that'll be split among LPs which brought token0 in the pool during the time of the distribution
                     propToken1 uint32,              Proportion of rewards that'll be split among LPs which brought token1 in the pool during the time of the distribution
                     propFees uint32,                Proportion of rewards that'll be split among LPs which accumulated fees during the time of the distribution
@@ -223,7 +224,7 @@ class angle_merkle_distributor_creator(gamma_rewarder):
                        POOL        0x8dB1b906d47dFc1D84A87fc49bd0522e285b98b9,                             -> POOL
                        token       0x31429d1856aD1377A8A0079410B297e1a9e214c2,                             -> token
                        totalAmount    423058392579202828719633,                                            -> totalAmount
-                       wrapperContracts    0x3785Ce82be62a342052b9E5431e9D3a839cfB581,                           Vyper_contract
+                       positionWrappers/wrapperContracts    0x3785Ce82be62a342052b9E5431e9D3a839cfB581,                           Vyper_contract
                        wrapperTypes    3,                                                                   Type of the wrappers (...2=Gamma, 3=blacklisted addresses)
                        propToken0    4000,                                                                   propToken0
                        propToken1    2000,                                                                   propToken1
@@ -784,6 +785,21 @@ class angle_merkle_distributor_creator(gamma_rewarder):
 
         return True
 
+    def isBlacklisted(self, reward_data: dict, hypervisor_address: str) -> bool:
+        try:
+            for idx, address in enumerate(reward_data["wraper_contracts"]):
+                if (
+                    address.lower() == hypervisor_address.lower()
+                    and reward_data["wraper_type"][idx] == 3
+                ):
+                    return True
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f" Error while checking blacklisted address "
+            )
+
+        return False
+
     def _getRoundedEpoch(self, epoch: int, epoch_duration: int | None = None) -> int:
         """Rounds an `epoch` timestamp to the start of the corresponding period"""
         epoch_duration = epoch_duration or self.EPOCH_DURATION
@@ -830,6 +846,15 @@ class angle_merkle_distributor_creator(gamma_rewarder):
                     address=pool_address
                 ):
                     if not self.isValid_reward_token(reward_data["token"].lower()):
+                        continue
+
+                    # check if the address has been blacklisted ( wrapperType -> 3)
+                    if self.isBlacklisted(
+                        reward_data=reward_data, hypervisor_address=hypervisor
+                    ):
+                        logging.getLogger(__name__).warning(
+                            f" {hypervisor} is blacklisted for {reward_data['tokenSymbol']} angle Merkl rewards"
+                        )
                         continue
 
                     result.append(
