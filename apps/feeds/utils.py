@@ -346,11 +346,11 @@ def get_hypervisor_data_for_apr_custom_test(
 
     # build query (ease debuging)
     query = get_default_localdb(network=network).query_hypervisor_periods(
-        hypervisor_address=hypervisor_address,
+        hypervisor_addresses=[hypervisor_address],
         timestamp_ini=timestamp_ini,
         timestamp_end=timestamp_end,
     )
-    batch_size = 100000
+    batch_size = 10000
 
     # try to get data from db. If fails, try to slice query in chunks
     try:
@@ -411,7 +411,133 @@ def get_hypervisor_data_for_apr_custom_test(
     for t_ini, t_end, b_ini, b_end in chunks:
         # build query (ease debuging)
         query = get_default_localdb(network=network).query_hypervisor_periods(
-            hypervisor_address=hypervisor_address,
+            hypervisor_addresses=[hypervisor_address],
+            timestamp_ini=t_ini,
+            timestamp_end=t_end,
+            block_ini=b_ini,
+            block_end=b_end,
+        )
+        # get a list of custom ordered hype status
+        if ordered_hype_status_list := get_from_localdb(
+            network=network,
+            collection="operations",
+            aggregate=query,
+            batch_size=batch_size,
+        ):
+            # add to result if id does not exist
+            for hype_status in ordered_hype_status_list[0]["status"]:
+                if not hype_status["_id"] in _processed_ids:
+                    # add to result
+                    result[0]["status"].append(hype_status)
+                    # add to processed ids
+                    _processed_ids.add(hype_status["_id"])
+
+    logging.getLogger(__name__).debug(
+        f"  chunk process->  {len(result[0]['status'])} items found in {time.time() - _start_time} seconds"
+    )
+
+    # return
+    return result
+
+
+# This is the good one
+def get_hypervisors_data_for_apr(
+    network: str,
+    hypervisor_addresses: list[str],
+    timestamp_ini: int | None = None,
+    timestamp_end: int | None = None,
+    block_ini: int | None = None,
+    block_end: int | None = None,
+) -> list[dict]:
+    """Create a sorted by time list of hypervisor status, rewards and static data for any hypervisor calculation ( apr mainly).
+
+    Args:
+        network (str):
+        hypervisor_address (str):
+        timestamp_ini (int): timestamp to start getting data from.
+        timestamp_end (int): timestamp to end getting data from.
+
+    Returns:
+        list: {
+
+        }
+    """
+
+    # Or timestamp or block should be provided
+    if not timestamp_ini and not block_ini or not timestamp_end and not block_end:
+        raise ValueError("timestamps or blocks must be provided")
+
+    # build query (ease debuging)
+    query = get_default_localdb(network=network).query_hypervisor_periods(
+        hypervisor_addresses=hypervisor_addresses,
+        timestamp_ini=timestamp_ini,
+        timestamp_end=timestamp_end,
+    )
+    batch_size = 10000
+
+    # try to get data from db. If fails, try to slice query in chunks
+    try:
+        # get hype data from db so that apr can be constructed.
+        return get_from_localdb(
+            network=network,
+            collection="operations",
+            aggregate=query,
+            batch_size=batch_size,
+        )
+    except Exception as e:
+        logging.getLogger(__name__).error(
+            f" Error getting {hypervisor_addresses} hype data to construct hypervisor_data_for_apr from { 'blocks' if block_ini and block_end else 'timestamps'} {block_ini if block_ini else timestamp_ini} to {block_end if block_end else timestamp_end}. Trying to slice it in chunks."
+        )
+
+    # try to avoid mongodb's 16Mb errors by slicing the query in small chunks
+    result = [
+        {"_id": hypervisor_address, "status": []}
+        for hypervisor_address in hypervisor_addresses
+    ]
+    #
+    chunks = [(None, None, None, None)]
+    timestamp_chunk_size = 60 * 60 * 24 * 10  # 10 days
+    block_chunk_size = 1000000
+    # create chunks of timeframes to process
+    if timestamp_ini and timestamp_end:
+        if timestamp_end - timestamp_ini > timestamp_chunk_size:
+            # create chunks
+            chunks = [
+                (_ini, _end, None, None)
+                for _ini, _end, in create_chunks(
+                    min=int(timestamp_ini),
+                    max=int(timestamp_end),
+                    chunk_size=timestamp_chunk_size,
+                )
+            ]
+        else:
+            chunks = [(timestamp_ini, timestamp_end, None, None)]
+        logging.getLogger(__name__).debug(
+            f" {len(chunks)} chunks of timestamps created to build returns data. Defined chunk size: {timestamp_chunk_size}"
+        )
+
+    elif block_ini and block_end:
+        if block_end - block_ini > block_chunk_size:
+            # create chunks
+            chunks = [
+                (None, None, _ini, _end)
+                for _ini, _end in create_chunks(
+                    min=block_ini, max=block_end, chunk_size=block_chunk_size
+                )
+            ]
+        else:
+            chunks = [(None, None, block_ini, block_end)]
+
+        logging.getLogger(__name__).debug(
+            f" {len(chunks)} chunks of blocks created to build returns data. Defined chunk size: {block_chunk_size}"
+        )
+    # control vars
+    _start_time = time.time()
+    _processed_ids = set()
+    for t_ini, t_end, b_ini, b_end in chunks:
+        # build query (ease debuging)
+        query = get_default_localdb(network=network).query_hypervisor_periods(
+            hypervisor_addresses=hypervisor_addresses,
             timestamp_ini=t_ini,
             timestamp_end=t_end,
             block_ini=b_ini,
