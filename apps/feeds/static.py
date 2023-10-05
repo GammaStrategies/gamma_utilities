@@ -447,6 +447,7 @@ def create_n_add_reward_static(
         Protocol.SUSHI.database_name,
         Protocol.RETRO.database_name,
         Protocol.UNISWAPv3.database_name,
+        Protocol.CAMELOT.database_name,
     ]:
         rewards_static_lst = create_rewards_static_merkl(
             chain=text_to_chain(network),
