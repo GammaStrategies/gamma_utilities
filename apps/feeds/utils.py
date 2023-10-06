@@ -75,9 +75,9 @@ def get_hypervisor_price_per_share(
         int(hypervisor_status["totalSupply"]) / (10 ** hypervisor_status["decimals"])
     )
 
-    if price_per_share > 10**10:
-        logging.getLogger(__name__).error(
-            f" Price per share is too high. {price_per_share}  for hype {hypervisor_status['address']} at block {hypervisor_status['block']}."
+    if price_per_share > 10**14:
+        raise ValueError(
+            f" Price per share is too high. {price_per_share}  for hype {hypervisor_status['address']} at block {hypervisor_status['block']}. ¿¿ Uncollected fees ?? -> u0:{uncollected_fees0} u1:{uncollected_fees1}"
         )
 
     return price_per_share
@@ -459,6 +459,7 @@ def get_hypervisors_data_for_apr(
     timestamp_end: int | None = None,
     block_ini: int | None = None,
     block_end: int | None = None,
+    only_return_last_items: int | None = None,
 ) -> list[dict]:
     """Create a sorted by time list of hypervisor status, rewards and static data for any hypervisor calculation ( apr mainly).
 
@@ -467,6 +468,8 @@ def get_hypervisors_data_for_apr(
         hypervisor_address (str):
         timestamp_ini (int): timestamp to start getting data from.
         timestamp_end (int): timestamp to end getting data from.
+        ...
+        only_return_last_items (int): if provided, only the last items of the list will be returned
 
     Returns:
         list: {
@@ -483,18 +486,30 @@ def get_hypervisors_data_for_apr(
         hypervisor_addresses=hypervisor_addresses,
         timestamp_ini=timestamp_ini,
         timestamp_end=timestamp_end,
+        block_ini=block_ini,
+        block_end=block_end,
     )
     batch_size = 10000
 
     # try to get data from db. If fails, try to slice query in chunks
     try:
         # get hype data from db so that apr can be constructed.
-        return get_from_localdb(
+        result = get_from_localdb(
             network=network,
             collection="operations",
             aggregate=query,
             batch_size=batch_size,
         )
+
+        # filter data, if defined
+        if only_return_last_items:
+            for _ordered_hype_status_db in result:
+                _ordered_hype_status_db["status"] = _ordered_hype_status_db["status"][
+                    -only_return_last_items:
+                ]
+
+        return result
+
     except Exception as e:
         logging.getLogger(__name__).error(
             f" Error getting {hypervisor_addresses} hype data to construct hypervisor_data_for_apr from { 'blocks' if block_ini and block_end else 'timestamps'} {block_ini if block_ini else timestamp_ini} to {block_end if block_end else timestamp_end}. Trying to slice it in chunks."
@@ -572,6 +587,13 @@ def get_hypervisors_data_for_apr(
     logging.getLogger(__name__).debug(
         f"  chunk process->  {len(result[0]['status'])} items found in {time.time() - _start_time} seconds"
     )
+
+    # filter data, if defined
+    if only_return_last_items:
+        for _ordered_hype_status_db in result:
+            _ordered_hype_status_db["status"] = _ordered_hype_status_db["status"][
+                -only_return_last_items:
+            ]
 
     # return
     return result
