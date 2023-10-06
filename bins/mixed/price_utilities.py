@@ -615,7 +615,7 @@ class usdc_price_scraper:
                 )
 
             # discard price outliers
-            if price > 10**18:
+            if price and price > 10**18:
                 logging.getLogger(__name__).debug(
                     f" token {token_address} on chain {chain} price {price} is an outlier. Discarding"
                 )
