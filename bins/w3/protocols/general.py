@@ -569,6 +569,13 @@ class web3wrap:
                                     f" {rpc.type} RPC {rpc.url} is not responding. Adding failed attempt. err: {err.get('message')}"
                                 )
                                 rpc.add_failed(error=e)
+
+                            elif code == 12:
+                                # {'message': "Can't route your request to suitable provider, if you specified certain providers revise the list", 'code': 12}
+                                logging.getLogger(__name__).debug(
+                                    f" {rpc.type} RPC {rpc.url} is overwhelmed. Adding failed attempt. err: {err.get('message')}"
+                                )
+                                rpc.add_failed(error=e)
                             elif code in [-32005]:
                                 logging.getLogger(__name__).debug(
                                     f" {rpc.type} RPC {rpc.url} current plan is not enough to place this kind of calls. Adding failed attempt. err: {err.get('message')}"
