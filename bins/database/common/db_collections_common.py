@@ -3022,14 +3022,14 @@ class database_local(db_collections_common):
             },
         ]
 
-        # add block or timestamp in query
+        # add block and timestamp in query
         if block_ini:
             _and.append({"blockNumber": {"$gte": block_ini}})
-        elif timestamp_ini:
+        if timestamp_ini:
             _and.append({"timestamp": {"$gte": timestamp_ini}})
         if block_end:
             _and.append({"blockNumber": {"$lte": block_end}})
-        elif timestamp_end:
+        if timestamp_end:
             _and.append({"timestamp": {"$lte": timestamp_end}})
 
         # add hype address
