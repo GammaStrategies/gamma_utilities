@@ -75,10 +75,10 @@ def get_hypervisor_price_per_share(
         int(hypervisor_status["totalSupply"]) / (10 ** hypervisor_status["decimals"])
     )
 
-    if price_per_share > 10**14:
-        raise ValueError(
-            f" Price per share is too high. {price_per_share}  for hype {hypervisor_status['address']} at block {hypervisor_status['block']}. ¿¿ Uncollected fees ?? -> u0:{uncollected_fees0} u1:{uncollected_fees1}"
-        )
+    # if price_per_share > 10**14:
+    #     raise ValueError(
+    #         f" Price per share is too high. {price_per_share}  for hype {hypervisor_status['address']} at block {hypervisor_status['block']}. ¿¿ Uncollected fees ?? -> u0:{uncollected_fees0} u1:{uncollected_fees1}"
+    #     )
 
     return price_per_share
 

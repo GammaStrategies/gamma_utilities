@@ -225,11 +225,6 @@ def create_reward_status_from_hype_status(
             aMerkl_helper.execute_processes_within_hypervisor_periods(
                 timestamp_ini=int(hypervisor_status["timestamp"]) - 3600 * 24 * 7
             )
-            # rewards_data = build_angle_merkle_rewards_status(
-            #     network=network,
-            #     rewarder_static=rewarder_static,
-            #     hypervisor_status=hypervisor_status,
-            # )
 
         elif rewarder_static["rewarder_type"] in [
             rewarderType.RAMSES_v2,
