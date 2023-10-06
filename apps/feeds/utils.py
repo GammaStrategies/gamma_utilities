@@ -59,17 +59,28 @@ def get_hypervisor_price_per_share(
     )
 
     # get uncollected fees for the pool at this block
-    uncollected_fees0 = float(hypervisor_status["fees_uncollected"]["qtty_token0"])
-    uncollected_fees1 = float(hypervisor_status["fees_uncollected"]["qtty_token1"])
+    uncollected_fees0 = float(hypervisor_status["fees_uncollected"]["qtty_token0"]) / (
+        10 ** hypervisor_status["pool"]["token0"]["decimals"]
+    )
+    uncollected_fees1 = float(hypervisor_status["fees_uncollected"]["qtty_token1"]) / (
+        10 ** hypervisor_status["pool"]["token1"]["decimals"]
+    )
 
     # create an easy to debug totals
     total_token0 = hype_total0 + uncollected_fees0
     total_token1 = hype_total1 + uncollected_fees1
 
     # calculate price per share
-    return (token0_price * total_token0 + token1_price * total_token1) / (
+    price_per_share = (token0_price * total_token0 + token1_price * total_token1) / (
         int(hypervisor_status["totalSupply"]) / (10 ** hypervisor_status["decimals"])
     )
+
+    if price_per_share > 10**10:
+        logging.getLogger(__name__).error(
+            f" Price per share is too high. {price_per_share}  for hype {hypervisor_status['address']} at block {hypervisor_status['block']}."
+        )
+
+    return price_per_share
 
 
 def reward_add_status_fields(

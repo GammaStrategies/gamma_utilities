@@ -372,9 +372,25 @@ def build_rewards_from_distribution(
     hype_tvl_usd = (
         int(hypervisor_status["totalSupply"]) / (10 ** hypervisor_status["decimals"])
     ) * hype_price_per_share
+
+    # total liquidity
     hypervisor_liquidity = int(hypervisor_status["basePosition"]["liquidity"]) + int(
         hypervisor_status["limitPosition"]["liquidity"]
     )
+    # inRange liquidity
+    gamma_liquidity_in_range = 0
+    currentTick = int(hypervisor_status["currentTick"])
+    if (
+        int(hypervisor_status["baseUpper"]) >= currentTick
+        and int(hypervisor_status["baseLower"]) <= currentTick
+    ):
+        gamma_liquidity_in_range += int(hypervisor_status["basePosition"]["liquidity"])
+    if (
+        int(hypervisor_status["limitUpper"]) >= currentTick
+        and int(hypervisor_status["limitLower"]) <= currentTick
+    ):
+        gamma_liquidity_in_range += int(hypervisor_status["limitPosition"]["liquidity"])
+
     hypervisor_total0 = int(hypervisor_status["totalAmounts"]["total0"]) / (
         10 ** hypervisor_status["pool"]["token0"]["decimals"]
     )
@@ -406,7 +422,7 @@ def build_rewards_from_distribution(
     # reward x second
     reward_x_second_propFees = (
         (calculations_data["reward_x_second"] * (distribution_data["propFees"] / 10000))
-        * (hypervisor_liquidity / pool_liquidity)
+        * (gamma_liquidity_in_range / pool_liquidity)
         if pool_liquidity
         else 0
     )
@@ -429,6 +445,17 @@ def build_rewards_from_distribution(
         else 0
     )
 
+    ### CHECKS
+    if hype_price_per_share > 10**18:
+        logging.getLogger(__name__).warning(
+            f" hype price per share is too high: {hype_price_per_share} for {hypervisor_status['symbol']} {hypervisor_status['address']} at block {hypervisor_status['block']}"
+        )
+
+    if hype_tvl_usd > 10**10:
+        logging.getLogger(__name__).error(
+            f" hype tvl is too high: {hype_tvl_usd} for {hypervisor_status['symbol']} {hypervisor_status['address']} at block {hypervisor_status['block']}"
+        )
+
     return {
         "reward_x_second_propFees": reward_x_second_propFees,
         "reward_x_second_propToken0": reward_x_second_propToken0,
@@ -438,7 +465,7 @@ def build_rewards_from_distribution(
         "token1_price": token1_price,
         "hype_price_per_share": hype_price_per_share,
         "hype_tvl_usd": hype_tvl_usd,
-        "hypervisor_liquidity": hypervisor_liquidity,
+        "hypervisor_liquidity": gamma_liquidity_in_range,
         "hypervisor_total0": hypervisor_total0,
         "hypervisor_total1": hypervisor_total1,
         "pool_liquidity": pool_liquidity,
@@ -569,10 +596,11 @@ def create_rewards_status_calculate_apr(
                 continue
 
             # calculate price per share for each item using current prices
-            tvl = (
-                item["hypervisor"]["underlying_token0"] * hype_token0_price
-                + item["hypervisor"]["underlying_token1"] * hype_token1_price
-            )
+            tvl = item["distribution_data"]["reward_calculations"]["hype_tvl_usd"]
+            # tvl = (
+            #     item["hypervisor"]["underlying_token0"] * hype_token0_price
+            #     + item["hypervisor"]["underlying_token1"] * hype_token1_price
+            # )
 
             # set price per share var ( the last will remain)
             hypervisor_share_price_usd = item["distribution_data"][

@@ -325,10 +325,7 @@ class hypervisor_status_object(dict_to_object):
             int: liquidity in range
         """
         # get current tick
-        try:
-            current_tick = self.pool.slot0.tick
-        except Exception:
-            current_tick = self.pool.globalState.tick
+        current_tick = self.currentTick
 
         # get Gamma's inRange liquidity
         gamma_liquidity_in_range = 0
