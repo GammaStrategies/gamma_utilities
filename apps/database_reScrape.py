@@ -259,9 +259,12 @@ def reScrape_loopWork_rewards_status(
                             network=chain.database_name
                         ).set_rewards_status(data=new_rewarder_status)
                         # TODO: log database result
-                        curr_time = {seconds_to_time_passed(time.time() - _starttime)}
+                        curr_time = seconds_to_time_passed(time.time() - _starttime)
                         logging.getLogger("benchmark").info(
                             f" {chain.database_name} queue item {queueItemType.REWARD_STATUS}  processing time: {curr_time}  total lifetime: {curr_time}"
+                        )
+                        logging.getLogger(__name__).info(
+                            f" {chain.database_name} {new_rewarder_status['hypervisor_address']} {new_rewarder_status['block']} reward status finished processing correctly"
                         )
                         return True
                 else:
