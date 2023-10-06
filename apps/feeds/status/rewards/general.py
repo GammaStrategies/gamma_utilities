@@ -222,7 +222,7 @@ def create_reward_status_from_hype_status(
                 rewarder_static=rewarder_static,
             )
             # limit data back to 1 week
-            aMerkl_helper.execute_processes_within_hypervisor_periods(
+            rewards_data = aMerkl_helper.execute_processes_within_hypervisor_periods(
                 timestamp_ini=int(hypervisor_status["timestamp"]) - 3600 * 24 * 7
             )
 
