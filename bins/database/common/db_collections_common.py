@@ -2883,8 +2883,14 @@ class database_local(db_collections_common):
         _and = []
         _match = {
             "$or": [{"qtty_token0": {"$ne": "0"}}, {"qtty_token1": {"$ne": "0"}}],
-            "src": {"$ne": "0x0000000000000000000000000000000000000000"},
-            "dst": {"$ne": "0x0000000000000000000000000000000000000000"},
+            "$or": [
+                {"src": {"$exists": 0}},
+                {"src": {"$ne": "0x0000000000000000000000000000000000000000"}},
+            ],
+            "$or": [
+                {"dst": {"$exists": 0}},
+                {"dst": {"$ne": "0x0000000000000000000000000000000000000000"}},
+            ],
             "topic": {
                 "$in": [
                     # "transfer", # transfers do not affect hype status-> careful changing this affect calculations bc transfers do not have block-1 hype status scraped
