@@ -1,7 +1,7 @@
 import logging
 import concurrent.futures
 import tqdm
-from apps.feeds.status.rewards.angle import build_angle_merkle_rewards_status
+
 from apps.feeds.status.rewards.beamswap import create_rewards_status_beamswap
 from apps.feeds.status.rewards.ramses import create_rewards_status_ramses
 from apps.feeds.status.rewards.synthswap import create_rewards_status_synthswap

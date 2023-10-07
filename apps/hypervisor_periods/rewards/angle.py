@@ -1,7 +1,8 @@
 import logging
 from apps.feeds.utils import get_hypervisor_price_per_share, get_reward_pool_prices
 from apps.hypervisor_periods.base import hypervisor_periods_base
-from bins.general.enums import Chain, rewarderType
+from bins.general.enums import Chain, Protocol, rewarderType
+from bins.w3.builders import build_db_hypervisor
 from bins.w3.protocols.angle.rewarder import angle_merkle_distributor_creator
 
 
@@ -27,17 +28,17 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
         self.total_boostedRewards = 0
         self.total_time_passed = 0
         self.items_to_calc_apr = []
-        self.ini_cache()
+        self._ini_cache()
         super().reset()
 
-    def ini_cache(self):
+    def _ini_cache(self):
         self.cache = {}
 
     # MAIN FUNCTIONS
-    def execute_preLoop(self, hypervisor_data: dict):
+    def _execute_preLoop(self, hypervisor_data: dict):
         pass
 
-    def execute_inLoop(
+    def _execute_inLoop(
         self,
         chain: Chain,
         hypervisor_address: str,
@@ -47,7 +48,7 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
         current_item: dict,
     ):
         # add distribution data to all items in the loop.
-        current_item["distribution_data"] = self.build_distribution_data(
+        current_item["distribution_data"] = self._build_distribution_data(
             network=chain.database_name,
             distributor_address=self.rewarder_static["rewarder_registry"],
             block=current_item["block"],
@@ -55,7 +56,7 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
             hypervisor_address=current_item["address"],
         )
 
-    def execute_inLoop_startItem(
+    def _execute_inLoop_startItem(
         self,
         chain: Chain,
         hypervisor_address: str,
@@ -66,7 +67,7 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
     ):
         pass
 
-    def execute_inLoop_endItem(
+    def _execute_inLoop_endItem(
         self,
         chain: Chain,
         hypervisor_address: str,
@@ -80,7 +81,7 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
         rewards_aquired_period_end = 0
 
         for distribution_data in current_item["distribution_data"]:
-            real_rewards_end = self.build_rewards_from_distribution(
+            real_rewards_end = self._build_rewards_from_distribution(
                 network=chain.database_name,
                 hypervisor_status=current_item,
                 distribution_data=distribution_data,
@@ -139,7 +140,7 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
         self.total_boostedRewards += 0
         self.total_time_passed += time_passed
 
-    def execute_postLoop(self, hypervisor_data: dict):
+    def _execute_postLoop(self, hypervisor_data: dict):
         # calculate per second rewards
         baseRewards_per_second = (
             self.total_baseRewards / self.total_time_passed
@@ -166,7 +167,7 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
             return
 
         # calculate apr
-        if reward_apr_data_to_save := self.create_rewards_status_calculate_apr(
+        if reward_apr_data_to_save := self._create_rewards_status_calculate_apr(
             hypervisor_address=self.hypervisor_status["address"],
             network=self.chain.database_name,
             block=self.hypervisor_status["block"],
@@ -224,6 +225,21 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
             }
             self.result.append(reward_data)
 
+    def _scrape_last_item(
+        self, chain: Chain, hypervisor_address: str, block: int, protocol: Protocol
+    ) -> dict:
+        return None
+        # to be able to return , multiple issues must be addressed:
+        # last item must not have supply changed
+        # prices must be scraped on the fly ( bc there will be no prices in database for that block )
+        return build_db_hypervisor(
+            address=hypervisor_address,
+            network=chain.database_name,
+            block=block,
+            dex=protocol.database_name,
+            cached=True,
+        )
+
     def execute_processes_within_hypervisor_periods(
         self,
         timestamp_ini: int = None,
@@ -254,7 +270,7 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
 
     # ANGLE MERKLE DISTRIBUTOR
     # TODO: cache per pool/block
-    def build_distribution_data(
+    def _build_distribution_data(
         self,
         network: str,
         distributor_address: str,
@@ -349,7 +365,7 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
 
         return result
 
-    def build_rewards_from_distribution(
+    def _build_rewards_from_distribution(
         self,
         network: str,
         hypervisor_status: dict,
@@ -516,7 +532,7 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
             },
         }
 
-    def create_rewards_status_calculate_apr(
+    def _create_rewards_status_calculate_apr(
         self,
         hypervisor_address: str,
         network: str,

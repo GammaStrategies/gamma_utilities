@@ -12,9 +12,11 @@ from bins.database.helpers import get_default_localdb, get_from_localdb
 from bins.general.enums import Chain, rewarderType
 from bins.w3.protocols.angle.rewarder import angle_merkle_distributor_creator
 
+### DEPRECATED CONTENT USE HYPERVISOR PERIODS ###
+
 
 # new method
-def build_angle_merkle_rewards_status(
+def build_angle_merkle_rewards_status_deprecated(
     network: str,
     hypervisor_status: dict,
     rewarder_static: dict,
@@ -106,7 +108,7 @@ def build_angle_merkle_rewards_status(
             # get the last max_items from the list
             for idx, data in enumerate(filtered_status_list):
                 # build distribution data
-                distribution_data = build_distribution_data(
+                distribution_data = build_distribution_data_deprecated(
                     network=network,
                     distributor_address=rewarder_static["rewarder_registry"],
                     block=data["block"],
@@ -126,7 +128,7 @@ def build_angle_merkle_rewards_status(
                     time_passed = data["timestamp"] - last_item["timestamp"]
 
                     for distribution_data in data["distribution_data"]:
-                        real_rewards_end = build_rewards_from_distribution(
+                        real_rewards_end = build_rewards_from_distribution_deprecated(
                             network=network,
                             hypervisor_status=data,
                             distribution_data=distribution_data,
@@ -223,7 +225,7 @@ def build_angle_merkle_rewards_status(
             return
 
         # calculate apr
-        if reward_apr_data_to_save := create_rewards_status_calculate_apr(
+        if reward_apr_data_to_save := create_rewards_status_calculate_apr_deprecated(
             hypervisor_address=hypervisor_status["address"],
             network=network,
             block=hypervisor_status["block"],
@@ -288,7 +290,7 @@ def build_angle_merkle_rewards_status(
     return result
 
 
-def build_distribution_data(
+def build_distribution_data_deprecated(
     network: str,
     distributor_address: str,
     block: int,
@@ -344,7 +346,7 @@ def build_distribution_data(
     return result
 
 
-def build_rewards_from_distribution(
+def build_rewards_from_distribution_deprecated(
     network: str,
     hypervisor_status: dict,
     distribution_data: dict,
@@ -475,7 +477,7 @@ def build_rewards_from_distribution(
     }
 
 
-def create_rewards_status_calculate_apr(
+def create_rewards_status_calculate_apr_deprecated(
     hypervisor_address: str,
     network: str,
     block: int,
@@ -791,7 +793,7 @@ def create_rewards_status_calculate_apr(
     return reward_data
 
 
-def create_rewards_status_calculate_apr_otherMethod(
+def create_rewards_status_calculate_apr_otherMethod_deprecated(
     hypervisor_address: str,
     network: str,
     block: int,
@@ -1166,7 +1168,7 @@ def create_rewards_status_angle_merkle_deprecated(
 # User rewards status
 
 
-def create_user_rewards_status_merkl(
+def create_user_rewards_status_merkl_deprecated(
     chain: Chain,
     already_processed: list,
     rewrite: bool = False,
