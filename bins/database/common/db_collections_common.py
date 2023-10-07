@@ -2880,20 +2880,25 @@ class database_local(db_collections_common):
             list[dict]: _description_
         """
         # build match
-        _and = []
+        _and = [
+            # {"$or": [{"qtty_token0": {"$ne": "0"}}, {"qtty_token1": {"$ne": "0"}}]},  # we need to consider rebalances with 0 qtty
+            {
+                "$or": [
+                    {"src": {"$exists": 0}},
+                    {"src": {"$ne": "0x0000000000000000000000000000000000000000"}},
+                ]
+            },
+            {
+                "$or": [
+                    {"dst": {"$exists": 0}},
+                    {"dst": {"$ne": "0x0000000000000000000000000000000000000000"}},
+                ]
+            },
+        ]
         _match = {
-            "$or": [{"qtty_token0": {"$ne": "0"}}, {"qtty_token1": {"$ne": "0"}}],
-            "$or": [
-                {"src": {"$exists": 0}},
-                {"src": {"$ne": "0x0000000000000000000000000000000000000000"}},
-            ],
-            "$or": [
-                {"dst": {"$exists": 0}},
-                {"dst": {"$ne": "0x0000000000000000000000000000000000000000"}},
-            ],
             "topic": {
                 "$in": [
-                    # "transfer", # transfers do not affect hype status-> careful changing this affect calculations bc transfers do not have block-1 hype status scraped
+                    # "transfer", # transfers do not affect hype totalSupply -> careful changing this affect calculations bc transfers do not have block-1 hype status scraped
                     "deposit",
                     "withdraw",
                     "rebalance",
