@@ -20,6 +20,8 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
         self.hypervisor_status = hypervisor_status
         self.rewarder_static = rewarder_static
 
+        self.type = rewarderType.ANGLE_MERKLE
+
         super().__init__()
 
     def reset(self):
@@ -141,6 +143,12 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
         self.total_time_passed += time_passed
 
     def _execute_postLoop(self, hypervisor_data: dict):
+        if not self.items_to_calc_apr:
+            logging.getLogger(__name__).error(
+                f" No items to calculate apr found for {self.chain.fantasy_name}'s {self.type} rewards hypervisor {self.hypervisor_status['address']} at block {self.hypervisor_status['block']}"
+            )
+            return
+
         # calculate per second rewards
         baseRewards_per_second = (
             self.total_baseRewards / self.total_time_passed
@@ -248,11 +256,14 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
         block_end: int = None,
         try_solve_errors: bool = False,
     ) -> list:
+        logging.getLogger(__name__).debug(
+            f" Getting rewards of {self.chain.database_name} {self.hypervisor_status['address']} timestamp_ini: {timestamp_ini} timestamp_end: {timestamp_end or int(self.hypervisor_status['timestamp'])}  block_ini: {block_ini}  block_end: {block_end or int(self.hypervisor_status['block'])}"
+        )
         return super().execute_processes_within_hypervisor_periods(
             chain=self.chain,
             hypervisor_address=self.hypervisor_status["address"],
             timestamp_ini=timestamp_ini,
-            timestamp_end=timestamp_end or int(self.hypervisor_status["timestamp"]),
+            timestamp_end=timestamp_end,
             block_ini=block_ini,
             block_end=block_end or int(self.hypervisor_status["block"]),
             try_solve_errors=try_solve_errors,

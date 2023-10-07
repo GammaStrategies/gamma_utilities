@@ -1,9 +1,13 @@
+from datetime import datetime
 import logging
 from apps.feeds.operations import feed_operations_hypervisors
 from apps.feeds.utils import get_hypervisors_data_for_apr
 from bins.database.helpers import get_from_localdb
 from bins.general.enums import Chain, Protocol, text_to_protocol
 from bins.w3.builders import build_hypervisor
+
+
+# TODO: handle last on-the-fly hype prices
 
 
 # Handling hypervisor periods ( op.block -> op.block-1 -> op.block ...)
@@ -95,6 +99,7 @@ class hypervisor_periods_base:
     def _scrape_last_item(
         self, chain: Chain, hypervisor_address: str, block: int, protocol: Protocol
     ) -> dict:
+        """Only executed when the last available item is an initial value and defined end block is greater than last available block"""
         # should meke sure supply doesn change
         # should have an "operations" key =[]
         # should have any specific field
@@ -160,6 +165,15 @@ class hypervisor_periods_base:
                 ##### EXECUTE PRE-LOOP FUNCTION
                 self._execute_preLoop(hypervisor_data=hype_data)
 
+                # log from to dates data found for this hypervisor
+                try:
+                    _i = datetime.fromtimestamp(hype_data["status"][0]["timestamp"])
+                    _e = datetime.fromtimestamp(hype_data["status"][-1]["timestamp"])
+                    logging.getLogger(__name__).debug(
+                        f" total data found for {chain.database_name} {hype_data['status'][0]['address']} from {_i} [{hype_data['status'][0]['timestamp']}] to {_e} [{hype_data['status'][-1]['timestamp']}]  ({(_e - _i).total_seconds()/(60*60*24):,.2f} days)"
+                    )
+                except Exception:
+                    pass
                 # loop thu each hype status data ( hypervisor status found for that particular time period )
                 for idx, status_data in enumerate(hype_data["status"]):
                     # execute the loop work
@@ -386,8 +400,8 @@ class hypervisor_periods_base:
             )
 
         else:
-            # it has operations:
-            # this is an initial value
+            # <<<<<<<<<<<< this is an initial value <<<<<<<<<<<<<<<<<<<<<<<<<<
+            # it has operations
             if last_item_type and last_item_type != "end":
                 # check if they are consecutive blocks
                 if last_item["block"] + 1 == current_item["block"]:
