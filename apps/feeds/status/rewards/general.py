@@ -8,6 +8,7 @@ from apps.feeds.status.rewards.synthswap import create_rewards_status_synthswap
 from apps.feeds.status.rewards.thena import create_rewards_status_thena
 from apps.feeds.status.rewards.zyberswap import create_rewards_status_zyberswap
 from apps.hypervisor_periods.rewards.angle import hypervisor_periods_angleMerkl
+from apps.hypervisor_periods.rewards.ramses import hypervisor_periods_ramses
 
 from bins.configuration import CONFIGURATION
 
@@ -221,19 +222,19 @@ def create_reward_status_from_hype_status(
                 hypervisor_status=hypervisor_status,
                 rewarder_static=rewarder_static,
             )
-            # limit data back to 1 week
-            rewards_data = aMerkl_helper.execute_processes_within_hypervisor_periods(
-                timestamp_ini=int(hypervisor_status["timestamp"]) - 3600 * 24 * 7
-            )
+            #
+            rewards_data = aMerkl_helper.execute_processes_within_hypervisor_periods()
 
         elif rewarder_static["rewarder_type"] in [
             rewarderType.RAMSES_v2,
         ]:
-            rewards_data = create_rewards_status_ramses(
+            ramses_helper = hypervisor_periods_ramses(
                 chain=text_to_chain(network),
-                rewarder_static=rewarder_static,
                 hypervisor_status=hypervisor_status,
+                rewarder_static=rewarder_static,
             )
+            #
+            rewards_data = ramses_helper.execute_processes_within_hypervisor_periods()
 
         elif rewarder_static["rewarder_type"] in [
             rewarderType.SYNTHSWAP_masterchef_v1,
