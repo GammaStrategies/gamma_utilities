@@ -222,8 +222,10 @@ def create_reward_status_from_hype_status(
                 hypervisor_status=hypervisor_status,
                 rewarder_static=rewarder_static,
             )
-            #
-            rewards_data = aMerkl_helper.execute_processes_within_hypervisor_periods()
+            # limit to 2 week data back
+            rewards_data = aMerkl_helper.execute_processes_within_hypervisor_periods(
+                timestamp_ini=hypervisor_status["timestamp"] - 60 * 60 * 24 * 14,
+            )
 
         elif rewarder_static["rewarder_type"] in [
             rewarderType.RAMSES_v2,
@@ -233,8 +235,10 @@ def create_reward_status_from_hype_status(
                 hypervisor_status=hypervisor_status,
                 rewarder_static=rewarder_static,
             )
-            #
-            rewards_data = ramses_helper.execute_processes_within_hypervisor_periods()
+            # limit to >2 week data back
+            rewards_data = ramses_helper.execute_processes_within_hypervisor_periods(
+                timestamp_ini=hypervisor_status["timestamp"] - 60 * 60 * 24 * 16,
+            )
 
         elif rewarder_static["rewarder_type"] in [
             rewarderType.SYNTHSWAP_masterchef_v1,
