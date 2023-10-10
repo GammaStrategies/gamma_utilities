@@ -135,6 +135,167 @@ class etherscan_helper:
         # return result
         return result
 
+    def get_wallet_normal_transactions(self, network: str, wallet_address: str) -> list:
+        """
+
+        Args:
+            network (str): _description_
+            wallet_address (str): _description_
+
+        Returns:
+            list: _description_
+        """
+        result = []
+        page = 1  # define pagination var
+        offset = 10000  # items to be presented with on each query
+
+        # loop till no more results are retrieved
+        while True:
+            try:
+                url = "{}/api?{}&apiKey={}".format(
+                    self._urls[network.lower()],
+                    self.build_url_arguments(
+                        module="account",
+                        action="txlist",
+                        contractaddress=wallet_address,
+                        startblock=0,
+                        endblock=99999999,
+                        page=page,
+                        offset=offset,
+                        sort="asc",
+                    ),
+                    self._api_keys[network.lower()],
+                )
+
+                # rate control
+                self.__RATE_LIMIT.continue_when_safe()
+
+                # get data
+                _data = net_utilities.get_request(
+                    url
+                )  #  {"status":"1","message":"OK-Missing/Invalid API Key, rate limit of 1/5sec applied","result":....}
+
+                if _data["status"] == "1":
+                    # query when thru ok
+                    if _data["result"]:
+                        # Add data to result
+                        result += _data["result"]
+
+                        if len(_data["result"]) < offset:
+                            # there is no more data to be scraped
+                            break
+                        else:
+                            # add pagination var
+                            page += 1
+                    else:
+                        # no data
+                        break
+                else:
+                    logging.getLogger(__name__).debug(
+                        " {} for {} in {}  . error message: {}".format(
+                            _data["message"], wallet_address, network
+                        )
+                    )
+                    break
+
+            except Exception:
+                # do not continue
+                logging.getLogger(__name__).error(
+                    f' Unexpected error while querying url {url}    . error message: {_data["message"]}'
+                )
+
+                break
+
+        # return result
+        return result
+
+    def get_wallet_erc20_transactions(self, network: str, wallet_address: str) -> list:
+        """Get all erc20 transactions for a given address
+
+        Args:
+            network (str):
+            wallet_address (str):
+
+        Returns:
+            list: [{
+                'to':'0x8c823c1489dcf2af7ded0eccdbf81ff993e1435b'
+                'value':'103732130441301140023'
+                'tokenName':'CASH'
+                'tokenSymbol':'CASH'
+                'tokenDecimal':'18'
+                'transactionIndex':'70'
+                'gas':'524778'
+                'gasPrice':'91125092256'
+                'gasUsed':'335144'
+                'cumulativeGasUsed':'11434816'
+                'input':'deprecated'
+                'confirmations':'2287898'
+            }, ...]
+        """
+        result = []
+        page = 1  # define pagination var
+        offset = 5000  # items to be presented with on each query
+
+        # loop till no more results are retrieved
+        while True:
+            try:
+                url = "{}/api?{}&apiKey={}".format(
+                    self._urls[network.lower()],
+                    self.build_url_arguments(
+                        module="account",
+                        action="tokentx",
+                        address=wallet_address,
+                        startblock=0,
+                        endblock=99999999,
+                        page=page,
+                        offset=offset,
+                        sort="asc",
+                    ),
+                    self._api_keys[network.lower()],
+                )
+
+                # rate control
+                self.__RATE_LIMIT.continue_when_safe()
+
+                # get data
+                _data = net_utilities.get_request(
+                    url
+                )  #  {"status":"1","message":"OK-Missing/Invalid API Key, rate limit of 1/5sec applied","result":....}
+
+                if _data["status"] == "1":
+                    # query when thru ok
+                    if _data["result"]:
+                        # Add data to result
+                        result += _data["result"]
+
+                        if len(_data["result"]) < offset:
+                            # there is no more data to be scraped
+                            break
+                        else:
+                            # add pagination var
+                            page += 1
+                    else:
+                        # no data
+                        break
+                else:
+                    logging.getLogger(__name__).debug(
+                        " {} for {} in {}  . error message: {}".format(
+                            _data["message"], wallet_address, network
+                        )
+                    )
+                    break
+
+            except Exception:
+                # do not continue
+                logging.getLogger(__name__).error(
+                    f' Unexpected error while querying url {url}    . error message: {_data["message"]}'
+                )
+
+                break
+
+        # return result
+        return result
+
     def get_block_by_timestamp(self, network: str, timestamp: int) -> int:
         url = "{}/api?{}&apiKey={}".format(
             self._urls[network.lower()],
