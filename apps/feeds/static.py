@@ -12,6 +12,7 @@ from bins.configuration import (
 )
 from bins.database.common.database_ids import create_id_rewards_static
 from bins.database.common.db_collections_common import database_local
+from bins.database.helpers import get_default_localdb
 from bins.errors.general import ProcessingError
 from bins.general.enums import (
     Chain,
@@ -376,23 +377,26 @@ def feed_rewards_static(
     )
 
     # process
-    create_n_add_reward_static(
+    if rewards_status_list := create_rewards_static(
         network=network,
         dex=dex,
         hypervisors=hypervisors,
         already_processed=already_processed,
         rewrite=rewrite,
-    )
+    ):
+        add_rewards_static_to_database(
+            network=network, rewards_static_lst=rewards_status_list
+        )
 
 
-def create_n_add_reward_static(
+def create_rewards_static(
     network: str,
     dex: str,
     hypervisors: list[dict],
     already_processed: list,
     rewrite: bool,
     block: int = 0,
-):
+) -> list[dict]:
     """Chooses the right function to create and add rewards static data to database
 
     Args:
@@ -480,6 +484,28 @@ def create_n_add_reward_static(
         # raise NotImplementedError(f"{network} {dex} not implemented")
         return
 
+    return rewards_static_lst
+
+    # # build ids
+    # for data in rewards_static_lst:
+    #     data["id"] = create_id_rewards_static(
+    #         hypervisor_address=data["hypervisor_address"],
+    #         rewarder_address=data["rewarder_address"],
+    #         rewardToken_address=data["rewardToken"],
+    #     )
+
+    # # save all items to the database at once
+    # if rewards_static_lst:
+    #     db_result = local_db.replace_items_to_database(
+    #         data=rewards_static_lst, collection_name="rewards_static"
+    #     )
+
+    #     logging.getLogger(__name__).debug(
+    #         f"   database result-> ins: {db_result.inserted_count} mod: {db_result.modified_count} ups: {db_result.upserted_count} del: {db_result.deleted_count}"
+    #     )
+
+
+def add_rewards_static_to_database(network: str, rewards_static_lst: list[dict]):
     # build ids
     for data in rewards_static_lst:
         data["id"] = create_id_rewards_static(
@@ -490,7 +516,7 @@ def create_n_add_reward_static(
 
     # save all items to the database at once
     if rewards_static_lst:
-        db_result = local_db.replace_items_to_database(
+        db_result = get_default_localdb(network=network).replace_items_to_database(
             data=rewards_static_lst, collection_name="rewards_static"
         )
 
@@ -721,9 +747,7 @@ def create_rewards_static_merkl(
                 hype_pools[x["pool"]["address"]] = []
             hype_pools[x["pool"]["address"]].append(x["address"])
 
-        # get distributor address
-        # distributor_address = distributor_creator.distributor.lower()
-
+        # create ephemeral cache
         ephemeral_cache = {
             "tokens": {},
             "creation_block": {},
@@ -733,6 +757,8 @@ def create_rewards_static_merkl(
                 "address": distributor_creator_address.lower(),
             },
         }
+
+        epoch_duration = distributor_creator.EPOCH_DURATION
 
         # get all distributions from distribution list that match configured hype addresses
         for index, distribution in enumerate(distributor_creator.getAllDistributions):
@@ -783,6 +809,10 @@ def create_rewards_static_merkl(
                         ]["decimals"],
                         "rewards_perSecond": 0,  # TODO: remove this field from all static rewards
                         "total_hypervisorToken_qtty": 0,  # TODO: remove this field from all static rewards
+                        "start_rewards_timestamp": distribution["epochStart"],
+                        "end_rewards_timestamp": distribution["epochStart"]
+                        + (epoch_duration * distribution["numEpoch"]),
+                        "raw_data": distribution,
                     }
 
                     # save later to database
