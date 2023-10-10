@@ -888,12 +888,29 @@ class period_yield_data:
                 },
             },
             "fees": {
-                "qtty": {
-                    "token0": "",
-                    "token1": "",
-                },
-                "usd": "",
-                "period_yield": "",
+                "collected":{
+                    "protocol": {
+                        "qtty": {
+                            "token0": "",
+                            "token1": "",
+                        },
+                        "usd": "",
+                        "period_yield": "",
+                    }
+                    "lps": {
+                        "qtty": {
+                            "token0": "",
+                            "token1": "",
+                        },
+                        "usd": "",
+                        "period_yield": "",
+                    }
+                }
+                "uncollected":{
+                    "protocol": {}
+                    "lps": {}
+                }
+
             },
             "rewards": {
                 "usd": "",
@@ -908,6 +925,12 @@ class period_yield_data:
                     "token1": "",
                 },
             },
+
+            "pool":{
+                "gamma_gross_
+                    "calculated_gamma_volume_usd": "",
+                }
+
         }
         """
         result = {

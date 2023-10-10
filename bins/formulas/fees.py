@@ -74,11 +74,11 @@ def convert_feeProtocol(
         protocol_fee_1 = (100 / feeProtocol1) // 1 if feeProtocol1 else 0
 
     # should not happen
-    if not protocol_fee_0.is_integer():
+    if protocol_fee_0 and not protocol_fee_0.is_integer():
         logging.getLogger(__name__).warning(
             f" convert_feeProtocol protocol_fee_0 {protocol_fee_0} is not integer ! ( will be converted though))"
         )
-    if not protocol_fee_1.is_integer():
+    if protocol_fee_1 and not protocol_fee_1.is_integer():
         logging.getLogger(__name__).warning(
             f" convert_feeProtocol protocol_fee_1 {protocol_fee_1} is not integer ! ( will be converted though)"
         )

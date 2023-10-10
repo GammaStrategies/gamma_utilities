@@ -57,7 +57,7 @@ class web3wrap:
         self.setup_cache()
 
         # set block
-        if not block:
+        if not block or block == 0:
             _block_data = self._getBlockData("latest")
             self._block = _block_data.number
             self._timestamp = _block_data.timestamp
@@ -385,8 +385,9 @@ class web3wrap:
            to be able not to timeout servers
 
         Args:
-           eventfilter (dict):  {'fromBlock': ,
+           eventfilter (dict):  {  'fromBlock': ,
                                    'toBlock': block,
+                                   ...
                                    'address': [self._address],
                                    'topics': [self._topics[operation]],
                                    }
@@ -792,7 +793,6 @@ class web3wrap:
                             f"Block {block} not found at {self._network} using {rpc.url}"
                         )
                 rpc.add_failed(error=e)
-                continue
 
         # raise last error if there is no result to return, and there was an error
         if last_error:
