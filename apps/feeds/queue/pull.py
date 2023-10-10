@@ -192,6 +192,12 @@ def process_queue_item_type(network: str, queue_item: QueueItem) -> bool:
             pull_func=pull_from_queue_latest_multiFeeDistribution,
         )
 
+    elif queue_item.type == queueItemType.REVENUE_OPERATION:
+        return pull_common_processing_work(
+            network=network,
+            queue_item=queue_item,
+            pull_func=pull_from_queue_revenue_operation,
+        )
     elif queue_item.type == queueItemType.HYPERVISOR_STATIC:
         return pull_common_processing_work(
             network=network,
@@ -601,6 +607,60 @@ def pull_from_queue_operation(network: str, queue_item: QueueItem) -> bool:
     except Exception as e:
         logging.getLogger(__name__).exception(
             f"Error processing {network}'s operation queue item: {e}"
+        )
+
+    # return result
+    return False
+
+
+def pull_from_queue_revenue_operation(network: str, queue_item: QueueItem) -> bool:
+    try:
+        # the operation is in the 'data' field...
+        operation = queue_item.data
+
+        # set operation id (same hash has multiple operations)
+        operation["id"] = create_id_operation(
+            logIndex=operation["logIndex"], transactionHash=operation["transactionHash"]
+        )
+        # lower case address ( to ease comparison )
+        operation["address"] = operation["address"].lower()
+
+        # log
+        logging.getLogger(__name__).debug(
+            f"  -> Processing {network}'s revenue operation {operation['id']}"
+        )
+
+        dumb_erc20 = build_erc20_helper(
+            chain=text_to_chain(network), address=operation["address"]
+        )
+
+        # set timestamp
+        operation["timestamp"] = dumb_erc20.timestampFromBlockNumber(
+            block=int(operation["blockNumber"])
+        )
+
+        # set tokens data
+        operation["symbol"] = dumb_erc20.symbol
+        operation["decimals"] = dumb_erc20.decimals
+
+        # save operation to database
+        if db_return := get_default_localdb(network=network).set_operation(
+            data=operation
+        ):
+            logging.getLogger(__name__).debug(
+                f" Saved revenue operation {operation['id']}"
+            )
+
+        # log
+        logging.getLogger(__name__).debug(
+            f"  <- Done processing {network}'s revenue operation {operation['id']}"
+        )
+
+        return True
+
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            f"Error processing {network}'s revenue operation queue item: {e}"
         )
 
     # return result

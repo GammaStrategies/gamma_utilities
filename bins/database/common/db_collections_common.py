@@ -891,6 +891,18 @@ class database_local(db_collections_common):
                     },
                     "multi_indexes": [],
                 },
+                "revenue_operations": {
+                    "mono_indexes": {
+                        "id": True,
+                        "blockNumber": False,
+                        "address": False,
+                        "timestamp": False,
+                    },
+                    "multi_indexes": [
+                        ("blockNumber", ASCENDING),
+                        ("logIndex", ASCENDING),
+                    ],
+                },
             }
 
         else:

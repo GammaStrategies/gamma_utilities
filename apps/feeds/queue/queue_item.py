@@ -154,6 +154,7 @@ def create_priority_queueItemType() -> list[list[queueItemType]]:
         # not used
         queueItemType.HYPERVISOR_STATIC: queue_items_list,
         queueItemType.REWARD_STATIC: queue_items_list,
+        queueItemType.REVENUE_OPERATION: queue_items_list,
     }
 
     # build a result
@@ -198,6 +199,7 @@ def create_priority_queueItemType_latestOut() -> list[list[queueItemType]]:
         # not used
         queueItemType.HYPERVISOR_STATIC: queue_items_list,
         queueItemType.REWARD_STATIC: queue_items_list,
+        queueItemType.REVENUE_OPERATION: queue_items_list,
     }
 
     # build a result
@@ -253,6 +255,7 @@ def create_priority_queueItemType_inSequence() -> list[list[queueItemType]]:
         queueItemType.REWARD_STATIC: [
             # queueItemType.HYPERVISOR_STATIC
         ],
+        queueItemType.REVENUE_OPERATION: [],
     }
 
     # build a result

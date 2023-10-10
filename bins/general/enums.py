@@ -217,6 +217,8 @@ class queueItemType(str, Enum):
 
     # latest data
     LATEST_MULTIFEEDISTRIBUTION = ("latest_multifeedistribution", 8, None, None)
+    # revenue operations
+    REVENUE_OPERATION = ("revenue_operation", 9, None, None)
 
     # extra properties
     order: int  # order of importance to be processed
