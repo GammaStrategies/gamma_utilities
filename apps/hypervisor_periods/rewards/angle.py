@@ -429,6 +429,13 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
                 hypervisor_status["limitPosition"]["liquidity"]
             )
 
+        # choose which liquidity is rewarded ( inRange or total )
+        rewarded_liquidity = (
+            hypervisor_liquidity
+            if distribution_data["isOutOfRangeincentivized"]
+            else gamma_liquidity_in_range
+        )
+
         hypervisor_total0 = int(hypervisor_status["totalAmounts"]["total0"]) / (
             10 ** hypervisor_status["pool"]["token0"]["decimals"]
         )
@@ -463,7 +470,7 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
                 calculations_data["reward_x_second"]
                 * (distribution_data["propFees"] / 10000)
             )
-            * (gamma_liquidity_in_range / pool_liquidity)
+            * (rewarded_liquidity / pool_liquidity)
             if pool_liquidity
             else 0
         )
@@ -501,7 +508,7 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
             "token1_price": token1_price,
             "hype_price_per_share": hype_price_per_share,
             "hype_tvl_usd": hype_tvl_usd,
-            "hypervisor_liquidity": gamma_liquidity_in_range,
+            "hypervisor_liquidity": rewarded_liquidity,
             "hypervisor_total0": hypervisor_total0,
             "hypervisor_total1": hypervisor_total1,
             "pool_liquidity": pool_liquidity,
@@ -531,6 +538,7 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
                 "symbol": hypervisor_status["symbol"],
                 "liquidity_total": hypervisor_liquidity,
                 "liquidity_inRange": gamma_liquidity_in_range,
+                "rewarded_liquidity": rewarded_liquidity,
                 "total0": hypervisor_total0,
                 "total1": hypervisor_total1,
                 "tvl_usd": hype_tvl_usd,
