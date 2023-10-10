@@ -8,7 +8,7 @@ from bins.formulas.checks import toUint256
 
 
 from ....formulas.full_math import mulDiv
-from ....formulas.fees import calculate_gamma_fee
+from ....formulas.fees import calculate_gamma_fee, convert_feeProtocol
 from ....general.enums import Chain, Protocol, text_to_protocol
 from .general import dict_to_object, token_group_object
 
@@ -161,17 +161,26 @@ class hypervisor_status_object(dict_to_object):
 
         _lp_underlyingValue = self.get_underlying_value(inDecimal=True)
         _totalSupply = self.get_totalSupply_inDecimal()
-        return (
+
+        _share_price = (
             (_lp_underlyingValue.token0 * token0_price)
             + (_lp_underlyingValue.token1 * token1_price)
         ) / _totalSupply
+
+        # check if outlier:  >10**18 and _totalSupply > 1
+        if _share_price > 10**18 and _totalSupply > 1:
+            raise ValueError(
+                f" Share price outlier: {_share_price}: totalSupply:{_totalSupply} t0:{token0_price} t1:{token1_price}"
+            )
+
+        return _share_price
 
     # inDecimal format
     def get_totalSupply_inDecimal(self) -> Decimal:
         return Decimal(str(self.totalSupply)) / (10**self.pool.token0.decimals)
 
     # fees
-    def get_protocol_fee(self) -> int:
+    def get_gamma_fee(self) -> int:
         """Return Gamma's fee protocol percentage over accrued fees by the positions
 
         Returns:
@@ -180,6 +189,78 @@ class hypervisor_status_object(dict_to_object):
         return calculate_gamma_fee(
             fee_rate=self.fee, protocol=text_to_protocol(self.dex)
         )
+
+    def get_dex_protocol_fee(self) -> tuple[int, int]:
+        """AMM feeProtocol. The dex fee charged on every swap, not collected by LPs
+
+        Returns:
+            tuple[int, int]]: feeProtocol0, feeProtocol1
+        """
+        # calculate protocol fees
+        if hasattr(self.pool, "globalState"):
+            protocol_fee_0_raw = self.pool.globalState.communityFeeToken0
+            protocol_fee_1_raw = self.pool.globalState.communityFeeToken1
+        else:
+            # convert from 8 decimals
+            protocol_fee_0_raw = self.pool.slot0.feeProtocol % 16
+            protocol_fee_1_raw = self.pool.slot0.feeProtocol >> 4
+
+        protocol_fee_0, protocol_fee_1 = convert_feeProtocol(
+            feeProtocol0=protocol_fee_0_raw,
+            feeProtocol1=protocol_fee_1_raw,
+            hypervisor_protocol=self.dex,
+            pool_protocol=self.pool.dex,
+        )
+
+        return protocol_fee_0, protocol_fee_1
+
+    def get_pool_fee(self) -> tuple[float, float]:
+        """Pool fee charged on every swap
+
+        Returns:
+            tuple[float, float]: pool fee
+        """
+        protocol = text_to_protocol(self.pool.dex)
+        fee_tier0 = 0
+        fee_tier1 = 0
+
+        if protocol == Protocol.CAMELOT:
+            try:
+                # Camelot:  (pool.globalState().feeZto + pool.globalState().feeOtz)
+                fee_tier0 = int(self.pool.globalState.feeZto)
+                fee_tier1 = int(self.pool.globalState.feeOtz)
+            except Exception as e:
+                logging.getLogger(__name__).exception(f" getting pool fee   {e}")
+
+        elif protocol == Protocol.RAMSES:
+            # Ramses:  pool.currentFee()
+            try:
+                # 'currentFee' in here is actualy the 'fee' field
+                fee_tier0 = int(self.pool.fee)
+                fee_tier1 = int(self.pool.fee)
+
+            except Exception as e:
+                logging.getLogger(__name__).exception(f" getting pool fee   {e}")
+
+        elif protocol in [Protocol.QUICKSWAP, Protocol.THENA, Protocol.ALGEBRAv3]:
+            # QuickSwap + StellaSwap (Algebra V1):  pool.globalState().fee
+            try:
+                fee_tier0 = int(self.pool.globalState.fee)
+                fee_tier1 = int(self.pool.globalState.fee)
+            except Exception as e:
+                logging.getLogger(__name__).exception(f" {e}")
+        else:
+            # Uniswap: pool.fee()
+            try:
+                fee_tier0 = int(self.pool.fee)
+                fee_tier1 = int(self.pool.fee)
+            except Exception as e:
+                logging.getLogger(__name__).exception(f" {e}")
+
+        fee_tier0 /= 1000000
+        fee_tier1 /= 1000000
+
+        return fee_tier0, fee_tier1
 
     def get_fees_uncollected(
         self, inDecimal: bool = True
@@ -190,7 +271,7 @@ class hypervisor_status_object(dict_to_object):
             tuple[gamma_fees, lp_fees]: fees split between Gamma and LPs
         """
 
-        # check if the object has already the fees calculated
+        # check if the object has already the fees calculated ( some old db data may not contain this info)
         if hasattr(self.fees_uncollected, "gamma_qtty_token0"):
             _gamma_fees = token_group_object(
                 token0=self.fees_uncollected.gamma_qtty_token0,
@@ -204,7 +285,7 @@ class hypervisor_status_object(dict_to_object):
             # calculate
 
             # gamma protocolFee
-            _gamma_feeProtocol = self.get_protocol_fee()
+            _gamma_feeProtocol = self.get_gamma_fee()
             # gamma will take fees only if the uncollected fee qtty is greater than the minimum divisible unit per token
             # at least 2
             _gamma_fees = token_group_object(
@@ -255,6 +336,15 @@ class hypervisor_status_object(dict_to_object):
     def get_fees_collected(
         self, inDecimal: bool = True
     ) -> tuple[token_group_object, token_group_object]:
+        """Fees collected by the current position in its all time lifespan
+
+        Args:
+            inDecimal (bool, optional): . Defaults to True.
+
+        Returns:
+            tuple[token_group_object, token_group_object]:
+        """
+
         # check if the object has already the fees calculated
         if hasattr(self, "fees_collected"):
             _gamma_fees = token_group_object(
@@ -267,6 +357,9 @@ class hypervisor_status_object(dict_to_object):
             )
         else:
             # TODO: calculate
+            raise NotImplementedError(
+                " fees collected in hype db object is not implemented yet, and its difficult to calculate"
+            )
             return None, None
 
         if inDecimal:
@@ -285,6 +378,52 @@ class hypervisor_status_object(dict_to_object):
             )
 
         return _gamma_fees, _lp_fees
+
+    def calculate_gross_fees(
+        self,
+        collected_fees0: Decimal,
+        collected_fees1: Decimal,
+    ) -> tuple[Decimal, Decimal]:
+        """Calculate gross fees from any suppllied collected fees
+
+        Args:
+            collected_fees0 :
+            collected_fees1 :
+
+        Returns:
+            tuple[float, float]: grossFees_0, grossFees_1
+        """
+        # calculate gross fees
+        protocol_fee_0, protocol_fee_1 = self.get_dex_protocol_fee()
+
+        if protocol_fee_0 < 100:
+            grossFees_0 = collected_fees0 / Decimal(str(1 - (protocol_fee_0 / 100)))
+        else:
+            grossFees_0 = collected_fees0
+
+        if protocol_fee_1 < 100:
+            grossFees_1 = collected_fees1 / Decimal(str(1 - (protocol_fee_1 / 100)))
+        else:
+            grossFees_1 = collected_fees1
+
+        return grossFees_0, grossFees_1
+
+    def calculate_gross_volume(
+        self, gross_fees0: Decimal, gross_fees1: Decimal
+    ) -> tuple[Decimal, Decimal]:
+        """Calculate gross fees volume using gross fees / the pool fee tier
+
+        Args:
+            gross_fees0 :
+            gross_fees1 :
+
+        Returns:
+            tuple[float, float]: grossFees_0, grossFees_1
+        """
+        fee_tier_0, fee_tier_1 = self.get_pool_fee()
+        return gross_fees0 / Decimal(str(fee_tier_0)), gross_fees1 / Decimal(
+            str(fee_tier_1)
+        )
 
     def get_underlying_value(self, inDecimal: bool = True) -> token_group_object:
         """LPs underlying value, uncollected fees included
