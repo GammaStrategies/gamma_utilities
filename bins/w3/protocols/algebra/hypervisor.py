@@ -12,7 +12,7 @@ from ..general import bep20, bep20_cached, erc20_cached
 from .. import gamma
 
 
-ABI_FILENAME = "algebra_hypervisor"
+ABI_FILENAME = "algebra_hypervisor_v2"
 ABI_FOLDERNAME = "gamma"
 DEX_NAME = Protocol.ALGEBRAv3.database_name
 

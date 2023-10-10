@@ -15,7 +15,7 @@ from ..uniswap.pool import (
     poolv3_bep20_cached,
 )
 
-ABI_FILENAME = "hypervisor"
+ABI_FILENAME = "hypervisor_v2"
 ABI_FOLDERNAME = "gamma"
 DEX_NAME = Protocol.GAMMA.database_name
 INMUTABLE_FIELDS = {
@@ -523,6 +523,14 @@ class gamma_hypervisor(erc20):
         # only return when static mode is off
         if not static_mode:
             self._as_dict_not_static_items(convert_bint, result)
+        else:
+            # save feeRecipient only in static mode
+            try:
+                # fee recipient
+                result["feeRecipient"] = self.feeRecipient
+            except Exception as e:
+                # this hype version may not have feeRecipient func
+                pass
         return result
 
     def _as_dict_not_static_items(self, convert_bint, result):

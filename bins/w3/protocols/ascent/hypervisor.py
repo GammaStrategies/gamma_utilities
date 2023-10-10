@@ -6,7 +6,7 @@ from ..general import erc20, erc20_cached
 from .pool import pool, pool_cached
 
 
-ABI_FILENAME = "hypervisor"
+ABI_FILENAME = "hypervisor_v2"
 ABI_FOLDERNAME = "gamma"
 DEX_NAME = Protocol.ASCENT.database_name
 
