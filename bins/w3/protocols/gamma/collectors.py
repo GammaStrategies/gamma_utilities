@@ -4,7 +4,7 @@ import sys
 from eth_abi import abi
 from hexbytes import HexBytes
 
-from web3 import Web3
+from web3 import Web3, contract
 from web3.middleware import geth_poa_middleware, simple_cache_middleware
 
 from bins.w3.helpers.rpcs import RPC_MANAGER
@@ -227,6 +227,178 @@ class data_collector:
             itm["recipient"] = data[0]
             itm["amount0"] = str(data[1])
             itm["amount1"] = str(data[2])
+        else:
+            logging.getLogger(__name__).warning(
+                f" Can't find topic [{topic}] converter. Discarding  event [{event}]  with data [{data}] "
+            )
+
+        return itm
+
+
+class wallet_transfers_collector(data_collector):
+    # SETUP
+    def __init__(
+        self,
+        wallet_addresses: list[str],
+        network: str,
+    ):
+        self.network = network
+        self.wallet_addresses = wallet_addresses
+        self._progress_callback = None  # log purp
+        # univ3_pool helpers simulating contract functionality just to be able to use the tokenX decimal part
+        self._token_helpers = dict()
+        # all data retrieved will be saved here. { <contract_address>: {<topic>: <topic defined content> } }
+        self._data = dict()
+
+        self._setup_topics()
+
+        # define helper
+        self._web3_helper = (
+            bep20(address="0x0000000000000000000000000000000000000000", network=network)
+            if network == "binance"
+            else erc20(
+                address="0x0000000000000000000000000000000000000000", network=network
+            )
+        )
+
+    def _setup_topics(self):
+        self.transfer_abi = Web3.sha3(text="Transfer(address,address,uint256)").hex()
+        self._topics = []
+
+        for address in self.wallet_addresses:
+            # create address to
+            address_to = Web3.toBytes(hexstr=Web3.toChecksumAddress(address))
+            # left pad address to 32 bytes
+            address_to = "0x" + (bytes(32 - len(address_to)) + address_to).hex()
+            # create address from
+            address_from = None
+
+            self._topics = [
+                Web3.sha3(text="Transfer(address,address,uint256)").hex(),
+                address_from,
+                address_to,
+            ]
+
+    @property
+    def topics(self) -> list[str]:
+        return self._topics
+
+    @property
+    def contract_abi(self) -> list[dict]:
+        return [
+            {
+                "anonymous": False,
+                "inputs": [
+                    {"indexed": True, "name": "from", "type": "address"},
+                    {"indexed": True, "name": "to", "type": "address"},
+                    {"indexed": False, "name": "value", "type": "uint256"},
+                ],
+                "name": "Transfer",
+                "type": "event",
+            }
+        ]
+
+    def operations_generator(
+        self,
+        block_ini: int,
+        block_end: int | None = None,
+        max_blocks: int = 5000,
+    ) -> list[dict]:
+        """operation item generator
+
+        Args:
+            block_ini (int):
+            block_end (int):
+            wallet_addresses (list): list of wallets to look for
+            topics (dict, optional): . Defaults to {}.
+            topics_data_decoders (dict, optional): . Defaults to {}.
+            max_blocks (int, optional): . Defaults to 5000.
+
+        Returns:
+            dict: includes topic operation transfers...
+
+        Yields:
+            Iterator[dict]:
+        """
+
+        if not block_end or block_end == 0:
+            block_end = self._web3_helper._getBlockData(block="latest")["number"]
+
+        # get a list of events
+        filter_chunks = self._web3_helper.create_eventFilter_chunks(
+            eventfilter={
+                "fromBlock": block_ini,
+                "toBlock": block_end,
+                "topics": self.topics,
+            },
+            max_blocks=max_blocks,
+        )
+
+        for filter in filter_chunks:
+            if entries := self._web3_helper.get_all_entries(
+                filter=filter, rpcKey_names=["private"]
+            ):
+                chunk_result = []
+                for event in entries:
+                    # get topic name found
+                    topic = "transfer"
+                    # first topic is topic id
+                    custom_abi_data = ["uint256"]
+                    # decode
+                    data = abi.decode(custom_abi_data, HexBytes(event.data))
+
+                    # show progress
+                    if self._progress_callback:
+                        self._progress_callback(
+                            text="processing {} at block:{}".format(
+                                topic, event.blockNumber
+                            ),
+                            remaining=block_end - event.blockNumber,
+                            total=block_end - block_ini,
+                        )
+
+                    # convert data
+                    result_item = self._convert_topic(topic, event, data)
+                    # add topic to result item
+                    result_item["topic"] = "transfer"
+                    result_item["logIndex"] = event.logIndex
+
+                    chunk_result.append(result_item)
+
+                # yield when there is data
+                if chunk_result:
+                    yield chunk_result
+
+            elif self._progress_callback:
+                # no data found at current filter
+                self._progress_callback(
+                    text=f" no match from {filter['fromBlock']} to {filter['toBlock']}",
+                    total=block_end - block_ini,
+                    remaining=block_end - filter["toBlock"],
+                )
+
+    # HELPERS
+    def _convert_topic(self, topic: str, event, data) -> dict:
+        # init result
+        itm = dict()
+
+        # common vars
+        itm["transactionHash"] = event.transactionHash.hex()
+        itm["blockHash"] = event.blockHash.hex()
+        itm["blockNumber"] = event.blockNumber
+        itm["address"] = event.address
+
+        # itm["timestamp"] = ""
+        # itm["decimals_token0"] = ""
+        # itm["decimals_token1"] = ""
+        # itm["decimals_contract"] = ""
+
+        # specific vars
+        if topic in ["transfer"]:
+            itm["src"] = event.topics[1][-20:].hex()
+            itm["dst"] = event.topics[2][-20:].hex()
+            itm["qtty"] = str(data[0])
+
         else:
             logging.getLogger(__name__).warning(
                 f" Can't find topic [{topic}] converter. Discarding  event [{event}]  with data [{data}] "
