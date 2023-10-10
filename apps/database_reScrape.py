@@ -264,12 +264,12 @@ def reScrape_loopWork_rewards_status(
                             f" {chain.database_name} queue item {queueItemType.REWARD_STATUS}  processing time: {curr_time}  total lifetime: {curr_time}"
                         )
                         logging.getLogger(__name__).info(
-                            f" {chain.database_name} {new_rewarder_status['hypervisor_address']} {new_rewarder_status['block']} reward status finished processing correctly"
+                            f" {chain.database_name} {new_rewarder_status['hypervisor_address']} {new_rewarder_status['block']} {new_rewarder_status['rewardToken_symbol']} reward status finished processing correctly"
                         )
                         return True
                 else:
                     logging.getLogger(__name__).debug(
-                        f" {chain.database_name}'s hypervisor {new_rewarder_status['hypervisor_address']} at block {new_rewarder_status['block']} not saved bc has 0 rewards per second"
+                        f" {chain.database_name}'s hypervisor {new_rewarder_status['hypervisor_address']} at block {new_rewarder_status['block']}  {new_rewarder_status['rewardToken_symbol']}  not saved bc has 0 rewards per second"
                     )
 
                     curr_time = seconds_to_time_passed(time.time() - _starttime)
