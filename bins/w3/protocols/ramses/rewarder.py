@@ -73,63 +73,87 @@ class gauge(web3wrap):
         )
 
     def earned(self, token_address: str, token_id: int) -> int:
-        """ """
+        """Returns the amount of rewards earned for an NFP.
+        Args:
+            token_address (str): The address of the token for which to retrieve the earned rewards.
+            token_id (int): The identifier of the specific NFP for which to retrieve the earned rewards.
+
+        Returns:
+            int: The amount of rewards earned for the specified NFP and tokens.
+        """
         return self.call_function_autoRpc(
             "earned", None, Web3.toChecksumAddress(token_address), token_id
         )
 
     @property
     def feeCollector(self) -> str:
-        """ """
+        """fee collector address"""
         return self.call_function_autoRpc("feeCollector")
 
     @property
-    def firstPerdiod(self) -> int:
-        """ """
-        return self.call_function_autoRpc("firstPerdiod")
+    def firstPeriod(self) -> int:
+        """Retrieves the value of the firstPeriod variable."""
+        return self.call_function_autoRpc("firstPeriod")
 
     @property
     def gaugeFactory(self) -> str:
-        """ """
+        """gauge factory address"""
         return self.call_function_autoRpc("gaugeFactory")
 
     @property
     def getRewardTokens(self) -> list[str]:
-        """ """
+        """Returns an array of reward token addresses."""
         return self.call_function_autoRpc("getRewardTokens")
 
     def isReward(self, address: str) -> bool:
-        """ """
+        """Checks if a given address is a valid reward."""
         return self.call_function_autoRpc(
             "isReward", None, Web3.toChecksumAddress(address)
         )
 
-    def lastClaimByToken(self, address: str, var: bytes) -> int:
-        """ """
+    def lastClaimByToken(self, address: str, positionHash: bytes) -> int:
+        """Retrieves the last claimed period for a specific token, token ID combination
+
+        Args:
+            address (str): The address of the reward token for which to retrieve the last claimed period.
+            positionHash (bytes): The identifier of the NFP for which to retrieve the last claimed period.
+
+        Returns:
+            int:  The last claimed period for the specified token and token ID.
+        """
         return self.call_function_autoRpc(
-            "lastClaimByToken", None, Web3.toChecksumAddress(address), var
+            "lastClaimByToken", None, Web3.toChecksumAddress(address), positionHash
         )
 
     def left(self, token_address: str) -> int:
-        """ """
+        """Retrieves the getTokenTotalSupplyByPeriod of the current period.
+            included to support voter's left() check during distribute().
+        Args:
+            token_address (str): The address of the token for which to retrieve the remaining amount.
+
+        Returns:
+            int: The amount of tokens left to distribute in this period.
+        """
         return self.call_function_autoRpc(
             "left", None, Web3.toChecksumAddress(token_address)
         )
 
     @property
     def nfpManager(self) -> str:
-        """ """
+        """The address of the NFP manager"""
         return self.call_function_autoRpc("nfpManager")
 
     def periodClaimedAmount(
         self, period: int, positionHash: bytes, address: str
     ) -> int:
         """Retrieves the claimed amount for a specific period, position hash, and user address.
+        Args:
+            period (int): The period for which to retrieve the claimed amount.
+            positionHash (bytes): The identifier of the NFP for which to retrieve the claimed amount.
+            address (str):  The address of the token for the claimed amount.
 
-        period The period for which to retrieve the claimed amount.
-        positionHash The identifier of the NFP for which to retrieve the claimed amount.
-        address The address of the token for the claimed amount.
-
+        Returns:
+            int: Claimed amount for the specified period, token ID, and user address.
         """
         return self.call_function_autoRpc(
             "periodClaimedAmount",
@@ -140,7 +164,16 @@ class gauge(web3wrap):
         )
 
     def periodEarned(self, period: int, token_address: str, token_id: int) -> int:
-        """ """
+        """Returns the amount of rewards earned during a period for an NFP.
+
+        Args:
+            period (int): The period for which to retrieve the earned rewards.
+            token_address (str): The address of the token for which to retrieve the earned rewards.
+            token_id (int): The identifier of the specific NFP for which to retrieve the earned rewards.
+
+        Returns:
+            int: reward The amount of rewards earned for the specified NFP and tokens.
+        """
         return self.call_function_autoRpc(
             "periodEarned",
             None,
@@ -158,7 +191,19 @@ class gauge(web3wrap):
         tickLower: int,
         tickUpper: int,
     ) -> int:
-        """ """
+        """Retrieves the earned rewards for a specific period, token, owner, index, tickLower, and tickUpper.
+
+        Args:
+            period (int): The period for which to retrieve the earned rewards.
+            token_address (str): The address of the token for which to retrieve the earned rewards.
+            owner (str): The address of the owner for which to retrieve the earned rewards.
+            index (int): The index for which to retrieve the earned rewards.
+            tickLower (int): The tick lower bound for which to retrieve the earned rewards.
+            tickUpper (int): The tick upper bound for which to retrieve the earned rewards.
+
+        Returns:
+            int: The earned rewards for the specified period, token, owner, index, tickLower, and tickUpper.
+        """
         return self.call_function_autoRpc(
             "periodEarned",
             None,
@@ -171,7 +216,14 @@ class gauge(web3wrap):
         )
 
     def periodTotalBoostedSeconds(self, period: int) -> int:
-        """ """
+        """Retrieves the total boosted seconds for a specific period.
+
+        Args:
+            period (int): The period for which to retrieve the total boosted seconds.
+
+        Returns:
+            int: The total boosted seconds for the specified period.
+        """
         return self.call_function_autoRpc("periodTotalBoostedSeconds", None, period)
 
     @property
@@ -199,26 +251,58 @@ class gauge(web3wrap):
         )
 
     def positionInfo(self, token_id: int):
-        """
-        Return:
-            liquidity uint128, boostedLiquidity uint128, veRamTokenId uint256
+        """Retrieves the liquidity and boosted liquidity for a specific NFP.
+
+        Args:
+            token_id (int): The identifier of the NFP.
+
+        Returns:
+            liquidity The liquidity of the position token.
+            boostedLiquidity The boosted liquidity of the position token.
+            veRamTokenId The attached veRam token
         """
         return self.call_function_autoRpc("positionInfo", None, token_id)
 
     def rewardRate(self, token_address: str) -> int:
-        """normalized to total unboosted liquidity ..."""
+        """Retrieves the reward rate for a specific reward address.
+            this method returns the base rate without boost
+
+        Args:
+            token_address (str): The address of the reward for which to retrieve the reward rate.
+
+        Returns:
+            int: The unboosted reward rate for the specified reward address.
+        """
         return self.call_function_autoRpc(
             "rewardRate", None, Web3.toChecksumAddress(token_address)
         )
 
-    def rewards(self, var: int) -> str:
-        """ """
-        return self.call_function_autoRpc("rewards", None, var)
+    def rewards(self, index: int) -> str:
+        """Retrieves the reward address at the specified index in the rewards array.
 
-    def tokenTotalSupplyByPeriod(self, var: int, address: str) -> int:
-        """ """
+        Args:
+            index (int): The index of the reward address to retrieve.
+
+        Returns:
+            str: The reward address at the specified index.
+        """
+        return self.call_function_autoRpc("rewards", None, index)
+
+    def tokenTotalSupplyByPeriod(self, period: int, token_address: str) -> int:
+        """Retrieves the total supply of a specific token for a given period.
+
+        Args:
+            period (int): The period for which to retrieve the total supply.
+            token_address (str): The address of the token for which to retrieve the total supply.
+
+        Returns:
+            int: The total supply of the specified token for the given period.
+        """
         return self.call_function_autoRpc(
-            "tokenTotalSupplyByPeriod", None, var, Web3.toChecksumAddress(address)
+            "tokenTotalSupplyByPeriod",
+            None,
+            period,
+            Web3.toChecksumAddress(token_address),
         )
 
     def veRamInfo(self, ve_ram_token_id: int):
@@ -230,7 +314,7 @@ class gauge(web3wrap):
 
     @property
     def voter(self) -> str:
-        """ """
+        """The contract that manages Ramses votes, which must adhere to the IVoter interface"""
         return self.call_function_autoRpc("voter")
 
     # get all rewards
