@@ -180,6 +180,16 @@ def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network
             "block": {"$lte": hypervisor_status["block"]},
         },
     ):
+        # check if end rewards is > hypervisor timestamp
+        if (
+            "end_rewards_timestamp" in reward_static
+            and reward_static["end_rewards_timestamp"] < hypervisor_status["timestamp"]
+        ):
+            logging.getLogger(__name__).debug(
+                f" {network}'s {hypervisor_status['address']} hype's reward status at block {hypervisor_status['block']} will not be queued bc ended at timestamp {reward_static['end_rewards_timestamp']}. Skipping."
+            )
+            continue
+
         # Reward price
         reward_price_id = create_id_price(
             network=network,
