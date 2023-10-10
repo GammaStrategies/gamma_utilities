@@ -521,8 +521,20 @@ class zyberswap_masterchef_v1(gamma_rewarder):
 
         for pid in pids or range(self.poolLength):
             # lpToken address, allocPoint uint256, lastRewardTimestamp uint256, accZyberPerShare uint256, depositFeeBP uint16, harvestInterval uint256, totalLp uint256
+            (
+                lpToken_address,
+                allocPoint,
+                lastRewardTimestamp,
+                accZyberPerShare,
+                depositFeeBP,
+                harvestInterval,
+                totalLp,
+            ) = self.poolInfo(pid)
             if pinfo := self.poolInfo(pid):
-                if not hypervisor_addresses or pinfo[0].lower() in hypervisor_addresses:
+                if (
+                    not hypervisor_addresses
+                    or lpToken_address.lower() in hypervisor_addresses
+                ):
                     # addresses address[], symbols string[], decimals uint256[], rewardsPerSec uint256[]
                     poolRewardsPerSec = self.poolRewardsPerSec(pid)
 
@@ -553,7 +565,7 @@ class zyberswap_masterchef_v1(gamma_rewarder):
                                 # "network": self._network,
                                 "block": self.block,
                                 "timestamp": self._timestamp,
-                                "hypervisor_address": pinfo[0].lower(),
+                                "hypervisor_address": lpToken_address.lower(),
                                 "rewarder_address": rewarder_address,
                                 "rewarder_type": rewarder_type,
                                 "rewarder_refIds": [pid],
@@ -564,9 +576,16 @@ class zyberswap_masterchef_v1(gamma_rewarder):
                                 "rewards_perSecond": str(rewardsPerSec)
                                 if convert_bint
                                 else rewardsPerSec,
-                                "total_hypervisorToken_qtty": str(pinfo[6])
+                                "total_hypervisorToken_qtty": str(totalLp)
                                 if convert_bint
-                                else pinfo[6],
+                                else totalLp,
+                                "raw_data": {
+                                    "allocPoint": allocPoint,
+                                    "lastRewardTimestamp": lastRewardTimestamp,
+                                    "accZyberPerShare": accZyberPerShare,
+                                    "depositFeeBP": depositFeeBP,
+                                    "harvestInterval": harvestInterval,
+                                },
                             }
                         )
 
