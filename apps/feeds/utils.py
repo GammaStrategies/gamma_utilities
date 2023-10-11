@@ -43,6 +43,26 @@ def get_reward_pool_prices(
     return rewardToken_price, hype_token0_price, hype_token1_price
 
 
+def get_hypervisor_price_per_share_from_status(
+    network: str, hypervisor_status: dict
+) -> float:
+    token0_price = get_price_from_db(
+        network=network,
+        block=hypervisor_status["block"],
+        token_address=hypervisor_status["pool"]["token0"]["address"],
+    )
+    token1_price = get_price_from_db(
+        network=network,
+        block=hypervisor_status["block"],
+        token_address=hypervisor_status["pool"]["token1"]["address"],
+    )
+    return get_hypervisor_price_per_share(
+        hypervisor_status=hypervisor_status,
+        token0_price=token0_price,
+        token1_price=token1_price,
+    )
+
+
 def get_hypervisor_price_per_share(
     hypervisor_status: dict, token0_price: float, token1_price: float
 ) -> float:
