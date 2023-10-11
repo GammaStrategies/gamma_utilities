@@ -264,20 +264,24 @@ class wallet_transfers_collector(data_collector):
     def _setup_topics(self):
         self.transfer_abi = Web3.sha3(text="Transfer(address,address,uint256)").hex()
         self._topics = []
-
+        addresses_to = []
+        addresses_from = None
         for address in self.wallet_addresses:
             # create address to
             address_to = Web3.toBytes(hexstr=Web3.toChecksumAddress(address))
             # left pad address to 32 bytes
             address_to = "0x" + (bytes(32 - len(address_to)) + address_to).hex()
-            # create address from
-            address_from = None
+            # add to topics
+            addresses_to.append(address_to)
 
-            self._topics = [
-                Web3.sha3(text="Transfer(address,address,uint256)").hex(),
-                address_from,
-                address_to,
-            ]
+        # DO NOT ADD THIS: add from address also ( out of the wallet operations)
+        # addresses_from = addresses_to
+
+        self._topics = [
+            Web3.sha3(text="Transfer(address,address,uint256)").hex(),
+            addresses_from,
+            addresses_to,
+        ]
 
     @property
     def topics(self) -> list[str]:
@@ -386,7 +390,7 @@ class wallet_transfers_collector(data_collector):
         itm["transactionHash"] = event.transactionHash.hex()
         itm["blockHash"] = event.blockHash.hex()
         itm["blockNumber"] = event.blockNumber
-        itm["address"] = event.address
+        itm["address"] = event.address.lower()
 
         # itm["timestamp"] = ""
         # itm["decimals_token0"] = ""
@@ -395,8 +399,8 @@ class wallet_transfers_collector(data_collector):
 
         # specific vars
         if topic in ["transfer"]:
-            itm["src"] = event.topics[1][-20:].hex()
-            itm["dst"] = event.topics[2][-20:].hex()
+            itm["src"] = event.topics[1][-20:].hex().lower()
+            itm["dst"] = event.topics[2][-20:].hex().lower()
             itm["qtty"] = str(data[0])
 
         else:
