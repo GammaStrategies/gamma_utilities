@@ -7,7 +7,7 @@ from bins.configuration import CONFIGURATION
 from bins.database.helpers import get_default_localdb, get_from_localdb
 from bins.general.enums import Chain, queueItemType
 from bins.general.general_utilities import convert_string_datetime
-from bins.w3 import onchain_data_helper
+from bins.w3.onchain_data_helper import onchain_data_helper
 from bins.w3.builders import build_erc20_helper
 from bins.w3.protocols.gamma.collectors import wallet_transfers_collector
 
@@ -16,10 +16,7 @@ def create_revenue_operations_address(
     network: str,
     block_ini: int | None = None,
     block_end: int | None = None,
-    date_ini: datetime | None = None,
-    date_end: datetime | None = None,
-    force_back_time: bool = False,
-):
+) -> tuple[list[str], int, int]:
     logging.getLogger(__name__).info(
         f" Creating {network}'s revenue operations wallet addresses"
     )
@@ -30,54 +27,29 @@ def create_revenue_operations_address(
         .get("filters", {})
         .get("revenue_wallets", {})
         .get(network, [])
+        or []
     )
 
     # create a web3 protocol helper
     onchain_helper = onchain_data_helper(protocol="gamma")
 
-    # get all feeReceiver addresses from static, if field does not exist, scrape it.
+    # get all feeRecipient addresses from static, if field does not exist, scrape it.
     hypervisors_static_list = get_from_localdb(
         network=network,
         collection="static",
         find={},
     )
 
-    # merge feeReceiver addresses from hypes static
-    for hype_static in hypervisors_static_list:
-        if hype_static.get("feeReceiver", None):
-            fixed_revenue_addresses.add(hype_static["feeReceiver"].lower())
-
-    try:
-        # set timeframe to scrape as dates (used as last option)
-        if not date_ini:
-            # get configured start date
-            date_ini = "2021-03-24T00:00:00"
-            date_ini = convert_string_datetime(date_ini)
-        if not date_end:
-            # get configured end date
-            date_end = "now"
-            if date_end == "now" and not block_end:
-                # set block end to last block number
-                block_end = (
-                    onchain_helper.create_erc20_helper(network)
-                    ._getBlockData("latest")
-                    .number
-                )
-
-            date_end = convert_string_datetime(date_end)
-
-        # get hypervisor addresses from static database collection and compare them to current operations distinct addresses
-        # to decide whether a full timeback query shall be made
+    if not hypervisors_static_list:
         logging.getLogger(__name__).debug(
-            f"   Retrieving {network} hypervisors addresses from database"
+            f" No hypervisor static data found for {network}. Returning with None values on addresses creation."
         )
+        return None, None, None
 
-    except Exception as e:
-        logging.getLogger(__name__).exception(
-            f"   Unexpected error preparing operations feed for {network}. Can't continue. : {e}"
-        )
-        # close operations feed
-        return
+    # merge feeRecipient addresses from hypes static
+    for hype_static in hypervisors_static_list:
+        if hype_static.get("feeRecipient", None):
+            fixed_revenue_addresses.add(hype_static["feeRecipient"].lower())
 
     try:
         # try getting initial block as last found in database
@@ -87,49 +59,19 @@ def create_revenue_operations_address(
                 f"   Setting initial block to {block_ini}, being the last block found in revenue operations database collection"
             )
 
-        # define block to scrape
-        if not block_ini and not block_end:
+        if not block_ini or block_ini == 0:
+            # pick the minimum block from it
             logging.getLogger(__name__).info(
-                "   Calculating {} blocks to be processed using dates from {:%Y-%m-%d %H:%M:%S} to {:%Y-%m-%d %H:%M:%S} ".format(
-                    network, date_ini, date_end
-                )
+                f"   Getting {network} initial block from the minimum static hype's collection block found"
             )
-            block_ini, block_end = onchain_helper.get_custom_blockBounds(
-                date_ini=date_ini,
-                date_end=date_end,
-                network=network,
-                step="day",
-            )
-        elif not block_ini:
-            # if static data exists pick the minimum block from it
-            if hypervisors_static_list:
-                logging.getLogger(__name__).info(
-                    f"   Getting {network} initial block from the minimum static hype's collection block found"
-                )
-                block_ini = min([x["block"] for x in hypervisors_static_list])
-            else:
-                logging.getLogger(__name__).info(
-                    "   Calculating {} initial block from date {:%Y-%m-%d %H:%M:%S}".format(
-                        network, date_ini
-                    )
-                )
-                block_ini, block_end_notused = onchain_helper.get_custom_blockBounds(
-                    date_ini=date_ini,
-                    date_end=date_end,
-                    network=network,
-                    step="day",
-                )
-        elif not block_end:
-            logging.getLogger(__name__).info(
-                "   Calculating {} end block from date {:%Y-%m-%d %H:%M:%S}".format(
-                    network, date_end
-                )
-            )
-            block_ini_notused, block_end = onchain_helper.get_custom_blockBounds(
-                date_ini=date_ini,
-                date_end=date_end,
-                network=network,
-                step="day",
+            block_ini = min([x["block"] for x in hypervisors_static_list])
+
+        if not block_end:
+            # get last block from onchain
+            block_end = (
+                onchain_helper.create_erc20_helper(network)
+                ._getBlockData("latest")
+                .number
             )
 
         # check for block range inconsistency
@@ -138,18 +80,20 @@ def create_revenue_operations_address(
                 f" Initial block {block_ini} is higher than end block: {block_end}"
             )
 
-        # feed operations
-        feed_revenue_operations(
-            network=network,
-            addresses=list(fixed_revenue_addresses),
-            block_ini=block_ini,
-            block_end=block_end,
-        )
+        # exclude wrong addresses 0x0000000000000000000000000000000000000000
+        try:
+            fixed_revenue_addresses.remove("0x0000000000000000000000000000000000000000")
+        except Exception:
+            pass
+
+        return list(fixed_revenue_addresses), block_ini, block_end
 
     except Exception as e:
         logging.getLogger(__name__).exception(
             f" Unexpected error while searching {network} for revenue operations  .error: {e}"
         )
+
+    return None, None, None
 
 
 def feed_revenue_operations(
@@ -159,7 +103,7 @@ def feed_revenue_operations(
     block_end: int,
     max_blocks_step: int = 1000,
 ):
-    """Enqueue transfer logs from feeReceiver or other addresses and save em to the database
+    """Enqueue transfer logs from feeRecipient or other addresses and save em to the database
 
     Args:
         network (str): Network to scrape
@@ -212,7 +156,7 @@ def feed_revenue_operations(
             task_enqueue_revenue_operations(
                 operations=operations,
                 network=chain.database_name,
-                operation_type=queueItemType.OPERATION,
+                operation_type=queueItemType.REVENUE_OPERATION,
             )
 
 

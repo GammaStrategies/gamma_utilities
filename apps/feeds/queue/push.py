@@ -9,7 +9,7 @@ from bins.database.common.database_ids import (
     create_id_rewards_status,
 )
 from bins.database.common.db_collections_common import database_global, database_local
-from bins.database.helpers import get_default_localdb
+from bins.database.helpers import get_default_globaldb, get_default_localdb
 from bins.general.enums import (
     Chain,
     Protocol,
@@ -245,6 +245,40 @@ def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network
     # add all items to database at once
     if items:
         local_db.replace_items_to_database(data=items, collection_name="queue")
+
+
+# def build_and_save_queue_from_revenue_operation(operation: dict, network: str):
+
+#     items = []
+
+#     # token price
+#     price_id = create_id_price(
+#         network=network,
+#         block=operation["block"],
+#         token_address=operation["address"].lower(),
+#     )
+#     if not get_default_globaldb().get_items_from_database(
+#         collection_name="usd_prices",
+#         find={"id": price_id},
+#     ):
+#         # add to queue
+#         items.append(
+#             QueueItem(
+#                 type=queueItemType.PRICE,
+#                 block=operation["block"],
+#                 address=operation["address"].lower(),
+#                 data=operation,
+#             ).as_dict
+#         )
+#     else:
+#         logging.getLogger(__name__).debug(
+#             f" {network}'s {operation['address']} token at block {operation['block']} is already in database"
+#         )
+
+
+#     # add all items to database at once
+#     if items:
+#         get_default_localdb(network=network).replace_items_to_database(data=items, collection_name="queue")
 
 
 def build_and_save_queue_from_hypervisor_static(hypervisor_static: dict, network: str):

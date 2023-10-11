@@ -899,8 +899,7 @@ class database_local(db_collections_common):
                         "timestamp": False,
                     },
                     "multi_indexes": [
-                        ("blockNumber", ASCENDING),
-                        ("logIndex", ASCENDING),
+                        [("blockNumber", ASCENDING), ("logIndex", ASCENDING)],
                     ],
                 },
             }

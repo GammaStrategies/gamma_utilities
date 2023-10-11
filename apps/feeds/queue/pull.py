@@ -11,6 +11,7 @@ from apps.feeds.queue.push import (
 )
 from apps.feeds.queue.queue_item import QueueItem
 from apps.feeds.static import _create_hypervisor_static_dbObject
+from apps.feeds.utils import get_hypervisor_price_per_share_from_status
 from bins.checkers.address import check_is_token
 from bins.database.helpers import (
     get_default_globaldb,
@@ -642,6 +643,61 @@ def pull_from_queue_revenue_operation(network: str, queue_item: QueueItem) -> bo
         # set tokens data
         operation["symbol"] = dumb_erc20.symbol
         operation["decimals"] = dumb_erc20.decimals
+
+        # get price at block
+        price = 0
+
+        if operation["src"] == "0x0000000000000000000000000000000000000000":
+            logging.getLogger(__name__).debug(
+                f" Mint operation found in queue for {network} {operation['address']} at block {operation['blockNumber']}"
+            )
+            # may be a gamma hypervisor address or other
+
+        # if this is an hypervisor address, get share price
+        if hypervisor_status := get_from_localdb(
+            network=network,
+            collection="status",
+            find={"address": operation["address"], "block": operation["blockNumber"]},
+        ):
+            # this is a hypervisor address
+            hypervisor_status = hypervisor_status[0]
+            # get token prices from database
+            try:
+                price = get_hypervisor_price_per_share_from_status(
+                    network=network, hypervisor_status=hypervisor_status
+                )
+            except Exception as e:
+                pass
+        else:
+            try:
+                price = get_price_from_db(
+                    network=network,
+                    block=operation["blockNumber"],
+                    token_address=operation["address"],
+                )
+            except Exception as e:
+                # no database price
+                pass
+
+        if price == 0:
+            # scrape price
+            price_helper = price_scraper(
+                cache=True, thegraph=False, geckoterminal_sleepNretry=True
+            )
+            price, source = price_helper.get_price(
+                network=network,
+                token_id=operation["address"],
+                block=operation["blockNumber"],
+            )
+
+            if price == 0:
+                logging.getLogger(__name__).debug(
+                    f"  Cant get price for {network}'s {operation['address']} token at block {operation['blockNumber']}. Value will vbe zero"
+                )
+
+        operation["usd_value"] = price * (
+            int(operation["qtty"]) / 10 ** operation["decimals"]
+        )
 
         # save operation to database
         if db_return := get_default_localdb(network=network).set_operation(
