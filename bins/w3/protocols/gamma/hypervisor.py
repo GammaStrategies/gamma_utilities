@@ -527,7 +527,7 @@ class gamma_hypervisor(erc20):
             # save feeRecipient only in static mode
             try:
                 # fee recipient
-                result["feeRecipient"] = self.feeRecipient
+                result["feeRecipient"] = self.feeRecipient.lower()
             except Exception as e:
                 # this hype version may not have feeRecipient func
                 pass
@@ -868,6 +868,27 @@ class gamma_hypervisor_cached(erc20_cached, gamma_hypervisor):
     @property
     def fee(self) -> int:
         prop_name = "fee"
+        result = self._cache.get_data(
+            chain_id=self._chain_id,
+            address=self.address,
+            block=self.block,
+            key=prop_name,
+        )
+        if result is None:
+            result = getattr(super(), prop_name)
+            self._cache.add_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+                data=result,
+                save2file=self.SAVE2FILE,
+            )
+        return result
+
+    @property
+    def feeRecipient(self) -> str:
+        prop_name = "feeRecipient"
         result = self._cache.get_data(
             chain_id=self._chain_id,
             address=self.address,
@@ -1338,6 +1359,27 @@ class gamma_hypervisor_bep20_cached(bep20_cached, gamma_hypervisor_bep20):
     @property
     def fee(self) -> int:
         prop_name = "fee"
+        result = self._cache.get_data(
+            chain_id=self._chain_id,
+            address=self.address,
+            block=self.block,
+            key=prop_name,
+        )
+        if result is None:
+            result = getattr(super(), prop_name)
+            self._cache.add_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+                data=result,
+                save2file=self.SAVE2FILE,
+            )
+        return result
+
+    @property
+    def feeRecipient(self) -> str:
+        prop_name = "feeRecipient"
         result = self._cache.get_data(
             chain_id=self._chain_id,
             address=self.address,
