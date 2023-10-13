@@ -162,7 +162,7 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
                 }
         """
         allRewards = self.gauge.tokenTotalSupplyByPeriod(
-            var=period, address=reward_token
+            period=period, token_address=reward_token
         )
         boostedRewards = (allRewards * 6) // 10
         baseRewards = allRewards - boostedRewards
@@ -590,7 +590,7 @@ class gamma_hypervisor_cached(gamma.hypervisor.gamma_hypervisor_cached):
                 }
         """
         allRewards = self.gauge.tokenTotalSupplyByPeriod(
-            var=period, address=reward_token
+            period=period, token_address=reward_token
         )
         boostedRewards = (allRewards * 6) // 10
         baseRewards = allRewards - boostedRewards
