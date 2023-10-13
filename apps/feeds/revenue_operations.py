@@ -228,7 +228,7 @@ def get_db_last_revenue_operation_block(network: str) -> int:
     )
 
     return (
-        last_revenue_operations_blocks[0]["block"]
+        last_revenue_operations_blocks[0]["blockNumber"]
         if last_revenue_operations_blocks
         else 0
     )
