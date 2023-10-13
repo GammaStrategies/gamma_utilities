@@ -250,8 +250,6 @@ class wallet_transfers_collector(data_collector):
         # all data retrieved will be saved here. { <contract_address>: {<topic>: <topic defined content> } }
         self._data = dict()
 
-        self._setup_topics()
-
         # define helper
         self._web3_helper = (
             bep20(address="0x0000000000000000000000000000000000000000", network=network)
@@ -261,30 +259,32 @@ class wallet_transfers_collector(data_collector):
             )
         )
 
-    def _setup_topics(self):
+    def _get_topics(self, fromTo: str = "to") -> list[str]:
+        """Create topics to look for transfers from or to the wallet addresses
+
+        Args:
+            fromTo (str, optional): transaction direction with regards to the wallet . Defaults to "to".
+
+        Returns:
+            list[str]: topic list filter
+        """
         self.transfer_abi = Web3.sha3(text="Transfer(address,address,uint256)").hex()
         self._topics = []
-        addresses_to = []
-        addresses_from = None
+        addresses = []
         for address in self.wallet_addresses:
             # create address to
             address_to = Web3.toBytes(hexstr=Web3.toChecksumAddress(address))
             # left pad address to 32 bytes
             address_to = "0x" + (bytes(32 - len(address_to)) + address_to).hex()
             # add to topics
-            addresses_to.append(address_to)
+            addresses.append(address_to)
 
-        # DO NOT ADD THIS: add from address also ( out of the wallet operations)
-        # addresses_from = addresses_to
-
+        # add to address ( operations going into the wallet)
         self._topics = [
             Web3.sha3(text="Transfer(address,address,uint256)").hex(),
-            addresses_from,
-            addresses_to,
+            addresses if fromTo == "from" else None,
+            addresses if fromTo == "to" else None,
         ]
-
-    @property
-    def topics(self) -> list[str]:
         return self._topics
 
     @property
@@ -306,6 +306,8 @@ class wallet_transfers_collector(data_collector):
         self,
         block_ini: int,
         block_end: int | None = None,
+        contract_addresses: list[str] = None,
+        fromTo: str = "to",
         max_blocks: int = 5000,
     ) -> list[dict]:
         """operation item generator
@@ -313,9 +315,8 @@ class wallet_transfers_collector(data_collector):
         Args:
             block_ini (int):
             block_end (int):
-            wallet_addresses (list): list of wallets to look for
-            topics (dict, optional): . Defaults to {}.
-            topics_data_decoders (dict, optional): . Defaults to {}.
+            contract_addresses (list[str], optional): List of contracts firing the event. Defaults to None.
+            fromTo (str, optional): transaction direction with regards to the wallet  . Defaults to "to".
             max_blocks (int, optional): . Defaults to 5000.
 
         Returns:
@@ -328,13 +329,24 @@ class wallet_transfers_collector(data_collector):
         if not block_end or block_end == 0:
             block_end = self._web3_helper._getBlockData(block="latest")["number"]
 
-        # get a list of events
-        filter_chunks = self._web3_helper.create_eventFilter_chunks(
-            eventfilter={
+        # create event filter
+        if contract_addresses:
+            event_filter = {
                 "fromBlock": block_ini,
                 "toBlock": block_end,
-                "topics": self.topics,
-            },
+                "address": contract_addresses,
+                "topics": self._get_topics(fromTo=fromTo),
+            }
+        else:
+            event_filter = {
+                "fromBlock": block_ini,
+                "toBlock": block_end,
+                "topics": self._get_topics(fromTo=fromTo),
+            }
+
+        # get a list of events
+        filter_chunks = self._web3_helper.create_eventFilter_chunks(
+            eventfilter=event_filter,
             max_blocks=max_blocks,
         )
 
