@@ -13,6 +13,11 @@ import time
 from apps.feeds.latest.mutifeedistribution.currents import (
     feed_latest_multifeedistribution_snapshot,
 )
+from apps.feeds.revenue_operations import (
+    create_revenue_addresses,
+    feed_revenue_operations,
+)
+from bins.general.enums import text_to_chain
 
 from bins.general.general_utilities import identify_me
 
@@ -513,6 +518,69 @@ def latest_db_service():
             value["process"].join()
 
 
+def revenue_operations_db_service():
+    """feed all database collections with revenue operations in an infinite loop"""
+    identity = identify_me()
+    # send eveyone service ON
+    logging.getLogger("telegram").info(
+        f" Revenue operations database feeding loop started as {identity}"
+    )
+
+    # minimum time between loops, in seconds
+    min_loop_time = 3600
+
+    try:
+        while True:
+            _startime = datetime.now(timezone.utc)
+            for protocol in CONFIGURATION["script"]["protocols"]:
+                # override networks if specified in cml
+                networks = (
+                    CONFIGURATION["_custom_"]["cml_parameters"].networks
+                    or CONFIGURATION["script"]["protocols"][protocol]["networks"]
+                )
+                for network in networks:
+                    # find out addresses and block range to scrape
+                    addresses, block_ini, block_end = create_revenue_addresses(
+                        network=network,
+                        block_ini=CONFIGURATION["_custom_"]["cml_parameters"].ini_block,
+                        block_end=CONFIGURATION["_custom_"]["cml_parameters"].end_block,
+                    )
+
+                    if addresses:
+                        feed_revenue_operations(
+                            chain=text_to_chain(network),
+                            addresses=addresses,
+                            block_ini=block_ini,
+                            block_end=block_end,
+                        )
+                    else:
+                        logging.getLogger(__name__).info(
+                            f" {network} no revenue wallet addresses to process"
+                        )
+
+            # nforce a min time between loops
+            _endtime = datetime.now(timezone.utc)
+            if (_endtime - _startime).total_seconds() < min_loop_time:
+                sleep_time = min_loop_time - (_endtime - _startime).total_seconds()
+                logging.getLogger(__name__).debug(
+                    f" Revenue operations database feeding service is sleeping for {sleep_time} seconds to loop again"
+                )
+                time.sleep(sleep_time)
+
+    except KeyboardInterrupt:
+        logging.getLogger(__name__).debug(
+            " Operations database feeding loop stoped by user"
+        )
+    except Exception:
+        logging.getLogger(__name__).exception(
+            f" Unexpected error while loop-feeding database with operations. error {sys.exc_info()[0]}"
+        )
+    # send eveyone not updating anymore
+    logging.getLogger("telegram").info(
+        f" Operations database feeding loop stoped at {identity}"
+    )
+
+
 def main(option: str, **kwargs):
     if option == "local":
         local_db_service()
@@ -535,6 +603,8 @@ def main(option: str, **kwargs):
         current_prices_db_service()
     elif option == "latest":
         latest_db_service()
+    elif option == "revenue_operations":
+        revenue_operations_db_service()
     else:
         raise NotImplementedError(
             f" Can't find any action to be taken from {option} service option"

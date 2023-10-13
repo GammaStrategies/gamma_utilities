@@ -80,7 +80,15 @@ def parse_commandLine_args():
     # auto database feed service
     par_service = exGroup.add_argument(
         "--service",
-        choices=["local", "global", "queue", "operations", "current_prices", "latest"],
+        choices=[
+            "local",
+            "global",
+            "queue",
+            "operations",
+            "current_prices",
+            "latest",
+            "revenue_operations",
+        ],
         help=" execute an infinite loop service",
     )
     par_network_service = exGroup.add_argument(
