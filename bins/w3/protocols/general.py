@@ -582,6 +582,12 @@ class web3wrap:
                                     f" {rpc.type} RPC {rpc.url} current plan is not enough to place this kind of calls. Adding failed attempt. err: {err.get('message')}"
                                 )
                                 rpc.add_failed(error=e)
+                            elif code in [-32801]:
+                                #'message': 'no historical RPC is available for this historical (pre-bedrock) execution request'}
+                                logging.getLogger(__name__).debug(
+                                    f" {rpc.type} RPC {rpc.url} has no data to return for {self._network}'s contract {self.address} at block {self.block}. err: {err.get('message')}"
+                                )
+
                             elif code == 0:
                                 # {'code': 0, 'message': "we can't execute this request"}
                                 logging.getLogger(__name__).debug(
