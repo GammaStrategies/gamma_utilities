@@ -12,13 +12,23 @@ from bins.w3.builders import build_erc20_helper
 from bins.w3.protocols.gamma.collectors import wallet_transfers_collector
 
 
-def create_revenue_operations_address(
+def create_revenue_addresses(
     network: str,
     block_ini: int | None = None,
     block_end: int | None = None,
 ) -> tuple[list[str], int, int]:
+    """Create a list of wallet addresses and the block range to scrape for transaction operations
+        Gamma wallets are the feeRecipient addresses from the hypervisors static data and the ones manually set at the configuration file
+    Args:
+        network (str):
+        block_ini (int | None, optional): . Defaults to None.
+        block_end (int | None, optional): . Defaults to None.
+
+    Returns:
+        tuple[list[str], int, int]:  addresses, block_ini, block_end
+    """
     logging.getLogger(__name__).info(
-        f" Creating {network}'s revenue operations wallet addresses"
+        f" Creating a {network}'s wallet addresses list and block range to scrape for revenue operations"
     )
 
     # debug variables
@@ -102,6 +112,7 @@ def feed_revenue_operations(
     block_ini: int,
     block_end: int,
     max_blocks_step: int = 1000,
+    rewrite: bool = False,
 ):
     """Enqueue transfer logs from feeRecipient or other addresses and save em to the database
 
@@ -157,22 +168,42 @@ def feed_revenue_operations(
                 operations=operations,
                 network=chain.database_name,
                 operation_type=queueItemType.REVENUE_OPERATION,
+                rewrite=rewrite,
             )
 
 
 def task_enqueue_revenue_operations(
-    operations: list[dict], network: str, operation_type: queueItemType
+    operations: list[dict],
+    network: str,
+    operation_type: queueItemType,
+    rewrite: bool = False,
 ):
     # build a list of operations to be added to the queue
-    to_add = [
-        QueueItem(
+    to_add = []
+    to_add_ids = []
+    for operation in operations:
+        item = QueueItem(
             type=operation_type,
             block=int(operation["blockNumber"]),
             address=operation["address"].lower(),
             data=operation,
         ).as_dict
-        for operation in operations
-    ]
+        to_add.append(item)
+        to_add_ids.append(item["id"])
+
+    # check if operations are already in database or rewrite is set
+    if not rewrite:
+        # get a list of operations already in database
+        for already_in_db in get_from_localdb(
+            network=network,
+            collection="revenue_operations",
+            find={"id": {"$in": to_add_ids}},
+        ):
+            # remove already in database operations from to_add_ids
+            to_add_ids.remove(already_in_db["id"])
+
+        # remove already in database operations from to_add
+        to_add = [x for x in to_add if x["id"] in to_add_ids]
 
     if db_return := get_default_localdb(network=network).replace_items_to_database(
         data=to_add, collection_name="queue"
