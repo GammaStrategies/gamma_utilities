@@ -700,8 +700,8 @@ def pull_from_queue_revenue_operation(network: str, queue_item: QueueItem) -> bo
         )
 
         # save operation to database
-        if db_return := get_default_localdb(network=network).set_operation(
-            data=operation
+        if db_return := get_default_localdb(network=network).replace_item_to_database(
+            data=operation, collection_name="revenue_operations"
         ):
             logging.getLogger(__name__).debug(
                 f" Saved revenue operation {operation['id']}"
