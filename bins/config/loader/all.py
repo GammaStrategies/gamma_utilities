@@ -1,9 +1,10 @@
 from argparse import Namespace
 import os
+import sys
+from yaml.parser import ParserError
 
 from ..objects.general import config
-
-# from ...errors.general import ConfigurationError
+from ...errors.general import ConfigurationError
 from ...general.command_line import parse_commandLine_args
 from ...log import log_helper
 from ...general.enums import text_to_chain, text_to_protocol
@@ -88,12 +89,24 @@ def load_configuration() -> config:
     # convert command line arguments to dict variables
     cml_parameters = parse_commandLine_args()
 
-    # load configuration local files ( if any )
-    cfg = (
-        load_configuration_file(cfg_name=cml_parameters.config)
-        if cml_parameters.config
-        else load_configuration_file()
-    )
+    # load configuration local files
+    try:
+        cfg = (
+            load_configuration_file(cfg_name=cml_parameters.config)
+            if cml_parameters.config
+            else load_configuration_file()
+        )
+    except ConfigurationError as e:
+        if e.action == "exit":
+            print(f" Error loading configuration yaml file: {e.message}")
+            sys.exit(1)
+        print(f"Error loading configuration yaml file: {e}")
+    except ParserError as e:
+        print(f"Error parsing configuration yaml file: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f" Unknown error found while loading configuration file: {e}")
+        sys.exit(1)
 
     # 2) merge configuration using command line arguments
     cfg = merge_configuration_cml(cfg, cml_parameters)
@@ -108,9 +121,10 @@ def load_configuration() -> config:
         telegram_chatid=cfg.logs.telegram.chat_id,
     )
 
-    # 4) load configuration using database or defaults
-    if cfg_db := load_configuration_db():
+    # 4) load database configuration
+    if cfg_db := load_configuration_db(mongodb_url=cfg.data.database.mongo_server_url):
         # 4.1) merge configuration using database
         cfg = merge_configuration_db(cfg, cfg_db)
 
+    # 5) return configuration
     return cfg
