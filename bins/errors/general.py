@@ -51,3 +51,18 @@ class CheckingError(Exception):
         self.action = action
         self.message = message
         super().__init__(self.message)
+
+
+class ConfigurationError(Exception):
+    def __init__(
+        self,
+        item: dict,
+        action: str = "none",
+        cascade: list[str] = None,
+        message="Error loading configuration",
+    ):
+        self.item = item
+        self.action = action
+        self.cascade = cascade
+        self.message = message
+        super().__init__(self.message)
