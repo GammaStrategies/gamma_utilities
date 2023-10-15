@@ -6,7 +6,7 @@ import tqdm
 import concurrent.futures
 from bins.apis.coingecko_utilities import coingecko_price_helper
 
-from bins.configuration import CONFIGURATION, add_to_memory, get_from_memory
+from bins.configuration import CONFIGURATION
 from bins.database.common.database_ids import create_id_price
 from bins.database.common.db_collections_common import database_global, database_local
 from bins.general.enums import Chain, databaseSource
@@ -223,16 +223,6 @@ def get_already_processed_prices(network: str, limit: int | None = None) -> set[
             batch_size=10000,
             limit=limit,
         )
-    ]
-
-    # get zero sqrtPriceX96 ( unsalvable errors found in the past)
-    _processed_prices += [
-        create_id_price(
-            network=network,
-            block=x["block"],
-            token_address=x["pool"]["token0"]["address"],
-        )
-        for x in get_from_memory(key="zero_sqrtPriceX96")
     ]
 
     return set(_processed_prices)

@@ -330,9 +330,6 @@ def get_hypervisor_addresses(
     network: str, protocol: str, user_address: str | None = None
 ) -> list[str]:
     result: list[str] = []
-    # get database configuration
-    mongo_url: str = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-    db_name: str = f"{network}_{protocol}"
 
     # get blacklisted hypervisors
     blacklisted: list[str] = (
