@@ -25,6 +25,8 @@ class Chain(str, Enum):
 
     LINEA = ("linea", 59144, "linea", "Linea")
 
+    ROLLUX = ("rollux", 570, "rollux", "Rollux")
+
     # extra properties
     id: int
     database_name: str
@@ -85,6 +87,14 @@ class Protocol(str, Enum):
 
     SYNTHSWAP = ("synthswap", "synthswap", "SynthSwap")
     LYNEX = ("lynex", "lynex", "Lynex")
+
+    ZERO = ("zero", "zero", "Zero")
+
+    BASEX = ("basex", "basex", "BaseX")
+
+    FUSIONX = ("fusionx", "fusionx", "FusionX")
+
+    PEGASYS = ("pegasys", "pegasys", "Pegasys")
 
     # extra properties
     database_name: str
@@ -273,8 +283,6 @@ class Family_type(str, Enum):
     #      ( value , type , database_name, fantasy_name )
 
     REGISTRY_HYPERVISOR = ("hypervisor", "hypervisor", "Hypervisors registry")
-
-    REGISTRY_MASTERCHEF = ("masterchef", "masterchef", "Masterchefs registry")
     REGISTRY_REWARDER = ("rewarder", "rewarder", "Rewarders registry")
     CHAIN = ("chain", "chain", "Chain")
     PROTOCOL = ("protocol", "protocol", "Protocol")
