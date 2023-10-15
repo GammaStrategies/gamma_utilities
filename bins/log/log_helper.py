@@ -5,6 +5,7 @@ import logging
 from . import telegram_logger
 
 
+# OLD IMPLEMENTATION
 def setup_logging(customconf, default_level=logging.INFO, env_key="LOG_CFG"):
     """Setup logging configuration
 
@@ -80,6 +81,91 @@ def setup_logging(customconf, default_level=logging.INFO, env_key="LOG_CFG"):
         # coloredlogs.install(level=default_level)
         print(
             f"Failed to load Logging configuration file. {customconf['logs']['path']} does not exist. Using default configs"
+        )
+
+    # setup custom duplicate filter
+    logging.getLogger().addFilter(DuplicateFilter())  # add the filter to it
+
+
+# NEW IMPLEMENTATION
+def setup_logging_module(
+    path: str,
+    save_path: str,
+    log_level: str,
+    telegram_enabled: bool,
+    telegram_token: str,
+    telegram_chatid: str,
+    default_level=logging.INFO,
+):
+    """Setup logging
+
+    Args:
+        path (str): path to loggin yaml configuration file
+        save_path (str): path to save logs
+        log_level (str): log level INFO or DEBUG
+        telegram_enabled (bool): Telegram logging enabled?
+        telegram_token (str): Telegram bot token
+        telegram_chatid (str): Telegram chat id
+        default_level (_type_, optional): Default. Defaults to logging.INFO.
+    """
+
+    # load telegram chatid n token
+    telegram_logger.TELEGRAM_ENABLED = telegram_enabled
+    telegram_logger.TELEGRAM_TOKEN = telegram_token
+    telegram_logger.TELEGRAM_CHAT_ID = telegram_chatid
+
+    # create logs dir if not exists
+    if not os.path.exists(save_path):
+        os.makedirs(name=save_path, exist_ok=True)
+
+    # load log configuration file
+    if os.path.exists(path):
+        with open(path, "rt", encoding="utf8") as f:
+            try:
+                # load yaml to var
+                config = yaml.safe_load(f.read())
+
+                # modify all filenames in handlers with the choosen path
+                for k, v in config["handlers"].items():
+                    try:
+                        config["handlers"][k]["filename"] = os.path.join(
+                            save_path, v["filename"]
+                        )
+                    except Exception:
+                        # many handlers do not have filename key
+                        pass
+
+                # modify logging type if defined
+                _log_level = log_level.upper()
+                if not _log_level in ["DEBUG", "INFO"]:
+                    _log_level = "INFO"
+
+                _log_level_donotmod = ["telegram"]
+                for k, v in config["loggers"].items():
+                    if k not in _log_level_donotmod:
+                        v["level"] = _log_level
+
+                logging.config.dictConfig(config)
+
+                # setup color
+                # coloredlogs.install()
+            except Exception as e:
+                print(e)
+                print("Error in Logging Configuration. Using default configs")
+                logging.basicConfig(level=default_level)
+                # coloredlogs.install(level=default_level)
+                logging.getLogger(__name__).error(
+                    f"Failed to load Logging configuration file {path} error: {e}. Using default configs"
+                )
+
+    else:
+        logging.basicConfig(level=default_level)
+        logging.getLogger(__name__).error(
+            f"Failed to load Logging configuration file. {path} does not exist. Using default configs"
+        )
+        # coloredlogs.install(level=default_level)
+        print(
+            f"Failed to load Logging configuration file. {path} does not exist. Using default configs"
         )
 
     # setup custom duplicate filter

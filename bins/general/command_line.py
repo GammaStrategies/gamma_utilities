@@ -246,6 +246,12 @@ def parse_commandLine_args():
         help=" queue item's count variable number to process first",
     )
 
+    par_main.add_argument(
+        "--save_config",
+        action="store_true",
+        help=" save configuration to database. Specify the config file to be saved with --config or -c",
+    )
+
     # print helpwhen no command is passed
     return par_main.parse_args(args=None if sys.argv[1:] else ["--help"])
 

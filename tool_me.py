@@ -17,6 +17,7 @@ from apps import (
     database_checker,
     database_analysis,
     database_reScrape,
+    save_config,
 )
 from bins.cache.files_manager import reset_cache_files
 
@@ -106,6 +107,9 @@ if __name__ == "__main__":
             option=CONFIGURATION["_custom_"]["cml_parameters"].rescrape
         )
 
+    elif CONFIGURATION["_custom_"]["cml_parameters"].save_config:
+        # save config   --save_config
+        save_config.main(option=CONFIGURATION["_custom_"]["cml_parameters"].config)
     else:
         # nothin todo
         logging.getLogger(__name__).info(" Nothing to do. How u doin? ")
