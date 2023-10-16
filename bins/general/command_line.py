@@ -252,6 +252,12 @@ def parse_commandLine_args():
         help=" save configuration to database. Specify the config file to be saved with --config or -c",
     )
 
+    par_main.add_argument(
+        "--donot_enforce_contract_creation",
+        action="store_true",
+        help=" Do not enforce static hypervisor info to have contract creation block and timestamp. When true, if not found, current block and timestamp will be used",
+    )
+
     # print helpwhen no command is passed
     return par_main.parse_args(args=None if sys.argv[1:] else ["--help"])
 

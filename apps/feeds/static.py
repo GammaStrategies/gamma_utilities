@@ -81,7 +81,15 @@ def feed_hypervisor_static(
         if threaded:
             # threaded
             args = (
-                (address, network, dex) for address in hypervisor_addresses_to_process
+                (
+                    address,
+                    network,
+                    dex,
+                    CONFIGURATION["_custom_"][
+                        "cml_parameters"
+                    ].donot_enforce_contract_creation,
+                )
+                for address in hypervisor_addresses_to_process
             )
             with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
                 for result in ex.map(
@@ -110,6 +118,9 @@ def feed_hypervisor_static(
                     address=address,
                     network=network,
                     dex=dex,
+                    donot_enforce_contract_creation=CONFIGURATION["_custom_"][
+                        "cml_parameters"
+                    ].donot_enforce_contract_creation,
                 ):
                     # add hypervisor static data to database
                     local_db.set_static(data=result)
@@ -165,6 +176,7 @@ def _create_hypervisor_static_dbObject(
     address: str,
     network: str,
     dex: str,
+    donot_enforce_contract_creation: bool | None = None,
 ) -> dict:
     """Create a hypervisor object with static data:
          block = creation block
@@ -214,12 +226,16 @@ def _create_hypervisor_static_dbObject(
         )
         hypervisor_data["block"] = creation_data_hype["block"]
         hypervisor_data["timestamp"] = creation_data_hype["timestamp"]
-    else:
+    elif not donot_enforce_contract_creation:
         # cannot process hype static info correctly. Log it and return None
         logging.getLogger(__name__).error(
             f"Could not get creation block and timestamp for {network}'s hypervisor {address.lower()}. This hype static info will not be saved."
         )
         return None
+    else:
+        logging.getLogger(__name__).error(
+            f"    Could not get creation block and timestamp for {network}'s hypervisor {address.lower()}. Keeping block and timestamp as they are."
+        )
         # raise ProcessingError(
         #     chain=text_to_chain(network),
         #     item = hypervisor_data,

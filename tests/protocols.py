@@ -68,6 +68,9 @@ def test_protocols(
                         address=hypervisor_address,
                         network=network,
                         dex=dex,
+                        enforce_contract_creation=CONFIGURATION["_custom_"][
+                            "cml_parameters"
+                        ].enforce_contract_creation,
                     ):
                         # add to result
                         result["ok_address_list"].append(hypervisor_address)

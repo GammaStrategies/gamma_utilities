@@ -728,6 +728,9 @@ def pull_from_queue_hypervisor_static(network: str, queue_item: QueueItem) -> bo
         address=queue_item.address,
         network=network,
         dex=queue_item.data["protocol"],
+        enforce_contract_creation=CONFIGURATION["_custom_"][
+                        "cml_parameters"
+                    ].enforce_contract_creation,
     ):
         # add hypervisor static data to database
         if db_return := get_default_localdb(network=network).set_static(
