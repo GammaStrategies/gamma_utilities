@@ -158,17 +158,24 @@ def feed_revenue_operations(
         # set progress callback to data collector
         data_collector.progress_callback = _update_progress
 
-        for operations in data_collector.operations_generator(
-            block_ini=block_ini,
-            block_end=block_end,
-            max_blocks=max_blocks_step,
-        ):
-            # process operation
-            task_enqueue_revenue_operations(
-                operations=operations,
-                network=chain.database_name,
-                operation_type=queueItemType.REVENUE_OPERATION,
-                rewrite=rewrite,
+        try:
+            for operations in data_collector.operations_generator(
+                block_ini=block_ini,
+                block_end=block_end,
+                max_blocks=max_blocks_step,
+            ):
+                # process operation
+                task_enqueue_revenue_operations(
+                    operations=operations,
+                    network=chain.database_name,
+                    operation_type=queueItemType.REVENUE_OPERATION,
+                    rewrite=rewrite,
+                )
+        except KeyboardInterrupt:
+            raise
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f" Unexpected error while feeding {chain.database_name} revenue operations: {e}"
             )
 
 
