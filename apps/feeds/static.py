@@ -812,7 +812,7 @@ def create_rewards_static_merkl(
                         "start_rewards_timestamp": distribution["epochStart"],
                         "end_rewards_timestamp": distribution["epochStart"]
                         + (epoch_duration * distribution["numEpoch"]),
-                        "raw_data": distribution,
+                        # "raw_data": distribution,  # CAREFUL has >8bit int in total_amount
                     }
 
                     # save later to database
