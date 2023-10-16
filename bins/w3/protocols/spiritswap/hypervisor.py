@@ -3,7 +3,7 @@ from .. import algebra
 
 from .pool import pool, pool_cached
 
-DEX_NAME = Protocol.CAMELOT.database_name
+DEX_NAME = Protocol.SPIRITSWAP.database_name
 
 
 class gamma_hypervisor(algebra.hypervisor.gamma_hypervisor):
@@ -21,7 +21,6 @@ class gamma_hypervisor(algebra.hypervisor.gamma_hypervisor):
         return self._pool
 
 
-# TODO: simplify with class inheritance
 class gamma_hypervisor_cached(algebra.hypervisor.gamma_hypervisor_cached):
     def identify_dex_name(self) -> str:
         return DEX_NAME

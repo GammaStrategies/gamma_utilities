@@ -169,10 +169,11 @@ class poolv3(web3wrap):
 
     @property
     def activeIncentive(self) -> str:
-        """activeIncentive
+        """Returns the information about active incentive
+        if there is no active incentive at the moment, incentiveAddress would be equal to address(0)
 
         Returns:
-            str: address
+            str: incentiveAddress The address associated with the current active incentive
         """
         return self.call_function_autoRpc("activeIncentive")
 

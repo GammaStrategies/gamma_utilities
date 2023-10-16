@@ -131,7 +131,7 @@ class pool(uniswap.pool.poolv3):
         return self.call_function_autoRpc("nfpManager")
 
     @property
-    def protocolFees(self):
+    def protocolFees(self) -> tuple[int, int]:
         """Fees collected by the protocol
         Returns:
             token0 uint128, token1 uint128
@@ -295,34 +295,7 @@ class pool(uniswap.pool.poolv3):
         )
 
 
-class pool_cached(pool):
-    SAVE2FILE = True
-
-    # SETUP
-    def setup_cache(self):
-        # define network
-
-        try:
-            self._chain_id = text_to_chain(self._network).id
-        except Exception as e:
-            logging.getLogger(__name__).exception(
-                f" Can't get chain id for {self._network} {self.address} cahced pool->  {e}"
-            )
-            self._chain_id = self.w3.eth.chain_id
-
-        # made up a descriptive cahce file name
-        cache_filename = f"{self._chain_id}_{self.address.lower()}"
-
-        fixed_fields = self.inmutable_fields()
-
-        # create cache helper
-        self._cache = cache_utilities.mutable_property_cache(
-            filename=cache_filename,
-            folder_name="data/cache/onchain",
-            reset=False,
-            fixed_fields=fixed_fields,
-        )
-
+class pool_cached(pool, uniswap.pool.poolv3_cached):
     # PROPERTIES
     @property
     def fee(self) -> int:
@@ -480,7 +453,7 @@ class pool_cached(pool):
         return result
 
     @property
-    def protocolFees(self):
+    def protocolFees(self) -> tuple[int, int]:
         prop_name = "protocolFees"
         result = self._cache.get_data(
             chain_id=self._chain_id,
@@ -498,7 +471,7 @@ class pool_cached(pool):
                 data=result,
                 save2file=self.SAVE2FILE,
             )
-        return result
+        return result.copy()
 
     @property
     def token0(self) -> erc20_cached:

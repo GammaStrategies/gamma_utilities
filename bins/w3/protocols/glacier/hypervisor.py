@@ -1,9 +1,9 @@
 from ....general.enums import Protocol
 from .. import algebra
 
-from .pool import pool, pool_cached
+from ..algebra.pool import poolv3, poolv3_cached
 
-DEX_NAME = Protocol.CAMELOT.database_name
+DEX_NAME = Protocol.GLACIER.database_name
 
 
 class gamma_hypervisor(algebra.hypervisor.gamma_hypervisor):
@@ -11,9 +11,9 @@ class gamma_hypervisor(algebra.hypervisor.gamma_hypervisor):
         return DEX_NAME
 
     @property
-    def pool(self) -> pool:
+    def pool(self) -> poolv3:
         if self._pool is None:
-            self._pool = pool(
+            self._pool = poolv3(
                 address=self.call_function_autoRpc("pool"),
                 network=self._network,
                 block=self.block,
@@ -21,13 +21,12 @@ class gamma_hypervisor(algebra.hypervisor.gamma_hypervisor):
         return self._pool
 
 
-# TODO: simplify with class inheritance
 class gamma_hypervisor_cached(algebra.hypervisor.gamma_hypervisor_cached):
     def identify_dex_name(self) -> str:
         return DEX_NAME
 
     @property
-    def pool(self) -> pool_cached:
+    def pool(self) -> poolv3_cached:
         if self._pool is None:
             # check if cached
             prop_name = "pool"
@@ -47,7 +46,7 @@ class gamma_hypervisor_cached(algebra.hypervisor.gamma_hypervisor_cached):
                     data=result,
                     save2file=self.SAVE2FILE,
                 )
-            self._pool = pool_cached(
+            self._pool = poolv3_cached(
                 address=result,
                 network=self._network,
                 block=self.block,

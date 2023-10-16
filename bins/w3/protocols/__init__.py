@@ -16,4 +16,8 @@ from ..protocols import (
     ramses,
     ascent,
     synthswap,
+    glacier,
+    spiritswap,
+    lynex,
+    fusionx,
 )

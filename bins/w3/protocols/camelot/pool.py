@@ -1,5 +1,7 @@
 from web3 import Web3
-from ....general.enums import Protocol
+
+from bins.errors.general import ProcessingError
+from ....general.enums import Protocol, error_identity, text_to_chain
 from .. import algebra
 from ..general import erc20_cached
 
@@ -40,22 +42,22 @@ class pool(algebra.pool.poolv3):
         return DEX_NAME
 
     @property
-    def comunityFeeLastTimestamp(self) -> int:
-        return self.call_function_autoRpc("comunityFeeLastTimestamp")
+    def communityFeeLastTimestamp(self) -> int:
+        return self.call_function_autoRpc("communityFeeLastTimestamp")
 
     @property
-    def comunityVault(self) -> str:
-        # TODO: comunityVault object
-        return self.call_function_autoRpc("comunityVault")
+    def communityVault(self) -> str:
+        # TODO: communityVault object
+        return self.call_function_autoRpc("communityVault")
 
     @property
-    def getComunityFeePending(self) -> tuple[int, int]:
+    def getCommunityFeePending(self) -> tuple[int, int]:
         """The amounts of token0 and token1 that will be sent to the vault
 
         Returns:
             tuple[int,int]: token0,token1
         """
-        return self.call_function_autoRpc("getComunityFeePending")
+        return self.call_function_autoRpc("getCommunityFeePending")
 
     def getTimepoints(self, secondsAgo: int):
         raise NotImplementedError(" No get Timepoints in camelot")
@@ -96,7 +98,17 @@ class pool(algebra.pool.poolv3):
                 "feeOtz": tmp[3],
             }
         else:
-            raise ValueError(f" globalState function call returned None")
+            raise ProcessingError(
+                chain=text_to_chain(self._network),
+                item={
+                    "pool_address": self.address,
+                    "block": self.block,
+                    "object": "pool.globalState",
+                },
+                identity=error_identity.RETURN_NONE,
+                action="",
+                message=f" globalState function of {self.address} at block {self.block} returned none. (Check contract creation block)",
+            )
 
 
 class pool_cached(pool):

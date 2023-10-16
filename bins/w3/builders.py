@@ -442,7 +442,96 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
         )
-
+    elif protocol == Protocol.SPIRITSWAP:
+        hypervisor = (
+            protocols.spiritswap.hypervisor.gamma_hypervisor(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not cached
+            else protocols.spiritswap.hypervisor.gamma_hypervisor_cached(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+        )
+    elif protocol == Protocol.GLACIER:
+        hypervisor = (
+            protocols.glacier.hypervisor.gamma_hypervisor(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not cached
+            else protocols.glacier.hypervisor.gamma_hypervisor_cached(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+        )
+    elif protocol == Protocol.FUSIONX:
+        hypervisor = (
+            protocols.fusionx.hypervisor.gamma_hypervisor(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not cached
+            else protocols.fusionx.hypervisor.gamma_hypervisor_cached(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+        )
+    elif protocol == Protocol.LYNEX:
+        hypervisor = (
+            protocols.lynex.hypervisor.gamma_hypervisor(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not cached
+            else protocols.lynex.hypervisor.gamma_hypervisor_cached(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+        )
+    elif protocol == Protocol.ASCENT:
+        hypervisor = (
+            protocols.ascent.hypervisor.gamma_hypervisor(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not cached
+            else protocols.ascent.hypervisor.gamma_hypervisor_cached(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+        )
     elif protocol == Protocol.GAMMA:
         hypervisor = (
             protocols.gamma.hypervisor.gamma_hypervisor(
@@ -595,13 +684,53 @@ def build_protocol_pool(
                 address=pool_address, network=chain.database_name, block=block
             )
         )
-    elif protocol == Protocol.SYNTHSWAP:
+    # elif protocol == Protocol.SYNTHSWAP:
+    #     return (
+    #         protocols.algebra.pool.poolv3(
+    #             address=pool_address, network=chain.database_name, block=block
+    #         )
+    #         if not cached
+    #         else protocols.algebra.pool.poolv3_cached(
+    #             address=pool_address, network=chain.database_name, block=block
+    #         )
+    #     )
+    # elif protocol == Protocol.GLACIER:
+    #     return (
+    #         protocols.algebra.pool.poolv3(
+    #             address=pool_address, network=chain.database_name, block=block
+    #         )
+    #         if not cached
+    #         else protocols.algebra.pool.poolv3_cached(
+    #             address=pool_address, network=chain.database_name, block=block
+    #         )
+    #     )
+    elif protocol == Protocol.SPIRITSWAP:
         return (
-            protocols.algebra.pool.poolv3(
+            protocols.spiritswap.pool.pool(
                 address=pool_address, network=chain.database_name, block=block
             )
             if not cached
-            else protocols.algebra.pool.poolv3_cached(
+            else protocols.spiritswap.pool.pool_cached(
+                address=pool_address, network=chain.database_name, block=block
+            )
+        )
+    elif protocol == Protocol.LYNEX:
+        return (
+            protocols.lynex.pool.pool(
+                address=pool_address, network=chain.database_name, block=block
+            )
+            if not cached
+            else protocols.lynex.pool.pool_cached(
+                address=pool_address, network=chain.database_name, block=block
+            )
+        )
+    elif protocol == Protocol.FUSIONX:
+        return (
+            protocols.fusionx.pool.pool(
+                address=pool_address, network=chain.database_name, block=block
+            )
+            if not cached
+            else protocols.fusionx.pool.pool_cached(
                 address=pool_address, network=chain.database_name, block=block
             )
         )

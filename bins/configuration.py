@@ -68,6 +68,7 @@ STATIC_REGISTRY_ADDRESSES = {
             "retro": "0xcac19d43c9558753d7535978a370055614ce832e".lower(),
             "sushi": "0x97686103b3e7238ca6c2c439146b30adbd84a593".lower(),
             "ascent": "0x7b9c2f68f16c3618bb45616fb98d83f94fd7062e".lower(),
+            # "zero": "".lower(),
         },
         "MasterChefRegistry": "0x135B02F8b110Fe2Dd8B6a5e2892Ee781264c2fbe".lower(),
         "MasterChefV2Registry": {
@@ -171,6 +172,7 @@ STATIC_REGISTRY_ADDRESSES = {
         "hypervisors": {
             "synthswap": "0x1e86a593e55215957c4755f1be19a229af3286f6".lower(),
             "sushi": "0x6d5c54F535b073B9C2206Baf721Af2856E5cD683".lower(),
+            "basex": "0xB24DC81f8Be7284C76C7cF865b803807B3C2EF55".lower(),
         },
         "synthswap_v1_masterchefs": [
             "0xef153cb7bfc04c657cb7f582c7411556320098b9".lower(),
@@ -179,6 +181,21 @@ STATIC_REGISTRY_ADDRESSES = {
             "distributor": "0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae".lower(),
             "distributionCreator": "0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd".lower(),
             "coreMerkl": "0xC16B81Af351BA9e64C1a069E3Ab18c244A1E3049".lower(),
+        },
+    },
+    "mantle": {
+        "hypervisors": {
+            "fusionx": "0x683292172E2175bd08e3927a5e72FC301b161300".lower(),
+        },
+    },
+    "linea": {
+        "hypervisors": {
+            "lynex": "0xC27DDd78FC49875Fe6F844B72bbf31DFBB099881".lower(),
+        },
+    },
+    "rollux": {
+        "hypervisors": {
+            "pegasys": "0x683292172E2175bd08e3927a5e72FC301b161300".lower(),
         },
     },
 }
