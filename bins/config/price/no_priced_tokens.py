@@ -228,6 +228,27 @@ def csushi(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
             )
 
 
+def xgrail(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
+    # xGrail is a buy option of RAM with 50% price penalty when selling back to RAM previous to 15 days, and from there it decreases linearly to 0% at 6 months
+    #   Minimum duration - 15 days (50% GRAIL output)
+    #   Maximum duration - 6 months (100% GRAIL output)
+    #   Linearly decreasing from 50% to 0% over 6 months
+    # For the shake of simplicity we will use a constant 50% price penalty
+    grail_token = "0x3d9907f9a368ad0a51be60f7da3b97cf940982d8".lower()
+    xgrail_token = "0x3caae25ee616f2c8e13c74da0813402eae3f496b".lower()
+
+    if address.lower() == xgrail_token and chain == Chain.ARBITRUM:
+        return NoPricedToken_conversion(
+            original=NoPricedToken_item(
+                token_address=xgrail_token, chain=chain, block=block
+            ),
+            converted=NoPricedToken_item(
+                token_address=grail_token, chain=chain, block=block
+            ),
+            conversion_rate=0.5,
+        )
+
+
 # ADD HERE THE TOKENS THAT ARE NOT PRICED IN ANY POOL
 TOKEN_ADDRESS_CONVERSION = {
     Chain.ETHEREUM: {
@@ -237,6 +258,8 @@ TOKEN_ADDRESS_CONVERSION = {
     Chain.ARBITRUM: {
         # xRAM--RAM
         "0xaaa1ee8dc1864ae49185c368e8c64dd780a50fb7".lower(): xram,
+        # xGRAIL--GRAIL
+        "0x3caae25ee616f2c8e13c74da0813402eae3f496b".lower(): xgrail,
     },
     Chain.POLYGON: {
         # oRETRO--RETRO
