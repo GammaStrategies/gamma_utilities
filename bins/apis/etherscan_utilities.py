@@ -30,6 +30,7 @@ class etherscan_helper:
         "basescan": "base",
         "lineascan": "linea",
         "snowtrace": "avalanche",
+        "celoscan": "celo",
     }
 
     def __init__(self, api_keys: dict):
