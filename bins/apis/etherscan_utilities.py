@@ -15,6 +15,7 @@ class etherscan_helper:
         "fantomscan": "https://api.ftmscan.com",
         "base": "https://api.basescan.org",
         "linea": "https://api.lineascan.build",
+        "avalanche": "https://api.snaowtrace.io",
     }
     # config key : network
     _key_network_matches = {
@@ -28,6 +29,7 @@ class etherscan_helper:
         "fantomscan": "fantom",
         "basescan": "base",
         "lineascan": "linea",
+        "snowtrace": "avalanche",
     }
 
     def __init__(self, api_keys: dict):
@@ -59,7 +61,10 @@ class etherscan_helper:
         return result
 
     # PUBLIC
-    def get_contract_supply(self, network: str, contract_address: str) -> int:
+    def get_contract_supply(self, network: str, contract_address: str) -> int | None:
+        if self._check_network_available(network=network) is False:
+            return None
+
         url = "{}/api?{}&apiKey={}".format(
             self._urls[network.lower()],
             self.build_url_arguments(
@@ -71,6 +76,8 @@ class etherscan_helper:
         return self._request_data(url)
 
     def get_contract_transactions(self, network: str, contract_address: str) -> list:
+        if self._check_network_available(network=network) is False:
+            return []
         result = []
         page = 1  # define pagination var
         offset = 10000  # items to be presented with on each query
@@ -145,6 +152,8 @@ class etherscan_helper:
         Returns:
             list: _description_
         """
+        if self._check_network_available(network=network) is False:
+            return []
         result = []
         page = 1  # define pagination var
         offset = 10000  # items to be presented with on each query
@@ -232,6 +241,9 @@ class etherscan_helper:
                 'confirmations':'2287898'
             }, ...]
         """
+        if self._check_network_available(network=network) is False:
+            return []
+
         result = []
         page = 1  # define pagination var
         offset = 5000  # items to be presented with on each query
@@ -296,7 +308,10 @@ class etherscan_helper:
         # return result
         return result
 
-    def get_block_by_timestamp(self, network: str, timestamp: int) -> int:
+    def get_block_by_timestamp(self, network: str, timestamp: int) -> int | None:
+        if self._check_network_available(network=network) is False:
+            return None
+
         url = "{}/api?{}&apiKey={}".format(
             self._urls[network.lower()],
             self.build_url_arguments(
@@ -325,6 +340,10 @@ class etherscan_helper:
                     txHash: "0x4d7e24a6dab8ba46440a8df3cfca8a4e8225fa2d5daf312c21f0647000d6ce42"
                     }]
         """
+
+        if self._check_network_available(network=network) is False:
+            return []
+
         result = []
         page = 1  # define pagination var
         offset = 10000  # items to be presented with on each query
@@ -408,3 +427,12 @@ class etherscan_helper:
             separator = "&" if result != "" else ""
             result += f"{separator}{k}={v}"
         return result
+
+    def _check_network_available(self, network: str) -> bool:
+        if network.lower() in self._urls.keys():
+            return True
+        else:
+            logging.getLogger(__name__).debug(
+                f" Network {network} not available in etherscan helper"
+            )
+            return False
