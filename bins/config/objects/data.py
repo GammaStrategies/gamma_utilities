@@ -38,3 +38,10 @@ class config_data:
         # init cache
         if not self.cache:
             self.cache = config_cache()
+
+    def to_dict(self):
+        """convert object and subobjects to dictionary"""
+        _dict = self.__dict__.copy()
+        _dict["database"] = self.database.__dict__.copy()
+        _dict["cache"] = self.cache.__dict__.copy()
+        return _dict

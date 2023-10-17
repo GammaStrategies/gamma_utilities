@@ -10,3 +10,7 @@ class config_prices:
         self.usdc_addresses = (
             [x.lower() for x in self.usdc_addresses] if self.usdc_addresses else []
         )
+
+    def to_dict(self):
+        """convert object and subobjects to dictionary"""
+        return self.__dict__.copy()

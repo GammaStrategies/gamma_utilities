@@ -19,6 +19,8 @@ def load_configuration_db(mongodb_url: str) -> config | None:
     ).get_items_from_database(
         collection_name="configuration", find={"id": "client_configuration"}
     ):
+        # remove database "_id" field
+        del db_configuration[0]["_id"]
         # try:
         # add db_configuration into loaded config
         cfg = config(**db_configuration[0])

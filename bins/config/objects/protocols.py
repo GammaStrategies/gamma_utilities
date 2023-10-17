@@ -30,3 +30,7 @@ class config_protocol:
             if self.rewards_registry
             else {}
         )
+
+    def to_dict(self):
+        """convert object and subobjects to dictionary"""
+        return self.__dict__.copy()

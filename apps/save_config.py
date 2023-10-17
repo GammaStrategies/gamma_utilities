@@ -13,7 +13,7 @@ def save_configuration_to_database(cfg_name: str):
     cfg = load_configuration_file(cfg_name=cfg_name)
 
     if db_return := get_default_globaldb().save_item_to_database(
-        data=cfg.dict(), collection_name="configuration"
+        data=cfg.to_dict(), collection_name="configuration"
     ):
         logging.getLogger(__name__).info(
             f"Configuration saved to database: {db_return.raw_result}"
@@ -21,4 +21,9 @@ def save_configuration_to_database(cfg_name: str):
 
 
 def main(cfg_name: str):
+    """load and save yaml configuration file to database
+
+    Args:
+        cfg_name (str): full yaml configuration file name
+    """
     save_configuration_to_database(cfg_name=cfg_name)

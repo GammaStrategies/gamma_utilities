@@ -25,3 +25,11 @@ class config_apis:
             self.coingecko = config_common_api(**self.coingecko)
         if isinstance(self.geckoterminal, dict):
             self.geckoterminal = config_common_api(**self.geckoterminal)
+
+    def to_dict(self):
+        """convert object and subobjects to dictionary"""
+        _dict = self.__dict__.copy()
+        _dict["etherscan"] = self.etherscan.__dict__.copy()
+        _dict["coingecko"] = self.coingecko.__dict__.copy()
+        _dict["geckoterminal"] = self.geckoterminal.__dict__.copy()
+        return _dict

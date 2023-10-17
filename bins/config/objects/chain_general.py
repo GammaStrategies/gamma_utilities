@@ -23,3 +23,9 @@ class config_chain_general:
     def __post_init__(self):
         if isinstance(self.angle_merkl, dict):
             self.angle_merkl = config_chain_angle_merkl(**self.angle_merkl)
+
+    def to_dict(self):
+        """convert object and subobjects to dictionary"""
+        _dict = self.__dict__.copy()
+        _dict["angle_merkl"] = self.angle_merkl.__dict__.copy()
+        return _dict

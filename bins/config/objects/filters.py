@@ -13,6 +13,10 @@ class config_exclude:
         )
         self.tokens = [x.lower() for x in self.tokens] if self.tokens else []
 
+    def to_dict(self):
+        """convert object and subobjects to dictionary"""
+        return self.__dict__.copy()
+
 
 @dataclass
 class config_convert:
@@ -25,6 +29,10 @@ class config_convert:
             if self.tokens
             else {}
         )
+
+    def to_dict(self):
+        """convert object and subobjects to dictionary"""
+        return self.__dict__.copy()
 
 
 @dataclass
@@ -46,3 +54,11 @@ class config_filters:
             self.convert = config_convert(**self.convert)
         if isinstance(self.force_timeframe, dict):
             self.force_timeframe = config_timeframe(**self.force_timeframe)
+
+    def to_dict(self):
+        """convert object and subobjects to dictionary"""
+        _dict = self.__dict__.copy()
+        _dict["exclude"] = self.exclude.to_dict()
+        _dict["convert"] = self.convert.to_dict()
+        _dict["force_timeframe"] = self.force_timeframe.__dict__.copy()
+        return _dict

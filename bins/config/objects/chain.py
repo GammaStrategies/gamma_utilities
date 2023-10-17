@@ -31,7 +31,7 @@ class config_chain:
     def __post_init__(self):
         try:
             # convert to chain enum
-            self.chain = text_to_chain(self.chain)
+            # self.chain = text_to_chain(self.chain)
 
             if isinstance(self.apis, dict):
                 self.apis = config_apis(**self.apis)
@@ -56,10 +56,12 @@ class config_chain:
                         _temp_val = self.protocols.pop(protocol)
                         # convert protocol to enum
                         _temp_protocol = text_to_protocol(protocol)
+
+                        # check if protocol is already in temp_val
+                        if not _temp_val.get("protocol"):
+                            _temp_val["protocol"] = _temp_protocol
                         # add protocol to dict
-                        self.protocols[_temp_protocol] = config_protocol(
-                            protocol=_temp_protocol, **_temp_val
-                        )
+                        self.protocols[_temp_protocol] = config_protocol(**_temp_val)
 
             if not self.w3Providers_default_order:
                 self.w3Providers_default_order = ["public", "private"]
@@ -89,3 +91,23 @@ class config_chain:
 
         except Exception as e:
             raise e
+
+    def to_dict(self):
+        """convert object and subobjects to dictionary"""
+        _dict = self.__dict__.copy()
+        _dict["apis"] = self.apis.to_dict() if self.apis else None
+        _dict["w3Providers"] = self.w3Providers.to_dict() if self.w3Providers else None
+        _dict["general_config"] = (
+            self.general_config.to_dict() if self.general_config else None
+        )
+        _dict["filters"] = self.filters.to_dict() if self.filters else None
+        _dict["prices"] = self.prices.to_dict() if self.prices else None
+        _dict["protocols"] = (
+            {
+                prot: config_prot.to_dict()
+                for prot, config_prot in self.protocols.items()
+            }
+            if self.protocols
+            else None
+        )
+        return _dict

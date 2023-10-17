@@ -248,8 +248,8 @@ def parse_commandLine_args():
 
     par_main.add_argument(
         "--save_config",
-        action="store_true",
-        help=" save configuration to database. Specify the config file to be saved with --config or -c",
+        type=str,
+        help=" Specify a yaml configuration file to be saved to database",
     )
 
     par_main.add_argument(

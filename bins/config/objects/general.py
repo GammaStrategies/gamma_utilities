@@ -38,10 +38,12 @@ class config:
                         _temp_val = self.chains.pop(chain)
                         # convert chain to enum
                         _temp_chain = text_to_chain(chain)
+
+                        # check if chain is already in temp_val
+                        if not _temp_val.get("chain"):
+                            _temp_val["chain"] = _temp_chain
                         # add chain to dict
-                        self.chains[_temp_chain] = config_chain(
-                            chain=_temp_chain, **_temp_val
-                        )
+                        self.chains[_temp_chain] = config_chain(**_temp_val)
                     except ConfigurationError as e:
                         if e.action == "exit":
                             raise e
@@ -59,3 +61,15 @@ class config:
         # init data
         if not self.data:
             self.data = config_data()
+
+    def to_dict(self):
+        """convert object and subobjects to dictionary"""
+        _dict = self.__dict__.copy()
+        _dict["logs"] = self.logs.to_dict() if self.logs else None
+        _dict["data"] = self.data.to_dict() if self.data else None
+        _dict["script"] = self.script.to_dict() if self.script else None
+        _dict["chains"] = {}
+        for chain in self.chains:
+            _dict["chains"][chain] = self.chains[chain].to_dict()
+
+        return _dict

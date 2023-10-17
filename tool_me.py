@@ -108,8 +108,10 @@ if __name__ == "__main__":
         )
 
     elif CONFIGURATION["_custom_"]["cml_parameters"].save_config:
-        # save config   --save_config
-        save_config.main(option=CONFIGURATION["_custom_"]["cml_parameters"].config)
+        # save config   --save_config="file to save"
+        save_config.main(
+            cfg_name=CONFIGURATION["_custom_"]["cml_parameters"].save_config
+        )
     else:
         # nothin todo
         logging.getLogger(__name__).info(" Nothing to do. How u doin? ")
