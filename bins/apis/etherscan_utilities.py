@@ -15,7 +15,7 @@ class etherscan_helper:
         "fantomscan": "https://api.ftmscan.com",
         "base": "https://api.basescan.org",
         "linea": "https://api.lineascan.build",
-        "avalanche": "https://api.snaowtrace.io",
+        "avalanche": "https://api.snowtrace.io",
     }
     # config key : network
     _key_network_matches = {
@@ -405,6 +405,64 @@ class etherscan_helper:
                 )
 
                 break
+
+        # return result
+        return result
+
+    def get_contract_abi(self, network: str, contract_address: str) -> str | None:
+        """Returns the Contract Application Binary Interface ( ABI ) of a verified smart contract
+
+        Args:
+            network (str): _description_
+            contract_address (str): _description_
+
+        Returns:
+            str | None: _description_
+        """
+        if self._check_network_available(network=network) is False:
+            return []
+
+        result = []
+        # loop till no more results are retrieved
+        try:
+            url = "{}/api?{}&apiKey={}".format(
+                self._urls[network.lower()],
+                self.build_url_arguments(
+                    module="contract",
+                    action="getabi",
+                    address=contract_address,
+                ),
+                self._api_keys[network.lower()],
+            )
+
+            # rate control
+            self.__RATE_LIMIT.continue_when_safe()
+
+            # get data
+            _data = net_utilities.get_request(
+                url
+            )  #  {"status":"1","message":"OK-Missing/Invalid API Key, rate limit of 1/5sec applied","result":....}
+
+            if _data["status"] == "1":
+                # query when thru ok
+                if _data["result"]:
+                    # Add data to result
+                    result += _data["result"]
+                else:
+                    # no data
+                    pass
+            else:
+                logging.getLogger(__name__).debug(
+                    " {} for {} in {}  . error message: {}".format(
+                        _data["message"], contract_address, network
+                    )
+                )
+
+        except Exception as e:
+            # do not continue
+            logging.getLogger(__name__).error(
+                f' Unexpected error while querying url {url}    . error message: {_data["message"] if _data else e}'
+            )
 
         # return result
         return result

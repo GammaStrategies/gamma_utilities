@@ -22,19 +22,21 @@ class geckoterminal_price_helper:
         # todo: coded coingecko's network id conversion
         # https://api.geckoterminal.com/api/v2/networks?page=1
         self.netids = {
-            "polygon": "polygon_pos",
             "ethereum": "eth",
             "optimism": "optimism",
+            "polygon": "polygon_pos",
+            "polygon_zkevm": "polygon-zkevm",
             "arbitrum": "arbitrum",  # "arbitrum-nova" is targeted for gaming and donowhat ...
             "celo": "celo",
             "binance": "bsc",
-            "avalanche": "avax",
-            "polygon_zkevm": "polygon-zkevm",
             "moonbeam": "moonbeam",
-            "fantom": "fantom",
-            "mantle": "mantle",
             "base": "base",
+            "avalanche": "avax",
+            "fantom": "fantom",
             "linea": "linea",
+            "mantle": "mantle",
+            "rollux": "rollux",
+            "opbnb": "opbnb",
         }
 
         self.dexids = {

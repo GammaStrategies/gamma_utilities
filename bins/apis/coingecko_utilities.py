@@ -195,23 +195,22 @@ class coingecko_price_helper:
         self.COINGECKO_netids = {
             # enums.Chain.ETHEREUM: "ethereum",
             # enums.Chain.OPTIMISM: "optimistic-ethereum",
-            # enums.Chain.ARBITRUM: "arbitrum-one",  # "arbitrum-nova" is targeted for gaming and donowhat ...
-            # enums.Chain.CELO: "celo",
-            # enums.Chain.BSC: "binance-smart-chain",
-            # enums.Chain.POLYGON: "polygon-pos",
-            "polygon": "polygon-pos",
+            # ...
             "ethereum": "ethereum",
             "optimism": "optimistic-ethereum",
-            "arbitrum": "arbitrum-one",  # "arbitrum-nova" is targeted for gaming and donowhat ...
+            "polygon": "polygon-pos",
+            "polygon_zkevm": "polygon-zkevm",
+            "arbitrum": "arbitrum-one",  # "arbitrum-nova" is targeted for gaming etc ...
             "celo": "celo",
             "binance": "binance-smart-chain",
             "moonbeam": "moonbeam",
-            "fantom": "fantom",
-            "polygon_zkevm": "polygon-zkevm",
-            "avalanche": "avalanche",
-            "mantle": "mantle",
             "base": "base",
+            "avalanche": "avalanche",
+            "fantom": "fantom",
             "linea": "linea",
+            "mantle": "mantle",
+            "rollux": "rollux",
+            "opbnb": "opbnb",
         }
 
         self.retries = retries
