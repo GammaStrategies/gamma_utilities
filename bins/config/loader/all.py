@@ -72,10 +72,15 @@ def merge_configuration_db(cfg: config, cfg_db: config) -> config:
     if cfg_db.chains:
         for chain in cfg_db.chains.keys():
             # if chain is not defined in file configuration
-            if chain not in cfg.chains.keys():
+            if not cfg.chains:
+                # add chain to file configuration
+                cfg.chains = cfg_db.chains
+                break
+            elif chain not in cfg.chains.keys():
                 # add chain to file configuration
                 cfg.chains[chain] = cfg_db.chains[chain]
             else:
+                # chain is defined already in config fiel... skip
                 pass
 
     # return modified configuration object

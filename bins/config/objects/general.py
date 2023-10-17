@@ -69,7 +69,8 @@ class config:
         _dict["data"] = self.data.to_dict() if self.data else None
         _dict["script"] = self.script.to_dict() if self.script else None
         _dict["chains"] = {}
-        for chain in self.chains:
-            _dict["chains"][chain] = self.chains[chain].to_dict()
+        if self.chains:
+            for chain in self.chains:
+                _dict["chains"][chain] = self.chains[chain].to_dict()
 
         return _dict
