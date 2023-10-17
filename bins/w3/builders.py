@@ -635,15 +635,26 @@ def build_protocol_pool(
             )
         )
     elif protocol == Protocol.PANCAKESWAP:
-        return (
-            protocols.pancakeswap.pool.pool(
-                address=pool_address, network=chain.database_name, block=block
+        if chain == Chain.BSC:
+            return (
+                protocols.pancakeswap.pool.pool_bep20(
+                    address=pool_address, network=chain.database_name, block=block
+                )
+                if not cached
+                else protocols.pancakeswap.pool.pool_bep20_cached(
+                    address=pool_address, network=chain.database_name, block=block
+                )
             )
-            if not cached
-            else protocols.pancakeswap.pool.pool_cached(
-                address=pool_address, network=chain.database_name, block=block
+        else:
+            return (
+                protocols.pancakeswap.pool.pool(
+                    address=pool_address, network=chain.database_name, block=block
+                )
+                if not cached
+                else protocols.pancakeswap.pool.pool_cached(
+                    address=pool_address, network=chain.database_name, block=block
+                )
             )
-        )
     elif protocol == Protocol.BEAMSWAP:
         return (
             protocols.beamswap.pool.pool(

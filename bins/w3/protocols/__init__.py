@@ -20,4 +20,5 @@ from ..protocols import (
     spiritswap,
     lynex,
     fusionx,
+    pegasys,
 )

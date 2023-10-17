@@ -27,6 +27,10 @@ class Chain(str, Enum):
 
     ROLLUX = ("rollux", 570, "rollux", "Rollux")
 
+    OPBNB = ("opbnb", 204, "opbnb", "OpBNB")
+
+    KAVA = ("kava", 2222, "kava", "Kava")
+
     # extra properties
     id: int
     database_name: str

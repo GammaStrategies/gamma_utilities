@@ -1,14 +1,11 @@
 from web3 import Web3
+
 from ....general.enums import Protocol
 from .. import uniswap
 
-# TODO: https://polygonscan.com/address/0x8486881bcbda4f6f494e9a4e7dfa37f24aa80cb0#readContract
-
-# ABI_FILENAME = "ascent_v3_pool"
-# ABI_FOLDERNAME = "ascent"
-ABI_FILENAME = "pancakeswapv3_pool"
-ABI_FOLDERNAME = "pancakeswap"
-DEX_NAME = Protocol.ASCENT.database_name
+ABI_FILENAME = "pegasys_pool"
+ABI_FOLDERNAME = "pegasys"
+DEX_NAME = Protocol.PEGASYS.database_name
 
 
 class pool(uniswap.pool.poolv3):
@@ -40,6 +37,8 @@ class pool(uniswap.pool.poolv3):
 
     def identify_dex_name(self) -> str:
         return DEX_NAME
+
+    # PROPERTIES
 
 
 class pool_cached(pool, uniswap.pool.poolv3_cached):

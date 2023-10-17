@@ -11,8 +11,10 @@ from ....errors.general import ProcessingError
 from ....general.enums import Protocol, error_identity, text_to_chain
 from .. import uniswap
 
-ABI_FILENAME = "fusionx_pool"
-ABI_FOLDERNAME = "fusionx"
+# ABI_FILENAME = "fusionx_pool"
+# ABI_FOLDERNAME = "fusionx"
+ABI_FILENAME = "pancakeswapv3_pool"
+ABI_FOLDERNAME = "pancakeswap"
 DEX_NAME = Protocol.FUSIONX.database_name
 
 
