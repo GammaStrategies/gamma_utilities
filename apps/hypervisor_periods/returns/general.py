@@ -95,14 +95,14 @@ class hypervisor_periods_returns(hypervisor_periods_base):
                     token0_price=Decimal(
                         str(
                             self.token_prices[
-                                f"{data['pool']['token0']['address']}_{last_item['block']}"
+                                f"{current_item['pool']['token0']['address']}_{last_item['block']}"
                             ]
                         )
                     ),
                     token1_price=Decimal(
                         str(
                             self.token_prices[
-                                f"{data['pool']['token1']['address']}_{last_item['block']}"
+                                f"{current_item['pool']['token1']['address']}_{last_item['block']}"
                             ]
                         )
                     ),
@@ -112,14 +112,14 @@ class hypervisor_periods_returns(hypervisor_periods_base):
                     token0_price=Decimal(
                         str(
                             self.token_prices[
-                                f"{data['pool']['token0']['address']}_{data['block']}"
+                                f"{current_item['pool']['token0']['address']}_{current_item['block']}"
                             ]
                         )
                     ),
                     token1_price=Decimal(
                         str(
                             self.token_prices[
-                                f"{data['pool']['token1']['address']}_{data['block']}"
+                                f"{current_item['pool']['token1']['address']}_{current_item['block']}"
                             ]
                         )
                     ),
@@ -144,6 +144,7 @@ class hypervisor_periods_returns(hypervisor_periods_base):
                 process_error(e)
 
             # fill rewards
+            # TODO: control types
             try:
                 current_period.fill_from_rewards_data(
                     ini_rewards=last_item["rewards_status"],

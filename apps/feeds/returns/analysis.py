@@ -124,7 +124,7 @@ def returns_sumary(yield_data: list[period_yield_data]) -> dict:
             seconds_yield_data += yield_item.period_seconds
 
             # period price per share
-            if yield_item.timeframe.ini.timestamp < price_per_share["ini_timestamp"]:
+            if yield_item.timeframe.ini.timestamp < ini_timestamp:
                 # modify control vars
                 ini_timestamp = yield_item.timeframe.ini.timestamp
                 price_per_share["ini_price_per_share"] = yield_item.price_per_share
@@ -141,7 +141,7 @@ def returns_sumary(yield_data: list[period_yield_data]) -> dict:
                     + yield_item.status.ini.underlying.qtty.token1,
                 }
 
-            if yield_item.timeframe.end.timestamp > price_per_share["end_timestamp"]:
+            if yield_item.timeframe.end.timestamp > end_timestamp:
                 # modify control vars
                 end_timestamp = yield_item.timeframe.end.timestamp
                 price_per_share["end_price_per_share"] = yield_item.price_per_share

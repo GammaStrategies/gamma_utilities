@@ -198,9 +198,6 @@ class hypervisor_periods_base:
                         # but if we scrape at current time periods and last known item is an initial value, then we need to scrape a new item,
                         # and prices ( being current prices )
                         if block_end and last_item["block"] < block_end:
-                            logging.getLogger(__name__).debug(
-                                f" {chain.database_name}'s {status_data['dex']} {hypervisor_address} creating the last item on-the-fly at block_end {block_end}"
-                            )
                             # scrape block_end
                             if new_last_item := self._scrape_last_item(
                                 chain=chain,
@@ -208,6 +205,9 @@ class hypervisor_periods_base:
                                 block=block_end,
                                 protocol=text_to_protocol(status_data["dex"]),
                             ):
+                                logging.getLogger(__name__).debug(
+                                    f" {chain.database_name}'s {status_data['dex']} {hypervisor_address} creating the last item on-the-fly at block_end {block_end}"
+                                )
                                 # last loop work
                                 self._loop_work(
                                     chain=chain,
@@ -219,6 +219,13 @@ class hypervisor_periods_base:
                                     last_item_type=last_item_type,
                                     try_solve_errors=try_solve_errors,
                                 )
+                            else:
+                                # we should be creating a new item but the _scrape_last_item function did not return anything... probably bc its not implemented
+                                # may be a problem when len(hype_data["status"]) == 1
+                                if len(hype_data["status"]) == 1:
+                                    logging.getLogger(__name__).warning(
+                                        f" {chain.database_name}'s {status_data['dex']} {hypervisor_address} has only one item and _scrape_last_item did not return anything, so it has not enough data to calculate returns."
+                                    )
 
                         elif timestamp_end and last_item["timestamp"] < timestamp_end:
                             # convert timestamp_end to block_end and scrape block_end
@@ -265,7 +272,7 @@ class hypervisor_periods_base:
 
         else:
             logging.getLogger(__name__).error(
-                f"   {chain.database_name} {hypervisor_address} has no data from {block_ini} to {block_end}"
+                f"   {chain.database_name} {hypervisor_address} has no data from {block_ini or datetime.fromtimestamp(timestamp_ini) if timestamp_ini else None} to {block_end or datetime.fromtimestamp(timestamp_end) if timestamp_end else None}"
             )
 
         return self.result

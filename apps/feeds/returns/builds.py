@@ -17,7 +17,7 @@ from bins.w3.builders import build_db_hypervisor
 from .objects import period_yield_data
 
 
-def create_hypervisor_returns(
+def create_hypervisor_returns_deprecated(
     chain: Chain,
     hypervisor_address: str,
     timestamp_ini: int | None = None,

@@ -42,9 +42,6 @@ log_helper.setup_logging(customconf=CONFIGURATION)
 
 #### ADD STATIC CONFIG HERE ####
 
-# WEB3_CHAIN_IDS = {chain.database_name: chain.id for chain in Chain}
-
-
 STATIC_REGISTRY_ADDRESSES = {
     "ethereum": {
         "hypervisors": {
