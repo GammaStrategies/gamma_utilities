@@ -965,7 +965,7 @@ class database_local(db_collections_common):
         """
         logging.getLogger(__name__).debug(f" freeing item from queue: {id}")
         update = {"$set": {"processing": 0}}
-        if count:
+        if count != None:
             update["$set"]["count"] = count
 
         return self.find_one_and_update(
@@ -985,7 +985,7 @@ class database_local(db_collections_common):
         """
         logging.getLogger(__name__).debug(f" freeing {len(ids)} items from queue ")
         update = {"$set": {"processing": 0}}
-        if count:
+        if count != None:
             update["$set"]["count"] = count
 
         return self.update_many(
