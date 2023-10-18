@@ -16,9 +16,11 @@ from ..apis.geckoterminal_helper import geckoterminal_price_helper
 
 from ..configuration import (
     CONFIGURATION,
-    DEX_POOLS_PRICE_PATHS,
+    # DEX_POOLS_PRICE_PATHS,
     USDC_TOKEN_ADDRESSES,
 )
+from ..config.price.pools_price_paths import DEX_POOLS_PRICE_PATHS
+
 from ..database.common.db_collections_common import database_global
 from ..formulas.tick_math import sqrtPriceX96_to_price_float
 

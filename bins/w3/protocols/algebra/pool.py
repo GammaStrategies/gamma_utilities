@@ -8,7 +8,7 @@ from web3 import Web3
 from bins.errors.general import ProcessingError
 from bins.formulas.fees import feeGrowth_to_fee, fees_uncollected_inRange
 
-from ....configuration import WEB3_CHAIN_IDS
+from ....config.current import WEB3_CHAIN_IDS  # ,CFG
 from ....formulas.full_math import mulDiv
 from ....formulas.position import (
     get_positionKey_algebra,

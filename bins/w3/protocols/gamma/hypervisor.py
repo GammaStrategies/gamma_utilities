@@ -3,7 +3,7 @@ from web3 import Web3
 
 from bins.formulas.fees import calculate_gamma_fee
 
-from ....configuration import WEB3_CHAIN_IDS
+from ....config.current import WEB3_CHAIN_IDS  # ,CFG
 from ....cache import cache_utilities
 from ....general.enums import Protocol
 from ..general import bep20, erc20, erc20_cached, bep20_cached

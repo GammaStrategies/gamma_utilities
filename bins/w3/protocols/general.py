@@ -12,7 +12,8 @@ from bins.errors.general import ProcessingError
 
 from bins.w3.helpers.rpcs import RPC_MANAGER, w3Provider
 
-from ...configuration import CONFIGURATION, WEB3_CHAIN_IDS
+from ...configuration import CONFIGURATION
+from ...config.current import WEB3_CHAIN_IDS  # ,CFG
 from ...general import file_utilities
 from ...cache import cache_utilities
 from ...general.enums import Chain, error_identity, text_to_chain

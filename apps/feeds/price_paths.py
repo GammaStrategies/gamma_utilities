@@ -1,7 +1,9 @@
 import logging
 
 import tqdm
-from bins.configuration import CONFIGURATION, DEX_POOLS, USDC_TOKEN_ADDRESSES
+from bins.configuration import CONFIGURATION, USDC_TOKEN_ADDRESSES  # DEX_POOLS
+from bins.config.price.pools_price_paths import DEX_POOLS
+
 from bins.database.common.db_collections_common import database_local
 from bins.database.helpers import get_default_globaldb, get_from_localdb
 from bins.general.enums import Chain

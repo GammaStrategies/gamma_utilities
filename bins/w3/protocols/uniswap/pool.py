@@ -5,8 +5,7 @@ from hexbytes import HexBytes
 
 from bins.errors.general import ProcessingError
 
-
-from ....configuration import WEB3_CHAIN_IDS
+from ....config.current import WEB3_CHAIN_IDS  # ,CFG
 from ....cache import cache_utilities
 from ....general.enums import Protocol, error_identity, text_to_chain
 from ....formulas.full_math import mulDiv
