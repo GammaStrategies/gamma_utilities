@@ -707,34 +707,28 @@ class period_yield_data:
             _period_rewards_qtty = 0
             _ini_rewards_qtty = 0
             _end_rewards_qtty = 0
-            # rewardsPerSecond can differ between ini and end. Check if we have absolute values
-            if "extra" in item["ini"] and "extra" in item["end"]:
-                # get absolute rewards from ini to end
-                _ini_rewards_qtty = (
-                    float(item["ini"]["extra"]["baseRewards"])
-                    / (10 ** item["ini"]["rewardToken_decimals"])
-                ) + (
-                    float(item["ini"]["extra"]["boostedRewards"])
-                    / (10 ** item["ini"]["rewardToken_decimals"])
-                )
-                _end_rewards_qtty = (
-                    float(item["end"]["extra"]["baseRewards"])
-                    / (10 ** item["end"]["rewardToken_decimals"])
-                ) + (
-                    float(item["end"]["extra"]["boostedRewards"])
-                    / (10 ** item["end"]["rewardToken_decimals"])
-                )
-                _period_rewards_qtty = _end_rewards_qtty - _ini_rewards_qtty
 
-            else:
-                logging.getLogger(__name__).warning(
-                    f" No absolute rewards found for hype {item['end']['hypervisor_address']} reward status id: {item['end']['id']}. Use non accurate rewardsPerSecond."
-                )
-                # use last rewards per second to calculate rewards qtty
-                _period_rewards_qtty = (
-                    float(item["end"]["rewards_perSecond"])
-                    / (10 ** item["end"]["rewardToken_decimals"])
-                ) * period_seconds
+            ##########################################################
+            # rewards can't be xpresses in absolut terms without looking into claims ( per user ).
+            # But we can get a MAX/MIN rewards qtty for the period looking at the rewardsPerSecond
+            # so that:
+            #   MAX REWARDS QTTY = (end_rewards_perSecond * period_seconds - 1) + ini_end_rewards_perSecond
+            #   MIN REWARDS QTTY = (ini_end_rewards_perSecond * period_seconds - 1) + end_end_rewards_perSecond
+            #  AVERAGE REWARDS QTTY = (ini_end_rewards_perSecond + end_end_rewards_perSecond) / 2
+            #
+            #  rationale behind:
+            #  MAX_REWARDS_QTTY = One second after initial snapshot, the reward rate changed to end_rewards_perSecond
+            #  MIN_REWARDS_QTTY = One second before end snapshot, the reward rate changed to end_rewards_perSecond
+            ##########################################################
+            _maximum_rewards_qtty = (
+                (float(item["end"]["rewards_perSecond"]) * (period_seconds - 1))
+                + float(item["ini"]["rewards_perSecond"])
+            ) / (10 ** item["end"]["rewardToken_decimals"])
+            _minimum_rewards_qtty = (
+                (float(item["ini"]["rewards_perSecond"]) * (period_seconds - 1))
+                + float(item["end"]["rewards_perSecond"])
+            ) / (10 ** item["end"]["rewardToken_decimals"])
+            _period_rewards_qtty = (_maximum_rewards_qtty + _minimum_rewards_qtty) / 2
 
             # calculate usd value
             _period_rewards_usd = (
@@ -753,7 +747,8 @@ class period_yield_data:
                     f" No staked value found processing return rewards for {self.address}. Using total supply."
                 )
                 total_staked_usd = (
-                    self.status.ini.supply * ini_reward["hypervisor_share_price_usd"]
+                    float(self.status.ini.supply)
+                    * ini_reward["hypervisor_share_price_usd"]
                 )
 
             # add reward detail to self
@@ -836,6 +831,10 @@ class period_yield_data:
             year_in_seconds = 365 * day_in_seconds
             yield_cumulative -= 1
             self.rewards.period_yield = yield_cumulative
+
+        # TODO: deleteme stop
+        if self.rewards.usd < 0:
+            po = "yo"
 
     # CONVERTER
     def to_dict(self) -> dict:
