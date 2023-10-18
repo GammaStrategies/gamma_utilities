@@ -117,7 +117,7 @@ class data_collector:
 
         for filter in filter_chunks:
             if entries := self._web3_helper.get_all_entries(
-                filter=filter, rpcKey_names=["private"]
+                filter=filter, rpcKey_names=["private","public"]
             ):
                 chunk_result = []
                 for event in entries:
