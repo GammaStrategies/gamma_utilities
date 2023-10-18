@@ -248,7 +248,7 @@ def feed_operations_hypervisors(
     data_collector = create_data_collector(network=network)
 
     logging.getLogger(__name__).info(
-        "   Feeding database with {}'s {} operations hypervisors from blocks {} to {}".format(
+        "   Feeding database {}'s operations of {} hypervisors from blocks {} to {}".format(
             network,
             len(hypervisor_addresses),
             block_ini,
