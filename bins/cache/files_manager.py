@@ -14,6 +14,13 @@ def reset_cache_files():
         CONFIGURATION.get("cache", {}).get("save_path", "data/cache") + "/onchain"
     )
     logging.getLogger(__name__).info(f" Resetting cache files from {folder_path}")
+    try:
+        files_list = get_files(path=folder_path)
+    except Exception as e:
+        logging.getLogger(__name__).debug(
+            f" There's probably no folder created at {folder_path}"
+        )
+        files_list = []
     for file in get_files(path=folder_path):
         try:
             # if file has been created in the last 24 hours, skip it
