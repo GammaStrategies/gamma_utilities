@@ -166,6 +166,25 @@ class coingecko_apiMod(CoinGeckoAPI):
                             )
                             # do not add to cache
                             return None
+                    if error_code := err.get("status", {}).get("error_code", None):
+                        if error_code == 429:
+                            logging.getLogger(__name__).debug(
+                                f" Too many requests made to coingecko."
+                            )
+                            # do not add to cache
+                            return None
+                        elif error_code == 404:
+                            logging.getLogger(__name__).debug(
+                                f" Token not found at coingecko."
+                            )
+                            # add to cache
+                            response = {"prices": [[]], "error": err}
+                        else:
+                            logging.getLogger(__name__).exception(
+                                f" [2.1]Unknown coingecko error_code:    -> {err}"
+                            )
+                            # do not add to cache
+                            return None
                     else:
                         logging.getLogger(__name__).exception(
                             f" [2]Unknown coingecko ValueError:  -> {err}"
