@@ -70,21 +70,39 @@ def get_hypervisor_price_per_share(
     if int(hypervisor_status["totalSupply"]) == 0:
         return 0.0
 
-    # get total amounts in pool ( owed and liquidity providing)
-    hype_total0 = int(hypervisor_status["totalAmounts"]["total0"]) / (
-        10 ** hypervisor_status["pool"]["token0"]["decimals"]
-    )
-    hype_total1 = int(hypervisor_status["totalAmounts"]["total1"]) / (
-        10 ** hypervisor_status["pool"]["token1"]["decimals"]
-    )
+    # get the hypervisor token amounts claimable by LPs ( parked + deployed + owed)
+    hype_total0 = (
+        int(hypervisor_status["tvl"]["parked_token0"])
+        + int(hypervisor_status["tvl"]["deployed_token0"])
+        + int(hypervisor_status["tvl"]["fees_owed_token0"])
+    ) / (10 ** hypervisor_status["pool"]["token0"]["decimals"])
+    hype_total1 = (
+        int(hypervisor_status["tvl"]["parked_token1"])
+        + int(hypervisor_status["tvl"]["deployed_token1"])
+        + int(hypervisor_status["tvl"]["fees_owed_token1"])
+    ) / (10 ** hypervisor_status["pool"]["token1"]["decimals"])
 
     # get uncollected fees for the pool at this block
-    uncollected_fees0 = float(hypervisor_status["fees_uncollected"]["qtty_token0"]) / (
-        10 ** hypervisor_status["pool"]["token0"]["decimals"]
-    )
-    uncollected_fees1 = float(hypervisor_status["fees_uncollected"]["qtty_token1"]) / (
-        10 ** hypervisor_status["pool"]["token1"]["decimals"]
-    )
+    # try to get LPs fees only, and not gamma portion (  when available: database refresh neededwhen not )
+    if "lps_qtty_token0" in hypervisor_status["fees_uncollected"]:
+        # LPs fees only
+        uncollected_fees0 = float(
+            hypervisor_status["fees_uncollected"]["lps_qtty_token0"]
+        ) / (10 ** hypervisor_status["pool"]["token0"]["decimals"])
+        uncollected_fees1 = float(
+            hypervisor_status["fees_uncollected"]["lps_qtty_token1"]
+        ) / (10 ** hypervisor_status["pool"]["token1"]["decimals"])
+    else:
+        # all fees ( gamma portion included )
+        logging.getLogger(__name__).warning(
+            f" Share price calculation is using all uncollected fees for {hypervisor_status['address']} at block {hypervisor_status['block']}. A database reScrape is needed."
+        )
+        uncollected_fees0 = float(
+            hypervisor_status["fees_uncollected"]["qtty_token0"]
+        ) / (10 ** hypervisor_status["pool"]["token0"]["decimals"])
+        uncollected_fees1 = float(
+            hypervisor_status["fees_uncollected"]["qtty_token1"]
+        ) / (10 ** hypervisor_status["pool"]["token1"]["decimals"])
 
     # create an easy to debug totals
     total_token0 = hype_total0 + uncollected_fees0
