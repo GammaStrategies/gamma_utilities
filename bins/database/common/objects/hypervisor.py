@@ -427,6 +427,12 @@ class hypervisor_status_object(dict_to_object):
 
     def get_underlying_value(self, inDecimal: bool = True) -> token_group_object:
         """LPs underlying value, uncollected fees included
+            total LPs deployed and not deployed assets + uncollected
+                "parked_token0" + "parked_token1" +
+                "deployed_token0" + "deployed_token1" +
+                "fees_owed_token0" + "fees_owed_token1" +
+                "uncollected_LPS_fees_token0" + "uncollected_LPS_fees_token1"
+            }
 
         Args:
             inDecimal (bool, optional): . Defaults to True.
@@ -440,10 +446,16 @@ class hypervisor_status_object(dict_to_object):
             inDecimal=False
         )
 
-        # get totalAmounts
+        #  total deployed and not deployed assets + uncollected
         _totalAmounts = token_group_object(
-            token0=self.totalAmounts.total0 + _lp_uncollected_fees.token0,
-            token1=self.totalAmounts.total1 + _lp_uncollected_fees.token1,
+            token0=self.tvl.parked_token0
+            + self.tvl.deployed_token0
+            + self.tvl.fees_owed_token0
+            + _lp_uncollected_fees.token0,
+            token1=self.tvl.parked_token1
+            + self.tvl.deployed_token1
+            + self.tvl.fees_owed_token1
+            + _lp_uncollected_fees.token1,
         )
 
         if inDecimal:
