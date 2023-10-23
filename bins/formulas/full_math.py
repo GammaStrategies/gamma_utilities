@@ -14,8 +14,11 @@ def mulDiv(a, b, c) -> int:
         256-bit result
     """
     result = (a * b) // c
-    checkUInt256(result)
-    return result
+    try:
+        checkUInt256(result)
+        return result
+    except Exception:
+        raise
 
 
 def mulDivRoundingUp(a, b, c) -> int:
@@ -45,5 +48,8 @@ def divRoundingUp(a, b) -> int:
     result = a // b
     if a % b > 0:
         result += 1
-    checkUInt256(result)
-    return result
+    try:
+        checkUInt256(result)
+        return result
+    except Exception:
+        raise

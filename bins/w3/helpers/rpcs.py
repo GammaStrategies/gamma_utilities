@@ -194,7 +194,22 @@ class w3Providers:
                     result.extend([x for x in rpcUrls if x.is_available])
                 else:
                     result.extend(rpcUrls)
-        #
+        # # if there are no results, and len(rpcKey_names) == 1, try to get from the other type
+        # if not result and len(rpcKey_names or []) == 1:
+        #     # get the other type
+        #     other_type = (
+        #         "public"
+        #         if rpcKey_names[0] == "private"
+        #         else "private"
+        #         if rpcKey_names[0] == "public"
+        #         else None
+        #     )
+        #     if other_type:
+        #         logging.getLogger(__name__).warning(
+        #             f" No {rpcKey_names[0]} rpc's available and no other type configured for this call. Trying with the other type"
+        #         )
+        #         result = self.providers.get(other_type, {}).get(network, [])
+
         return result
 
     def get_rpc(self, network: str, url: str) -> w3Provider:

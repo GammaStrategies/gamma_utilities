@@ -643,6 +643,12 @@ class web3wrap:
                             f" Bad getaway response querying {rpc.type} RPC {rpc.url}. Disabling it for 120 sec."
                         )
                         rpc._set_unavailable(cooldown=120)
+                    elif "0" in err:
+                        # unable to execute request
+                        logging.getLogger(__name__).debug(
+                            f"  can't execute this request querying {rpc.type} RPC {rpc.url}. Disabling it for 120 sec."
+                        )
+                        rpc._set_unavailable(cooldown=120)
                     else:
                         logging.getLogger(__name__).exception(
                             f" Unknown requests.HTTPError: {e}"
