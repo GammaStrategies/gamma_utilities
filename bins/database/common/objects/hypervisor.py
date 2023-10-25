@@ -425,7 +425,9 @@ class hypervisor_status_object(dict_to_object):
             str(fee_tier_1)
         )
 
-    def get_underlying_value(self, inDecimal: bool = True) -> token_group_object:
+    def get_underlying_value(
+        self, inDecimal: bool = True, feeType: str = "lps"
+    ) -> token_group_object:
         """LPs underlying value, uncollected fees included
             total LPs deployed and not deployed assets + uncollected
                 "parked_token0" + "parked_token1" +
@@ -436,6 +438,7 @@ class hypervisor_status_object(dict_to_object):
 
         Args:
             inDecimal (bool, optional): . Defaults to True.
+            feeType (str, optional): What underlying value POV u whant? choose from "all", "lps" and "gamma". Defaults to "lps".
 
         Returns:
             token_group: hypervisor underlying value qtty
@@ -445,17 +448,23 @@ class hypervisor_status_object(dict_to_object):
         _gamma_uncollected_fees, _lp_uncollected_fees = self.get_fees_uncollected(
             inDecimal=False
         )
+        _fees = _lp_uncollected_fees
+        if feeType == "gamma":
+            _fees = _gamma_uncollected_fees
+        elif feeType == "all":
+            _fees.token0 += _gamma_uncollected_fees.token0
+            _fees.token1 += _gamma_uncollected_fees.token1
 
         #  total deployed and not deployed assets + uncollected
         _totalAmounts = token_group_object(
             token0=self.tvl.parked_token0
             + self.tvl.deployed_token0
             + self.tvl.fees_owed_token0
-            + _lp_uncollected_fees.token0,
+            + _fees.token0,
             token1=self.tvl.parked_token1
             + self.tvl.deployed_token1
             + self.tvl.fees_owed_token1
-            + _lp_uncollected_fees.token1,
+            + _fees.token1,
         )
 
         if inDecimal:
