@@ -233,9 +233,9 @@ def create_latest_usd_prices_address_json():
 
     # add manually tokens not found in the database
     manual_tokens = {
-        Chain.CELO.database_name: {
-            "0xc16b81af351ba9e64c1a069e3ab18c244a1e3049".lower(): {"symbol": "ageur"},
-        },
+        # Chain.CELO.database_name: {
+        #     "0xc16b81af351ba9e64c1a069e3ab18c244a1e3049".lower(): {"symbol": "ageur"},
+        # },
     }
 
     # add tokens from static collections
@@ -289,17 +289,18 @@ def create_latest_usd_prices_address_json():
                 }
 
     # add manual tokens to result
-    for network, tokens in manual_tokens.items():
-        if network not in result:
-            result[network] = {}
+    if manual_tokens:
+        for network, tokens in manual_tokens.items():
+            if network not in result:
+                result[network] = {}
 
-        for address, data in tokens.items():
-            if address not in result[network]:
-                result[network][address] = data
-            else:
-                logging.getLogger(__name__).warning(
-                    f" manually added {network} {address} is already in the database so its safe to remove it from the manual list"
-                )
+            for address, data in tokens.items():
+                if address not in result[network]:
+                    result[network][address] = data
+                else:
+                    logging.getLogger(__name__).warning(
+                        f" manually added {network} {address} is already in the database so its safe to remove it from the manual list"
+                    )
 
     # save to file
     save_json(filename=filename, data=result, folder_path=folder_path)
