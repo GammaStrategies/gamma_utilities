@@ -45,6 +45,14 @@ class period_timeframe:
             "blocks": self.blocks,
         }
 
+    def from_dict(self, item: dict):
+        self.ini = time_location(
+            timestamp=item["ini"]["timestamp"], block=item["ini"]["block"]
+        )
+        self.end = time_location(
+            timestamp=item["end"]["timestamp"], block=item["end"]["block"]
+        )
+
 
 # TODO: merge token_group with database object
 @dataclass
@@ -58,6 +66,10 @@ class token_group:
             "token1": self.token1,
         }
 
+    def from_dict(self, item: dict):
+        self.token0 = item["token0"]
+        self.token1 = item["token1"]
+
 
 @dataclass
 class underlying_value:
@@ -69,6 +81,11 @@ class underlying_value:
             "qtty": self.qtty.to_dict(),
             "details": self.details or {},
         }
+
+    def from_dict(self, item: dict):
+        self.qtty = token_group()
+        self.qtty.from_dict(item["qtty"])
+        self.details = item["details"]
 
 
 @dataclass
@@ -82,6 +99,11 @@ class qtty_usd_yield:
             result["qtty"] = self.qtty.to_dict()
         result["period_yield"] = self.period_yield
         return result
+
+    def from_dict(self, item: dict):
+        self.qtty = token_group()
+        self.qtty.from_dict(item["qtty"])
+        self.period_yield = item["period_yield"]
 
 
 @dataclass
@@ -97,6 +119,11 @@ class rewards_group:
             "details": self.details or [],
         }
 
+    def from_dict(self, item: dict):
+        self.usd = item["usd"]
+        self.period_yield = item["period_yield"]
+        self.details = item["details"]
+
 
 @dataclass
 class status_group:
@@ -110,6 +137,13 @@ class status_group:
             "underlying": self.underlying.to_dict(),
             "supply": self.supply,
         }
+
+    def from_dict(self, item: dict):
+        self.prices = token_group()
+        self.prices.from_dict(item["prices"])
+        self.underlying = underlying_value()
+        self.underlying.from_dict(item["underlying"])
+        self.supply = item["supply"]
 
 
 @dataclass
@@ -132,6 +166,12 @@ class period_status:
             "end": self.end.to_dict(),
         }
 
+    def from_dict(self, item: dict):
+        self.ini = status_group()
+        self.ini.from_dict(item["ini"])
+        self.end = status_group()
+        self.end.from_dict(item["end"])
+
 
 @dataclass
 class period_yield_data:
@@ -153,15 +193,18 @@ class period_yield_data:
     status: period_status = None
 
     # fees collected during the period ( LPing ) using uncollected fees.
+    # this is LPs fees ( not including gamma fees )
     fees: qtty_usd_yield = None
     fees_gamma: qtty_usd_yield = None
-    fees_lps: qtty_usd_yield = None
 
     # rewards collected during the period ( LPing ) using uncollected fees. This is not accurate when rewards do not include the "extra" info ( absolute qtty of rewards)
     rewards: rewards_group = None
 
     # fees collected right during block creation, reseting uncollected fees to zero. This is not used for yield calculation, but useful for analysis.
     fees_collected_within: qtty_usd_yield = None
+
+    # Divergence Loss/Gain due to rebalance between hypervisor periods: ( hypervisor period 0 end block - hypervisor period 1 ini block )
+    rebalance_divergence: token_group = None
 
     @property
     def id(self) -> str:
@@ -185,33 +228,29 @@ class period_yield_data:
 
     @property
     def ini_underlying_usd(self) -> float:
-        return (
-            (
-                (self.status.ini.underlying.qtty.token0 * self.status.ini.prices.token0)
-                + (
-                    self.status.ini.underlying.qtty.token1
-                    * self.status.ini.prices.token1
-                )
-            )
-            if self.status.ini.underlying.qtty.token0
-            and self.status.ini.underlying.qtty.token1
-            else 0
-        )
+        t0 = t1 = 0
+        try:
+            t0 = self.status.ini.underlying.qtty.token0 * self.status.ini.prices.token0
+        except:
+            pass
+        try:
+            t1 = self.status.ini.underlying.qtty.token1 * self.status.ini.prices.token1
+        except:
+            pass
+        return t0 + t1
 
     @property
     def end_underlying_usd(self) -> float:
-        return (
-            (
-                (self.status.end.underlying.qtty.token0 * self.status.end.prices.token0)
-                + (
-                    self.status.end.underlying.qtty.token1
-                    * self.status.end.prices.token1
-                )
-            )
-            if self.status.end.underlying.qtty.token0
-            and self.status.end.underlying.qtty.token1
-            else 0
-        )
+        t0 = t1 = 0
+        try:
+            t0 = self.status.end.underlying.qtty.token0 * self.status.end.prices.token0
+        except:
+            pass
+        try:
+            t1 = self.status.end.underlying.qtty.token1 * self.status.end.prices.token1
+        except:
+            pass
+        return t0 + t1
 
     @property
     def period_fees_usd(self) -> float:
@@ -221,14 +260,16 @@ class period_yield_data:
         Returns:
             float:
         """
-        return (
-            (
-                self.fees.qtty.token0 * self.status.end.prices.token0
-                + self.fees.qtty.token1 * self.status.end.prices.token1
-            )
-            if self.fees.qtty.token0 and self.fees.qtty.token1
-            else 0
-        )
+        t0 = t1 = 0
+        try:
+            t0 = self.fees.qtty.token0 * self.status.end.prices.token0
+        except:
+            pass
+        try:
+            t1 = self.fees.qtty.token1 * self.status.end.prices.token1
+        except:
+            pass
+        return t0 + t1
 
     @property
     def period_impermanent_usd(self) -> float:
@@ -258,11 +299,11 @@ class period_yield_data:
     @property
     def period_impermanent_token0_usd(self) -> float:
         """Impermanent token0 divergence represents the value change in market prices and pool token weights, converted to usd using end prices
-
+            including rebalance divergence
         Returns:
             float:
         """
-        return self.period_impermanent_token0 * self.status.end.prices.token0
+        return (self.period_impermanent_token0) * self.status.end.prices.token0
 
     @property
     def period_impermanent_token1(self) -> float:
@@ -283,11 +324,11 @@ class period_yield_data:
     @property
     def period_impermanent_token1_usd(self) -> float:
         """Impermanent token1 divergence represents the value change in market prices and pool token weights, converted to usd using end prices
-
+            including rebalance divergence
         Returns:
             float:
         """
-        return self.period_impermanent_token1 * self.status.end.prices.token1
+        return (self.period_impermanent_token1) * self.status.end.prices.token1
 
     @property
     def period_impermanent_percentage_yield(self) -> float:
@@ -346,7 +387,7 @@ class period_yield_data:
                 - self.status.ini.prices.token1
             )
             / (self.status.ini.prices.token0 + self.status.ini.prices.token1)
-            if self.status.ini.prices.token0 and self.status.ini.prices.token1
+            if (self.status.ini.prices.token0 + self.status.ini.prices.token1) > 0
             else 0
         )
 
@@ -357,7 +398,105 @@ class period_yield_data:
         Returns:
             float:
         """
-        return self.end_underlying_usd / self.status.end.supply
+        return (
+            self.end_underlying_usd / self.status.end.supply
+            if self.status.end.supply
+            else 0
+        )
+
+    @property
+    def price_per_share_at_ini(self) -> float:
+        """Returns the price per share at the ini of the period
+
+        Returns:
+            float:
+        """
+        return (
+            self.ini_underlying_usd / self.status.ini.supply
+            if self.status.ini.supply
+            else 0
+        )
+
+    @property
+    def fees_per_share(self) -> float:
+        """Return the fees_per_share collected during the period
+
+        Returns:
+            float:
+        """
+        return (
+            self.period_fees_usd / self.status.end.supply
+            if self.status.end.supply
+            else 0
+        )
+
+    @property
+    def fees_per_share_percentage_yield(self) -> float:
+        """Return the fees_per_share collected during the period
+            ( as a percentage of the price per share at the beginning of the period)
+
+        Returns:
+            float:
+        """
+        try:
+            return self.fees_per_share / self.price_per_share_at_ini
+        except:
+            pass
+        return 0
+
+    @property
+    def impermanent_per_share(self) -> float:
+        """Return the difference between the price per share at the end of the period and the price per share at the beginning of the period
+        and subtract the fees_per_share collected during the period
+        """
+        return (
+            (
+                self.end_underlying_usd / self.status.end.supply
+                if self.status.end.supply
+                else 0
+            )
+            - (
+                self.ini_underlying_usd / self.status.ini.supply
+                if self.status.ini.supply
+                else 0
+            )
+            - self.fees_per_share
+        )
+
+    @property
+    def impermanent_per_share_percentage_yield(self) -> float:
+        """Return the difference between the price per share at the end of the period and the price per share at the beginning of the period
+        and subtract the fees_per_share collected during the period
+        """
+        try:
+            return self.impermanent_per_share / self.price_per_share_at_ini
+        except:
+            pass
+        return 0
+
+    @property
+    def rewards_per_share(self) -> float:
+        """Return the rewards_per_share collected during the period
+
+        Returns:
+            float:
+        """
+        try:
+            return self.rewards.usd / self.status.end.supply
+        except:
+            return 0
+
+    @property
+    def rewards_per_share_percentage_yield(self) -> float:
+        """Return the rewards_per_share collected during the period
+
+        Returns:
+            float:
+        """
+        try:
+            return self.rewards.period_yield / self.price_per_share_at_ini
+        except:
+            return 0
 
     # init
     def reset_status(self):
@@ -373,13 +512,18 @@ class period_yield_data:
         )
 
     def reset_fees(self):
+        # lps fees
         self.fees = qtty_usd_yield(qtty=token_group())
-
+        # gamma fees
         self.fees_gamma = qtty_usd_yield(qtty=token_group())
-        self.fees_lps = qtty_usd_yield(qtty=token_group())
 
     def reset_rewards(self):
         self.rewards = rewards_group()
+
+    def reset_rebalance_divergence(self):
+        self.rebalance_divergence = token_group(
+            token1=Decimal("0"), token0=Decimal("0")
+        )
 
     # check
     def check_inconsistencies(
@@ -477,6 +621,20 @@ class period_yield_data:
         else:
             raise ValueError(f"position {position} not valid")
 
+    def set_rebalance_divergence(self, token0: Decimal | int, token1: Decimal | int):
+        """Save rebalance divergence for this period
+
+        Args:
+            token0 (Decimal | int):
+            token1 (Decimal | int):
+        """
+        # convert to Decimal if needed
+        if isinstance(token0, int):
+            token0 = Decimal(str(token0))
+        if isinstance(token1, int):
+            token1 = Decimal(str(token1))
+        self.rebalance_divergence = token_group(token0=token0, token1=token1)
+
     def fill_from_hypervisors_data(
         self,
         ini_hype: dict,
@@ -517,6 +675,9 @@ class period_yield_data:
         # new rewards
         if not self.rewards:
             self.reset_rewards()
+        # new rebalance divergence
+        if not self.rebalance_divergence:
+            self.reset_rebalance_divergence()
 
         # set supply
         self.status.ini.supply = _ini_hype.get_totalSupply_inDecimal()
@@ -578,15 +739,8 @@ class period_yield_data:
         self.fees_gamma.qtty.token0 = uncollected_fees_gamma.token0
         self.fees_gamma.qtty.token1 = uncollected_fees_gamma.token1
         # lps fees
-        self.fees_lps.qtty.token0 = uncollected_fees_lps.token0
-        self.fees_lps.qtty.token1 = uncollected_fees_lps.token1
-        # total fees
-        self.fees.qtty.token0 = (
-            uncollected_fees_gamma.token0 + uncollected_fees_lps.token0
-        )
-        self.fees.qtty.token1 = (
-            uncollected_fees_gamma.token1 + uncollected_fees_lps.token1
-        )
+        self.fees.qtty.token0 = uncollected_fees_lps.token0
+        self.fees.qtty.token1 = uncollected_fees_lps.token1
 
         # check fees
         self.check_fees(
@@ -638,6 +792,16 @@ class period_yield_data:
         # Yield percentage
         self.fees.period_yield = (
             (self.period_fees_usd / self.ini_underlying_usd)
+            if self.ini_underlying_usd
+            else 0
+        )
+        # gamma yield ( vs initial underlying value )
+        self.fees_gamma.period_yield = (
+            (
+                self.fees_gamma.qtty.token0 * self.status.end.prices.token0
+                + self.fees_gamma.qtty.token1 * self.status.end.prices.token1
+            )
+            / self.ini_underlying_usd
             if self.ini_underlying_usd
             else 0
         )
@@ -743,7 +907,7 @@ class period_yield_data:
             ) * ini_reward["hypervisor_share_price_usd"]
             # when there is no staked value, use total supply
             if not total_staked_usd:
-                logging.getLogger(__name__).warning(
+                logging.getLogger(__name__).debug(
                     f" No staked value found processing return rewards for {self.address}. Using total supply."
                 )
                 total_staked_usd = (
@@ -827,14 +991,25 @@ class period_yield_data:
         # Yield percentage: percentage of total value staked at ini
 
         if yield_cumulative:
-            day_in_seconds = 24 * 60 * 60
-            year_in_seconds = 365 * day_in_seconds
             yield_cumulative -= 1
-            self.rewards.period_yield = yield_cumulative
 
-        # TODO: deleteme stop
         if self.rewards.usd < 0:
-            po = "yo"
+            raise ValueError(f" Rewards usd can't be negative {self.rewards.usd}")
+
+        # CONVERT results to self period
+        # We want to xtrapolate to the self.period_seconds
+        # xtrapolate rewards for the period
+        self.rewards.period_yield = (
+            yield_cumulative / total_period_seconds
+        ) * self.period_seconds
+
+        # xtrapolate rewards to the period underlying value to get usd value
+        self.rewards.usd = self.ini_underlying_usd * self.rewards.period_yield
+
+        # TODO: remove next log line
+        logging.getLogger(__name__).debug(
+            f" --- Rewards period yield changed from  {yield_cumulative:,.2%}  ->  {self.rewards.period_yield:,.2%}"
+        )
 
     # CONVERTER
     def to_dict(self) -> dict:
@@ -923,6 +1098,10 @@ class period_yield_data:
                     "token0": "",
                     "token1": "",
                 },
+                rebalance_divergence: {
+                    "token0": "",
+                    "token1": "",
+                },
             },
 
             "pool":{
@@ -938,23 +1117,36 @@ class period_yield_data:
             "timeframe": self.timeframe.to_dict(),
             "status": self.status.to_dict(),
             "fees": self.fees.to_dict(),
+            "fees_gamma": self.fees_gamma.to_dict(),
             "rewards": self.rewards.to_dict(),
             "fees_collected_within": self.fees_collected_within.to_dict(),
         }
 
-        # add calculated values
-        result["status"]["ini"]["underlying"]["usd"] = self.ini_underlying_usd
-        result["status"]["end"]["underlying"]["usd"] = self.end_underlying_usd
-
-        result["fees"]["usd"] = self.period_fees_usd
-
-        result["impermanent"] = {
-            "usd": self.period_impermanent_usd,
-            "percentage_yield": self.period_impermanent_percentage_yield,
-            "qtty": {
-                "token0": self.period_impermanent_token0,
-                "token1": self.period_impermanent_token1,
-            },
-        }
-
         return result
+
+    def from_dict(self, item: dict):
+        """fill this object data from a dictionary
+
+        Args:
+            item (dict): dictionary with the data
+        """
+        # address
+        self.address = item["address"]
+        # timeframe
+        self.timeframe = period_timeframe()
+        self.timeframe.from_dict(item["timeframe"])
+        # status
+        self.status = period_status()
+        self.status.from_dict(item["status"])
+        # fees
+        self.fees = qtty_usd_yield()
+        self.fees.from_dict(item["fees"])
+        # fees_gamma
+        self.fees_gamma = qtty_usd_yield()
+        self.fees_gamma.from_dict(item["fees_gamma"])
+        # rewards
+        self.rewards = rewards_group()
+        self.rewards.from_dict(item["rewards"])
+        # fees_collected_within
+        self.fees_collected_within = qtty_usd_yield()
+        self.fees_collected_within.from_dict(item["fees_collected_within"])

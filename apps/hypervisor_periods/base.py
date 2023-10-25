@@ -56,7 +56,7 @@ class hypervisor_periods_base:
         current_item: dict,
     ):
         """executed when a new start hypervisor period is found
-
+            Take into considaration rebalace consequences here:  [if this is an actual rebalance ( last item exists and it was an end item and supply changed)].
         Args:
             chain (Chain):
             hypervisor_address (str):
@@ -239,9 +239,6 @@ class hypervisor_periods_base:
                             if block := hypervisor.blockNumberFromTimestamp(
                                 timestamp=timestamp_end
                             ):
-                                logging.getLogger(__name__).debug(
-                                    f" {chain.database_name}'s {status_data['dex']} {hypervisor_address} creating the last item on-the-fly at block_end {block}"
-                                )
                                 # scrape block_end
                                 if new_last_item := self._scrape_last_item(
                                     chain=chain,
@@ -249,6 +246,9 @@ class hypervisor_periods_base:
                                     block=block,
                                     protocol=text_to_protocol(status_data["dex"]),
                                 ):
+                                    logging.getLogger(__name__).debug(
+                                        f" {chain.database_name}'s {status_data['dex']} {hypervisor_address} creating the last item on-the-fly at block_end {block}"
+                                    )
                                     # last loop work
                                     self._loop_work(
                                         chain=chain,
@@ -260,6 +260,12 @@ class hypervisor_periods_base:
                                         last_item_type=last_item_type,
                                         try_solve_errors=try_solve_errors,
                                     )
+                                else:
+                                    #
+                                    if len(hype_data["status"]) == 1:
+                                        logging.getLogger(__name__).warning(
+                                            f" {chain.database_name}'s {status_data['dex']} {hypervisor_address} has only one item and _scrape_last_item did not return anything, so it has not enough data to calculate returns."
+                                        )
 
                         else:
                             #   no need to scrape because last_item is the last item of the defined period, that happen to be a initial value
@@ -313,7 +319,7 @@ class hypervisor_periods_base:
             if last_item_type != "ini":
                 # check if this is the first idx to discard it if it is
                 if idx == 0:
-                    logging.getLogger(__name__).warning(
+                    logging.getLogger(__name__).debug(
                         f" {chain.database_name} {current_item['address']} index {idx} is an end value but has no operations, because its a -1 block. Discarding it safely."
                     )
                     return None
@@ -412,7 +418,7 @@ class hypervisor_periods_base:
             if last_item_type and last_item_type != "end":
                 # check if they are consecutive blocks
                 if last_item["block"] + 1 == current_item["block"]:
-                    logging.getLogger(__name__).warning(
+                    logging.getLogger(__name__).debug(
                         f" {chain.database_name} {current_item['address']} index {idx} is an initial value but last item was considered initial also. Blocks are consecutive (noproblm). Last item block: {last_item['block']} current block: {current_item['block']}  last ops: {last_operation_types} current ops: {operation_types}"
                     )
                 else:
@@ -512,7 +518,7 @@ class hypervisor_periods_base:
                         f"     FAIL index {idx} changed totalSupply from {last_item['totalSupply']} to {current_item['totalSupply']}  blocks: {last_item['block']}  {current_item['block']} {chain.fantasy_name}'s {hypervisor_address}"
                     )
 
-                logging.getLogger(__name__).warning(
+                logging.getLogger(__name__).debug(
                     f" Trying solve: index {idx} changed totalSupply from {last_item['totalSupply']} to {current_item['totalSupply']}  blocks: {last_item['block']}  {current_item['block']} {chain.fantasy_name}'s {hypervisor_address}"
                 )
 

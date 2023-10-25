@@ -3,6 +3,10 @@ import logging
 from apps.feeds.returns.objects import period_yield_data
 from apps.feeds.utils import get_hypervisor_price_per_share, get_reward_pool_prices
 from apps.hypervisor_periods.base import hypervisor_periods_base
+from bins.database.common.objects.hypervisor import (
+    hypervisor_status_object,
+    transformer_hypervisor_status,
+)
 from bins.database.helpers import get_default_globaldb
 from bins.errors.general import ProcessingError
 from bins.general.enums import Chain, Protocol, rewarderType
@@ -26,11 +30,17 @@ class hypervisor_periods_returns(hypervisor_periods_base):
 
         # self.type =
 
+        # rebalance divergence gain/loss
+        self.reset_rebalance_divergence()
+
         super().__init__()
 
     def reset(self):
         # reset all vars
         super().reset()
+
+    def reset_rebalance_divergence(self):
+        self.rebalance_divergence = {"token0": Decimal("0"), "token1": Decimal("0")}
 
     # MAIN FUNCTIONS
     def _execute_preLoop(self, hypervisor_data: dict):
@@ -75,7 +85,35 @@ class hypervisor_periods_returns(hypervisor_periods_base):
         last_item: dict,
         current_item: dict,
     ):
-        pass
+        return
+        # check if any position changed and save Permanent Divergence Gain/Losses:
+        #  Its not really permanent in usd terms but in token terms ( token0 and token1 )
+        # if last_item and self._position_changed(
+        #     last_item=last_item, current_item=current_item
+        # ):
+        #     # position changed.
+
+        #     # neutralize operations for last item ( so that can be compared with current item)
+        #     current_item_neutralized = self._neutralize_hypervisor_operations(
+        #         hypervisor=current_item
+        #     )
+
+        #     # convert to objects
+        #     _last_item_converted = hypervisor_status_object(
+        #         transformer=transformer_hypervisor_status, **last_item
+        #     )
+        #     _current_item_converted = hypervisor_status_object(
+        #         transformer=transformer_hypervisor_status, **current_item_neutralized
+        #     )
+        #     # compare items
+        #     diff = _current_item_converted - _last_item_converted
+
+        #     # WARNING NOT WORKING this call to get_underlying_value will raise errors when calculating negative uncollected fees
+        #     divergence = diff.get_underlying_value()
+
+        #     self.rebalance_divergence["token0"] += divergence.token0
+        #     self.rebalance_divergence["token1"] += divergence.token1
+        #     return
 
     def _execute_inLoop_endItem(
         self,
@@ -128,6 +166,17 @@ class hypervisor_periods_returns(hypervisor_periods_base):
             except Exception as e:
                 # it will be filled later
                 pass
+
+            # Manage rebalance divergence gain/loss from current block-1 ( if exists )
+            if self.rebalance_divergence["token0"] != Decimal(
+                "0"
+            ) or self.rebalance_divergence["token1"] != Decimal("0"):
+                current_period.set_rebalance_divergence(
+                    token0=self.rebalance_divergence["token0"],
+                    token1=self.rebalance_divergence["token1"],
+                )
+                # reset rebalance divergence gain/loss
+                self.reset_rebalance_divergence()
 
             # fill from hype status
             try:
@@ -203,3 +252,87 @@ class hypervisor_periods_returns(hypervisor_periods_base):
             block_end=block_end,
             try_solve_errors=try_solve_errors,
         )
+
+    # divergence between hype periods
+    def _neutralize_hypervisor_operations(self, hypervisor: dict) -> dict:
+        """Neutralize all operations within this hype block
+            Deposits will be subtracted
+            Withdraws will be added
+
+        Args:
+            hypervisor (dict):
+
+        Returns:
+            dict:
+        """
+
+        def _operate(hyp: dict, t0: int, t1: int, sh: int) -> dict:
+            # add qtty to deployed token
+            hyp["tvl"]["deployed_token0"] = str(int(hyp["tvl"]["deployed_token0"]) + t0)
+            hyp["tvl"]["deployed_token0"] = str(int(hyp["tvl"]["deployed_token0"]) + t1)
+            # tvl_token0
+            hyp["tvl"]["tvl_token0"] = str(int(hyp["tvl"]["tvl_token0"]) + t0)
+            # tvl_token1
+            hyp["tvl"]["tvl_token1"] = str(int(hyp["tvl"]["tvl_token1"]) + t1)
+
+            # totalAmounts
+            hyp["totalAmounts"]["total0"] = str(int(hyp["totalAmounts"]["total0"]) + t0)
+            hyp["totalAmounts"]["total1"] = str(int(hyp["totalAmounts"]["total1"]) + t1)
+            # totalSupply
+            hyp["totalSupply"] = str(int(hyp["totalSupply"]) + sh)
+
+            # liquidity ?...
+
+            return hyp
+
+        moded_hypervisor = hypervisor.copy()
+        # neutralize operations
+        if moded_hypervisor["operations"]:
+            for operation in moded_hypervisor["operations"]:
+                if operation["topic"] in ["rebalance", "zeroBurn"]:
+                    # fee qtty should not be neutralized
+                    pass
+                elif operation["topic"] == "withdraw":
+                    # add qtty to token0 and token1
+                    moded_hypervisor = _operate(
+                        hyp=moded_hypervisor,
+                        t0=int(operation["qtty_token0"]),
+                        t1=int(operation["qtty_token1"]),
+                        sh=int(operation["shares"]),
+                    )
+
+                elif operation["topic"] == "deposit":
+                    # remove qtty to token0 and token1
+                    moded_hypervisor = _operate(
+                        hyp=moded_hypervisor,
+                        t0=-int(operation["qtty_token0"]),
+                        t1=-int(operation["qtty_token1"]),
+                        sh=-int(operation["shares"]),
+                    )
+                else:
+                    pass
+                    # raise Exception(f"Unknown operation topic {operation['topic']}")
+
+        return moded_hypervisor
+
+    # position changed
+    def _position_changed(self, last_item: dict, current_item: dict) -> bool:
+        """Check if the position has changed
+
+        Args:
+            last_item (dict):
+            current_item (dict):
+
+        Returns:
+            bool:
+        """
+        # check if there is a change in position ticks
+        if (
+            last_item["baseLower"] != current_item["baseLower"]
+            or last_item["baseUpper"] != current_item["baseUpper"]
+            or last_item["limitLower"] != current_item["limitLower"]
+            or last_item["limitUpper"] != current_item["limitUpper"]
+        ):
+            return True
+        else:
+            return False

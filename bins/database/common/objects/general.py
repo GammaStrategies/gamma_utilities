@@ -147,6 +147,7 @@ class dict_to_object:
                     logging.getLogger(__name__).exception(
                         f" Error substracting {key}: {e}"
                     )
+                    # this is a non numeric property, keep the value
                     result.__dict__[key] = value
 
             else:
