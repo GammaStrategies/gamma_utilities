@@ -216,23 +216,35 @@ KNOWN_VALID_MASTERCHEFS = {
 
 
 USDC_TOKEN_ADDRESSES = {
-    Chain.ARBITRUM: ["0xff970a61a04b1ca14834a43f5de4533ebddb5cc8".lower()],
+    Chain.ARBITRUM: [
+        "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8".lower(),  # Bridged USDC (USDC.e)
+        "0xaf88d065e77c8cc2239327c5edb3a432268e5831".lower(),  # USD Coin (USDC)
+    ],
     Chain.AVALANCHE: ["0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e".lower()],
     Chain.BASE: [
         "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913".lower(),
         "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca".lower(),
     ],
     Chain.BSC: ["0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d".lower()],
-    # celo is cUSD
     Chain.CELO: ["0x765DE816845861e75A25fCA122bb6898B8B1282a".lower()],
     Chain.ETHEREUM: ["0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48".lower()],
-    # Chain.FANTOM:
+    Chain.FANTOM: ["0x04068da6c83afcfa0e13ba15a6696662335d5b75".lower()],
     Chain.LINEA: ["0x176211869ca2b568f2a7d4ee941e073a821ee1ff".lower()],
     Chain.MANTLE: ["0x09Bc4E0D864854c6aFB6eB9A9cdF58aC190D0dF9".lower()],
-    Chain.MOONBEAM: ["0x931715fee2d06333043d11f658c8ce934ac61d0c".lower()],
-    Chain.OPTIMISM: ["0x7f5c764cbc14f9669b88837ca1490cca17c31607".lower()],
+    Chain.MOONBEAM: [
+        "0x931715fee2d06333043d11f658c8ce934ac61d0c".lower(),  # USD Coin (Wormhole) (USDC)
+        "0x818ec0a7fe18ff94269904fced6ae3dae6d6dc0b".lower(),  # Multichain Wrapped USDC
+        "0x8f552a71efe5eefc207bf75485b356a0b3f01ec9".lower(),  # USD Coin (USDC)],
+    ],
+    Chain.OPTIMISM: [
+        "0x7f5c764cbc14f9669b88837ca1490cca17c31607".lower(),  # USD Coin (Bridged from Ethereum) (USDC.e)
+        "0x0b2c639c533813f4aa9d7837caf62653d097ff85".lower(),  # USD Coin (USDC)
+    ],
     Chain.POLYGON: ["0x2791bca1f2de4661ed88a30c99a7a9449aa84174".lower()],
     Chain.POLYGON_ZKEVM: ["0xa8ce8aee21bc2a48a5ef670afcc9274c7bbbc035".lower()],
+    Chain.ROLLUX: ["0x368433cac2a0b8d76e64681a9835502a1f2a8a30".lower()],
+    Chain.OPBNB: ["0x9e5aac1ba1a2e6aed6b32689dfcf62a509ca96f3".lower()],
+    Chain.KAVA: ["0xfa9343c3897324496a05fc75abed6bac29f8a40f".lower()],
 }
 
 
