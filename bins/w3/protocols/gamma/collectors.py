@@ -117,7 +117,7 @@ class data_collector:
 
         for filter in filter_chunks:
             if entries := self._web3_helper.get_all_entries(
-                filter=filter, rpcKey_names=["private","public"]
+                filter=filter, rpcKey_names=["private", "public"]
             ):
                 chunk_result = []
                 for event in entries:
@@ -360,8 +360,15 @@ class wallet_transfers_collector(data_collector):
                     topic = "transfer"
                     # first topic is topic id
                     custom_abi_data = ["uint256"]
-                    # decode
-                    data = abi.decode(custom_abi_data, HexBytes(event.data))
+                    # decode:
+                    try:
+                        data = abi.decode(custom_abi_data, HexBytes(event.data))
+                    except Exception as e:
+                        # raise InsufficientDataBytes( eth_abi.exceptions.InsufficientDataBytes: Tried to read 32 bytes.  Only got 0 bytes
+                        logging.getLogger(__name__).error(
+                            f" Error decoding data of event at block {event.blockNumber}  event:{event}"
+                        )
+                        raise
 
                     # show progress
                     if self._progress_callback:
