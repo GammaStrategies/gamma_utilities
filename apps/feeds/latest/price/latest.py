@@ -8,6 +8,7 @@ import tqdm
 from bins.apis.coingecko_utilities import coingecko_price_helper
 from bins.configuration import CONFIGURATION
 from bins.database.common.db_collections_common import database_global
+from bins.database.helpers import get_from_localdb
 
 from bins.general.enums import Chain, databaseSource
 from bins.general.file_utilities import load_json, save_json
@@ -223,63 +224,69 @@ def feed_latest_usd_prices(threaded: bool = True):
 
 def create_latest_usd_prices_address_json():
     # get all 1st rewarder status from database
-    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
     batch_size = 100000
-    db = database_global(mongo_url=mongo_url)
     filename = "price_token_address"
     folder_path = "data"
     logging.getLogger(__name__).info(f" Creating current usd prices address json file")
 
-    query = [
-        {
-            "$group": {
-                "_id": {
-                    "network": "$network",
-                    "address": "$address",
-                },
-            },
-        },
-    ]
     result = {}
 
     # add manually tokens not found in the database
     manual_tokens = {
         Chain.CELO.database_name: {
             "0xc16b81af351ba9e64c1a069e3ab18c244a1e3049".lower(): {"symbol": "ageur"},
-            "0x471ece3750da237f93b8e339c536989b8978a438".lower(): {"symbol": "celo"},
-            "0xd8763cba276a3738e6de85b4b3bf5fded6d6ca73".lower(): {"symbol": "ceur"},
-            "0x765de816845861e75a25fca122bb6898b8b1282a".lower(): {"symbol": "cusd"},
-            "0x02de4766c272abc10bc88c220d214a26960a7e92".lower(): {"symbol": "nct"},
-            "0x46c9757c5497c5b1f2eb73ae79b6b67d119b0b58".lower(): {"symbol": "pact"},
-            "0x37f750b7cc259a2f741af45294f6a16572cf5cad".lower(): {"symbol": "usdc"},
-            "0x12055ae73a83730d766a7cfed62f1797987d5fa5".lower(): {"symbol": "vmbt"},
-            "0x66803fb87abd4aac3cbb3fad7c3aa01f6f3fb207".lower(): {"symbol": "weth"},
-        },
-        Chain.POLYGON.database_name: {
-            "0xef6ab48ef8dfe984fab0d5c4cd6aff2e54dfda14".lower(): {"symbol": "crispm"},
-            "0x27842334C55c01DDFE81Bf687425F906816c5141".lower(): {"symbol": "vext"},
-            "0xbA777aE3a3C91fCD83EF85bfe65410592Bdd0f7c".lower(): {"symbol": "cone"},
-        },
-        Chain.ETHEREUM.database_name: {
-            "0xf5581dfefd8fb0e4aec526be659cfab1f8c781da".lower(): {"symbol": "hopr"},
-        },
-        Chain.AVALANCHE.database_name: {
-            "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e".lower(): {"symbol": "usdc"},
-            "0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7".lower(): {"symbol": "usdt"},
         },
     }
 
-    # get tokens from database
-    for item in db.get_items_from_database(
-        collection_name="usd_prices", aggregate=query, batch_size=batch_size
-    ):
-        if item["_id"]["network"] not in result:
-            result[item["_id"]["network"]] = {}
+    # add tokens from static collections
+    for chain in Chain:
+        # hypervisors
+        for item in get_from_localdb(
+            network=chain.database_name,
+            collection="static",
+            find={},
+            batch_size=batch_size,
+            projection={
+                "_id": 0,
+                "pool.token0.address": 1,
+                "pool.token0.symbol": 1,
+                "pool.token1.address": 1,
+                "pool.token1.symbol": 1,
+            },
+        ):
+            # create chain if not exists
+            if not chain.database_name in result:
+                result[chain.database_name] = {}
 
-        if "address" not in result[item["_id"]["network"]]:
-            result[item["_id"]["network"]][item["_id"]["address"]] = {}
-        else:
-            raise Exception(f" {item['_id']['address']} already in list")
+            if item["pool"]["token0"]["address"] not in result[chain.database_name]:
+                result[chain.database_name][item["pool"]["token0"]["address"]] = {
+                    "symbol": item["pool"]["token0"]["symbol"]
+                }
+            # else:
+            #     logging.getLogger(__name__).debug(
+            #         f" {item['pool']['token0']} already in list"
+            #     )
+            if item["pool"]["token1"]["address"] not in result[chain.database_name]:
+                result[chain.database_name][item["pool"]["token1"]["address"]] = {
+                    "symbol": item["pool"]["token1"]["symbol"]
+                }
+            # else:
+            #     logging.getLogger(__name__).debug(
+            #         f" {item['pool']['token1']} already in list"
+            #     )
+
+        # rewards
+        for item in get_from_localdb(
+            network=chain.database_name,
+            collection="rewards_static",
+            find={},
+            batch_size=batch_size,
+            projection={"_id": 0, "rewardToken": 1, "rewardToken_symbol": 1},
+        ):
+            if item["rewardToken"] not in result[chain.database_name]:
+                result[chain.database_name][item["rewardToken"]] = {
+                    "symbol": item["rewardToken_symbol"]
+                }
 
     # add manual tokens to result
     for network, tokens in manual_tokens.items():
