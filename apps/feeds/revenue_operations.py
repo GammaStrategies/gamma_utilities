@@ -230,7 +230,7 @@ def get_db_last_revenue_operation_block(network: str) -> int:
         network=network,
         collection="revenue_operations",
         find={},
-        sort=[("block", -1)],
+        sort=[("blockNumber", -1)],
         limit=1,
     )
 
