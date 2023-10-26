@@ -293,7 +293,7 @@ DEX_POOLS = {
             "min_block": 3571306,
         },
         "WETH-SYNTH": {
-            "protocol": Protocol.SYNTHSWAP,
+            "protocol": Protocol.ALGEBRAv3,
             "address": "0xac5af1706cc42a7c398c274c3b8ecf735e7ecb28".lower(),
             "token0": "0x4200000000000000000000000000000000000006".lower(),
             "token1": "0xbd2dbb8ecea9743ca5b16423b4eaa26bdcfe5ed2".lower(),
