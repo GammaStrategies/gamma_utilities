@@ -641,8 +641,18 @@ def pull_from_queue_revenue_operation(network: str, queue_item: QueueItem) -> bo
         )
 
         # set tokens data
-        operation["symbol"] = dumb_erc20.symbol
-        operation["decimals"] = dumb_erc20.decimals
+        _process_price = True
+        try:
+            operation["symbol"] = dumb_erc20.symbol
+            operation["decimals"] = dumb_erc20.decimals
+        except Exception as e:
+            # sometimes, the address is not an ERC20 but NFT like or other,
+            # so it has no symbol or decimals
+            operation["decimals"] = 0
+            if not "symbol" in operation:
+                operation["symbol"] = "unknown"
+            _process_price = False
+            operation["usd_value"] = 0
 
         # get price at block
         price = 0
@@ -653,51 +663,55 @@ def pull_from_queue_revenue_operation(network: str, queue_item: QueueItem) -> bo
             )
             # may be a gamma hypervisor address or other
 
-        # if this is an hypervisor address, get share price
-        if hypervisor_status := get_from_localdb(
-            network=network,
-            collection="status",
-            find={"address": operation["address"], "block": operation["blockNumber"]},
-        ):
-            # this is a hypervisor address
-            hypervisor_status = hypervisor_status[0]
-            # get token prices from database
-            try:
-                price = get_hypervisor_price_per_share_from_status(
-                    network=network, hypervisor_status=hypervisor_status
-                )
-            except Exception as e:
-                pass
-        else:
-            try:
-                price = get_price_from_db(
-                    network=network,
-                    block=operation["blockNumber"],
-                    token_address=operation["address"],
-                )
-            except Exception as e:
-                # no database price
-                pass
-
-        if price == 0:
-            # scrape price
-            price_helper = price_scraper(
-                cache=True, thegraph=False, geckoterminal_sleepNretry=True
-            )
-            price, source = price_helper.get_price(
+        if _process_price:
+            # if this is an hypervisor address, get share price
+            if hypervisor_status := get_from_localdb(
                 network=network,
-                token_id=operation["address"],
-                block=operation["blockNumber"],
-            )
+                collection="status",
+                find={
+                    "address": operation["address"],
+                    "block": operation["blockNumber"],
+                },
+            ):
+                # this is a hypervisor address
+                hypervisor_status = hypervisor_status[0]
+                # get token prices from database
+                try:
+                    price = get_hypervisor_price_per_share_from_status(
+                        network=network, hypervisor_status=hypervisor_status
+                    )
+                except Exception as e:
+                    pass
+            else:
+                try:
+                    price = get_price_from_db(
+                        network=network,
+                        block=operation["blockNumber"],
+                        token_address=operation["address"],
+                    )
+                except Exception as e:
+                    # no database price
+                    pass
 
             if price == 0:
-                logging.getLogger(__name__).debug(
-                    f"  Cant get price for {network}'s {operation['address']} token at block {operation['blockNumber']}. Value will vbe zero"
+                # scrape price
+                price_helper = price_scraper(
+                    cache=True, thegraph=False, geckoterminal_sleepNretry=True
+                )
+                price, source = price_helper.get_price(
+                    network=network,
+                    token_id=operation["address"],
+                    block=operation["blockNumber"],
                 )
 
-        operation["usd_value"] = price * (
-            int(operation["qtty"]) / 10 ** operation["decimals"]
-        )
+                if price == 0:
+                    logging.getLogger(__name__).debug(
+                        f"  Cant get price for {network}'s {operation['address']} token at block {operation['blockNumber']}. Value will vbe zero"
+                    )
+
+            operation["usd_value"] = price * (
+                int(operation["qtty"]) / 10 ** operation["decimals"]
+            )
 
         # save operation to database
         if db_return := get_default_localdb(network=network).replace_item_to_database(
@@ -729,8 +743,8 @@ def pull_from_queue_hypervisor_static(network: str, queue_item: QueueItem) -> bo
         network=network,
         dex=queue_item.data["protocol"],
         enforce_contract_creation=CONFIGURATION["_custom_"][
-                        "cml_parameters"
-                    ].enforce_contract_creation,
+            "cml_parameters"
+        ].enforce_contract_creation,
     ):
         # add hypervisor static data to database
         if db_return := get_default_localdb(network=network).set_static(
