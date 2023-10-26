@@ -1,7 +1,7 @@
 import logging
 import sys
 
-from eth_abi import abi
+from eth_abi import abi, exceptions
 from hexbytes import HexBytes
 
 from web3 import Web3, contract
@@ -363,8 +363,10 @@ class wallet_transfers_collector(data_collector):
                     # decode:
                     try:
                         data = abi.decode(custom_abi_data, HexBytes(event.data))
+                    except exceptions.InsufficientDataBytes:
+                        # probably a transfer of a non ERC20 token ( veNFT ? )
+                        data = None
                     except Exception as e:
-                        # raise InsufficientDataBytes( eth_abi.exceptions.InsufficientDataBytes: Tried to read 32 bytes.  Only got 0 bytes
                         logging.getLogger(__name__).error(
                             f" Error decoding data of event at block {event.blockNumber}  event:{event}"
                         )
@@ -420,7 +422,8 @@ class wallet_transfers_collector(data_collector):
         if topic in ["transfer"]:
             itm["src"] = event.topics[1][-20:].hex().lower()
             itm["dst"] = event.topics[2][-20:].hex().lower()
-            itm["qtty"] = str(data[0])
+            # when DATA is None, consider it a transfer of a non ERC20 token
+            itm["qtty"] = str(data[0]) if data else "1"
 
         else:
             logging.getLogger(__name__).warning(
