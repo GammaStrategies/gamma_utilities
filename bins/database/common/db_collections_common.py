@@ -862,7 +862,13 @@ class database_local(db_collections_common):
                         "id": True,
                         "type": False,
                     },
-                    "multi_indexes": [],
+                    "multi_indexes": [
+                        [
+                            ("count", ASCENDING),
+                            ("processing", ASCENDING),
+                            ("creation", ASCENDING),
+                        ],
+                    ],
                 },
                 "hypervisor_returns": {
                     "mono_indexes": {
