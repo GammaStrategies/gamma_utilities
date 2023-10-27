@@ -693,7 +693,7 @@ def pull_from_queue_revenue_operation(network: str, queue_item: QueueItem) -> bo
                     # no database price
                     pass
 
-            if price == 0:
+            if price in [0, None]:
                 # scrape price
                 price_helper = price_scraper(
                     cache=True, thegraph=False, geckoterminal_sleepNretry=True
@@ -704,14 +704,21 @@ def pull_from_queue_revenue_operation(network: str, queue_item: QueueItem) -> bo
                     block=operation["blockNumber"],
                 )
 
-                if price == 0:
+                if price in [0, None]:
                     logging.getLogger(__name__).debug(
-                        f"  Cant get price for {network}'s {operation['address']} token at block {operation['blockNumber']}. Value will vbe zero"
+                        f"  Cant get price for {network}'s {operation['address']} token at block {operation['blockNumber']}. Value will be zero"
                     )
+                    price = 0
 
-            operation["usd_value"] = price * (
-                int(operation["qtty"]) / 10 ** operation["decimals"]
-            )
+            try:
+                operation["usd_value"] = price * (
+                    int(operation["qtty"]) / 10 ** operation["decimals"]
+                )
+            except Exception as e:
+                logging.getLogger(__name__).exception(
+                    f" Setting usd_value = 0 -> Error:  {e}"
+                )
+                operation["usd_value"] = 0
 
         # save operation to database
         if db_return := get_default_localdb(network=network).replace_item_to_database(
