@@ -185,9 +185,22 @@ class coingecko_apiMod(CoinGeckoAPI):
                             )
                             # do not add to cache
                             return None
+                    if error_str := err.get("error", None):
+                        if error_str.lower() == "coin not found":
+                            logging.getLogger(__name__).warning(
+                                f" Token {contract_address} not found at coingecko. Error: {err}"
+                            )
+                            # add to cache
+                            response = {"prices": [[]], "error": err}
+                        else:
+                            logging.getLogger(__name__).exception(
+                                f" [2.2]Unknown coingecko error ValueError:    -> {err} -> contract {contract_address}"
+                            )
+                            # do not add to cache
+                            return None
                     else:
                         logging.getLogger(__name__).exception(
-                            f" [2]Unknown coingecko ValueError:  -> {err}"
+                            f" [2]Unknown coingecko ValueError:  -> {err}  -> contract {contract_address}"
                         )
                         # do not add to cache
                         return None
