@@ -552,6 +552,7 @@ def revenue_operations_db_service():
                             addresses=addresses,
                             block_ini=block_ini,
                             block_end=block_end,
+                            max_blocks_step=10000,
                         )
                     else:
                         logging.getLogger(__name__).info(

@@ -623,7 +623,7 @@ def pull_from_queue_revenue_operation(network: str, queue_item: QueueItem) -> bo
         operation["id"] = create_id_operation(
             logIndex=operation["logIndex"], transactionHash=operation["transactionHash"]
         )
-        # lower case address ( to ease comparison )
+        # lower case address ( to ease comparison ) ( token address )
         operation["address"] = operation["address"].lower()
 
         # log
@@ -640,7 +640,7 @@ def pull_from_queue_revenue_operation(network: str, queue_item: QueueItem) -> bo
             block=int(operation["blockNumber"])
         )
 
-        # set tokens data
+        # set tokens symbol and decimals
         _process_price = True
         try:
             operation["symbol"] = dumb_erc20.symbol
@@ -654,17 +654,47 @@ def pull_from_queue_revenue_operation(network: str, queue_item: QueueItem) -> bo
             _process_price = False
             operation["usd_value"] = 0
 
+        # non hypervisor addresses ( manually set in config)
+        fixed_revenue_addressDex = (
+            CONFIGURATION["script"]["protocols"]["gamma"]
+            .get("filters", {})
+            .get("revenue_wallets", {})
+            .get(network, {})
+            or {}
+        )
+
         # get price at block
         price = 0
 
+        # check if this is a mint operation ( nft or hype LP provider as user ...)
         if operation["src"] == "0x0000000000000000000000000000000000000000":
             logging.getLogger(__name__).debug(
                 f" Mint operation found in queue for {network} {operation['address']} at block {operation['blockNumber']}"
             )
             # may be a gamma hypervisor address or other
 
+        # dex
+        elif hypervisor_static := get_from_localdb(
+            network=network,
+            collection="static",
+            find={
+                "id": operation["src"],
+            },
+        ):
+            # this is a hypervisor fee related operation
+            operation["dex"] = hypervisor_static["dex"]
+        else:
+            # this is not a hypervisor fee related operation: (can be veNFT or other)
+            if operation["src"] in fixed_revenue_addressDex:
+                # this is a fee related operation from a fixed revenue address
+                operation["dex"] = fixed_revenue_addressDex[operation["src"]]
+            # else:
+            #     # this is not a fee related operation ( will not have dex )
+            #     pass
+
+        # price
         if _process_price:
-            # if this is an hypervisor address, get share price
+            # if token address is an hypervisor address, get share price
             if hypervisor_status := get_from_localdb(
                 network=network,
                 collection="status",
@@ -683,6 +713,7 @@ def pull_from_queue_revenue_operation(network: str, queue_item: QueueItem) -> bo
                 except Exception as e:
                     pass
             else:
+                # try get price from database
                 try:
                     price = get_price_from_db(
                         network=network,
@@ -725,7 +756,7 @@ def pull_from_queue_revenue_operation(network: str, queue_item: QueueItem) -> bo
             data=operation, collection_name="revenue_operations"
         ):
             logging.getLogger(__name__).debug(
-                f" Saved revenue operation {operation['id']}"
+                f" Saved revenue operation {operation['id']} - > mod: {db_return.modified_count}  matched: {db_return.matched_count}"
             )
 
         # log

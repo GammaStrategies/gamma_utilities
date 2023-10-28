@@ -31,12 +31,13 @@ def create_revenue_addresses(
         f" Creating a {network}'s wallet addresses list and block range to scrape for revenue operations"
     )
 
-    # debug variables
+    # load fixed revenue addresses from configuration file
     fixed_revenue_addresses = set(
         CONFIGURATION["script"]["protocols"]["gamma"]
         .get("filters", {})
         .get("revenue_wallets", {})
-        .get(network, [])
+        .get(network, {})
+        .keys()
         or []
     )
 
@@ -239,3 +240,11 @@ def get_db_last_revenue_operation_block(network: str) -> int:
         if last_revenue_operations_blocks
         else 0
     )
+
+
+# src = hype --> reward
+# src = a hype's pool --> swap
+# src = 0x0 --> mint ( hype position as user)
+# src = other:
+#       token = known hype's pool token --> [ or transfer or reward]
+#       dst =
