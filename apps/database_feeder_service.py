@@ -545,7 +545,7 @@ def revenue_operations_db_service():
                         chain=text_to_chain(network),
                         block_ini=CONFIGURATION["_custom_"]["cml_parameters"].ini_block,
                         block_end=CONFIGURATION["_custom_"]["cml_parameters"].end_block,
-                        max_blocks_step=5000,
+                        max_blocks_step=1000,
                         rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
                     )
 
