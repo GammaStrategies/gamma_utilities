@@ -148,14 +148,15 @@ def feed_revenue_operations(
         block_end=block_end,
         revenue_address_type="hypervisors",
     )
-    feed_revenue_operations_from_hypervisors(
-        chain=chain,
-        addresses=addresses,
-        block_ini=block_ini,
-        block_end=block_end,
-        max_blocks_step=max_blocks_step,
-        rewrite=rewrite,
-    )
+    if addresses:
+        feed_revenue_operations_from_hypervisors(
+            chain=chain,
+            addresses=addresses,
+            block_ini=block_ini,
+            block_end=block_end,
+            max_blocks_step=max_blocks_step,
+            rewrite=rewrite,
+        )
 
     # 2) rewardPaid to revenue addresses
     addresses, block_ini, block_end = create_revenue_addresses(
@@ -164,14 +165,15 @@ def feed_revenue_operations(
         block_end=block_end,
         revenue_address_type="venft",
     )
-    feed_revenue_operations_from_venft(
-        chain=chain,
-        addresses=addresses,
-        block_ini=block_ini,
-        block_end=block_end,
-        max_blocks_step=max_blocks_step,
-        rewrite=rewrite,
-    )
+    if addresses:
+        feed_revenue_operations_from_venft(
+            chain=chain,
+            addresses=addresses,
+            block_ini=block_ini,
+            block_end=block_end,
+            max_blocks_step=max_blocks_step,
+            rewrite=rewrite,
+        )
 
 
 def feed_revenue_operations_from_hypervisors(
