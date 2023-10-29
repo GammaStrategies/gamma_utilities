@@ -76,7 +76,7 @@ def create_revenue_addresses(
         # try getting initial block as last found in database
         if not block_ini:
             block_ini = get_db_last_revenue_operation_block(
-                network=network, addresses=fixed_revenue_addresses
+                network=network, addresses=list(fixed_revenue_addresses)
             )
             logging.getLogger(__name__).debug(
                 f"   Setting initial block to {block_ini}, being the last block found in revenue operations database collection"
