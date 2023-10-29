@@ -540,24 +540,14 @@ def revenue_operations_db_service():
                 )
                 for network in networks:
                     # find out addresses and block range to scrape
-                    addresses, block_ini, block_end = create_revenue_addresses(
-                        network=network,
+
+                    feed_revenue_operations(
+                        chain=text_to_chain(network),
                         block_ini=CONFIGURATION["_custom_"]["cml_parameters"].ini_block,
                         block_end=CONFIGURATION["_custom_"]["cml_parameters"].end_block,
+                        max_blocks_step=5000,
+                        rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
                     )
-
-                    if addresses:
-                        feed_revenue_operations(
-                            chain=text_to_chain(network),
-                            addresses=addresses,
-                            block_ini=block_ini,
-                            block_end=block_end,
-                            max_blocks_step=10000,
-                        )
-                    else:
-                        logging.getLogger(__name__).info(
-                            f" {network} no revenue wallet addresses to process"
-                        )
 
             # nforce a min time between loops
             _endtime = datetime.now(timezone.utc)

@@ -11,7 +11,6 @@ from bins.database.helpers import get_default_localdb, get_from_localdb
 from bins.general.enums import Chain, Protocol, queueItemType
 from bins.w3.builders import build_erc20_helper
 from bins.w3.protocols.gamma.collectors import (
-    create_data_collector_alternative,
     create_data_collector,
 )
 from bins.w3.protocols.ramses.collectors import (

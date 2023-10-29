@@ -631,8 +631,16 @@ def pull_from_queue_revenue_operation(network: str, queue_item: QueueItem) -> bo
             f"  -> Processing {network}'s revenue operation {operation['id']}"
         )
 
+        # select token address
+        if operation["topic"] == "rewardPaid":
+            _token_address = operation["token"]
+        elif operation["topic"] == "transfer":
+            _token_address = operation["address"]
+        else:
+            raise ValueError(f" Unknown operation topic {operation['topic']}")
+
         dumb_erc20 = build_erc20_helper(
-            chain=text_to_chain(network), address=operation["address"]
+            chain=text_to_chain(network), address=_token_address
         )
 
         # set timestamp
@@ -654,43 +662,55 @@ def pull_from_queue_revenue_operation(network: str, queue_item: QueueItem) -> bo
             _process_price = False
             operation["usd_value"] = 0
 
-        # non hypervisor addresses ( manually set in config)
-        fixed_revenue_addressDex = (
-            CONFIGURATION["script"]["protocols"]["gamma"]
-            .get("filters", {})
-            .get("revenue_wallets", {})
-            .get(network, {})
-            or {}
-        )
+        # process operation by topic
+        if operation["topic"] == "rewardPaid":
+            # get dex from configured fixed revenue addresses
+            if fixed_revenue_addressDex := (
+                CONFIGURATION["script"]["protocols"]["gamma"]
+                .get("filters", {})
+                .get("revenue_wallets", {})
+                .get(network, {})
+                or {}
+            ):
+                # TODO: change on new configuration
+                try:
+                    operation["dex"] = fixed_revenue_addressDex.get(
+                        operation["user"], ""
+                    ).split("_")[1]
+                except Exception as e:
+                    logging.getLogger(__name__).exception(
+                        f" Cant get dex from fixed revenue address {operation['user']} from {fixed_revenue_addressDex}"
+                    )
+
+        elif operation["topic"] == "transfer":
+            # get dex from database
+            if hypervisor_static := get_from_localdb(
+                network=network,
+                collection="static",
+                find={
+                    "id": operation["src"],
+                },
+            ):
+                hypervisor_static = hypervisor_static[0]
+                # this is a hypervisor fee related operation
+                operation["dex"] = hypervisor_static["dex"]
+
+        else:
+            # unknown operation topic
+            pass
 
         # get price at block
         price = 0
 
         # check if this is a mint operation ( nft or hype LP provider as user ...)
-        if operation["src"] == "0x0000000000000000000000000000000000000000":
+        if (
+            "src" in operation
+            and operation["src"] == "0x0000000000000000000000000000000000000000"
+        ):
             logging.getLogger(__name__).debug(
                 f" Mint operation found in queue for {network} {operation['address']} at block {operation['blockNumber']}"
             )
             # may be a gamma hypervisor address or other
-
-        # dex
-        elif hypervisor_static := get_from_localdb(
-            network=network,
-            collection="static",
-            find={
-                "id": operation["src"],
-            },
-        ):
-            # this is a hypervisor fee related operation
-            operation["dex"] = hypervisor_static["dex"]
-        else:
-            # this is not a hypervisor fee related operation: (can be veNFT or other)
-            if operation["src"] in fixed_revenue_addressDex:
-                # this is a fee related operation from a fixed revenue address
-                operation["dex"] = fixed_revenue_addressDex[operation["src"]]
-            # else:
-            #     # this is not a fee related operation ( will not have dex )
-            #     pass
 
         # price
         if _process_price:
@@ -718,7 +738,7 @@ def pull_from_queue_revenue_operation(network: str, queue_item: QueueItem) -> bo
                     price = get_price_from_db(
                         network=network,
                         block=operation["blockNumber"],
-                        token_address=operation["address"],
+                        token_address=_token_address,
                     )
                 except Exception as e:
                     # no database price
@@ -731,13 +751,13 @@ def pull_from_queue_revenue_operation(network: str, queue_item: QueueItem) -> bo
                 )
                 price, source = price_helper.get_price(
                     network=network,
-                    token_id=operation["address"],
+                    token_id=_token_address,
                     block=operation["blockNumber"],
                 )
 
                 if price in [0, None]:
                     logging.getLogger(__name__).debug(
-                        f"  Cant get price for {network}'s {operation['address']} token at block {operation['blockNumber']}. Value will be zero"
+                        f"  Cant get price for {network}'s {_token_address} token at block {operation['blockNumber']}. Value will be zero"
                     )
                     price = 0
 
