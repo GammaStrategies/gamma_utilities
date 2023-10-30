@@ -28,7 +28,7 @@ def create_revenue_addresses(
         network (str):
         block_ini (int | None, optional): . Defaults to None.
         block_end (int | None, optional): . Defaults to None.
-
+        revenue_address_type (str, optional): 'hypervisors' or 'venft'. Defaults to "hypervisors".
     Returns:
         tuple[list[str], int, int]:  addresses, block_ini, block_end
     """
