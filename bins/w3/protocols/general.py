@@ -471,6 +471,22 @@ class web3wrap:
                     # exit rpc loop
                     break
             except (requests.exceptions.HTTPError, ValueError) as e:
+                # {'code': -32602, 'message': 'eth_newFilter is limited to 1024 block range. Please check the parameter requirements at  https://docs.blockpi.io/documentations/api-reference'}
+                if isinstance(e, ValueError) and e.args[0].get("code", None) == -32602:
+                    # too many blocks to query
+                    logging.getLogger(__name__).debug(
+                        f" {rpc.type} RPC {rpc.url} returned a too many blocks to query error. Trying to lower blocks per query to 1000"
+                    )
+                    # rpc.add_failed(error=e)
+                    # raise loop
+                    raise ProcessingError(
+                        chain=text_to_chain(self._network),
+                        item={"address": self._address},
+                        identity=error_identity.TOO_MANY_BLOCKS_TO_QUERY,
+                        action="sleepNretry",
+                        message=f"  too many blocks to query for network {self._network} address {self._address}. Trying to lower blocks per query to 1000",
+                    )
+
                 logging.getLogger(__name__).debug(
                     f" Could not get {self._network}'s events usig {rpc.url} from filter  -> {e}"
                 )

@@ -6,6 +6,8 @@ from hexbytes import HexBytes
 
 from web3 import Web3, contract
 from web3.middleware import geth_poa_middleware, simple_cache_middleware
+from bins.errors.general import ProcessingError
+from bins.general.enums import error_identity
 
 from bins.w3.helpers.rpcs import RPC_MANAGER
 
@@ -564,9 +566,30 @@ class rewardPaid_collector(data_collector):
         )
 
         for filter in filter_chunks:
-            if entries := self._web3_helper.get_all_entries(
-                filter=filter, rpcKey_names=["private", "public"]
-            ):
+            entries = []
+            # try catch processing error too many blocks to lower the chunk size
+            try:
+                # fill entries
+                entries = self._web3_helper.get_all_entries(
+                    filter=filter, rpcKey_names=["private", "public"]
+                )
+            except ProcessingError as e:
+                if e.identity == error_identity.TOO_MANY_BLOCKS_TO_QUERY:
+                    # lower the chunk size to 1000 per query
+                    logging.getLogger(__name__).warning(
+                        f" Too many blocks in filter error query. Lowering this chunk size item from {max_blocks} to 1000 "
+                    )
+                    sub_filter_chunks = self._web3_helper.create_eventFilter_chunks(
+                        eventfilter=filter,
+                        max_blocks=1000,
+                    )
+                    # fill entries
+                    for sub_chunk in sub_filter_chunks:
+                        entries += self._web3_helper.get_all_entries(
+                            filter=sub_chunk, rpcKey_names=["private", "public"]
+                        )
+
+            if entries:
                 chunk_result = []
                 for event in entries:
                     # get topic name found
