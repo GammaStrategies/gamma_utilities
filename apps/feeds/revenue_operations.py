@@ -76,7 +76,9 @@ def create_revenue_addresses(
         # try getting initial block as last found in database
         if not block_ini:
             block_ini = get_db_last_revenue_operation_block(
-                network=network, addresses=list(fixed_revenue_addresses)
+                network=network,
+                addresses=list(fixed_revenue_addresses),
+                revenue_address_type=revenue_address_type,
             )
             logging.getLogger(__name__).debug(
                 f"   Setting initial block to {block_ini}, being the last block found in revenue operations database collection"
@@ -350,14 +352,24 @@ def task_enqueue_revenue_operations(
 
 
 def get_db_last_revenue_operation_block(
-    network: str, addresses: list | None = None
+    network: str,
+    addresses: list | None = None,
+    revenue_address_type="hypervisors",
 ) -> int:
     # get last block from revenue operations database collection
+    if revenue_address_type == "hypervisors":
+        find = {} if addresses is None else {"dst": {"$in": addresses}}
+    elif revenue_address_type == "venft":
+        find = {} if addresses is None else {"user": {"$in": addresses}}
+    else:
+        raise ValueError(
+            f" revenue_address_type {revenue_address_type} not supported. Use hypervisors or venft"
+        )
 
     last_revenue_operations_blocks = get_from_localdb(
         network=network,
         collection="revenue_operations",
-        find={} if addresses is None else {"address": {"$in": addresses}},
+        find=find,
         sort=[("blockNumber", -1)],
         limit=1,
     )
