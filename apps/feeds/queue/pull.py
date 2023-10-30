@@ -647,6 +647,13 @@ def pull_from_queue_revenue_operation(network: str, queue_item: QueueItem) -> bo
         operation["timestamp"] = dumb_erc20.timestampFromBlockNumber(
             block=int(operation["blockNumber"])
         )
+        # set year and month
+        operation["year"] = datetime.fromtimestamp(
+            operation["timestamp"], timezone.utc
+        ).year
+        operation["month"] = datetime.fromtimestamp(
+            operation["timestamp"], timezone.utc
+        ).month
 
         # set tokens symbol and decimals
         _process_price = True
