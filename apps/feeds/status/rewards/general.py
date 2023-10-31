@@ -3,7 +3,6 @@ import concurrent.futures
 import tqdm
 
 from apps.feeds.status.rewards.beamswap import create_rewards_status_beamswap
-from apps.feeds.status.rewards.ramses import create_rewards_status_ramses
 from apps.feeds.status.rewards.synthswap import create_rewards_status_synthswap
 from apps.feeds.status.rewards.thena import create_rewards_status_thena
 from apps.feeds.status.rewards.zyberswap import create_rewards_status_zyberswap
