@@ -11,7 +11,7 @@ from bins.w3.builders import build_erc20_helper
 from bins.w3.protocols.ramses.hypervisor import gamma_hypervisor as ramses_hypervisor
 
 
-def create_rewards_status_ramses(
+def create_rewards_status_ramses_deprecated(
     chain: Chain,
     rewarder_static: dict,
     hypervisor_status: dict,
