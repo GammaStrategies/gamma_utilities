@@ -130,9 +130,10 @@ class QueueItem:
 
 def create_priority_queueItemType() -> list[list[queueItemType]]:
     """This is just all queue items all time in order of priority
+        It will process any queueitem as FIFO ( first in first out ). This can have situations were only 1 itemType is processed for a long time, while other items are waiting
 
     Returns:
-        list[list[queueItemType]]: _description_
+        list[list[queueItemType]]:
     """
     # create an ordered list of queue item types
     queue_items_list = CONFIGURATION["_custom_"]["cml_parameters"].queue_types or list(
@@ -151,7 +152,6 @@ def create_priority_queueItemType() -> list[list[queueItemType]]:
         queueItemType.PRICE: queue_items_list,
         queueItemType.LATEST_MULTIFEEDISTRIBUTION: queue_items_list,
         queueItemType.REWARD_STATUS: queue_items_list,
-        # not used
         queueItemType.HYPERVISOR_STATIC: queue_items_list,
         queueItemType.REWARD_STATIC: queue_items_list,
         queueItemType.REVENUE_OPERATION: queue_items_list,
@@ -170,6 +170,8 @@ def create_priority_queueItemType() -> list[list[queueItemType]]:
 
 def create_priority_queueItemType_latestOut() -> list[list[queueItemType]]:
     """Only process latest items when the item turn happens ( not on the other type¡s turn)
+        It will process any queueitem as FIFO ( first in first out ) except for the 'latest_multifeedistributor' type, that will be processed once in a loop .
+        While only 1 itemType can be processed for a long time, the 'latest_multifeedistributor' types are always processed, no mater what.
 
     Returns:
         list[list[queueItemType]]: _description_
@@ -192,11 +194,9 @@ def create_priority_queueItemType_latestOut() -> list[list[queueItemType]]:
         queueItemType.OPERATION: queue_items_list_withoutLatest,
         queueItemType.BLOCK: queue_items_list_withoutLatest,
         queueItemType.HYPERVISOR_STATUS: queue_items_list_withoutLatest,
-        # only do price when price
         queueItemType.PRICE: queue_items_list_withoutLatest,
         queueItemType.LATEST_MULTIFEEDISTRIBUTION: queue_items_list,
         queueItemType.REWARD_STATUS: queue_items_list,
-        # not used
         queueItemType.HYPERVISOR_STATIC: queue_items_list,
         queueItemType.REWARD_STATIC: queue_items_list,
         queueItemType.REVENUE_OPERATION: queue_items_list,
@@ -215,9 +215,49 @@ def create_priority_queueItemType_latestOut() -> list[list[queueItemType]]:
 
 def create_priority_queueItemType_inSequence() -> list[list[queueItemType]]:
     """Will process one type item at a time ( loop)
+        This is a FIFO processing but for each type, not for all types at the same time.
 
     Returns:
-        list[list[queueItemType]]: _description_
+        list[list[queueItemType]]:
+    """
+    # create an ordered list of queue item types
+    queue_items_list = CONFIGURATION["_custom_"]["cml_parameters"].queue_types or list(
+        queueItemType
+    )
+    # order by priority
+    queue_items_list.sort(key=lambda x: x.order, reverse=False)
+
+    # queue is processed in creation order:
+    #   Include for each queue item type the types that need to be processed before it
+    types_combination = {
+        queueItemType.OPERATION: [],
+        queueItemType.BLOCK: [],
+        queueItemType.HYPERVISOR_STATUS: [],
+        queueItemType.PRICE: [],
+        queueItemType.LATEST_MULTIFEEDISTRIBUTION: [],
+        queueItemType.REWARD_STATUS: [],
+        queueItemType.HYPERVISOR_STATIC: [],
+        queueItemType.REWARD_STATIC: [],
+        queueItemType.REVENUE_OPERATION: [],
+    }
+
+    # build a result
+    result = []
+    for queue_item in queue_items_list:
+        if queue_item in types_combination:
+            tmp_result = types_combination[queue_item]
+            tmp_result.append(queue_item)
+            result.append(tmp_result)
+
+    return result
+
+
+def create_priority_queueItemType_customOrder() -> list[list[queueItemType]]:
+    """Custom
+
+
+    Returns:
+        list[list[queueItemType]]:
     """
     # create an ordered list of queue item types
     queue_items_list = CONFIGURATION["_custom_"]["cml_parameters"].queue_types or list(
@@ -232,30 +272,29 @@ def create_priority_queueItemType_inSequence() -> list[list[queueItemType]]:
         queueItemType.OPERATION: [],
         queueItemType.BLOCK: [],
         queueItemType.HYPERVISOR_STATUS: [
-            # queueItemType.BLOCK,
-            # queueItemType.HYPERVISOR_STATIC,
-            # queueItemType.PRICE,
+            queueItemType.OPERATION,
+            queueItemType.BLOCK,
+            queueItemType.HYPERVISOR_STATIC,
+            queueItemType.PRICE,
         ],
-        # only do price when price
-        queueItemType.PRICE: [],
-        queueItemType.LATEST_MULTIFEEDISTRIBUTION: [
-            # queueItemType.BLOCK,
-            # queueItemType.PRICE,
-            # queueItemType.HYPERVISOR_STATUS,
-            # queueItemType.REWARD_STATUS,
+        queueItemType.PRICE: [
+            queueItemType.OPERATION,
+            queueItemType.BLOCK,
         ],
+        queueItemType.LATEST_MULTIFEEDISTRIBUTION: [],
         queueItemType.REWARD_STATUS: [
-            # queueItemType.BLOCK,
-            # queueItemType.PRICE,
-            # queueItemType.HYPERVISOR_STATUS,
-            # queueItemType.REWARD_STATIC,
+            queueItemType.BLOCK,
+            queueItemType.PRICE,
+            queueItemType.HYPERVISOR_STATUS,
+            queueItemType.REWARD_STATIC,
         ],
-        # not used
         queueItemType.HYPERVISOR_STATIC: [],
-        queueItemType.REWARD_STATIC: [
-            # queueItemType.HYPERVISOR_STATIC
+        queueItemType.REWARD_STATIC: [queueItemType.HYPERVISOR_STATIC],
+        queueItemType.REVENUE_OPERATION: [
+            queueItemType.BLOCK,
+            queueItemType.HYPERVISOR_STATIC,
+            queueItemType.PRICE,
         ],
-        queueItemType.REVENUE_OPERATION: [],
     }
 
     # build a result
