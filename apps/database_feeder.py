@@ -388,8 +388,58 @@ def main(option="operations"):
                     network=network,
                     types=CONFIGURATION["_custom_"]["cml_parameters"].queue_types,
                 )
-            elif option == "report_ramses":
-                feed_report_ramses_gross_fees(chain=Chain.ARBITRUM, periods_back=1)
+
+            # elif option == "report_ramses":
+            #     feed_report_ramses_gross_fees(chain=Chain.ARBITRUM, periods_back=1)
+
+            elif option == "static_hypervisors":
+                for dex in CONFIGURATION["script"]["protocols"][protocol][
+                    "networks"
+                ].get(network, []):
+                    # filter if dex not in cml ( when cml is used )
+                    if CONFIGURATION["_custom_"]["cml_parameters"].protocols:
+                        if (
+                            dex
+                            not in CONFIGURATION["_custom_"]["cml_parameters"].protocols
+                        ):
+                            continue
+
+                    try:
+                        # feed database with static hypervisor info
+                        feed_hypervisor_static(
+                            protocol=protocol,
+                            network=network,
+                            dex=dex,
+                            rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
+                        )
+                    except Exception as e:
+                        logging.getLogger(__name__).exception(
+                            f" Error processing {option} data from {network} {dex}  )-:  {e} "
+                        )
+            elif option == "static_rewards":
+                for dex in CONFIGURATION["script"]["protocols"][protocol][
+                    "networks"
+                ].get(network, []):
+                    # filter if dex not in cml ( when cml is used )
+                    if CONFIGURATION["_custom_"]["cml_parameters"].protocols:
+                        if (
+                            dex
+                            not in CONFIGURATION["_custom_"]["cml_parameters"].protocols
+                        ):
+                            continue
+                    try:
+                        # feed rewarders static
+                        feed_rewards_static(
+                            network=network,
+                            dex=dex,
+                            protocol=protocol,
+                            rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
+                        )
+                    except Exception as e:
+                        logging.getLogger(__name__).exception(
+                            f" Error processing {option} data from {network} {dex}  )-:  {e} "
+                        )
+
             else:
                 raise NotImplementedError(
                     f" Can't find an operation match for {option} "

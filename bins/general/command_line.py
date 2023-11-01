@@ -73,6 +73,8 @@ def parse_commandLine_args():
             "prices",
             "user_status",
             "queue",
+            "static_hypervisors",
+            "static_rewards",
         ],
         help="feed database",
     )
