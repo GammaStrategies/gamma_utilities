@@ -582,7 +582,9 @@ class zyberswap_masterchef_v1(gamma_rewarder):
                                 "raw_data": {
                                     "allocPoint": allocPoint,
                                     "lastRewardTimestamp": lastRewardTimestamp,
-                                    "accZyberPerShare": accZyberPerShare,
+                                    "accZyberPerShare": str(accZyberPerShare)
+                                    if convert_bint
+                                    else accZyberPerShare,
                                     "depositFeeBP": depositFeeBP,
                                     "harvestInterval": harvestInterval,
                                 },
