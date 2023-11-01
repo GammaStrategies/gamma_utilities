@@ -13,7 +13,8 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
         Args:
             chain (Chain):
             hypervisor_status (dict): hypervisor status ( database structure )
-            rewarder_static (dict): rewarder static ( database structure )
+            rewarder_static (dict): rewarder static ( only rewarder_registry will be used ) ( database structure )
+
         """
         # set main vars
         self.chain = chain
@@ -50,6 +51,7 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
         current_item: dict,
     ):
         # add distribution data to all items in the loop.
+        # reward tokens are defined here
         current_item["distribution_data"] = self._build_distribution_data(
             network=chain.database_name,
             distributor_address=self.rewarder_static["rewarder_registry"],
@@ -83,6 +85,7 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
         rewards_aquired_period_end = 0
 
         for distribution_data in current_item["distribution_data"]:
+            # calculate rewards of the period
             real_rewards_end = self._build_rewards_from_distribution(
                 network=chain.database_name,
                 hypervisor_status=current_item,
@@ -104,7 +107,7 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
             self.items_to_calc_apr.append(
                 {
                     "base_rewards": rewards_aquired_period_end
-                    / (10 ** self.rewarder_static["rewardToken_decimals"]),
+                    / (10 ** distribution_data["token_decimals"]),
                     "boosted_rewards": 0,
                     "time_passed": time_passed,
                     "timestamp_ini": last_item["timestamp"],
@@ -327,6 +330,10 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
             address=pool_address
         ):
             for distribution_data in distributions:
+                # only add information regarding the static_reward
+                if distribution_data["token"] != self.rewarder_static["rewardToken"]:
+                    continue
+
                 # check if reward token is valid
                 if not distributor_creator.isValid_reward_token(
                     reward_address=distribution_data["token"].lower()
@@ -373,6 +380,10 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
 
             except Exception as e:
                 logging.getLogger(__name__).exception(f"  cant add to cache...{e}")
+        else:
+            logging.getLogger(__name__).debug(
+                f" no active distributions found for {network}'s pool address {pool_address} at block {block} reward token {self.rewarder_static['rewardToken']}"
+            )
 
         return result
 
