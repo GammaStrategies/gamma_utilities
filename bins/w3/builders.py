@@ -532,6 +532,24 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
         )
+    elif protocol == Protocol.PANCAKESWAP:
+        hypervisor = (
+            protocols.pancakeswap.hypervisor.gamma_hypervisor(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not cached
+            else protocols.pancakeswap.hypervisor.gamma_hypervisor_cached(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+        )
     elif protocol == Protocol.GAMMA:
         hypervisor = (
             protocols.gamma.hypervisor.gamma_hypervisor(
@@ -602,6 +620,10 @@ def build_hypervisor_registry(
         )
 
         return registry
+    else:
+        raise NotImplementedError(
+            f" Registry for {network} {protocol.database_name} not implemented"
+        )
 
 
 def build_protocol_pool(

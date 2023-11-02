@@ -46,6 +46,7 @@ STATIC_REGISTRY_ADDRESSES = {
     "ethereum": {
         "hypervisors": {
             "uniswapv3": "0x31ccdb5bd6322483bebd0787e1dabd1bf1f14946".lower(),
+            "pancakeswap": "0x2E18B825b049c4994370b0DB6C35d0100295b96C".lower(),
         },
         "MasterChefV2Registry": {},
         "feeDistributors": [
@@ -100,9 +101,11 @@ STATIC_REGISTRY_ADDRESSES = {
             "camelot": "0xa216C2b6554A0293f69A1555dd22f4b7e60Fe907".lower(),
             "sushi": "0x0f867f14b39a5892a39841a03ba573426de4b1d0".lower(),
             "ramses": "0x34ffbd9db6b9bd8b095a0d156de69a2ad2944666".lower(),
+            "pancakeswap": "0x166cd995f9301590e381c488ffd4f18c3ca38a27".lower(),
         },
         "MasterChefV2Registry": {
             "camelot": "0x26da8473AaA54e8c7835fA5fdd1599eB4c144d31".lower(),
+            "pancakeswap": "0xde0a8b0b323e7c7fB7a11Dd727af6E33970728A9".lower(),
         },
         "zyberswap_v1_masterchefs": [
             "0x9ba666165867e916ee7ed3a3ae6c19415c2fbddd".lower(),
@@ -123,6 +126,7 @@ STATIC_REGISTRY_ADDRESSES = {
         "hypervisors": {
             "uniswapv3": "0x0b4645179C1b668464Df01362fC6219a7ab3234c".lower(),
             "thena": "0xd4bcFC023736Db5617E5638748E127581d5929bd".lower(),
+            "pancakeswap": "0x8d7884666C056555fDD423Cd37846968040651b3".lower(),
         },
         "MasterChefV2Registry": {},
     },
