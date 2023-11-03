@@ -7,7 +7,7 @@ import yaml
 import datetime as dt
 from pathlib import Path
 from typing import Iterable, Any, Tuple
-
+from dateutil.relativedelta import relativedelta
 
 log = getLogger(__name__)
 
@@ -356,3 +356,19 @@ def seconds_to_time_passed(seconds: float) -> str:
         _timelapse_unit = "days"
         seconds /= 60 * 60 * 24
     return f"{round(seconds,2)} {_timelapse_unit}"
+
+
+def get_last_timestamp(year: int, month: int) -> float:
+    """Get last timestamp of a given month
+
+    Args:
+        year (int): year
+        month (int): month
+
+    Returns:
+        int: timestamp
+    """
+
+    return (
+        dt.datetime(year, month, 1) + relativedelta(months=1) - relativedelta(seconds=1)
+    ).timestamp()
