@@ -472,12 +472,17 @@ class web3wrap:
                     break
             except (requests.exceptions.HTTPError, ValueError) as e:
                 # {'code': -32602, 'message': 'eth_newFilter is limited to 1024 block range. Please check the parameter requirements at  https://docs.blockpi.io/documentations/api-reference'}
-                if isinstance(e, ValueError) and e.args[0].get("code", None) == -32602:
+                if (
+                    isinstance(e, ValueError)
+                    and isinstance(e.args[0], dict)
+                    and e.args[0].get("code", None) == -32602
+                ):
                     # too many blocks to query
                     logging.getLogger(__name__).debug(
                         f" {rpc.type} RPC {rpc.url} returned a too many blocks to query error. Trying to lower blocks per query to 1000"
                     )
                     # rpc.add_failed(error=e)
+                    # https://api.avax.network/ext/bc/C/rpc from filter  -> {'code': -32000, 'message': 'requested too many blocks from 37069639 to 37074639, maximum is set to 2048
                     # raise loop
                     raise ProcessingError(
                         chain=text_to_chain(self._network),
