@@ -401,9 +401,15 @@ def create_lpFees(chain: Chain, ini_timestamp: int, end_timestamp: int) -> dict:
         pool_fee_tier = calculate_pool_fees(hype_status)
 
         # get gamma liquidity percentage
-        gamma_liquidity_ini, gamma_liquidity_end = calculate_total_liquidity(
-            hype_status_ini, hype_status
-        )
+        try:
+            gamma_liquidity_ini, gamma_liquidity_end = calculate_total_liquidity(
+                hype_status_ini, hype_status
+            )
+        except Exception as e:
+            logging.getLogger(__name__).error(
+                f" Cant calculate total liquidity for hypervisor {hype_summary['address']}. Error: {e}"
+            )
+            gamma_liquidity_ini = gamma_liquidity_end = 0
 
         # calculate collected fees
         collectedFees_0 = (
@@ -454,7 +460,6 @@ def create_lpFees(chain: Chain, ini_timestamp: int, end_timestamp: int) -> dict:
         # convert revenue to float
         protocol = text_to_protocol(hype_status["dex"])
         exchange = DEX_NAMES.get(protocol, hype_status["dex"])
-        frontend_type = frontendType.REVENUE_STATS_LPFEES
         # build output
         result.append(
             {
@@ -465,7 +470,6 @@ def create_lpFees(chain: Chain, ini_timestamp: int, end_timestamp: int) -> dict:
                 "protocol": protocol.database_name,
                 "chain_id": chain.id,
                 "timestamp": int(end_timestamp),
-                "frontend_type": frontend_type,
                 "total": grossFees_usd,
                 "exchange": exchange,
                 "details": {
