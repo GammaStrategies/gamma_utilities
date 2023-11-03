@@ -935,6 +935,12 @@ def repair_binance_hypervisor_status():
                     {"pool.token1.symbol": {"$in": wrong_values}},
                     {"pool.token0.decimals": {"$in": wrong_values}},
                     {"pool.token1.decimals": {"$in": wrong_values}},
+                    {"baseLower": {"$in": wrong_values}},
+                    {"baseUpper": {"$in": wrong_values}},
+                    {"limitUpper": {"$in": wrong_values}},
+                    {"limitLower": {"$in": wrong_values}},
+                    {"totalAmounts.total0": {"$in": wrong_values}},
+                    {"totalAmounts.total1": {"$in": wrong_values}},
                 ],
             },
         )

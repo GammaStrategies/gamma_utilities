@@ -1,7 +1,7 @@
 # database ids
 
 ### QUEUE id is build in the class itself
-from ...general.enums import queueItemType
+from ...general.enums import Chain, Protocol, frontendType, queueItemType
 
 
 def combine_ids(*args) -> str:
@@ -91,3 +91,9 @@ def create_id_latest_multifeedistributor(
     mfd_address: str, rewardToken_address: str, hypervisor_address: str
 ) -> str:
     return f"{mfd_address}_{rewardToken_address}_{hypervisor_address}"
+
+
+def create_id_frontend_revenue_stats(
+    chain: Chain, timestamp: int, protocol: Protocol
+) -> str:
+    return f"{timestamp}_{protocol.database_name}_{chain.database_name}"

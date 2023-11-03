@@ -489,6 +489,22 @@ class database_global(db_collections_common):
                     "mono_indexes": {"id": True},
                     "multi_indexes": [],
                 },
+                "frontend": {
+                    "mono_indexes": {
+                        "id": True,
+                        "timestamp": False,
+                        "protocol": False,
+                        "chain": False,
+                        "frontend_type": False,
+                    },
+                    "multi_indexes": [
+                        [
+                            ("chain", ASCENDING),
+                            ("protocol", ASCENDING),
+                            ("timestamp", ASCENDING),
+                        ],
+                    ],
+                },
             }
         else:
             logging.getLogger(__name__).warning(

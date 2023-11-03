@@ -1,41 +1,25 @@
 #################################################################
 # FRONTEND DATABASE ITEM:  REVENUE STATS
 #  FRONTEND DB ITEM
-#  { "id":	"revenue_stats",
-#     "creation_date": 1698232837, # timestamp of object creation
-#     "volume": {
-#         "total": 60.0, # total estimated Gamma volume
-#         "items":[
-#             {
-#                 "chain": 1, # chain id
-#                 "timestamp": 1696118400, # like (1696118400) for October 2023
-#                 "total": 10.0, # total estimated Gamma volume for this month/period
-#                 "exchange": "Uniswap", # exchange fantasy name
-#                 "details":{} # reserved for pop up info
-#             },
-#             {
-#                 "chain": xxxx,
-#                 "timestamp": 1696118400,
-#                 "total": 20.0,
-#                 "exchange": "Sushi",
-#                 "details":{}
-#             },
-#             {
-#                 "chain": 1,
-#                 "timestamp": 1693526400,
-#                 "total": 30.0,
-#                 "exchange": "Uniswap",
-#                 "details":{}
-#             },
-#         ],
-#      },
-#     "fees":{}, # same as volume
-#     "revenue":{}, # same as volume }
-#################################################################
+
+#   {
+#     "id":	"<frontendType>_<timestamp>_<protocol>_<chain>",
+#     "chain_id": 1, # chain id
+#     "chain": "Ethereum", # chain name
+#     "protocol": "Uniswap", # protocol name
+#     "timestamp": 1696118400, # use the last timestamp second of the period
+#     "total_revenue": 10.0, # total for this month/period
+#     "total_fees": 10.0, # total for this month/period
+#     "total_volume": 10.0, # total for this month/period
+#     "exchange": "Uniswap", # exchange fantasy name
+#     "details":{} # reserved for pop up info
+#   },
 
 
+from datetime import datetime, timezone
 import logging
 from apps.feeds.frontend.static_config import DEX_NAMES
+from bins.database.common.database_ids import create_id_frontend_revenue_stats
 from bins.database.common.db_collections_common import database_local
 from bins.database.helpers import (
     get_from_localdb,
@@ -43,61 +27,163 @@ from bins.database.helpers import (
     get_default_localdb,
 )
 from bins.formulas.fees import convert_feeProtocol
-from bins.general.enums import Chain, Protocol, text_to_protocol
+from bins.general.enums import (
+    Chain,
+    Protocol,
+    frontendType,
+    text_to_chain,
+    text_to_protocol,
+)
+from bins.general.general_utilities import get_last_timestamp
+from dateutil.relativedelta import relativedelta
 
 
-def build_revenue_stats(chain: Chain, ini_timestamp: int, end_timestamp: int) -> dict:
-    """Build revenue stats for a chain in a period
+def feed_revenue_stats(
+    chains: list[Chain] | None = None,
+    rewrite: bool = False,
+) -> None:
+    # define chains to process
+    chains = chains or list(Chain)
 
-    Args:
-        chain (Chain): chain to build revenue stats
-        ini_timestamp (int): initial timestamp
-        end_timestamp (int): end timestamp
+    # feed database revenue stats, monthly.
+    for chain in chains:
+        try:
+            chain_result = {}
 
-    Returns:
-        dict: revenue stats
-    """
+            # build revenue stats
+            ini_timestamp, end_timestamp = get_next_timestamps_revenue_stats(
+                chain=chain, rewrite=rewrite
+            )
+            _revenue_items = create_revenue(
+                chain=chain, ini_timestamp=ini_timestamp, end_timestamp=end_timestamp
+            )
+            _lpFees_items = create_lpFees(
+                chain=chain, ini_timestamp=ini_timestamp, end_timestamp=end_timestamp
+            )
+            # build volume
+            _volume_items = create_volume(lpFees=_lpFees_items)
 
-    # define result vars
-    total = 0.0
-    items = []
+            for revenue in _revenue_items:
+                if not revenue["protocol"] in chain_result:
+                    chain_result[revenue["protocol"]] = {
+                        "id": create_id_frontend_revenue_stats(
+                            chain=chain,
+                            timestamp=end_timestamp,
+                            protocol=text_to_protocol(revenue["protocol"]),
+                        ),
+                        "frontend_type": frontendType.REVENUE_STATS,
+                        "chain": chain.database_name,
+                        "protocol": revenue["protocol"],
+                        "chain_id": chain.id,
+                        "timestamp": end_timestamp,
+                        "total_revenue": revenue["total"],
+                        "total_fees": 0.0,
+                        "total_volume": 0.0,
+                        "exchange": revenue["exchange"],
+                        "details": {
+                            "collectedFees_0": 0,
+                            "collectedFees_1": 0,
+                            "collectedFees_usd": 0,
+                            "uncollectedFees_0": 0,
+                            "uncollectedFees_1": 0,
+                            "grossFees_0": 0,
+                            "grossFees_1": 0,
+                            "grossFees_usd": 0,
+                            "gamma_vs_pool_liquidity_ini": 0,
+                            "gamma_vs_pool_liquidity_end": 0,
+                            # "feeTier": lpFees["details"]["feeTier"],
+                            "eVolume": 0,
+                            "collecedFees_day": 0,
+                        },
+                    }
+                else:
+                    chain_result[revenue["protocol"]]["total_revenue"] += revenue[
+                        "total"
+                    ]
 
-    # get revenue stats
-    revenue = create_revenue(
-        chain=chain, ini_timestamp=ini_timestamp, end_timestamp=end_timestamp
-    )
-    # get lpFees
-    lpFees = create_lpFees(
-        chain=chain, ini_timestamp=ini_timestamp, end_timestamp=end_timestamp
-    )
-    # get volume
-    volume = create_volume(lpFees=lpFees)
+            for lpFees in _lpFees_items:
+                if not lpFees["protocol"] in chain_result:
+                    raise ValueError(f" {lpFees['protocol']} not found in chain_result")
+                else:
+                    chain_result[lpFees["protocol"]]["total_fees"] += lpFees["total"]
+                    chain_result[lpFees["protocol"]]["details"][
+                        "collectedFees_0"
+                    ] += lpFees["details"]["collectedFees_0"]
+                    chain_result[lpFees["protocol"]]["details"][
+                        "collectedFees_1"
+                    ] += lpFees["details"]["collectedFees_1"]
+                    chain_result[lpFees["protocol"]]["details"][
+                        "collectedFees_usd"
+                    ] += lpFees["details"]["collectedFees_usd"]
+                    chain_result[lpFees["protocol"]]["details"][
+                        "uncollectedFees_0"
+                    ] += lpFees["details"]["uncollectedFees_0"]
+                    chain_result[lpFees["protocol"]]["details"][
+                        "uncollectedFees_1"
+                    ] += lpFees["details"]["uncollectedFees_1"]
+                    chain_result[lpFees["protocol"]]["details"][
+                        "grossFees_0"
+                    ] += lpFees["details"]["grossFees_0"]
+                    chain_result[lpFees["protocol"]]["details"][
+                        "grossFees_1"
+                    ] += lpFees["details"]["grossFees_1"]
+                    chain_result[lpFees["protocol"]]["details"][
+                        "grossFees_usd"
+                    ] += lpFees["details"]["grossFees_usd"]
+                    chain_result[lpFees["protocol"]]["details"][
+                        "gamma_vs_pool_liquidity_ini"
+                    ] += lpFees["details"]["gamma_vs_pool_liquidity_ini"]
+                    chain_result[lpFees["protocol"]]["details"][
+                        "gamma_vs_pool_liquidity_end"
+                    ] += lpFees["details"]["gamma_vs_pool_liquidity_end"]
+                    # items_aggregated[itm["exchange"]]["details"]["feeTier"] += itm["details"]["feeTier"]
+                    chain_result[lpFees["protocol"]]["details"]["eVolume"] += lpFees[
+                        "details"
+                    ]["eVolume"]
+                    chain_result[lpFees["protocol"]]["details"][
+                        "collecedFees_day"
+                    ] += lpFees["details"]["collecedFees_day"]
 
-    # build result
-    result = {
-        "id": "revenue_stats",
-        "creation_date": end_timestamp,
-        "volume": volume,
-        "fees": lpFees,
-        "revenue": revenue,
-    }
+            for volume in _volume_items:
+                if not volume["protocol"] in chain_result:
+                    raise ValueError(f" {volume['protocol']} not found in chain_result")
+                else:
+                    chain_result[volume["protocol"]]["total_volume"] += volume["total"]
 
-    return result
+            # save to database
+            if chain_result:
+                if db_return := get_default_globaldb().replace_items_to_database(
+                    data=list(chain_result.values()), collection_name="frontend"
+                ):
+                    logging.getLogger(__name__).debug(
+                        f" {chain.database_name} -> del:{db_return.deleted_count} ins:{db_return.inserted_count} mod:{db_return.modified_count} ups:{db_return.upserted_count} "
+                    )
+                else:
+                    logging.getLogger(__name__).error(
+                        f" {chain.database_name} -> Error saving revenue stats to database"
+                    )
+
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f" Error feeding frontend revenue stats for {chain.database_name}  err->   {e}"
+            )
 
 
 def create_revenue(chain: Chain, ini_timestamp: int, end_timestamp: int) -> dict:
     # Gamma fees recieved from LPs ( in wallets using revenue_operations collection)
 
     # define result vars
-    total = 0.0
-    items = []
+    result = []
 
     # build query
     revenue_query = [
         {
             "$match": {
-                "dex": {"$exists": True},
-                "timestamp": {"$gte": ini_timestamp, "$lte": end_timestamp},
+                "$and": [
+                    {"dex": {"$exists": True}},
+                    {"timestamp": {"$gte": ini_timestamp}},
+                    {"timestamp": {"$lte": end_timestamp}},
+                ]
             }
         },
         {
@@ -115,11 +201,22 @@ def create_revenue(chain: Chain, ini_timestamp: int, end_timestamp: int) -> dict
     ):
         for revenue in revenue_summary:
             # convert revenue to float
-            exchange = DEX_NAMES.get(text_to_protocol(revenue["_id"]), revenue["_id"])
+            protocol = text_to_protocol(revenue["_id"])
+            exchange = DEX_NAMES.get(protocol, revenue["_id"])
+            # frontend type
+            frontend_type = frontendType.REVENUE_STATS_REVENUE
             # build result
-            items.append(
+            result.append(
                 {
-                    "chain": chain.id,
+                    "id": create_id_frontend_revenue_stats(
+                        chain=chain,
+                        timestamp=end_timestamp,
+                        protocol=protocol,
+                    ),
+                    "chain": chain.database_name,
+                    "protocol": protocol.database_name,
+                    "chain_id": chain.id,
+                    "frontend_type": frontend_type,
                     "timestamp": end_timestamp,
                     "total": revenue["total_usd"],
                     "exchange": exchange,
@@ -133,27 +230,39 @@ def create_revenue(chain: Chain, ini_timestamp: int, end_timestamp: int) -> dict
         )
 
     # return result
-    return {"total": total, "items": items}
+    return result
 
 
 def create_lpFees(chain: Chain, ini_timestamp: int, end_timestamp: int) -> dict:
     # gross fees ( LP fees using operations collection)
 
     # define result vars
-    total = 0.0
-    items = []
+    result = []
 
     # get hypervisors prices at the end of the period
     token_prices = {}
+    token_current_prices = {
+        x["address"]: x
+        for x in get_default_globaldb().get_items_from_database(
+            collection_name="current_usd_prices",
+            find={"network": chain.database_name},
+        )
+    }
     try:
+        # get a list of blocks close to the end of the period
         end_block = get_default_globaldb().get_closest_block(
             network=chain.database_name, timestamp=end_timestamp
         )
+        # assign the first block of the list
+        end_block = end_block[0]["doc"]["block"]
         query = [
             {
                 "$match": {
-                    "network": chain.database_name,
-                    "block": {"$lte": end_block, "$gte": end_block - 10000},
+                    "$and": [
+                        {"network": chain.database_name},
+                        {"block": {"$gte": end_block - 10000}},
+                        {"block": {"$lte": end_block}},
+                    ]
                 }
             },
             {"$sort": {"block": -1}},
@@ -169,13 +278,7 @@ def create_lpFees(chain: Chain, ini_timestamp: int, end_timestamp: int) -> dict:
         logging.getLogger(__name__).error(
             f" Cant get token prices for {chain} at {end_timestamp}. Using current prices instead.  Error: {e}"
         )
-        token_prices = {
-            x["address"]: x
-            for x in get_default_globaldb().get_items_from_database(
-                collection_name="current_usd_prices",
-                find={"network": chain.database_name},
-            )
-        }
+        token_prices = token_current_prices
 
     # get all hypervisors last status from the database
     last_hypervisor_status = {}
@@ -183,10 +286,12 @@ def create_lpFees(chain: Chain, ini_timestamp: int, end_timestamp: int) -> dict:
     try:
         query_last_hype_status = [
             {
-                "$and": [
-                    {"timestamp": {"$gte": ini_timestamp}},
-                    {"timestamp": {"$lte": end_timestamp}},
-                ]
+                "$match": {
+                    "$and": [
+                        {"timestamp": {"$gte": ini_timestamp}},
+                        {"timestamp": {"$lte": end_timestamp}},
+                    ]
+                }
             },
             {"$sort": {"block": -1}},
             {
@@ -250,9 +355,20 @@ def create_lpFees(chain: Chain, ini_timestamp: int, end_timestamp: int) -> dict:
         ).get("price", 0)
         if not token0_price or not token1_price:
             logging.getLogger(__name__).error(
-                f"Price not found for token0[{token0_price}] or token1[{token1_price}] of hypervisor {hype_summary['address']}"
+                f" Database price not found for token0[{token0_price}] or token1[{token1_price}] of hypervisor {hype_summary['address']}. Using current prices"
             )
-            continue
+            # get price from current prices
+            token0_price = token_current_prices.get(
+                hype_status["pool"]["token0"]["address"], {}
+            ).get("price", 0)
+            token1_price = token_current_prices.get(
+                hype_status["pool"]["token1"]["address"], {}
+            ).get("price", 0)
+            if not token0_price or not token1_price:
+                logging.getLogger(__name__).error(
+                    f" Current price not found for token0[{token0_price}] or token1[{token1_price}] of hypervisor {hype_summary['address']}. Cant continue."
+                )
+                continue
 
         # check for price outliers
         if token0_price > 1000000 or token1_price > 1000000:
@@ -336,15 +452,20 @@ def create_lpFees(chain: Chain, ini_timestamp: int, end_timestamp: int) -> dict:
         ) / 86400
 
         # convert revenue to float
-        exchange = DEX_NAMES.get(
-            text_to_protocol(hype_status["dex"]), hype_status["dex"]
-        )
-
+        protocol = text_to_protocol(hype_status["dex"])
+        exchange = DEX_NAMES.get(protocol, hype_status["dex"])
+        frontend_type = frontendType.REVENUE_STATS_LPFEES
         # build output
-        items.append(
+        result.append(
             {
-                "chain": chain.id,
-                "timestamp": end_timestamp,
+                "id": create_id_frontend_revenue_stats(
+                    chain=chain, timestamp=end_timestamp, protocol=protocol
+                ),
+                "chain": chain.database_name,
+                "protocol": protocol.database_name,
+                "chain_id": chain.id,
+                "timestamp": int(end_timestamp),
+                "frontend_type": frontend_type,
                 "total": grossFees_usd,
                 "exchange": exchange,
                 "details": {
@@ -367,36 +488,164 @@ def create_lpFees(chain: Chain, ini_timestamp: int, end_timestamp: int) -> dict:
             }
         )
 
-        total += grossFees_usd
+    # aggregate items by exchange
+    items_aggregated = {}
+    for itm in result:
+        if itm["exchange"] not in items_aggregated:
+            items_aggregated[itm["exchange"]] = {
+                "id": itm["id"],
+                "chain": itm["chain"],
+                "protocol": itm["protocol"],
+                "chain_id": itm["chain_id"],
+                "frontend_type": itm["frontend_type"],
+                "timestamp": itm["timestamp"],
+                "total": itm["total"],
+                "exchange": itm["exchange"],
+                "details": {
+                    "collectedFees_0": itm["details"]["collectedFees_0"],
+                    "collectedFees_1": itm["details"]["collectedFees_1"],
+                    "collectedFees_usd": itm["details"]["collectedFees_usd"],
+                    "uncollectedFees_0": itm["details"]["uncollectedFees_0"],
+                    "uncollectedFees_1": itm["details"]["uncollectedFees_1"],
+                    "grossFees_0": itm["details"]["grossFees_0"],
+                    "grossFees_1": itm["details"]["grossFees_1"],
+                    "grossFees_usd": itm["details"]["grossFees_usd"],
+                    "gamma_vs_pool_liquidity_ini": itm["details"][
+                        "gamma_vs_pool_liquidity_ini"
+                    ],
+                    "gamma_vs_pool_liquidity_end": itm["details"][
+                        "gamma_vs_pool_liquidity_end"
+                    ],
+                    # "feeTier": itm["details"]["feeTier"],
+                    "eVolume": itm["details"]["eVolume"],
+                    "collecedFees_day": itm["details"]["collecedFees_day"],
+                },
+            }
+        else:
+            items_aggregated[itm["exchange"]]["total"] += itm["total"]
+            items_aggregated[itm["exchange"]]["details"]["collectedFees_0"] += itm[
+                "details"
+            ]["collectedFees_0"]
+            items_aggregated[itm["exchange"]]["details"]["collectedFees_1"] += itm[
+                "details"
+            ]["collectedFees_1"]
+            items_aggregated[itm["exchange"]]["details"]["collectedFees_usd"] += itm[
+                "details"
+            ]["collectedFees_usd"]
+            items_aggregated[itm["exchange"]]["details"]["uncollectedFees_0"] += itm[
+                "details"
+            ]["uncollectedFees_0"]
+            items_aggregated[itm["exchange"]]["details"]["uncollectedFees_1"] += itm[
+                "details"
+            ]["uncollectedFees_1"]
+            items_aggregated[itm["exchange"]]["details"]["grossFees_0"] += itm[
+                "details"
+            ]["grossFees_0"]
+            items_aggregated[itm["exchange"]]["details"]["grossFees_1"] += itm[
+                "details"
+            ]["grossFees_1"]
+            items_aggregated[itm["exchange"]]["details"]["grossFees_usd"] += itm[
+                "details"
+            ]["grossFees_usd"]
+            items_aggregated[itm["exchange"]]["details"][
+                "gamma_vs_pool_liquidity_ini"
+            ] += itm["details"]["gamma_vs_pool_liquidity_ini"]
+            items_aggregated[itm["exchange"]]["details"][
+                "gamma_vs_pool_liquidity_end"
+            ] += itm["details"]["gamma_vs_pool_liquidity_end"]
+            # items_aggregated[itm["exchange"]]["details"]["feeTier"] += itm["details"]["feeTier"]
+            items_aggregated[itm["exchange"]]["details"]["eVolume"] += itm["details"][
+                "eVolume"
+            ]
+            items_aggregated[itm["exchange"]]["details"]["collecedFees_day"] += itm[
+                "details"
+            ]["collecedFees_day"]
 
-    # return result
-    return {"total": total, "items": items}
+    # convert aggregated items to list and return result
+    return list(items_aggregated.values())
 
 
 def create_volume(lpFees: dict) -> dict:
     # calculated from gross fees
 
     # define result vars
-    total = 0.0
-    items = []
+    result = []
 
-    for itm in lpFees["items"]:
-        items.append(
+    frontend_type = frontendType.REVENUE_STATS_VOLUME
+    for itm in lpFees:
+        protocol = text_to_protocol(itm["protocol"])
+        chain = text_to_chain(itm["chain"])
+        result.append(
             {
+                "id": create_id_frontend_revenue_stats(
+                    chain=chain, timestamp=itm["timestamp"], protocol=protocol
+                ),
+                "chain_id": itm["chain_id"],
                 "chain": itm["chain"],
+                "protocol": itm["protocol"],
+                "frontend_type": frontend_type,
                 "timestamp": itm["timestamp"],
                 "total": itm["details"]["eVolume"],
                 "exchange": itm["exchange"],
                 "details": {},
             }
         )
-        total += itm["details"]["eVolume"]
-
     # return result
-    return {"total": total, "items": items}
+    return result
 
 
 ## HELPER
+def get_next_timestamps_revenue_stats(
+    chain: Chain, rewrite: bool = False
+) -> tuple[int, int]:
+    if not rewrite:
+        # define last timestamp for this type
+        last_item = get_default_globaldb().get_items_from_database(
+            collection_name="frontend",
+            find={"chain": chain.database_name},
+            sort=[("timestamp", -1)],
+            limit=1,
+        )
+    if rewrite or not last_item:
+        try:
+            first_revenue_operation = get_from_localdb(
+                network=chain.database_name,
+                collection="revenue_operations",
+                find={},
+                sort=[("timestamp", 1)],
+                limit=1,
+            )
+            _datetime = datetime.fromtimestamp(
+                first_revenue_operation[0]["timestamp"], timezone.utc
+            )
+            end_timestamp = int(
+                get_last_timestamp(year=_datetime.year, month=_datetime.month)
+            )
+            ini_timestamp = int(
+                datetime(year=_datetime.year, month=_datetime.month, day=1).timestamp()
+            )
+        except Exception as e:
+            logging.getLogger(__name__).exception(f" {e}")
+
+    else:
+        try:
+            _last_datetime = datetime.fromtimestamp(
+                last_item[0]["timestamp"], timezone.utc
+            )
+            _next_datetime = _last_datetime + relativedelta(days=10)
+            end_timestamp = int(
+                get_last_timestamp(year=_next_datetime.year, month=_next_datetime.month)
+            )
+            ini_timestamp = int(
+                datetime(
+                    year=_next_datetime.year, month=_next_datetime.month, day=1
+                ).timestamp()
+            )
+        except Exception as e:
+            logging.getLogger(__name__).exception(f" {e}")
+
+    # return result
+    return ini_timestamp, end_timestamp
 
 
 def calculate_pool_fees(hypervisor_status: dict) -> float:

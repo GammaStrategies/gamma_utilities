@@ -326,6 +326,10 @@ class reportType(str, Enum):
     GROSS_FEES = "gross_fees"
 
 
+class frontendType(str, Enum):
+    REVENUE_STATS = "revenue_stats"
+
+
 # HELPERS
 def text_to_chain(text: str) -> Chain:
     """Text to Chain conversion
