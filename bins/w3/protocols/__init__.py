@@ -21,4 +21,5 @@ from ..protocols import (
     lynex,
     fusionx,
     pegasys,
+    basex,
 )
