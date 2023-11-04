@@ -2,6 +2,11 @@ import logging
 import concurrent.futures
 import time
 import tqdm
+from apps.feeds.revenue_operations import (
+    create_revenue_addresses,
+    feed_revenue_operations_from_hypervisors,
+    feed_revenue_operations_from_venft,
+)
 
 from apps.feeds.status.rewards.general import create_reward_status_from_hype_status
 from bins.configuration import CONFIGURATION
@@ -287,6 +292,78 @@ def reScrape_loopWork_rewards_status(
     return False
 
 
+# custom fill gaps for revenue operations
+def revenueOperations_fillGaps(chain: Chain):
+    """Rescrape revenue operations from the first revenue operation block till now
+    Already in database revenue operations will not be processed (queued)
+
+    Args:
+        chain (Chain):
+    """
+
+    logging.getLogger(__name__).info(
+        f" {chain.database_name} filling revenue operations gaps, if any"
+    )
+
+    max_blocks_step = 5000
+    rewrite = False
+
+    # get first revenue operation
+    if first_revenue_operation := get_from_localdb(
+        network=chain.database_name,
+        collection="revenue_operations",
+        find={},
+        sort=[("timestamp", 1)],
+        limit=1,
+    ):
+        # get first revenue operation
+        first_revenue_operation = first_revenue_operation[0]
+        # set block ini
+        block_ini = first_revenue_operation["blockNumber"]
+        block_end = None
+        # 1) transfers to hypervisor revenue addresses
+        (
+            addresses,
+            block_ini,
+            block_end,
+        ) = create_revenue_addresses(
+            network=chain.database_name,
+            block_ini=block_ini,
+            block_end=block_end,
+            revenue_address_type="hypervisors",
+        )
+        if addresses:
+            feed_revenue_operations_from_hypervisors(
+                chain=chain,
+                addresses=addresses,
+                block_ini=block_ini,
+                block_end=block_end,
+                max_blocks_step=max_blocks_step,
+                rewrite=rewrite,
+            )
+
+        # 2) rewardPaid to revenue addresses
+        addresses, block_ini, block_end = create_revenue_addresses(
+            network=chain.database_name,
+            block_ini=block_ini,
+            block_end=block_end,
+            revenue_address_type="venft",
+        )
+        if addresses:
+            feed_revenue_operations_from_venft(
+                chain=chain,
+                addresses=addresses,
+                block_ini=block_ini,
+                block_end=block_end,
+                max_blocks_step=max_blocks_step,
+                rewrite=rewrite,
+            )
+    else:
+        logging.getLogger(__name__).info(
+            f" {chain.database_name} no revenue operations found"
+        )
+
+
 def main(option=None):
     # TODO: add options logic
     # options are collection, custom find, custom sort, threaded
@@ -339,3 +416,7 @@ def main(option=None):
                     threaded=True,
                     rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
                 )
+
+        # Revenue operations
+        if option == "revenue_operations":
+            revenueOperations_fillGaps(chain=text_to_chain(network))

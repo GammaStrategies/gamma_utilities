@@ -5,6 +5,7 @@ import tqdm
 from web3 import Web3
 from apps.feeds.queue.queue_item import QueueItem
 from bins.configuration import CONFIGURATION
+from bins.database.common.database_ids import create_id_operation
 from bins.database.helpers import get_default_localdb, get_from_localdb
 from bins.general.enums import Chain, queueItemType
 from bins.general.general_utilities import convert_string_datetime
@@ -314,8 +315,11 @@ def task_enqueue_revenue_operations(
 ):
     # build a list of operations to be added to the queue
     to_add = []
-    to_add_ids = []
+    to_add_ids = {}
     for operation in operations:
+        future_revenue_operation_id = create_id_operation(
+            logIndex=operation["logIndex"], transactionHash=operation["transactionHash"]
+        )
         item = QueueItem(
             type=operation_type,
             block=int(operation["blockNumber"]),
@@ -323,7 +327,12 @@ def task_enqueue_revenue_operations(
             data=operation,
         ).as_dict
         to_add.append(item)
-        to_add_ids.append(item["id"])
+        if future_revenue_operation_id in to_add_ids:
+            # this should never happen
+            raise ValueError(
+                f" revenue operation {future_revenue_operation_id} already in to_add_ids"
+            )
+        to_add_ids[future_revenue_operation_id] = item["id"]
 
     # check if operations are already in database or rewrite is set
     if not rewrite:
@@ -331,13 +340,19 @@ def task_enqueue_revenue_operations(
         for already_in_db in get_from_localdb(
             network=network,
             collection="revenue_operations",
-            find={"id": {"$in": to_add_ids}},
+            find={"id": {"$in": list(to_add_ids.keys())}},
+            batch_size=10000,
         ):
             # remove already in database operations from to_add_ids
-            to_add_ids.remove(already_in_db["id"])
+            to_add_ids.pop(already_in_db["id"], None)
+            # to_add_ids.remove(already_in_db["id"])
 
         # remove already in database operations from to_add
-        to_add = [x for x in to_add if x["id"] in to_add_ids]
+        to_add = [x for x in to_add if x["id"] in list(to_add_ids.values())]
+
+    if not to_add:
+        logging.getLogger(__name__).debug(f" No new revenue operations to add")
+        return
 
     if db_return := get_default_localdb(network=network).replace_items_to_database(
         data=to_add, collection_name="queue"
@@ -345,6 +360,9 @@ def task_enqueue_revenue_operations(
         logging.getLogger(__name__).debug(
             f"     db return-> del: {db_return.deleted_count}  ins: {db_return.inserted_count}  mod: {db_return.modified_count}  ups: {db_return.upserted_count} matched: {db_return.matched_count}"
         )
+        if db_return.modified_count > 0:
+            # this should not normally happen when updating queue bc it is a new item or the item in queue has been there for long
+            pass
     else:
         logging.getLogger(__name__).error(
             f"  database did not return anything while saving {operation_type}s to queue"
