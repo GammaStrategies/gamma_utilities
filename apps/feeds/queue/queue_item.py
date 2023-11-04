@@ -61,7 +61,7 @@ class QueueItem:
                 #     f" {self.data} is missing reward_static. using id: {self.id}"
                 # )
 
-        elif self.type == queueItemType.OPERATION:
+        elif self.type in [queueItemType.OPERATION, queueItemType.REVENUE_OPERATION]:
             # create the basic id
             self.id = create_id_queue(
                 type=self.type, block=self.block, hypervisor_address=self.address
