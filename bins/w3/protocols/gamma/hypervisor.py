@@ -15,7 +15,7 @@ from ..uniswap.pool import (
     poolv3_bep20_cached,
 )
 
-ABI_FILENAME = "hypervisor_v2"
+ABI_FILENAME = "hypervisor_modded"
 ABI_FOLDERNAME = "gamma"
 DEX_NAME = Protocol.GAMMA.database_name
 INMUTABLE_FIELDS = {
@@ -158,10 +158,10 @@ class gamma_hypervisor(erc20):
 
     @property
     def fee(self) -> int:
-        """fee _summary_
+        """fee
 
         Returns:
-            int: 10 uint8
+            int: 10 uint8 ( in polygon is uint24)
         """
         return self.call_function_autoRpc("fee")
 
