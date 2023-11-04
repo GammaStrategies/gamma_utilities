@@ -167,7 +167,7 @@ def process_error(error: ProcessingError):
                     chain=error.chain,
                     block_ini=_ini_block,
                     block_end=_end_block,
-                    max_blocks_step=1000,
+                    max_blocks_step=5000,
                     rewrite=False,
                 )
 
