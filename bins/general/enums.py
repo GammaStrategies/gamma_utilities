@@ -319,7 +319,10 @@ class error_identity(str, Enum):
     NO_RPC_AVAILABLE = "NO_RPC_AVAILABLE"
     PRICE_NOT_FOUND = "PRICE_NOT_FOUND"
     CONTRACT_NOT_DEPLOYED = "CONTRACT_NOT_DEPLOYED"
+    # when calling RPC with an eth filter and the RPC returns a limit error
     TOO_MANY_BLOCKS_TO_QUERY = "TOO_MANY_BLOCKS_TO_QUERY"
+    # when LP fees are detected (using operations) but no revenue for those fees exist (in revenue_operations)
+    LPFEES_WITHOUT_REVENUE = "LPFEES_WITHOUT_REVENUE"
 
 
 class reportType(str, Enum):

@@ -18,6 +18,8 @@
 
 from datetime import datetime, timezone
 import logging
+
+import tqdm
 from apps.feeds.frontend.static_config import DEX_NAMES
 from bins.configuration import CONFIGURATION
 from bins.database.common.database_ids import create_id_frontend_revenue_stats
@@ -27,10 +29,13 @@ from bins.database.helpers import (
     get_default_globaldb,
     get_default_localdb,
 )
+from bins.errors.actions import process_error
+from bins.errors.general import ProcessingError
 from bins.formulas.fees import convert_feeProtocol
 from bins.general.enums import (
     Chain,
     Protocol,
+    error_identity,
     frontendType,
     text_to_chain,
     text_to_protocol,
@@ -52,139 +57,169 @@ def feed_revenue_stats(
 
     # feed database revenue stats, monthly.
     for chain in chains:
-        try:
-            chain_result = {}
+        with tqdm.tqdm(total=len(chains)) as progress_bar:
+            try:
+                # build revenue stats
+                # process all from firts timestamp to now
+                for (
+                    ini_timestamp,
+                    end_timestamp,
+                ) in get_all_next_timestamps_revenue_stats(
+                    chain=chain, rewrite=rewrite
+                ):
+                    # update progress bar description
+                    progress_bar.set_description(
+                        f" {chain.database_name}: {datetime.fromtimestamp(end_timestamp, timezone.utc).strftime('%Y-%m')}"
+                    )
+                    progress_bar.update(0)
 
-            # build revenue stats
-            # process all from firts timestamp to now
-            for ini_timestamp, end_timestamp in get_all_next_timestamps_revenue_stats(
-                chain=chain, rewrite=rewrite
-            ):
-                _revenue_items = create_revenue(
-                    chain=chain,
-                    ini_timestamp=ini_timestamp,
-                    end_timestamp=end_timestamp,
-                )
-                _lpFees_items = create_lpFees(
-                    chain=chain,
-                    ini_timestamp=ini_timestamp,
-                    end_timestamp=end_timestamp,
-                )
-                # build volume
-                _volume_items = create_volume(lpFees=_lpFees_items)
+                    # define result vars
+                    chain_protocol_time_result = {}
+                    # build revenue stats
+                    _revenue_items = create_revenue(
+                        chain=chain,
+                        ini_timestamp=ini_timestamp,
+                        end_timestamp=end_timestamp,
+                    )
+                    # build lpFees
+                    _lpFees_items = create_lpFees(
+                        chain=chain,
+                        ini_timestamp=ini_timestamp,
+                        end_timestamp=end_timestamp,
+                    )
+                    # build volume
+                    _volume_items = create_volume(lpFees=_lpFees_items)
 
-                for revenue in _revenue_items:
-                    if not revenue["protocol"] in chain_result:
-                        chain_result[revenue["protocol"]] = {
-                            "id": create_id_frontend_revenue_stats(
+                    for revenue in _revenue_items:
+                        if not revenue["protocol"] in chain_protocol_time_result:
+                            chain_protocol_time_result[revenue["protocol"]] = {
+                                "id": create_id_frontend_revenue_stats(
+                                    chain=chain,
+                                    timestamp=end_timestamp,
+                                    protocol=text_to_protocol(revenue["protocol"]),
+                                ),
+                                "frontend_type": frontendType.REVENUE_STATS,
+                                "chain": chain.database_name,
+                                "protocol": revenue["protocol"],
+                                "chain_id": chain.id,
+                                "timestamp": end_timestamp,
+                                "total_revenue": revenue["total"],
+                                "total_fees": 0.0,
+                                "total_volume": 0.0,
+                                "exchange": revenue["exchange"],
+                                "details": {
+                                    "collectedFees_0": 0,
+                                    "collectedFees_1": 0,
+                                    "collectedFees_usd": 0,
+                                    "uncollectedFees_0": 0,
+                                    "uncollectedFees_1": 0,
+                                    "grossFees_0": 0,
+                                    "grossFees_1": 0,
+                                    "grossFees_usd": 0,
+                                    "gamma_vs_pool_liquidity_ini": 0,
+                                    "gamma_vs_pool_liquidity_end": 0,
+                                    # "feeTier": lpFees["details"]["feeTier"],
+                                    "eVolume": 0,
+                                    "collecedFees_day": 0,
+                                },
+                            }
+                        else:
+                            chain_protocol_time_result[revenue["protocol"]][
+                                "total_revenue"
+                            ] += revenue["total"]
+
+                    for lpFees in _lpFees_items:
+                        if not lpFees["protocol"] in chain_protocol_time_result:
+                            # no revenue but lpfees exist... this should not happen
+                            # scrape revenue_operations from ini_timestamp to end_timestamp to make sure we are not missing anything
+                            raise ProcessingError(
                                 chain=chain,
-                                timestamp=end_timestamp,
-                                protocol=text_to_protocol(revenue["protocol"]),
-                            ),
-                            "frontend_type": frontendType.REVENUE_STATS,
-                            "chain": chain.database_name,
-                            "protocol": revenue["protocol"],
-                            "chain_id": chain.id,
-                            "timestamp": end_timestamp,
-                            "total_revenue": revenue["total"],
-                            "total_fees": 0.0,
-                            "total_volume": 0.0,
-                            "exchange": revenue["exchange"],
-                            "details": {
-                                "collectedFees_0": 0,
-                                "collectedFees_1": 0,
-                                "collectedFees_usd": 0,
-                                "uncollectedFees_0": 0,
-                                "uncollectedFees_1": 0,
-                                "grossFees_0": 0,
-                                "grossFees_1": 0,
-                                "grossFees_usd": 0,
-                                "gamma_vs_pool_liquidity_ini": 0,
-                                "gamma_vs_pool_liquidity_end": 0,
-                                # "feeTier": lpFees["details"]["feeTier"],
-                                "eVolume": 0,
-                                "collecedFees_day": 0,
-                            },
-                        }
-                    else:
-                        chain_result[revenue["protocol"]]["total_revenue"] += revenue[
-                            "total"
-                        ]
+                                item={
+                                    "ini_timestamp": ini_timestamp,
+                                    "end_timestamp": end_timestamp,
+                                },
+                                identity=error_identity.LPFEES_WITHOUT_REVENUE,
+                                action="rescrape",
+                                message=f" LPFees without revenue for {chain.database_name} from {ini_timestamp} to {end_timestamp}",
+                            )
+                        else:
+                            chain_protocol_time_result[lpFees["protocol"]][
+                                "total_fees"
+                            ] += lpFees["total"]
+                            chain_protocol_time_result[lpFees["protocol"]]["details"][
+                                "collectedFees_0"
+                            ] += lpFees["details"]["collectedFees_0"]
+                            chain_protocol_time_result[lpFees["protocol"]]["details"][
+                                "collectedFees_1"
+                            ] += lpFees["details"]["collectedFees_1"]
+                            chain_protocol_time_result[lpFees["protocol"]]["details"][
+                                "collectedFees_usd"
+                            ] += lpFees["details"]["collectedFees_usd"]
+                            chain_protocol_time_result[lpFees["protocol"]]["details"][
+                                "uncollectedFees_0"
+                            ] += lpFees["details"]["uncollectedFees_0"]
+                            chain_protocol_time_result[lpFees["protocol"]]["details"][
+                                "uncollectedFees_1"
+                            ] += lpFees["details"]["uncollectedFees_1"]
+                            chain_protocol_time_result[lpFees["protocol"]]["details"][
+                                "grossFees_0"
+                            ] += lpFees["details"]["grossFees_0"]
+                            chain_protocol_time_result[lpFees["protocol"]]["details"][
+                                "grossFees_1"
+                            ] += lpFees["details"]["grossFees_1"]
+                            chain_protocol_time_result[lpFees["protocol"]]["details"][
+                                "grossFees_usd"
+                            ] += lpFees["details"]["grossFees_usd"]
+                            chain_protocol_time_result[lpFees["protocol"]]["details"][
+                                "gamma_vs_pool_liquidity_ini"
+                            ] += lpFees["details"]["gamma_vs_pool_liquidity_ini"]
+                            chain_protocol_time_result[lpFees["protocol"]]["details"][
+                                "gamma_vs_pool_liquidity_end"
+                            ] += lpFees["details"]["gamma_vs_pool_liquidity_end"]
+                            # items_aggregated[itm["exchange"]]["details"]["feeTier"] += itm["details"]["feeTier"]
+                            chain_protocol_time_result[lpFees["protocol"]]["details"][
+                                "eVolume"
+                            ] += lpFees["details"]["eVolume"]
+                            chain_protocol_time_result[lpFees["protocol"]]["details"][
+                                "collecedFees_day"
+                            ] += lpFees["details"]["collecedFees_day"]
 
-                for lpFees in _lpFees_items:
-                    if not lpFees["protocol"] in chain_result:
-                        raise ValueError(
-                            f" {lpFees['protocol']} not found in chain_result"
-                        )
-                    else:
-                        chain_result[lpFees["protocol"]]["total_fees"] += lpFees[
-                            "total"
-                        ]
-                        chain_result[lpFees["protocol"]]["details"][
-                            "collectedFees_0"
-                        ] += lpFees["details"]["collectedFees_0"]
-                        chain_result[lpFees["protocol"]]["details"][
-                            "collectedFees_1"
-                        ] += lpFees["details"]["collectedFees_1"]
-                        chain_result[lpFees["protocol"]]["details"][
-                            "collectedFees_usd"
-                        ] += lpFees["details"]["collectedFees_usd"]
-                        chain_result[lpFees["protocol"]]["details"][
-                            "uncollectedFees_0"
-                        ] += lpFees["details"]["uncollectedFees_0"]
-                        chain_result[lpFees["protocol"]]["details"][
-                            "uncollectedFees_1"
-                        ] += lpFees["details"]["uncollectedFees_1"]
-                        chain_result[lpFees["protocol"]]["details"][
-                            "grossFees_0"
-                        ] += lpFees["details"]["grossFees_0"]
-                        chain_result[lpFees["protocol"]]["details"][
-                            "grossFees_1"
-                        ] += lpFees["details"]["grossFees_1"]
-                        chain_result[lpFees["protocol"]]["details"][
-                            "grossFees_usd"
-                        ] += lpFees["details"]["grossFees_usd"]
-                        chain_result[lpFees["protocol"]]["details"][
-                            "gamma_vs_pool_liquidity_ini"
-                        ] += lpFees["details"]["gamma_vs_pool_liquidity_ini"]
-                        chain_result[lpFees["protocol"]]["details"][
-                            "gamma_vs_pool_liquidity_end"
-                        ] += lpFees["details"]["gamma_vs_pool_liquidity_end"]
-                        # items_aggregated[itm["exchange"]]["details"]["feeTier"] += itm["details"]["feeTier"]
-                        chain_result[lpFees["protocol"]]["details"][
-                            "eVolume"
-                        ] += lpFees["details"]["eVolume"]
-                        chain_result[lpFees["protocol"]]["details"][
-                            "collecedFees_day"
-                        ] += lpFees["details"]["collecedFees_day"]
+                    for volume in _volume_items:
+                        if not volume["protocol"] in chain_protocol_time_result:
+                            # no revenue but lpfees exist... this should not happen
+                            raise ValueError(
+                                f" {volume['protocol']} not found in chain_protocol_time_result"
+                            )
+                        else:
+                            chain_protocol_time_result[volume["protocol"]][
+                                "total_volume"
+                            ] += volume["total"]
 
-                for volume in _volume_items:
-                    if not volume["protocol"] in chain_result:
-                        raise ValueError(
-                            f" {volume['protocol']} not found in chain_result"
-                        )
-                    else:
-                        chain_result[volume["protocol"]]["total_volume"] += volume[
-                            "total"
-                        ]
+                    # save to database
+                    if chain_protocol_time_result:
+                        if db_return := get_default_globaldb().replace_items_to_database(
+                            data=list(chain_protocol_time_result.values()),
+                            collection_name="frontend",
+                        ):
+                            logging.getLogger(__name__).debug(
+                                f" {chain.database_name} -> del:{db_return.deleted_count} ins:{db_return.inserted_count} mod:{db_return.modified_count} ups:{db_return.upserted_count} "
+                            )
+                        else:
+                            logging.getLogger(__name__).error(
+                                f" {chain.database_name} -> Error saving revenue stats to database"
+                            )
 
-                # save to database
-                if chain_result:
-                    if db_return := get_default_globaldb().replace_items_to_database(
-                        data=list(chain_result.values()), collection_name="frontend"
-                    ):
-                        logging.getLogger(__name__).debug(
-                            f" {chain.database_name} -> del:{db_return.deleted_count} ins:{db_return.inserted_count} mod:{db_return.modified_count} ups:{db_return.upserted_count} "
-                        )
-                    else:
-                        logging.getLogger(__name__).error(
-                            f" {chain.database_name} -> Error saving revenue stats to database"
-                        )
+            except ProcessingError as e:
+                # process error
+                process_error(error=e)
 
-        except Exception as e:
-            logging.getLogger(__name__).exception(
-                f" Error feeding frontend revenue stats for {chain.database_name}  err->   {e}"
-            )
+            except Exception as e:
+                logging.getLogger(__name__).exception(
+                    f" Error feeding frontend revenue stats for {chain.database_name}  err->   {e}"
+                )
+
+            # progress
+            progress_bar.update(1)
 
 
 def create_revenue(chain: Chain, ini_timestamp: int, end_timestamp: int) -> dict:

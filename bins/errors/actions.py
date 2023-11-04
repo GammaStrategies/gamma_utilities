@@ -1,10 +1,11 @@
 import logging
 from apps.feeds.operations import feed_operations
 from apps.feeds.queue.queue_item import QueueItem
+from apps.feeds.revenue_operations import feed_revenue_operations
 from bins.database.helpers import get_default_localdb, get_from_localdb
 from bins.errors.general import ProcessingError
 from bins.general.enums import error_identity, queueItemType, text_to_protocol
-from bins.w3.builders import build_hypervisor
+from bins.w3.builders import build_erc20_helper, build_hypervisor
 
 
 def process_error(error: ProcessingError):
@@ -139,6 +140,37 @@ def process_error(error: ProcessingError):
                     get_default_localdb(
                         network=error.chain.database_name
                     ).set_queue_item(data=price_item_db)
+            except Exception as e:
+                logging.getLogger(__name__).exception(
+                    f"  Error while trying to solve an error (wtf loop): {e}"
+                )
+
+    elif error.identity == error_identity.LPFEES_WITHOUT_REVENUE:
+        if error.action == "rescrape":
+            # try rescraping revenue_operations from ini end timestamps on that chain
+            logging.getLogger(__name__).debug(
+                f" Reaction to Lp fees found without revenue -> Trying to scrape revenue_operations of {error.chain.database_name} from {error.item['ini_timestamp']} to {error.item['end_timestamp']}"
+            )
+            try:
+                # find block numbers for ini and end timestamps
+                # create erc20 helper
+                erc20 = build_erc20_helper(chain=error.chain)
+                # get block numbers
+                _ini_block = erc20.blockNumberFromTimestamp(
+                    timestamp=error.item["ini_timestamp"]
+                )
+                _end_block = erc20.blockNumberFromTimestamp(
+                    timestamp=error.item["end_timestamp"]
+                )
+                # rescrape revenue operations
+                feed_revenue_operations(
+                    chain=error.chain,
+                    block_ini=_ini_block,
+                    block_end=_end_block,
+                    max_blocks_step=1000,
+                    rewrite=False,
+                )
+
             except Exception as e:
                 logging.getLogger(__name__).exception(
                     f"  Error while trying to solve an error (wtf loop): {e}"
