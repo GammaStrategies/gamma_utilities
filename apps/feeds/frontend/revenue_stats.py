@@ -71,7 +71,7 @@ def feed_revenue_stats(
                     progress_bar.set_description(
                         f" {chain.database_name}: {datetime.fromtimestamp(end_timestamp, timezone.utc).strftime('%Y-%m')}"
                     )
-                    progress_bar.update(0)
+                    progress_bar.refresh()
 
                     # define result vars
                     chain_protocol_time_result = {}
@@ -130,18 +130,75 @@ def feed_revenue_stats(
 
                     for lpFees in _lpFees_items:
                         if not lpFees["protocol"] in chain_protocol_time_result:
-                            # no revenue but lpfees exist... this should not happen
-                            # scrape revenue_operations from ini_timestamp to end_timestamp to make sure we are not missing anything
-                            raise ProcessingError(
-                                chain=chain,
-                                item={
-                                    "ini_timestamp": ini_timestamp,
-                                    "end_timestamp": end_timestamp,
-                                },
-                                identity=error_identity.LPFEES_WITHOUT_REVENUE,
-                                action="rescrape",
-                                message=f" LPFees without revenue for {chain.database_name} from {ini_timestamp} to {end_timestamp}",
+                            # no revenue but lpfees exist...
+                            # this is unusual but may happen on veNFT deals ( revenue is not collected in same timespan as lpfees)
+
+                            # raise error if there is no revenue data for this period
+                            if not chain_protocol_time_result and lpFees["total"] > 0:
+                                # scrape revenue_operations from ini_timestamp to end_timestamp to make sure we are not missing anything
+                                raise ProcessingError(
+                                    chain=chain,
+                                    item={
+                                        "ini_timestamp": ini_timestamp,
+                                        "end_timestamp": end_timestamp,
+                                    },
+                                    identity=error_identity.LPFEES_WITHOUT_REVENUE,
+                                    action="rescrape",
+                                    message=f" LPFees without revenue for {chain.database_name} from {ini_timestamp} to {end_timestamp}",
+                                )
+
+                            # Revenue data exists for this period, but not for this protocol. Warn and continue.
+                            logging.getLogger(__name__).warning(
+                                f" There is no revenue data for {lpFees['protocol']} from {ini_timestamp} to {end_timestamp}. No revenue data will be saved for this protocol-period."
                             )
+                            # add lpFees to result
+                            chain_protocol_time_result[lpFees["protocol"]] = {
+                                "id": create_id_frontend_revenue_stats(
+                                    chain=chain,
+                                    timestamp=end_timestamp,
+                                    protocol=text_to_protocol(lpFees["protocol"]),
+                                ),
+                                "frontend_type": frontendType.REVENUE_STATS,
+                                "chain": chain.database_name,
+                                "protocol": lpFees["protocol"],
+                                "chain_id": chain.id,
+                                "timestamp": end_timestamp,
+                                "total_revenue": 0.0,
+                                "total_fees": lpFees["total"],
+                                "total_volume": 0.0,
+                                "exchange": lpFees["exchange"],
+                                "details": {
+                                    "collectedFees_0": lpFees["details"][
+                                        "collectedFees_0"
+                                    ],
+                                    "collectedFees_1": lpFees["details"][
+                                        "collectedFees_1"
+                                    ],
+                                    "collectedFees_usd": lpFees["details"][
+                                        "collectedFees_usd"
+                                    ],
+                                    "uncollectedFees_0": lpFees["details"][
+                                        "uncollectedFees_0"
+                                    ],
+                                    "uncollectedFees_1": lpFees["details"][
+                                        "uncollectedFees_1"
+                                    ],
+                                    "grossFees_0": lpFees["details"]["grossFees_0"],
+                                    "grossFees_1": lpFees["details"]["grossFees_1"],
+                                    "grossFees_usd": lpFees["details"]["grossFees_usd"],
+                                    "gamma_vs_pool_liquidity_ini": lpFees["details"][
+                                        "gamma_vs_pool_liquidity_ini"
+                                    ],
+                                    "gamma_vs_pool_liquidity_end": lpFees["details"][
+                                        "gamma_vs_pool_liquidity_end"
+                                    ],
+                                    # "feeTier": lpFees["details"]["feeTier"],
+                                    "eVolume": lpFees["details"]["eVolume"],
+                                    "collecedFees_day": lpFees["details"][
+                                        "collecedFees_day"
+                                    ],
+                                },
+                            }
                         else:
                             chain_protocol_time_result[lpFees["protocol"]][
                                 "total_fees"
@@ -222,7 +279,7 @@ def feed_revenue_stats(
             progress_bar.update(1)
 
 
-def create_revenue(chain: Chain, ini_timestamp: int, end_timestamp: int) -> dict:
+def create_revenue(chain: Chain, ini_timestamp: int, end_timestamp: int) -> list:
     # Gamma fees recieved from LPs ( in wallets using revenue_operations collection)
 
     # define result vars
@@ -283,7 +340,7 @@ def create_revenue(chain: Chain, ini_timestamp: int, end_timestamp: int) -> dict
     return result
 
 
-def create_lpFees(chain: Chain, ini_timestamp: int, end_timestamp: int) -> dict:
+def create_lpFees(chain: Chain, ini_timestamp: int, end_timestamp: int) -> list:
     # gross fees ( LP fees using operations collection)
 
     # define result vars
@@ -371,7 +428,7 @@ def create_lpFees(chain: Chain, ini_timestamp: int, end_timestamp: int) -> dict:
         logging.getLogger(__name__).debug(
             f" no hypervisors found for {chain} from {ini_timestamp} to {end_timestamp}"
         )
-        return {"total": 0.0, "items": []}
+        return result
 
     # get a sumarized data portion for all hypervisors in the database for a period
     for hype_summary in get_from_localdb(
@@ -618,7 +675,7 @@ def create_lpFees(chain: Chain, ini_timestamp: int, end_timestamp: int) -> dict:
     return list(items_aggregated.values())
 
 
-def create_volume(lpFees: dict) -> dict:
+def create_volume(lpFees: list) -> list:
     # calculated from gross fees
 
     # define result vars
@@ -855,13 +912,13 @@ def calculate_inRange_liquidity(hypervisor_status: dict) -> int:
     liquidity = 0
     # check what to add as liquidity ( inRange only )
     if (
-        float(hypervisor_status["limitUpper"]) >= current_tick
-        and float(hypervisor_status["limitLower"]) <= current_tick
+        int(hypervisor_status["limitUpper"]) >= current_tick
+        and int(hypervisor_status["limitLower"]) <= current_tick
     ):
         liquidity += int(hypervisor_status["limitPosition"]["liquidity"])
     if (
-        float(hypervisor_status["baseUpper"]) >= current_tick
-        and float(hypervisor_status["baseLower"]) <= current_tick
+        int(hypervisor_status["baseUpper"]) >= current_tick
+        and int(hypervisor_status["baseLower"]) <= current_tick
     ):
         liquidity += int(hypervisor_status["basePosition"]["liquidity"])
 
