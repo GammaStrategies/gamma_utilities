@@ -475,14 +475,22 @@ class web3wrap:
                 if (
                     isinstance(e, ValueError)
                     and isinstance(e.args[0], dict)
-                    and e.args[0].get("code", None) == -32602
+                    and (
+                        e.args[0].get("code", None) == -32602
+                        or (
+                            e.args[0].get("code", None) == -32000
+                            and "too many blocks" in e.args[0].get("message", "")
+                        )
+                    )
                 ):
+                    # -32000 is an execution reverted, so check if lowering block range helps
+                    # https://api.avax.network/ext/bc/C/rpc from filter  -> {'code': -32000, 'message': 'requested too many blocks from 37069639 to 37074639, maximum is set to 2048
+
                     # too many blocks to query
                     logging.getLogger(__name__).debug(
                         f" {rpc.type} RPC {rpc.url} returned a too many blocks to query error. Trying to lower blocks per query to 1000"
                     )
                     # rpc.add_failed(error=e)
-                    # https://api.avax.network/ext/bc/C/rpc from filter  -> {'code': -32000, 'message': 'requested too many blocks from 37069639 to 37074639, maximum is set to 2048
                     # raise loop
                     raise ProcessingError(
                         chain=text_to_chain(self._network),
