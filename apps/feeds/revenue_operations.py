@@ -7,7 +7,7 @@ from apps.feeds.queue.queue_item import QueueItem
 from bins.configuration import CONFIGURATION
 from bins.database.common.database_ids import create_id_operation
 from bins.database.helpers import get_default_localdb, get_from_localdb
-from bins.general.enums import Chain, queueItemType
+from bins.general.enums import Chain, Protocol, queueItemType, text_to_protocol
 from bins.general.general_utilities import convert_string_datetime
 from bins.w3.onchain_data_helper import onchain_data_helper
 from bins.w3.builders import build_erc20_helper
@@ -70,6 +70,14 @@ def create_revenue_addresses(
     if revenue_address_type == "hypervisors":
         # merge feeRecipient addresses from hypes static
         for hype_static in hypervisors_static_list:
+            # Thenas feeRecipient is not controlled by Gamma so should not be included in the list
+            if text_to_protocol(hype_static["dex"]) == Protocol.THENA:
+                # skip this hype
+                logging.getLogger(__name__).debug(
+                    f" Skipping feeRecipient address from Thena hypes"
+                )
+                continue
+
             if hype_static.get("feeRecipient", None):
                 fixed_revenue_addresses.add(hype_static["feeRecipient"].lower())
 
