@@ -791,3 +791,45 @@ class usdc_price_scraper:
                 f"Error while getting onchain price for token {token_address} on chain {chain}. Error: {e}"
             )
             return None
+
+
+def calculate_price_from_pool(
+    sqrtPriceX96: int,
+    token0_decimals: int,
+    token1_decimals: int,
+    token0_price: float | None = None,
+    token1_price: float | None = None,
+) -> float:
+    """Get price of token0 or token1 in USD depending on which price is supplied
+
+    Args:
+        sqrtPriceX96 (int): sqrtPriceX96
+        token0_decimals (int): token decimals
+        token1_decimals (int): token decimals
+        token0_price (float | None, optional): when supplied, token1 price will be returned as result. Defaults to None.
+        token1_price (float | None, optional): when supplied, token0 price will be returned as result. Defaults to None.
+
+    Returns:
+        float: price of token0 or token1 in USD depending on which price is supplied
+    """
+
+    # check if one of the prices is not None or zero
+    if token0_price in [None, 0] and token1_price in [None, 0]:
+        raise ValueError(f"Both prices are None or zero. Can't calculate price")
+
+    # get conversion rate
+    _raw_conversion_rate = sqrtPriceX96_to_price_float(
+        sqrtPriceX96=sqrtPriceX96,
+        token0_decimals=token0_decimals,
+        token1_decimals=token1_decimals,
+    )
+    _conversion_rate = _raw_conversion_rate
+    # select path to take to calculate price
+    if token1_price in [None, 0]:
+        # flip conversion rate
+        _conversion_rate = 1 / _conversion_rate
+        return _conversion_rate * token0_price
+    elif token0_price in [None, 0]:
+        return _conversion_rate * token1_price
+    else:
+        raise ValueError(f"Both prices are not None or zero. Can't calculate price")
