@@ -370,5 +370,7 @@ def get_last_timestamp(year: int, month: int) -> float:
     """
 
     return (
-        dt.datetime(year, month, 1) + relativedelta(months=1) - relativedelta(seconds=1)
+        dt.datetime(year=year, month=month, day=1, tzinfo=dt.timezone.utc)
+        + relativedelta(months=1)
+        - relativedelta(seconds=1)
     ).timestamp()
