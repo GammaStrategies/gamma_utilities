@@ -32,6 +32,7 @@ from bins.database.helpers import (
 from bins.errors.actions import process_error
 from bins.errors.general import ProcessingError
 from bins.formulas.fees import convert_feeProtocol
+from bins.formulas.tick_math import sqrtPriceX96_to_price_float
 from bins.general.enums import (
     Chain,
     Protocol,
@@ -42,6 +43,8 @@ from bins.general.enums import (
 )
 from bins.general.general_utilities import get_last_timestamp
 from dateutil.relativedelta import relativedelta
+
+from bins.mixed.price_utilities import calculate_price_from_pool, price_scraper
 
 
 def feed_revenue_stats(
@@ -56,17 +59,17 @@ def feed_revenue_stats(
     chains = chains or [x for x in Chain if x.database_name in networks]
 
     # feed database revenue stats, monthly.
-    for chain in chains:
-        with tqdm.tqdm(total=len(chains)) as progress_bar:
-            try:
-                # build revenue stats
-                # process all from firts timestamp to now
-                for (
-                    ini_timestamp,
-                    end_timestamp,
-                ) in get_all_next_timestamps_revenue_stats(
-                    chain=chain, rewrite=rewrite
-                ):
+    with tqdm.tqdm(total=len(chains)) as progress_bar:
+        for chain in chains:
+            logging.getLogger(__name__).info(
+                f" Feeding frontend revenue stats for {chain.database_name}"
+            )
+            # build revenue stats: process all from first/last known timestamp till now
+            for (
+                ini_timestamp,
+                end_timestamp,
+            ) in get_all_next_timestamps_revenue_stats(chain=chain, rewrite=rewrite):
+                try:
                     # update progress bar description
                     progress_bar.set_description(
                         f" {chain.database_name}: {datetime.fromtimestamp(end_timestamp, timezone.utc).strftime('%Y-%m')}"
@@ -134,7 +137,7 @@ def feed_revenue_stats(
                             # this is unusual but may happen on veNFT deals ( revenue is not collected in same timespan as lpfees)
 
                             # raise error if there is no revenue data for this period
-                            if not chain_protocol_time_result and lpFees["total"] > 0:
+                            if not chain_protocol_time_result and lpFees["total"] > 1:
                                 # scrape revenue_operations from ini_timestamp to end_timestamp to make sure we are not missing anything
                                 raise ProcessingError(
                                     chain=chain,
@@ -266,14 +269,14 @@ def feed_revenue_stats(
                                 f" {chain.database_name} -> Error saving revenue stats to database"
                             )
 
-            except ProcessingError as e:
-                # process error
-                process_error(error=e)
+                except ProcessingError as e:
+                    # process error
+                    process_error(error=e)
 
-            except Exception as e:
-                logging.getLogger(__name__).exception(
-                    f" Error feeding frontend revenue stats for {chain.database_name}  err->   {e}"
-                )
+                except Exception as e:
+                    logging.getLogger(__name__).exception(
+                        f" Error feeding frontend revenue stats for {chain.database_name}  err->   {e}"
+                    )
 
             # progress
             progress_bar.update(1)
@@ -293,6 +296,20 @@ def create_revenue(chain: Chain, ini_timestamp: int, end_timestamp: int) -> list
                     {"dex": {"$exists": True}},
                     {"timestamp": {"$gte": ini_timestamp}},
                     {"timestamp": {"$lte": end_timestamp}},
+                    {
+                        "$or": [
+                            {
+                                "src": {
+                                    "$ne": "0x0000000000000000000000000000000000000000",
+                                },
+                            },
+                            {
+                                "user": {
+                                    "$exists": True,
+                                },
+                            },
+                        ],
+                    },
                 ]
             }
         },
@@ -460,6 +477,7 @@ def create_lpFees(chain: Chain, ini_timestamp: int, end_timestamp: int) -> list:
         token1_price = token_prices.get(
             hype_status["pool"]["token1"]["address"], {}
         ).get("price", 0)
+
         if not token0_price or not token1_price:
             logging.getLogger(__name__).error(
                 f" Database price not found for token0[{token0_price}] or token1[{token1_price}] of hypervisor {hype_summary['address']}. Using current prices"
@@ -471,6 +489,48 @@ def create_lpFees(chain: Chain, ini_timestamp: int, end_timestamp: int) -> list:
             token1_price = token_current_prices.get(
                 hype_status["pool"]["token1"]["address"], {}
             ).get("price", 0)
+
+            # try calculating price from current pool status
+            if not token0_price and token1_price:
+                # use token1 price to calculate token0 price
+                token0_price = calculate_price_from_pool(
+                    sqrtPriceX96=int(
+                        hype_status["pool"][
+                            "slot0" if "slot0" in hype_status["pool"] else "globalState"
+                        ]["sqrtPriceX96"]
+                    ),
+                    token0_decimals=hype_status["pool"]["token0"]["decimals"],
+                    token1_decimals=hype_status["pool"]["token1"]["decimals"],
+                    token1_price=token1_price,
+                )
+
+            elif token0_price and not token1_price:
+                # use token0 price to calculate token1 price
+                token1_price = calculate_price_from_pool(
+                    sqrtPriceX96=int(
+                        hype_status["pool"][
+                            "slot0" if "slot0" in hype_status["pool"] else "globalState"
+                        ]["sqrtPriceX96"]
+                    ),
+                    token0_decimals=hype_status["pool"]["token0"]["decimals"],
+                    token1_decimals=hype_status["pool"]["token1"]["decimals"],
+                    token0_price=token0_price,
+                )
+
+            # check if prices are available and scrape if not
+            if not token0_price:
+                token0_price, _source = price_scraper(thegraph=False).get_price(
+                    network=chain.database_name,
+                    token_id=hype_status["pool"]["token0"]["address"],
+                    block=hype_status["block"],
+                )
+            if not token1_price:
+                token1_price, _source = price_scraper(thegraph=False).get_price(
+                    network=chain.database_name,
+                    token_id=hype_status["pool"]["token1"]["address"],
+                    block=hype_status["block"],
+                )
+
             if not token0_price or not token1_price:
                 logging.getLogger(__name__).error(
                     f" Current price not found for token0[{token0_price}] or token1[{token1_price}] of hypervisor {hype_summary['address']}. Cant continue."
@@ -773,28 +833,36 @@ def get_all_next_timestamps_revenue_stats(
         list[tuple[int, int]]: ordered list of ini_timestamp, end_timestamp pairs
     """
     result = []
-    # define the first timestamp
-    result.append(get_next_timestamps_revenue_stats(chain=chain, rewrite=rewrite))
-    # define the last timestamp
-    final_datetime = datetime(
-        year=datetime.now(timezone.utc).year,
-        month=datetime.now(timezone.utc).month,
-        day=1,
-    ).timestamp()
-    _start_time = datetime.now(timezone.utc).timestamp()
+    try:
+        # define the first timestamp
+        result.append(get_next_timestamps_revenue_stats(chain=chain, rewrite=rewrite))
+        # define the last timestamp
+        final_datetime = datetime(
+            year=datetime.now(timezone.utc).year,
+            month=datetime.now(timezone.utc).month,
+            day=1,
+            tzinfo=timezone.utc,
+        ).timestamp()
+    except Exception as e:
+        # no revenue operations in the database
+        return result
 
+    _start_time = datetime.now(timezone.utc).timestamp()
     while result[-1][0] != final_datetime:
         # convert last item in result to datetime
-        last_datetime = datetime.fromtimestamp(result[-1][1], timezone.utc)
-        # add 10 days to last item in result ( making sure we are in the next month, from last timestamp)
-        last_datetime = last_datetime + relativedelta(days=10)
+        last_datetime = datetime.fromtimestamp(result[-1][0], timezone.utc)
+        # add 1 month to last item in result
+        last_datetime = last_datetime + relativedelta(months=1, day=1)
         # add to result
         end_timestamp = int(
             get_last_timestamp(year=last_datetime.year, month=last_datetime.month)
         )
         ini_timestamp = int(
             datetime(
-                year=last_datetime.year, month=last_datetime.month, day=1
+                year=last_datetime.year,
+                month=last_datetime.month,
+                day=1,
+                tzinfo=timezone.utc,
             ).timestamp()
         )
 
