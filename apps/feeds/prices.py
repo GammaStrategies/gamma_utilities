@@ -58,9 +58,11 @@ def feed_prices(
     )
 
     # list of usd price ids sorted by descending block number
+    # price id --> ethereum_16577601_0x6dea81c8171d0ba574754ef6f8b412f2ed88c54d block=split("_")[-2]
+    # and also ..> polygon_zkevm_16577601_0x6dea81c8171d0ba574754ef6f8b412f2ed88c54d  block=split("_")[-2]
     if items_to_process := sorted(
         list(price_ids - already_processed_prices),
-        key=lambda x: int(x.split("_")[1]),
+        key=lambda x: int(x.split("_")[-2]),
         reverse=True,
     ):
         if max_prices and len(items_to_process) > max_prices:
