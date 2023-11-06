@@ -599,6 +599,7 @@ def repair_prices_from_database(
                 feed_prices(
                     network=network,
                     price_ids=create_tokenBlocks_all(network=network),
+                    max_prices=max_repair_per_network,
                 )
             except Exception as e:
                 logging.getLogger(__name__).exception(
@@ -1642,7 +1643,7 @@ def repair_queue_locked_items():
                 if db_return := get_default_localdb(network=network).free_queue_items(
                     ids=ids
                 ):
-                    logging.getLogger(__name__).debug(
+                    logging.getLogger(__name__).info(
                         f" {network}'s queue items {db_return.modified_count} have been in the processing state for more than 15 minutes thus are now free."
                     )
 
