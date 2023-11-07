@@ -12,7 +12,7 @@ from bins.configuration import (
 )
 from bins.database.common.database_ids import create_id_rewards_static
 from bins.database.common.db_collections_common import database_local
-from bins.database.helpers import get_default_localdb
+from bins.database.helpers import get_default_localdb, get_from_localdb
 from bins.errors.general import ProcessingError
 from bins.general.enums import (
     Chain,
@@ -43,6 +43,107 @@ from bins.apis.etherscan_utilities import etherscan_helper
 
 # hypervisors static data
 def feed_hypervisor_static(
+    protocol: str, network: str, dex: str, rewrite: bool = False, threaded: bool = True
+):
+    """Save hypervisor static data using web3 calls from a hypervisor's registry
+
+    Args:
+        protocol (str):
+        network (str):
+        dex (str):
+        rewrite (bool): Force rewrite all hypervisors found
+        threaded (bool):
+    """
+
+    logging.getLogger(__name__).info(
+        f">Feeding {protocol}'s {network} {dex} hypervisors static information"
+    )
+
+    # hypervisors to process
+    hypervisors_to_process = _get_static_hypervisors_to_process(
+        network=network, dex=dex, rewrite=rewrite
+    )
+
+    # set log list of hypervisors with errors
+    _errors = 0
+    with tqdm.tqdm(total=len(hypervisors_to_process), leave=False) as progress_bar:
+        if threaded:
+            # threaded
+            args = (
+                (
+                    hypervisor,
+                    network,
+                    dex,
+                    CONFIGURATION["_custom_"][
+                        "cml_parameters"
+                    ].donot_enforce_contract_creation,
+                )
+                for hypervisor in hypervisors_to_process
+            )
+            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+                for result in ex.map(
+                    lambda p: _create_hypervisor_static_databaseObject(*p), args
+                ):
+                    if result:
+                        # progress
+                        progress_bar.set_description(
+                            f' 0x..{result["address"][-4:]} processed '
+                        )
+                        progress_bar.refresh()
+
+                        # add hypervisor status to database
+                        if db_return := get_default_localdb(network=network).set_static(
+                            data=result
+                        ):
+                            logging.getLogger(__name__).debug(
+                                f"    hype static db_return  mod:{db_return.modified_count} ups_id:{db_return.upserted_id}"
+                            )
+                        # update progress
+                        progress_bar.update(1)
+                    else:
+                        # error found
+                        _errors += 1
+        else:
+            # get operations from database
+            for hypervisor in hypervisors_to_process:
+                progress_bar.set_description(
+                    f" 0x..{hypervisor['address'][-4:]} to be processed"
+                )
+                progress_bar.refresh()
+                if result := _create_hypervisor_static_databaseObject(
+                    hypervisor=hypervisor,
+                    network=network,
+                    dex=dex,
+                    donot_enforce_contract_creation=CONFIGURATION["_custom_"][
+                        "cml_parameters"
+                    ].donot_enforce_contract_creation,
+                ):
+                    # add hypervisor static data to database
+                    if db_return := get_default_localdb(network=network).set_static(
+                        data=result
+                    ):
+                        logging.getLogger(__name__).debug(
+                            f"    db_return  mod:{db_return.modified_count} ups_id:{db_return.upserted_id}"
+                        )
+                else:
+                    # error found
+                    _errors += 1
+
+                # update progress
+                progress_bar.update(1)
+
+    with contextlib.suppress(Exception):
+        if _errors > 0:
+            logging.getLogger(__name__).info(
+                "   {} of {} ({:,.1%}) hypervisors could not be scraped due to errors".format(
+                    _errors,
+                    len(hypervisors_to_process),
+                    _errors / len(hypervisors_to_process),
+                )
+            )
+
+
+def feed_hypervisor_static_deprecated(
     protocol: str, network: str, dex: str, rewrite: bool = False, threaded: bool = True
 ):
     """Save hypervisor static data using web3 calls from a hypervisor's registry
@@ -172,6 +273,7 @@ def feed_queue_with_hypervisor_static(
     )
 
 
+# from address
 def _create_hypervisor_static_dbObject(
     address: str,
     network: str,
@@ -260,6 +362,118 @@ def _create_hypervisor_static_dbObject(
         hypervisor_data["pool"]["block"] = hypervisor_data["block"]
 
     return hypervisor_data
+
+
+# from dict ( accepts only address)
+def _create_hypervisor_static_databaseObject(
+    hypervisor: dict,
+    network: str,
+    dex: str,
+    donot_enforce_contract_creation: bool | None = None,
+) -> dict:
+    """Create a hypervisor object with static data:
+         block = creation block
+         timestamp = creation timestamp
+
+    Args:
+        hypervisor (dict): either a hypervisor dict or a dict with only the address field
+        network (str):
+        block (int):
+        dex (str):
+
+    Returns:
+        dict: hypervisor object ready to be saved in database
+    """
+
+    try:
+        # create hypervisor object
+        hypervisor_w3 = build_hypervisor(
+            network=network,
+            protocol=convert_dex_protocol(dex),
+            block=0,
+            hypervisor_address=hypervisor["address"],
+            check=True,
+        )
+
+        # convert hypervisor to dictionary static mode on
+        hypervisor_database = hypervisor_w3.as_dict(convert_bint=True, static_mode=True)
+
+    except HTTPError as e:
+        logging.getLogger(__name__).error(
+            f" Cant convert {network}'s hypervisor {hypervisor['address']} to dictionary because of a network error. -> err: {e}"
+        )
+        return None
+    except Exception as e:
+        # could be that this is not a hypervisor?
+        logging.getLogger(__name__).error(
+            f" Cant convert {network}'s hypervisor {hypervisor['address']} to dictionary because it seems this address is not a hypervisor. -> err: {e}"
+        )
+        return None
+
+    # add creation  block and timestamp for hypervisor
+    if creation_data_hype := _get_contract_creation_block(
+        network=network, contract_address=hypervisor["address"]
+    ):
+        logging.getLogger(__name__).debug(
+            f"     setting creation block and timestamp for {network}'s hypervisor {hypervisor['address']}"
+        )
+        hypervisor_database["block"] = creation_data_hype["block"]
+        hypervisor_database["timestamp"] = creation_data_hype["timestamp"]
+    elif not donot_enforce_contract_creation:
+        # cannot process hype static info correctly. Log it and return None
+        logging.getLogger(__name__).error(
+            f"Could not get creation block and timestamp for {network}'s hypervisor {hypervisor['address']}. This hype static info will not be saved."
+        )
+        return None
+
+    elif (
+        "block" in hypervisor
+        and "timestamp" in hypervisor
+        and hypervisor["block"] > 0
+        and hypervisor["timestamp"] > 0
+    ):
+        # use the block and timestamp from the hypervisor passed as argument, when available
+        hypervisor_database["block"] = hypervisor["block"]
+        hypervisor_database["timestamp"] = hypervisor["timestamp"]
+
+        logging.getLogger(__name__).error(
+            f"    Using last saved creation block and timestamp for {network}'s hypervisor {hypervisor['address']} bc could not get em from external source."
+        )
+    else:
+        logging.getLogger(__name__).error(
+            f"    Could not get creation block and timestamp for {network}'s hypervisor {hypervisor['address']}. Keeping block and timestamp as they are."
+        )
+
+    # add creation  block and timestamp for pool
+    if creation_data_pool := _get_contract_creation_block(
+        network=network, contract_address=hypervisor_database["pool"]["address"]
+    ):
+        logging.getLogger(__name__).debug(
+            f"     setting creation block and timestamp for {network}'s pool {hypervisor_database['pool']['address'].lower()}"
+        )
+        hypervisor_database["pool"]["block"] = creation_data_pool["block"]
+        hypervisor_database["pool"]["timestamp"] = creation_data_pool["timestamp"]
+    elif (
+        "pool" in hypervisor
+        and "block" in hypervisor["pool"]
+        and "timestamp" in hypervisor["pool"]
+        and hypervisor["pool"]["block"] > 0
+        and hypervisor["pool"]["timestamp"] > 0
+    ):
+        # use the block and timestamp from the hypervisor's pool passed as argument, when available
+        hypervisor_database["block"] = hypervisor["pool"]["block"]
+        hypervisor_database["timestamp"] = hypervisor["pool"]["timestamp"]
+
+        logging.getLogger(__name__).error(
+            f"    Using last saved creation block and timestamp for {network}'s pool {hypervisor_database['pool']['address']} bc could not get em from external source."
+        )
+    else:
+        logging.getLogger(__name__).error(
+            f"     could not get creation block and timestamp for {network}'s pool {hypervisor_database['pool']['address'].lower()}. Setting to hypervisor's creation block and timestamp"
+        )
+        hypervisor_database["pool"]["block"] = hypervisor_database["block"]
+
+    return hypervisor_database
 
 
 def remove_disabled_hypervisors(chain: Chain, hypervisor_addresses: list[str]):
@@ -1231,6 +1445,67 @@ def _get_static_hypervisor_addresses_to_process(
         dex=dex,
         exclude_addresses=hypervisor_addresses_database,
     )
+
+
+def _get_static_hypervisors_to_process(
+    network: str, dex: str, rewrite: bool = False
+) -> list[dict]:
+    """Get a list of hypervisors to process, using the database dict format so that:
+          {"address":<hypervisor address>} is returned in case the hype does not exist in the db
+          {"address":<hypervisor address>, "pool":<pool dict> ... etc... } is returned in case the hype exists in the db
+
+    Args:
+        network (str):
+        dex (str):
+        rewrite (bool, optional): Rewrite database content. Defaults to False.
+
+    Returns:
+        list[dict]: list of hypervisors to process
+    """
+    result = []
+
+    # get a list of all hypervisors already in the database
+    hypervisor_static_list = {
+        x["address"]: x
+        for x in get_from_localdb(
+            network=network, collection="static", find={"dex": dex}, batch_size=50000
+        )
+    }
+    # create a list of addresses to filter already processed hypes
+    hypervisor_addresses_toExclude = []
+    if not rewrite:
+        hypervisor_addresses_toExclude = list(hypervisor_static_list.keys())
+    else:
+        logging.getLogger(__name__).info(
+            f"   Rewriting all hypervisors static information of {network}'s {dex} "
+        )
+
+    # get a list of hypervisor addresses from registry
+    (
+        hypervisor_addresses_to_process,
+        hypervisor_addresses_disabled,
+    ) = _get_filtered_hypervisor_addresses_from_registry(
+        network=network,
+        dex=dex,
+        exclude_addresses=hypervisor_addresses_toExclude,
+    )
+    # log disabled hypes
+    if hypervisor_addresses_disabled:
+        logging.getLogger(__name__).debug(
+            f"  {network}'s {dex} list of disabled hypervisor addresses at registry level (not to be processed): {hypervisor_addresses_disabled}"
+        )
+
+    # create a list of hypervisors (as dict) to process
+    for address in hypervisor_addresses_to_process:
+        # check if already in static list
+        if address in hypervisor_static_list:
+            # add to result
+            result.append(hypervisor_static_list[address])
+        else:
+            # add to result as a dict
+            result.append({"address": address.lower()})
+
+    return result
 
 
 def _get_filtered_hypervisor_addresses_from_registry(
