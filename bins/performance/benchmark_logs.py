@@ -27,8 +27,8 @@ def analize_benchmark_log(log_file: str) -> dict | None:
             # get matching vars
             # convert string datetime (2023-09-07 02:09:08,323) to datetime
             raw_dt = match.group("datetime")
-            network = match.group("network")
-            type = match.group("type")
+            network = match.group("network").strip()
+            type = match.group("type").strip()
             processing = match.group("processing")
             lifetime = match.group("lifetime")
             lifetime_units = match.group("lifetime_units")
@@ -151,5 +151,106 @@ def analize_benchmark_log(log_file: str) -> dict | None:
         result["average_lifetime"] = (
             result["lifetime"] / result["total_items"] if result["total_items"] else 0
         )
+
+    return result
+
+
+def analize_benchmark_info_log(log_file: str) -> dict | None:
+    """Extract all items processed (successfully or not) from the info log file
+
+    Args:
+        log_file (str): log file content
+
+    Returns:
+        dict | None: {
+                        "total_items": int,
+                        "aggregated_count": int,
+                        "networks": {
+                            <network>: { "total_items": int, "aggregated_count": int}
+                        },
+                        "types": {
+                            <queue type>: { "total_items": int, "aggregated_count": int}
+                        },
+                        "timeframe": {
+                            "ini": None,
+                            "end": None,
+                        },
+    }
+    """
+    # result
+    result = {
+        "total_items": 0,
+        "aggregated_count": 0,
+        "networks": {},
+        "types": {},
+        "timeframe": {
+            "ini": None,
+            "end": None,
+        },
+    }
+    # regex
+
+    # regex_search = "(?P<datetime>\d{4}\D\d{2}\D\d{2}\s\d{2}\D\d{2}\D\d{2}\D\d{3}).*?\-\s(?:Processing)\s(?P<network>.*?)'s\s(?P<type>.*?)\s(?:queue\sitem\swith\scount\s)(?P<count>\d{1,3})\s(?:at\sblock\s)(?P<block>\d*)"
+
+    # this is a mod to be compatible with the text id instead of the count: type should be cheked though
+    regex_search = "(?P<datetime>\d{4}\D\d{2}\D\d{2}\s\d{2}\D\d{2}\D\d{2}\D\d{3}).*?\-\s(?:Processing)\s(?P<network>.*?)'s\s(?P<type>.*?)\s(?:queue\sitem\s)(?:with\scount|id)\s(?P<count_id>\d{1,3}|[a-zA-Z0-9\_]*)\s(?:at\sblock\s)(?P<block>\d*)"
+    # find all matches in log file
+    if matches := re.finditer(regex_search, log_file):
+        # analyze
+        for match in matches:
+            # get matching vars
+            # convert string datetime (2023-09-07 02:09:08,323) to datetime
+            raw_dt = match.group("datetime")
+            network = match.group("network").strip()
+            type = match.group("type").strip()
+            count = match.group("count_id")
+            block = match.group("block")
+
+            try:
+                count = int(count)
+            except:
+                # count may be an ID in this case.. no problm... set to 1
+                count = 1
+
+            # add timeframe data
+            dtime = datetime.strptime(raw_dt, "%Y-%m-%d %H:%M:%S,%f")
+            if result["timeframe"]["ini"] is None or result["timeframe"]["ini"] > dtime:
+                result["timeframe"]["ini"] = dtime
+            if result["timeframe"]["end"] is None or result["timeframe"]["end"] < dtime:
+                result["timeframe"]["end"] = dtime
+
+            # add network
+            if network not in result["networks"]:
+                result["networks"][network] = {
+                    "total_items": 0,
+                    "aggregated_count": 0,
+                    "types": {},
+                }
+
+            # add types
+            if type not in result["networks"][network]["types"]:
+                result["networks"][network]["types"][type] = {
+                    "total_items": 0,
+                    "aggregated_count": 0,
+                }
+            if type not in result["types"]:
+                result["types"][type] = {
+                    "total_items": 0,
+                    "aggregated_count": 0,
+                }
+
+            # add total items
+            result["total_items"] += 1
+            result["aggregated_count"] += int(count)
+
+            # add items
+            result["networks"][network]["total_items"] += 1
+            result["networks"][network]["types"][type]["total_items"] += 1
+            result["types"][type]["total_items"] += 1
+
+            # add aggregated_count
+            result["networks"][network]["aggregated_count"] += int(count)
+            result["networks"][network]["types"][type]["aggregated_count"] += int(count)
+            result["types"][type]["aggregated_count"] += int(count)
 
     return result
