@@ -12,16 +12,24 @@ CACHE_LOCK = threading.Lock()  ##threading.RLock
 
 
 class file_backend:
-    def __init__(self, filename: str, folder_name: str, reset: bool = False):
+    def __init__(
+        self,
+        filename: str,
+        folder_name: str,
+        reset: bool = False,
+        max_size: int | None = None,
+    ):
         """Cache class properties
 
         Args:
            filename (str):
            folder_name (str): like "data/cache"
            reset (bool, optional): create a clean cache file ( deleting the present one ) . Defaults to False.
+           max_size (int, optional): maximum size in kilobytes. Defaults to 1000 (1MB).
         """
         self.file_name = filename
         self.folder_name = folder_name
+        self.max_size = max_size or 1000  # 1000 kbytes
 
         self._cache = {}  # {  network_id: "<contract address>": value, ...}
 
@@ -85,10 +93,46 @@ class file_backend:
 
     # PUBLIC
     def add_data(self, data, **kwargs) -> bool:
-        pass
+        # check cache size
+        try:
+            if self.max_size:
+                size = self.get_size()
+                size_per_itm = size / len(self._cache)
+                if size >= self.max_size:
+                    # remove 90% of current cached items
+                    items_to_remove = int(size * 0.9 / size_per_itm)
+                    logging.getLogger(__name__).debug(
+                        f" Cache size {size:,.0f} exceeded max size {self.max_size:,.0f}. Removing {items_to_remove} items from cache."
+                    )
+                    for i in range(items_to_remove):
+                        self._cache.popitem()
+
+                # while self.get_size() >= self.max_size:
+                #     # remove items (asaveaspos)
+                #     self._cache.pop()
+                #     # check time
+                #     if datetime.now(timezone.utc).timestamp() - _startime > 10:
+                #         # timeout
+                #         logging.getLogger(__name__).error(
+                #             f" Cache size exceeded max size. Could not add data to cache. "
+                #         )
+                #         return False
+        except Exception as e:
+            # logging.getLogger(__name__).exception(
+            #     f" Error while adding data to cache: -> {e}"
+            # )
+            pass
 
     def get_data(self, **kwargs):
         pass
+
+    def get_size(self) -> int:
+        """Get cache size in kilobytes
+
+        Returns:
+            int: size in kilobytes
+        """
+        return sys.getsizeof(self._cache)
 
 
 class db_collections_cache(db_collections_common):
@@ -197,6 +241,9 @@ class standard_property_cache(file_backend):
                 f" {key}=None value not saved to cache for {address} {block} "
             )
             return False
+
+        # do parent add_data process ( control size...)
+        super().add_data(data=data)
 
         # convert to lower
         address = address.lower()
@@ -387,6 +434,10 @@ class standard_thegraph_cache(file_backend):
         if "network" not in kwargs or "block" not in kwargs:
             # not added
             return False
+
+        # do parent add_data process ( control size...)
+        super().add_data(data=data)
+
         network = kwargs["network"]
         block = kwargs["block"].strip()
         # create key

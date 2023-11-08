@@ -13,6 +13,7 @@ from bins.configuration import CONFIGURATION
 class coingecko_cache(file_backend):
     def _init_cache(self):
         self._cache = self._load_cache_file() or {}
+        self.max_size = 1000  # 1MB in kbytes
 
     def add_data(self, url: str, data, save2file=False) -> bool:
         """
@@ -28,6 +29,9 @@ class coingecko_cache(file_backend):
                 f" None value not saved to coingecko's cache"
             )
             return False
+
+        # do parent add_data process ( control size...)
+        super().add_data(data=data)
 
         with CACHE_LOCK:
             # NETWORK and BLOCK must be present when caching
@@ -61,12 +65,9 @@ class coingecko_cache(file_backend):
 
 class coingecko_apiMod(CoinGeckoAPI):
     def __init__(self, api_key: str = "", retries=5):
-        self.cache = coingecko_cache(
-            filename="coingecko_cache",
-            folder_name=CONFIGURATION.get("cache", {}).get("save_path", None)
-            or "data/cache",
-        )
-
+        # init custom persistent cache
+        self.initialize_persistent_cache()
+        # init parent
         super().__init__(api_key, retries)
 
     def __request(self, url):
@@ -216,6 +217,14 @@ class coingecko_apiMod(CoinGeckoAPI):
             self.cache.add_data(url=api_url_base, data=response, save2file=True)
 
         return response
+
+    # control cache size
+    def initialize_persistent_cache(self):
+        self.cache = coingecko_cache(
+            filename="coingecko_cache",
+            folder_name=CONFIGURATION.get("cache", {}).get("save_path", None)
+            or "data/cache",
+        )
 
 
 class coingecko_price_helper:
