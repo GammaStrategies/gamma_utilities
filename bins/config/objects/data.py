@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from bins.errors.general import ConfigurationError
+from ...errors.general import ConfigurationError
 
 
 @dataclass

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import logging
 
-from bins.errors.general import ConfigurationError
+from ...errors.general import ConfigurationError
 
 
 from ...general.enums import Chain, Protocol, text_to_chain, text_to_protocol

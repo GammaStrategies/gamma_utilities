@@ -2,12 +2,14 @@ from argparse import Namespace
 from dataclasses import dataclass
 import logging
 
+
 from ...errors.general import ConfigurationError
 from ...general.enums import Chain, text_to_chain
 from .logs import config_logs
 from .script import config_script
 from .chain import config_chain
 from .data import config_data
+from .w3providers import config_w3Providers_settings
 
 
 @dataclass
