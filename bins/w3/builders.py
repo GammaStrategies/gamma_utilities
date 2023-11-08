@@ -785,6 +785,16 @@ def build_protocol_pool(
                 address=pool_address, network=chain.database_name, block=block
             )
         )
+    elif protocol == Protocol.ASCENT:
+        return (
+            protocols.ascent.pool.pool(
+                address=pool_address, network=chain.database_name, block=block
+            )
+            if not cached
+            else protocols.ascent.pool.pool_cached(
+                address=pool_address, network=chain.database_name, block=block
+            )
+        )
     else:
         raise NotImplementedError(f"Protocol {protocol} not implemented")
 
