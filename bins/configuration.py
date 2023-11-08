@@ -244,7 +244,10 @@ USDC_TOKEN_ADDRESSES = {
         "0x7f5c764cbc14f9669b88837ca1490cca17c31607".lower(),  # USD Coin (Bridged from Ethereum) (USDC.e)
         "0x0b2c639c533813f4aa9d7837caf62653d097ff85".lower(),  # USD Coin (USDC)
     ],
-    Chain.POLYGON: ["0x2791bca1f2de4661ed88a30c99a7a9449aa84174".lower()],
+    Chain.POLYGON: [
+        "0x2791bca1f2de4661ed88a30c99a7a9449aa84174".lower(),
+        "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359".lower(),
+    ],
     Chain.POLYGON_ZKEVM: ["0xa8ce8aee21bc2a48a5ef670afcc9274c7bbbc035".lower()],
     Chain.ROLLUX: ["0x368433cac2a0b8d76e64681a9835502a1f2a8a30".lower()],
     Chain.OPBNB: ["0x9e5aac1ba1a2e6aed6b32689dfcf62a509ca96f3".lower()],
@@ -259,6 +262,7 @@ TOKEN_ADDRESS_EXCLUDE = {
     },
     Chain.POLYGON: {
         "0xd8ef817FFb926370dCaAb8F758DDb99b03591A5e".lower(): "AnglaMerkl",
+        "0x74a2cac1c16cf1b47c176001bd5442029e1ddf3c".lower(): "testtoken",
     },
     Chain.ARBITRUM: {
         "0xe0688a2fe90d0f93f17f273235031062a210d691".lower(): "AnglaMerkl",
