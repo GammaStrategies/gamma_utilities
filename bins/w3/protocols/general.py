@@ -625,6 +625,16 @@ class web3wrap:
                                 )
                                 rpc.add_failed(error=e)
 
+                            elif (
+                                code == 4294935199
+                                or "rate limit" in err.get("message", "").lower()
+                            ):
+                                # https://lb.drpc.org/ogrpc?network=arbitrum&dkey...   -> {'message': 'Rate limit reached', 'code': 4294935199}
+                                logging.getLogger(__name__).debug(
+                                    f" {rpc.type} RPC {rpc.url} returned a rate limit error while querying function {function_name}. Adding failed attempt. err: {err.get('message')}"
+                                )
+                                rpc.add_failed(error=e)
+
                             else:
                                 # "Your app has exceeded its concurrent requests capacity. If you have retries enabled, you can safely ignore this message
                                 logging.getLogger(__name__).exception(
