@@ -25,3 +25,20 @@ class config_w3Providers:
     def to_dict(self):
         """convert object and subobjects to dictionary"""
         return self.__dict__.copy()
+
+
+@dataclass
+class config_w3Providers_settings:
+    url_search: str = None
+    capabilities: dict[str, dict[str, bool | int]] = None
+    max_requests_per_second: int = None
+    max_requests_per_minute: int = None
+    max_blocks_filter: int = None
+
+    def __post_init__(self):
+        # check that one of the two is not None
+        pass
+
+    def to_dict(self):
+        """convert object and subobjects to dictionary"""
+        return self.__dict__.copy()

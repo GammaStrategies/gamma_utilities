@@ -18,6 +18,7 @@ class config:
     data: config_data
     script: config_script
     chains: dict[Chain, config_chain] | None = None
+    w3Providers_settings: list[config_w3Providers_settings] | None = None
     cml_parameters: Namespace | None = None
     id: str = "client_configuration"
 
@@ -57,6 +58,17 @@ class config:
                             f" Can't load {chain} chain configuration: {e}"
                         )
 
+        if isinstance(self.w3Providers_settings, dict):
+            if self.w3Providers_settings:
+                settings_nameIds = list(self.w3Providers_settings.keys())
+                for setting_id in settings_nameIds:
+                    # pop chain from dict
+                    _temp_val = self.w3Providers_settings.pop(setting_id)
+                    #
+                    self.w3Providers_settings[setting_id] = config_w3Providers_settings(
+                        **_temp_val
+                    )
+
         # init logs
         if not self.logs:
             self.logs = config_logs()
@@ -70,9 +82,18 @@ class config:
         _dict["logs"] = self.logs.to_dict() if self.logs else None
         _dict["data"] = self.data.to_dict() if self.data else None
         _dict["script"] = self.script.to_dict() if self.script else None
+        _dict["cml_parameters"] = None
         _dict["chains"] = {}
         if self.chains:
             for chain in self.chains:
                 _dict["chains"][chain] = self.chains[chain].to_dict()
+        _dict["w3Providers_settings"] = {}
+        if self.w3Providers_settings:
+            for setting_id in self.w3Providers_settings:
+                _dict["w3Providers_settings"][setting_id] = self.w3Providers_settings[
+                    setting_id
+                ].to_dict()
 
         return _dict
+
+    # get provider settings
