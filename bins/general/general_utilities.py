@@ -358,7 +358,7 @@ def seconds_to_time_passed(seconds: float) -> str:
     return f"{round(seconds,2)} {_timelapse_unit}"
 
 
-def get_last_timestamp(year: int, month: int) -> float:
+def get_last_timestamp_of_month(year: int, month: int) -> float:
     """Get last timestamp of a given month
 
     Args:

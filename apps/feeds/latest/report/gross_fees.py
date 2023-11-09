@@ -73,7 +73,7 @@ def feed_report_ramses_gross_fees(
                 token_prices=token_prices,
             ):
                 rep = report_object(
-                    type=reportType.GROSS_FEES,
+                    type=reportType.GROSSFEES,
                     protocol=Protocol.RAMSES,
                     timeframe=timeframe_object(
                         ini=time_object(

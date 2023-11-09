@@ -41,7 +41,7 @@ from bins.general.enums import (
     text_to_chain,
     text_to_protocol,
 )
-from bins.general.general_utilities import get_last_timestamp
+from bins.general.general_utilities import get_last_timestamp_of_month
 from dateutil.relativedelta import relativedelta
 
 from bins.mixed.price_utilities import calculate_price_from_pool, price_scraper
@@ -787,7 +787,7 @@ def get_next_timestamps_revenue_stats(
                 first_revenue_operation[0]["timestamp"], timezone.utc
             )
             end_timestamp = int(
-                get_last_timestamp(year=_datetime.year, month=_datetime.month)
+                get_last_timestamp_of_month(year=_datetime.year, month=_datetime.month)
             )
             ini_timestamp = int(
                 datetime(year=_datetime.year, month=_datetime.month, day=1).timestamp()
@@ -804,7 +804,9 @@ def get_next_timestamps_revenue_stats(
             )
             _next_datetime = _last_datetime + relativedelta(days=10)
             end_timestamp = int(
-                get_last_timestamp(year=_next_datetime.year, month=_next_datetime.month)
+                get_last_timestamp_of_month(
+                    year=_next_datetime.year, month=_next_datetime.month
+                )
             )
             ini_timestamp = int(
                 datetime(
@@ -855,7 +857,9 @@ def get_all_next_timestamps_revenue_stats(
         last_datetime = last_datetime + relativedelta(months=1, day=1)
         # add to result
         end_timestamp = int(
-            get_last_timestamp(year=last_datetime.year, month=last_datetime.month)
+            get_last_timestamp_of_month(
+                year=last_datetime.year, month=last_datetime.month
+            )
         )
         ini_timestamp = int(
             datetime(
