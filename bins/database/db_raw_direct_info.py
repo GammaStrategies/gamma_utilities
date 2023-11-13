@@ -950,9 +950,6 @@ class direct_db_hypervisor_info:
 
             yield_per_day = period_yield * year_in_seconds / elapsed_time
 
-            if yield_per_day > 300:
-                po = ""
-
             total_period_seconds += elapsed_time
 
             if cum_fee_return:
@@ -1170,9 +1167,6 @@ class direct_db_hypervisor_info:
                 status["result_fee_apy"] = (
                     1 + (cum_fee_return - 1) * (day_in_seconds / total_period_seconds)
                 ) ** 365 - 1
-
-                if status["result_fee_apr"] < 0 or status["result_fee_apy"] < 0:
-                    po = ""
 
             cum_fee_return -= 1
             fee_apr = cum_fee_return * (year_in_seconds / total_period_seconds)
@@ -1520,9 +1514,6 @@ class direct_db_hypervisor_info:
 
                     # add status to result
                     result.append(status)
-
-                    if status["result_fee_apr"] < 0 or status["result_fee_apy"] < 0:
-                        po = ""
 
                 # set last status to be used on next iteration
                 last_status = status

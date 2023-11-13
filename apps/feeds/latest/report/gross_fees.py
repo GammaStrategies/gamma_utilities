@@ -357,9 +357,6 @@ def create_report_data_ramses___OOO(
                 str(end_uncollected_fees_token1 + ini_uncollected_fees_token1)
             )
 
-            if uncollectedFees_0 < 0 or uncollectedFees_1 < 0:
-                po = ""
-
             # calculate collected fees
             collectedFees_0 = (
                 hype_summary["collectedFees_token0"]
@@ -663,9 +660,6 @@ def create_report_data_ramses(
             uncollectedFees_1 = float(
                 str(end_uncollected_fees_token1 + ini_uncollected_fees_token1)
             )
-
-            if uncollectedFees_0 < 0 or uncollectedFees_1 < 0:
-                po = ""
 
             # calculate collected fees
             collectedFees_0 = (

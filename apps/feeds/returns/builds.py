@@ -249,31 +249,6 @@ def create_hypervisor_returns_deprecated(
         # ??
         # TODO: create one item at ini and end to get fee + ireturns
 
-    # check for inconsistencies in the impermanent loss figures to identify token price errors
-    # if list_impermament := [
-    #     (
-    #         item.period_impermanent_usd / Decimal(str(item.period_days)),
-    #         (item.period_impermanent_usd / item.ini_underlying_usd)
-    #         / Decimal(str(item.period_days)),
-    #         item.period_days,
-    #     )
-    #     for item in result
-    #     if item.period_days and item.ini_underlying_usd
-    # ]:
-    #     maximum_il = max(list_impermament, key=lambda x: x[1])
-    #     if (
-    #         abs(maximum_il[1]) > Decimal("0.01")
-    #         and abs(maximum_il[0]) > Decimal("100")
-    #         and maximum_il[2] > 1
-    #     ):
-    #         po = ""
-    #         # get tokens involved
-
-    # logging.getLogger(__name__).info(" -- ")
-    # logging.getLogger(__name__).info(
-    #     f"  maximum IL/ini/DAY: {maximum_il[0]:,.2f} -> {maximum_il[1]:,.4%} -> {maximum_il[2]} days"
-    # )
-
     return result
 
 

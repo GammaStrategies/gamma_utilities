@@ -1692,8 +1692,6 @@ def log_debug_data(
         f"     {_one_}  \t    {_two_}  \t   {_three_}  \t   {_four_}  \t   {_five_} "
     )
 
-    po = ""
-
 
 class period_yield_analyzer:
     def __init__(
@@ -1942,11 +1940,6 @@ class period_yield_analyzer:
         self._impermanent_per_share_yield = (
             self._impermanent_per_share / self._ini_price_per_share
         )
-        # test_qtty_usd = (
-        #     self._impermanent_qtty_token0 * yield_item.status.end.prices.token0
-        #     + self._impermanent_qtty_token1 * yield_item.status.end.prices.token1
-        # )
-        # po = ""
 
     def _fill_variables_hypervisor_return(self, yield_item: period_yield_data):
         """Fees + impermanent  ( no rewards included )
