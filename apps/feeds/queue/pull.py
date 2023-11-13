@@ -704,6 +704,7 @@ def pull_from_queue_revenue_operation(network: str, queue_item: QueueItem) -> bo
 
         else:
             # unknown operation topic
+            #raise ValueError(f" Unknown operation topic {operation['topic']}")
             pass
 
         # get price at block
