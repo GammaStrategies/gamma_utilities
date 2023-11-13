@@ -374,3 +374,24 @@ def get_last_timestamp_of_month(year: int, month: int) -> float:
         + relativedelta(months=1)
         - relativedelta(seconds=1)
     ).timestamp()
+
+
+def get_last_timestamp_of_day(timestamp: int, tz: dt.timezone | None = None) -> float:
+    """Get last timestamp of the timestamp given day
+
+    Args:
+        timestamp (int): timestamp ( can be any time of the day)
+        tz (dt.timezone | None, optional): timezone. Defaults to UTC.
+
+    Returns:
+        int: timestamp
+    """
+    # set timezone
+    tz = tz or dt.timezone.utc
+    return (
+        dt.datetime.fromtimestamp(timestamp, tz).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        + relativedelta(days=1)
+        - relativedelta(seconds=1)
+    ).timestamp()
