@@ -7,3 +7,9 @@ from ..general.enums import Chain
 
 
 WEB3_CHAIN_IDS = {chain.database_name: chain.id for chain in Chain}
+
+
+# The app will fill this with real data, when no specified here
+BLOCKS_PER_SECOND = {}
+
+

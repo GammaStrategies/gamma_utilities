@@ -6,6 +6,7 @@ from web3 import Web3, exceptions, types
 from web3.middleware import async_geth_poa_middleware, geth_poa_middleware
 from pathlib import Path
 import math
+from bins.config.current import BLOCKS_PER_SECOND
 
 from bins.w3.helpers.rpcs import RPC_MANAGER
 
@@ -230,7 +231,13 @@ class onchain_data_helper:
         # no Force_timeframe field or its processing failed
         # define end as current
         block_end = erc20_helper._getBlockData(block="latest").number
-        secs = erc20_helper.average_blockTime(blocksaway=block_end * 0.85)
+        secs = BLOCKS_PER_SECOND.get(network, None) or erc20_helper.average_blockTime(
+            blocksaway=block_end * 0.85
+        )
+        # save it to global variable
+        if not network in BLOCKS_PER_SECOND:
+            BLOCKS_PER_SECOND[network] = secs
+        # define start as 2 weeks before
         blocks_day = math.floor((60 * 60 * 24) / secs)
         block_ini = block_end - (blocks_day * 14)  # 2 weeks
 
@@ -313,7 +320,12 @@ class onchain_data_helper:
         # create a dummy helper ( use only web3wrap functions)
         erc20_helper = self.create_erc20_helper(network=network)
         block_data = erc20_helper._getBlockData(block="latest")
-        secs = erc20_helper.average_blockTime(blocksaway=block_data.number * 0.85)
+        secs = BLOCKS_PER_SECOND.get(network, None) or erc20_helper.average_blockTime(
+            blocksaway=block_data.number * 0.85
+        )
+        # save it to global variable
+        if not network in BLOCKS_PER_SECOND:
+            BLOCKS_PER_SECOND[network] = secs
 
         # define step as 1 day block quantity
         blocks_step = math.floor((60 * 60 * 24) / secs)
@@ -392,7 +404,12 @@ class onchain_data_helper:
         # create a dummy helper ( use only web3wrap functions)
         erc20_helper = self.create_erc20_helper(network=network)
         block_data = erc20_helper._getBlockData(block="latest")
-        secs = erc20_helper.average_blockTime(blocksaway=block_data.number * 0.85)
+        secs = BLOCKS_PER_SECOND.get(network, None) or erc20_helper.average_blockTime(
+            blocksaway=block_data.number * 0.85
+        )
+        # save it to global variable
+        if not network in BLOCKS_PER_SECOND:
+            BLOCKS_PER_SECOND[network] = secs
 
         # define step as 1 week block quantity
         blocks_step = math.floor(step_secs / secs)
@@ -557,5 +574,11 @@ class onchain_data_helper:
 
     def average_blockTime(self, network: str) -> dt.datetime.timestamp:
         tmp_erc20 = self.create_erc20_helper(network=network)
-        block = tmp_erc20._getBlockData("latest").number
-        return tmp_erc20.average_blockTime(blocksaway=block * 0.85)
+        secs = BLOCKS_PER_SECOND.get(network, None) or tmp_erc20.average_blockTime(
+            blocksaway=tmp_erc20._getBlockData("latest").number * 0.85
+        )
+        # save it to global variable
+        if not network in BLOCKS_PER_SECOND:
+            BLOCKS_PER_SECOND[network] = secs
+
+        return secs
