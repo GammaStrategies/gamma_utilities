@@ -499,6 +499,14 @@ class hypervisor_status_object(dict_to_object):
 
         return gamma_liquidity_in_range
 
+    def get_total_liquidity(self) -> int:
+        """Return total liquidity
+
+        Returns:
+            int: total liquidity
+        """
+        return int(self.basePosition.liquidity) + int(self.limitPosition.liquidity)
+
     def pre_subtraction(self, key: str, value: any):
         """Be aware that nested variables will not be considered hypervisor status so
         will never go thru this function--> use dict_object pre_subtraction instead
