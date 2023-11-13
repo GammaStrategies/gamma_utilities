@@ -70,7 +70,11 @@ from bins.database.helpers import (
 )
 from bins.general.enums import Chain, reportType, text_to_protocol
 from bins.general.general_utilities import get_last_timestamp_of_day
-from bins.w3.builders import build_db_hypervisor, build_erc20_helper
+from bins.w3.builders import (
+    build_db_hypervisor,
+    build_erc20_helper,
+    build_db_hypervisor_multicall,
+)
 
 
 def build_kpis_report():
@@ -127,8 +131,8 @@ def create_kpi_reports(
         chain=chain,
         ini_timestamp=ini_timestamp,
         end_timestamp=end_timestamp,
-        ini_block=None, #ini_block,
-        end_block=None #end_block,
+        ini_block=ini_block,
+        end_block=end_block,
     )
 
     # result
@@ -952,11 +956,14 @@ def create_kpi_structure(
             try:
                 hype["status_list"].insert(
                     0,
-                    build_db_hypervisor(
+                    build_db_hypervisor_multicall(
                         address=address,
                         network=chain.database_name,
                         block=ini_block,
                         dex=hype["dex"],
+                        pool_address=hype["pool"]["address"],
+                        token0_address=hype["pool"]["token0"]["address"],
+                        token1_address=hype["pool"]["token1"]["address"],
                     ),
                 )
             except Exception as e:
@@ -966,11 +973,14 @@ def create_kpi_structure(
             # add at the end of the list the status at end_block
             try:
                 hype["status_list"].append(
-                    build_db_hypervisor(
+                    build_db_hypervisor_multicall(
                         address=address,
                         network=chain.database_name,
                         block=end_block,
                         dex=hype["dex"],
+                        pool_address=hype["pool"]["address"],
+                        token0_address=hype["pool"]["token0"]["address"],
+                        token1_address=hype["pool"]["token1"]["address"],
                     ),
                 )
             except Exception as e:

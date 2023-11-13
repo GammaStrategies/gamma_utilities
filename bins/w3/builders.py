@@ -111,6 +111,93 @@ def build_db_hypervisor(
     return None
 
 
+def build_db_hypervisor_multicall(
+    address: str,
+    network: str,
+    block: int,
+    dex: str,
+    pool_address: str,
+    token0_address: str,
+    token1_address: str,
+    static_mode=False,
+    custom_web3: Web3 | None = None,
+    custom_web3Url: str | None = None,
+    force_rpcType: str | None = None,
+) -> dict():
+    try:
+        # build hypervisor
+        hypervisor = build_hypervisor(
+            network=network,
+            protocol=convert_dex_protocol(dex=dex),
+            block=block,
+            hypervisor_address=address,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
+            cached=False,
+            multicall=True,
+        )
+
+        # set custom rpc type if needed
+        if force_rpcType:
+            hypervisor.custom_rpcType = force_rpcType
+
+        # fill with multicall
+        hypervisor.fill_with_multicall(
+            pool_address=pool_address,
+            token0_address=token0_address,
+            token1_address=token1_address,
+        )
+
+        hype_as_dict = hypervisor.as_dict(
+            convert_bint=True, static_mode=static_mode, minimal=False
+        )
+
+        if network == "binance":
+            # BEP20 is not ERC20-> TODO: change
+            check_erc20_fields(
+                hypervisor=hypervisor, hype=hype_as_dict, convert_bint=True
+            )
+
+        # check hypervisor validity
+        check_hypervisor_is_valid(hypervisor=hype_as_dict)
+
+        # return converted hypervisor
+        return hype_as_dict
+
+    except CheckingError as e:
+        if e.identity == error_identity.RETURN_NONE and network == "binance":
+            # try to recover
+            if check_erc20_fields(
+                hypervisor=hypervisor, hype=hype_as_dict, convert_bint=True
+            ):
+                # check if is valid, quietly
+                if check_hypervisor_is_valid(hypervisor=hypervisor, quiet=True):
+                    logging.getLogger(__name__).debug(
+                        f"  {network}'s hypervisor {address} [dex: {dex}] at block {block}] to dictionary process recovered from 'None field' error "
+                    )
+
+        logging.getLogger(__name__).debug(
+            f"  Unrecoverable error while converting {network}'s hypervisor {address} [dex: {dex}] at block {block}] to dictionary"
+        )
+
+    except ProcessingError as e:
+        if e.identity == error_identity.NO_RPC_AVAILABLE:
+            logging.getLogger(__name__).error(
+                f" There are no RPCs available error while converting {network}'s hypervisor {address} [dex: {dex}] at block {block}] to dictionary"
+            )
+        else:
+            logging.getLogger(__name__).error(
+                f" Unexpected error while converting {network}'s hypervisor {address} [dex: {dex}] at block {block}] to dictionary ->    error:{e.message}"
+            )
+
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            f" Unexpected error while converting {network}'s hypervisor {address} [dex: {dex}] at block {block}] to dictionary ->    error:{e}"
+        )
+
+    return None
+
+
 def check_erc20_fields(
     hypervisor: protocols.uniswap.hypervisor.gamma_hypervisor,
     hype: dict,

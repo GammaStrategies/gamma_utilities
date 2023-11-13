@@ -40,6 +40,7 @@ from bins.w3.builders import (
     build_hypervisor,
     check_erc20_fields,
     convert_dex_protocol,
+    build_db_hypervisor_multicall,
 )
 
 from apps.feeds.prices import (

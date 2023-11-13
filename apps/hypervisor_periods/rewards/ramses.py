@@ -3,7 +3,11 @@ from apps.feeds.utils import get_hypervisor_price_per_share, get_reward_pool_pri
 from apps.hypervisor_periods.base import hypervisor_periods_base
 from bins.database.helpers import get_from_localdb
 from bins.general.enums import Chain, Protocol, rewarderType
-from bins.w3.builders import build_db_hypervisor, build_erc20_helper
+from bins.w3.builders import (
+    build_db_hypervisor,
+    build_erc20_helper,
+    build_db_hypervisor_multicall,
+)
 from bins.w3.protocols.ramses.hypervisor import gamma_hypervisor as ramses_hypervisor
 
 

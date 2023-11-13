@@ -15,7 +15,7 @@ from bins.database.common.db_collections_common import database_local
 from bins.database.helpers import get_default_localdb, get_from_localdb
 from bins.general.enums import Chain, Protocol, queueItemType, text_to_chain
 from bins.general.general_utilities import seconds_to_time_passed
-from bins.w3.builders import build_db_hypervisor
+from bins.w3.builders import build_db_hypervisor, build_db_hypervisor_multicall
 
 
 ## Database re scraping items
@@ -105,12 +105,14 @@ def reScrape_loopWork_hypervisor_status(
     """Rescrape hypervisor status"""
     try:
         _starttime = time.time()
-        if new_hypervisor := build_db_hypervisor(
+        if new_hypervisor := build_db_hypervisor_multicall(
             address=hype_status["address"],
             network=chain.database_name,
             block=hype_status["block"],
             dex=hype_status["dex"],
-            cached=True,
+            pool_address=hype_status["pool_address"],
+            token0_address=hype_status["token0_address"],
+            token1_address=hype_status["token1_address"],
             force_rpcType="private",
         ):
             # TODO: compare n log diffs and rewrite

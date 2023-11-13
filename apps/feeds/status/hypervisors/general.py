@@ -9,7 +9,7 @@ from bins.configuration import CONFIGURATION
 from bins.database.common.database_ids import create_id_hypervisor_status
 from bins.database.common.db_collections_common import database_local
 
-from bins.w3.builders import build_db_hypervisor
+from bins.w3.builders import build_db_hypervisor, build_db_hypervisor_multicall
 from bins.w3.protocols.general import erc20_cached
 
 

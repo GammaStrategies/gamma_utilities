@@ -12,7 +12,7 @@ from bins.errors.actions import process_error
 from bins.errors.general import ProcessingError
 from bins.general.enums import Chain, Protocol, error_identity
 from bins.general.general_utilities import create_chunks
-from bins.w3.builders import build_db_hypervisor
+from bins.w3.builders import build_db_hypervisor, build_db_hypervisor_multicall
 
 from .objects import period_yield_data
 
@@ -437,12 +437,14 @@ def get_last_returns_source_data(
             return {}
 
         # build the latest hypervisor status
-        if result := build_db_hypervisor(
+        if result := build_db_hypervisor_multicall(
             address=hipervisor_status["address"],
             network=chain.database_name,
             block=0,
             dex=hipervisor_status["dex"],
-            cached=True,
+            pool_address=hipervisor_status["pool"]["address"],
+            token0_address=hipervisor_status["pool"]["token0"]["address"],
+            token1_address=hipervisor_status["pool"]["token1"]["address"],
         ):
             # return only if supply is equal to hypervisor status
             if result["totalSupply"] == hipervisor_status["totalSupply"]:

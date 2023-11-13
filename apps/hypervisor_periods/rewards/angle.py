@@ -2,7 +2,7 @@ import logging
 from apps.feeds.utils import get_hypervisor_price_per_share, get_reward_pool_prices
 from apps.hypervisor_periods.base import hypervisor_periods_base
 from bins.general.enums import Chain, Protocol, rewarderType
-from bins.w3.builders import build_db_hypervisor
+from bins.w3.builders import build_db_hypervisor, build_db_hypervisor_multicall
 from bins.w3.protocols.angle.rewarder import angle_merkle_distributor_creator
 
 

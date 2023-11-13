@@ -41,7 +41,12 @@ from bins.general.enums import (
     text_to_protocol,
 )
 from bins.general.general_utilities import log_time_passed, seconds_to_time_passed
-from bins.w3.builders import build_db_hypervisor, build_erc20_helper, build_hypervisor
+from bins.w3.builders import (
+    build_db_hypervisor,
+    build_erc20_helper,
+    build_hypervisor,
+    build_db_hypervisor_multicall,
+)
 from bins.mixed.price_utilities import price_scraper
 from bins.w3.protocols.general import erc20, bep20
 
@@ -279,13 +284,15 @@ def pull_from_queue_hypervisor_status(network: str, queue_item: QueueItem) -> bo
         ):
             hypervisor_static = hypervisor_static[0]
 
-            if hypervisor := build_db_hypervisor(
+            if hypervisor := build_db_hypervisor_multicall(
                 address=queue_item.address,
                 network=network,
                 block=queue_item.block,
                 dex=hypervisor_static["dex"],
+                pool_address=hypervisor_static["pool"]["address"],
+                token0_address=hypervisor_static["pool"]["token0"]["address"],
+                token1_address=hypervisor_static["pool"]["token1"]["address"],
                 force_rpcType="private",
-                cached=True,
             ):
                 # save hype
                 if db_return := local_db.set_status(data=hypervisor):
@@ -704,7 +711,7 @@ def pull_from_queue_revenue_operation(network: str, queue_item: QueueItem) -> bo
 
         else:
             # unknown operation topic
-            #raise ValueError(f" Unknown operation topic {operation['topic']}")
+            # raise ValueError(f" Unknown operation topic {operation['topic']}")
             pass
 
         # get price at block
