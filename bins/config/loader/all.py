@@ -1,4 +1,5 @@
 from argparse import Namespace
+import copy
 import os
 import sys
 from yaml.parser import ParserError
@@ -24,12 +25,14 @@ def merge_configuration_cml(cfg: config, cml_parameters: Namespace) -> config:
     """
 
     # add cml_parameters into loaded config
-    cfg.cml_parameters = cml_parameters
+    result = copy.deepcopy(cfg)
+    result.cml_parameters = cml_parameters
+    # cfg.cml_parameters = cml_parameters
 
     # add log subfolder if set
     if cml_parameters.log_subfolder:
-        cfg.logs.save_path = os.path.join(
-            cfg.logs.save_path, cml_parameters.log_subfolder
+        result.logs.save_path = os.path.join(
+            result.logs.save_path, cml_parameters.log_subfolder
         )
 
     # disable all CHAINS but defined
@@ -37,9 +40,9 @@ def merge_configuration_cml(cfg: config, cml_parameters: Namespace) -> config:
         # define enabled chains
         enabled_chains = [text_to_chain(network) for network in cml_parameters.networks]
         # disable all networks not in enabled chains
-        for chain in cfg.chains.keys():
+        for chain in result.chains.keys():
             if chain not in enabled_chains:
-                cfg.chains[chain].enabled = False
+                result.chains[chain].enabled = False
 
     # disable all PROTOCOLS but defined
     if cml_parameters.protocols:
@@ -48,13 +51,13 @@ def merge_configuration_cml(cfg: config, cml_parameters: Namespace) -> config:
             text_to_protocol(protocol) for protocol in cml_parameters.protocols
         ]
         # disable all protocols not in enabled protocols
-        for chain in cfg.chains.keys():
-            for protocol in cfg.chains[chain].protocols.keys():
+        for chain in result.chains.keys():
+            for protocol in result.chains[chain].protocols.keys():
                 if protocol not in enabled_protocols:
-                    cfg.chains[chain].protocols[protocol].enabled = False
+                    result.chains[chain].protocols[protocol].enabled = False
 
     # return modified configuration object
-    return cfg
+    return result
 
 
 def merge_configuration_db(cfg: config, cfg_db: config) -> config:
@@ -81,6 +84,22 @@ def merge_configuration_db(cfg: config, cfg_db: config) -> config:
                 cfg.chains[chain] = cfg_db.chains[chain]
             else:
                 # chain is defined already in config fiel... skip
+                pass
+    # only w3Providers_settings
+    if cfg_db.w3Providers_settings:
+        for setting_id in cfg_db.w3Providers_settings.keys():
+            # if setting_id is not defined in file configuration
+            if not cfg.w3Providers_settings:
+                # add setting_id to file configuration
+                cfg.w3Providers_settings = cfg_db.w3Providers_settings
+                break
+            elif setting_id not in cfg.w3Providers_settings.keys():
+                # add setting_id to file configuration
+                cfg.w3Providers_settings[setting_id] = cfg_db.w3Providers_settings[
+                    setting_id
+                ]
+            else:
+                # setting_id is defined already in config fiel... skip
                 pass
 
     # return modified configuration object
