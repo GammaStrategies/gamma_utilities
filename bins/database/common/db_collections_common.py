@@ -628,10 +628,14 @@ class database_global(db_collections_common):
         Returns:
             dict:
         """
-        return self.query_items_from_database(
+        for item in self.query_items_from_database(
             query=self.query_blocks_closest(network=network, block=block, limit=limit),
             collection_name="usd_prices",
-        )
+        ):
+            if item["doc"]["address"] == address:
+                return [item["doc"]]
+
+        return []
 
     def get_timestamp(
         self,
@@ -3087,5 +3091,50 @@ class database_local(db_collections_common):
         # add match to query
         query.insert(0, {"$match": _match})
 
+        # debug_query = f"{query}"
+        return query
+
+    @staticmethod
+    def query_hypervisor_rebalances_qtty(
+        hypervisor_addresses: list[str] | None = None,
+        timestamp_ini: int | None = None,
+        timestamp_end: int | None = None,
+        block_ini: int | None = None,
+        block_end: int | None = None,
+    ) -> list[dict]:
+        query = [
+            {
+                "$group": {
+                    "_id": "$address",
+                    "address": {"$first": "$address"},
+                    "rebalances": {"$sum": 1},
+                },
+            },
+            {"$unset": ["_id"]},
+        ]
+
+        # build match
+        _and = [{"topic": "rebalance"}]
+        _match = {}
+
+        # add block or timestamp in query
+        if block_ini:
+            _and.append({"blockNumber": {"$gte": block_ini}})
+        elif timestamp_ini:
+            _and.append({"timestamp": {"$gte": timestamp_ini}})
+        if block_end:
+            _and.append({"blockNumber": {"$lte": block_end}})
+        elif timestamp_end:
+            _and.append({"timestamp": {"$lte": timestamp_end}})
+
+        # add hype address
+        if hypervisor_addresses:
+            _and.append({"address": {"$in": hypervisor_addresses}})
+
+        # add to query
+        if _and:
+            _match["$and"] = _and
+            # add match to query
+            query.insert(0, {"$match": _match})
         # debug_query = f"{query}"
         return query
