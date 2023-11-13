@@ -1,19 +1,31 @@
+from copy import deepcopy
 from decimal import Decimal
 from web3 import Web3
 
-from bins.formulas.fees import calculate_gamma_fee
 
 from ....config.current import WEB3_CHAIN_IDS  # ,CFG
 from ....cache import cache_utilities
 from ....general.enums import Protocol
-from ..general import bep20, erc20, erc20_cached, bep20_cached
-
+from ..general import (
+    bep20,
+    bep20_multicall,
+    erc20,
+    erc20_cached,
+    bep20_cached,
+    erc20_multicall,
+)
+from ...helpers.multicaller import build_call, execute_multicall
 from ..uniswap.pool import (
     poolv3,
     poolv3_bep20,
+    poolv3_bep20_multicall,
     poolv3_cached,
     poolv3_bep20_cached,
+    ABI_FILENAME as POOL_ABI_FILENAME,
+    ABI_FOLDERNAME as POOL_ABI_FOLDERNAME,
+    poolv3_multicall,
 )
+from ....formulas.fees import calculate_gamma_fee
 
 ABI_FILENAME = "hypervisor_modded"
 ABI_FOLDERNAME = "gamma"
@@ -488,41 +500,48 @@ class gamma_hypervisor(erc20):
 
         return result.copy()
 
-    def as_dict(self, convert_bint=False, static_mode: bool = False) -> dict:
-        """as_dict _summary_
+    # Convert
+
+    def as_dict(
+        self, convert_bint=False, static_mode: bool = False, minimal: bool = False
+    ) -> dict:
+        """as_dict
 
         Args:
             convert_bint (bool, optional): Convert big integers to string. Defaults to False.
             static_mode (bool, optional): only general static fields are returned. Defaults to False.
+            minimal (bool, optional): only get the minimal indispensable fields ( 44 calls + errors) vs (82+errors)
+
+            # multicall 82->1 call
 
         Returns:
             dict:
         """
-        result = super().as_dict(convert_bint=convert_bint)
+        result = super().as_dict(convert_bint=convert_bint, minimal=minimal)
 
-        result["name"] = self.name
+        if not minimal:
+            # not minimal
+            result["name"] = self.name
+            result["fee"] = self.fee
+            result["deposit0Max"] = (
+                str(self.deposit0Max) if convert_bint else self.deposit0Max
+            )
+            result["deposit1Max"] = (
+                str(self.deposit1Max) if convert_bint else self.deposit1Max
+            )
+
         result["pool"] = self.pool.as_dict(
             convert_bint=convert_bint, static_mode=static_mode
         )
 
-        result["fee"] = self.fee
-
         # identify hypervisor dex
         result["dex"] = self.identify_dex_name()
-
-        result["deposit0Max"] = (
-            str(self.deposit0Max) if convert_bint else self.deposit0Max
-        )
-
-        result["deposit1Max"] = (
-            str(self.deposit1Max) if convert_bint else self.deposit1Max
-        )
 
         # result["directDeposit"] = self.directDeposit  # not working
 
         # only return when static mode is off
         if not static_mode:
-            self._as_dict_not_static_items(convert_bint, result)
+            self._as_dict_not_static_items(convert_bint, result, minimal)
         else:
             # save feeRecipient only in static mode
             try:
@@ -533,7 +552,7 @@ class gamma_hypervisor(erc20):
                 pass
         return result
 
-    def _as_dict_not_static_items(self, convert_bint, result):
+    def _as_dict_not_static_items(self, convert_bint, result, minimal: bool = False):
         # cached variables
         _baseLower = self.baseLower
         _baseUpper = self.baseUpper
@@ -547,7 +566,6 @@ class gamma_hypervisor(erc20):
         )
 
         result["limitLower"] = str(_limitLower) if convert_bint else _limitLower
-
         result["limitUpper"] = str(_limitUpper) if convert_bint else _limitUpper
 
         # getTotalAmounts
@@ -555,22 +573,6 @@ class gamma_hypervisor(erc20):
         if convert_bint:
             result["totalAmounts"]["total0"] = str(result["totalAmounts"]["total0"])
             result["totalAmounts"]["total1"] = str(result["totalAmounts"]["total1"])
-
-        result["maxTotalSupply"] = (
-            str(self.maxTotalSupply) if convert_bint else self.maxTotalSupply
-        )
-
-        # TVL
-        result["tvl"] = self.get_tvl(inDecimal=(not convert_bint))
-        if convert_bint:
-            for k in result["tvl"].keys():
-                result["tvl"][k] = str(result["tvl"][k])
-
-        # Deployed
-        result["qtty_depoloyed"] = self.get_qtty_depoloyed(inDecimal=(not convert_bint))
-        if convert_bint:
-            for k in result["qtty_depoloyed"].keys():
-                result["qtty_depoloyed"][k] = str(result["qtty_depoloyed"][k])
 
         # uncollected fees
         result["fees_uncollected"] = self.get_fees_uncollected(
@@ -580,12 +582,6 @@ class gamma_hypervisor(erc20):
             for k in result["fees_uncollected"].keys():
                 result["fees_uncollected"][k] = str(result["fees_uncollected"][k])
 
-        # collected fees
-        result["fees_collected"] = self.get_fees_collected(inDecimal=(not convert_bint))
-        if convert_bint:
-            for k in result["fees_collected"].keys():
-                result["fees_collected"][k] = str(result["fees_collected"][k])
-
         # positions
         result["basePosition"] = self.getBasePosition
         if convert_bint:
@@ -593,63 +589,92 @@ class gamma_hypervisor(erc20):
         result["limitPosition"] = self.getLimitPosition
         if convert_bint:
             self._as_dict_convert_helper(result, "limitPosition")
-        result["tickSpacing"] = (
-            str(self.tickSpacing) if convert_bint else self.tickSpacing
-        )
 
-        # positions specifics
-        result["basePosition_data"] = self.pool.position(
-            ownerAddress=Web3.toChecksumAddress(self.address.lower()),
-            tickLower=_baseLower,
-            tickUpper=_baseUpper,
-        )
-        if convert_bint:
-            self._as_dict_convert_helper_positions(
-                result=result,
-                position_key="basePosition_data",
-                exclue_conversion=["lastLiquidityAddTimestamp"],
-            )
-        result["basePosition_ticksLower"] = self.pool.ticks(_baseLower)
-        if convert_bint:
-            self._as_dict_convert_helper_positions(
-                result=result,
-                position_key="basePosition_ticksLower",
-                exclue_conversion=[""],
-            )
-        result["basePosition_ticksUpper"] = self.pool.ticks(_baseUpper)
-        if convert_bint:
-            self._as_dict_convert_helper_positions(
-                result=result,
-                position_key="basePosition_ticksUpper",
-                exclue_conversion=[""],
+        # not minimal
+        if not minimal:
+            result["maxTotalSupply"] = (
+                str(self.maxTotalSupply) if convert_bint else self.maxTotalSupply
             )
 
-        result["limitPosition_data"] = self.pool.position(
-            ownerAddress=Web3.toChecksumAddress(self.address.lower()),
-            tickLower=_limitLower,
-            tickUpper=_limitUpper,
-        )
-        if convert_bint:
-            self._as_dict_convert_helper_positions(
-                result=result,
-                position_key="limitPosition_data",
-                exclue_conversion=["lastLiquidityAddTimestamp"],
+            # TVL
+            result["tvl"] = self.get_tvl(inDecimal=(not convert_bint))
+            if convert_bint:
+                for k in result["tvl"].keys():
+                    result["tvl"][k] = str(result["tvl"][k])
+
+            # Deployed
+            result["qtty_depoloyed"] = self.get_qtty_depoloyed(
+                inDecimal=(not convert_bint)
             )
-        result["limitPosition_ticksLower"] = self.pool.ticks(_limitLower)
-        if convert_bint:
-            self._as_dict_convert_helper_positions(
-                result=result,
-                position_key="limitPosition_ticksLower",
-                exclue_conversion=[""],
+            if convert_bint:
+                for k in result["qtty_depoloyed"].keys():
+                    result["qtty_depoloyed"][k] = str(result["qtty_depoloyed"][k])
+
+            # collected fees
+            result["fees_collected"] = self.get_fees_collected(
+                inDecimal=(not convert_bint)
+            )
+            if convert_bint:
+                for k in result["fees_collected"].keys():
+                    result["fees_collected"][k] = str(result["fees_collected"][k])
+            # spacing
+            result["tickSpacing"] = (
+                str(self.tickSpacing) if convert_bint else self.tickSpacing
             )
 
-        result["limitPosition_ticksUpper"] = self.pool.ticks(_limitUpper)
-        if convert_bint:
-            self._as_dict_convert_helper_positions(
-                result=result,
-                position_key="limitPosition_ticksUpper",
-                exclue_conversion=[""],
+            # positions specifics
+            result["basePosition_data"] = self.pool.position(
+                ownerAddress=Web3.toChecksumAddress(self.address.lower()),
+                tickLower=_baseLower,
+                tickUpper=_baseUpper,
             )
+            if convert_bint:
+                self._as_dict_convert_helper_positions(
+                    result=result,
+                    position_key="basePosition_data",
+                    exclue_conversion=["lastLiquidityAddTimestamp"],
+                )
+            result["basePosition_ticksLower"] = self.pool.ticks(_baseLower)
+            if convert_bint:
+                self._as_dict_convert_helper_positions(
+                    result=result,
+                    position_key="basePosition_ticksLower",
+                    exclue_conversion=[""],
+                )
+            result["basePosition_ticksUpper"] = self.pool.ticks(_baseUpper)
+            if convert_bint:
+                self._as_dict_convert_helper_positions(
+                    result=result,
+                    position_key="basePosition_ticksUpper",
+                    exclue_conversion=[""],
+                )
+
+            result["limitPosition_data"] = self.pool.position(
+                ownerAddress=Web3.toChecksumAddress(self.address.lower()),
+                tickLower=_limitLower,
+                tickUpper=_limitUpper,
+            )
+            if convert_bint:
+                self._as_dict_convert_helper_positions(
+                    result=result,
+                    position_key="limitPosition_data",
+                    exclue_conversion=["lastLiquidityAddTimestamp"],
+                )
+            result["limitPosition_ticksLower"] = self.pool.ticks(_limitLower)
+            if convert_bint:
+                self._as_dict_convert_helper_positions(
+                    result=result,
+                    position_key="limitPosition_ticksLower",
+                    exclue_conversion=[""],
+                )
+
+            result["limitPosition_ticksUpper"] = self.pool.ticks(_limitUpper)
+            if convert_bint:
+                self._as_dict_convert_helper_positions(
+                    result=result,
+                    position_key="limitPosition_ticksUpper",
+                    exclue_conversion=[""],
+                )
 
     def _as_dict_convert_helper(self, result, arg1):
         result[arg1]["liquidity"] = str(result[arg1]["liquidity"])
@@ -668,71 +693,80 @@ class gamma_hypervisor(erc20):
             if k not in exclue_conversion:
                 result[position_key][k] = str(result[position_key][k])
 
+    # dict from multicall
+    def _get_dict_from_multicall(self) -> dict:
+        """Only this object and its super() will be returned as dict ( no pools nor objects within this)
+             When any of the function is not returned ( for any reason ), its key will not appear in the result.
+            All functions defined in the abi without "inputs" will be returned here
+        Returns:
+            dict:
+        """
+        #
+        result = super()._get_dict_from_multicall()
 
-# TODO: simplify with inheritance
-class gamma_hypervisor_bep20(bep20, gamma_hypervisor):
-    # SETUP
-    def __init__(
-        self,
-        address: str,
-        network: str,
-        abi_filename: str = "",
-        abi_path: str = "",
-        block: int = 0,
-        timestamp: int = 0,
-        custom_web3: Web3 | None = None,
-        custom_web3Url: str | None = None,
-    ):
-        self._abi_filename = abi_filename or ABI_FILENAME
-        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        # build fixed objects like (pool, token0, token1..)
+        self._build_fixed_objects_from_multicall_result(multicall_result=result)
+        # format list vars ( like getTotalAmounts...)
+        result = self._convert_formats_multicall_result(multicall_result=result)
+        return result
 
-        self._pool: poolv3_bep20 | None = None
-        self._token0: bep20 | None = None
-        self._token1: bep20 | None = None
+    def _build_fixed_objects_from_multicall_result(self, multicall_result: dict):
+        # build fixed objects like (pool, token0, token1..)
+        try:
+            if self._pool is None:
+                self._pool = poolv3(
+                    address=multicall_result["pool"],
+                    network=self._network,
+                    block=self.block,
+                )
+        except:
+            pass
+        try:
+            if self._token0 is None:
+                self._token0 = erc20(
+                    address=multicall_result["token0"],
+                    network=self._network,
+                    block=self.block,
+                )
+        except:
+            pass
+        try:
+            if self._token1 is None:
+                self._token1 = erc20(
+                    address=multicall_result["token1"],
+                    network=self._network,
+                    block=self.block,
+                )
+        except:
+            pass
 
-        super().__init__(
-            address=address,
-            network=network,
-            abi_filename=self._abi_filename,
-            abi_path=self._abi_path,
-            block=block,
-            timestamp=timestamp,
-            custom_web3=custom_web3,
-            custom_web3Url=custom_web3Url,
-        )
+    def _convert_formats_multicall_result(self, multicall_result: dict) -> dict:
+        # format list vars ( like getTotalAmounts...)
+        try:
+            multicall_result["getTotalAmounts"] = {
+                "total0": multicall_result["getTotalAmounts"][0],
+                "total1": multicall_result["getTotalAmounts"][1],
+            }
+        except:
+            pass
+        try:
+            multicall_result["getLimitPosition"] = {
+                "liquidity": multicall_result["getLimitPosition"][0],
+                "amount0": multicall_result["getLimitPosition"][1],
+                "amount1": multicall_result["getLimitPosition"][2],
+            }
+        except:
+            pass
+        try:
+            multicall_result["getBasePosition"] = {
+                "liquidity": multicall_result["getBasePosition"][0],
+                "amount0": multicall_result["getBasePosition"][1],
+                "amount1": multicall_result["getBasePosition"][2],
+            }
+        except:
+            pass
 
-    @property
-    def pool(self) -> poolv3_bep20:
-        if self._pool is None:
-            self._pool = poolv3_bep20(
-                address=self.call_function_autoRpc("pool"),
-                network=self._network,
-                block=self.block,
-            )
-        return self._pool
-
-    @property
-    def token0(self) -> bep20:
-        if self._token0 is None:
-            self._token0 = bep20(
-                address=self.call_function_autoRpc("token0"),
-                network=self._network,
-                block=self.block,
-            )
-        return self._token0
-
-    @property
-    def token1(self) -> bep20:
-        if self._token1 is None:
-            self._token1 = bep20(
-                address=self.call_function_autoRpc("token1"),
-                network=self._network,
-                block=self.block,
-            )
-        return self._token1
-
-
-# -> Cached version of the hypervisor
+        return multicall_result
 
 
 class gamma_hypervisor_cached(erc20_cached, gamma_hypervisor):
@@ -1225,7 +1259,354 @@ class gamma_hypervisor_cached(erc20_cached, gamma_hypervisor):
         return result
 
 
-# TODO: simplify with inheritance
+class gamma_hypervisor_multicall(gamma_hypervisor):
+    # SETUP
+    def __init__(
+        self,
+        address: str,
+        network: str,
+        abi_filename: str = "",
+        abi_path: str = "",
+        block: int = 0,
+        timestamp: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
+        known_data: dict | None = None,
+        pool_abi_filename: str = "",
+        pool_abi_path: str = "",
+    ):
+        self._abi_filename = abi_filename or ABI_FILENAME
+        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        self._pool_abi_filename = pool_abi_filename or POOL_ABI_FILENAME
+        self._pool_abi_path = (
+            pool_abi_path or f"{self.abi_root_path}/{POOL_ABI_FOLDERNAME}"
+        )
+
+        super().__init__(
+            address=address,
+            network=network,
+            abi_filename=self._abi_filename,
+            abi_path=self._abi_path,
+            block=block,
+            timestamp=timestamp,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
+        )
+
+        if known_data:
+            self._fill_from_known_data(known_data=known_data)
+
+    # PROPERTIES
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def totalSupply(self) -> int:
+        return self._totalSupply
+
+    @property
+    def symbol(self) -> int:
+        return self._symbol
+
+    @property
+    def decimals(self) -> int:
+        return self._decimals
+
+    @property
+    def baseLower(self) -> int:
+        return self._baseLower
+
+    @property
+    def baseUpper(self) -> int:
+        return self._baseUpper
+
+    @property
+    def currentTick(self) -> int:
+        return self._currentTick
+
+    @property
+    def deposit0Max(self) -> int:
+        return self._deposit0Max
+
+    @property
+    def deposit1Max(self) -> int:
+        return self._deposit1Max
+
+    @property
+    def directDeposit(self) -> bool:
+        return self._directDeposit
+
+    @property
+    def fee(self) -> int:
+        return self._fee
+
+    @property
+    def feeRecipient(self) -> str:
+        return self._feeRecipient
+
+    @property
+    def getBasePosition(self) -> dict:
+        return deepcopy(self._getBasePosition)
+
+    @property
+    def getLimitPosition(self) -> dict:
+        return deepcopy(self._getLimitPosition)
+
+    @property
+    def getTotalAmounts(self) -> dict:
+        return deepcopy(self._getTotalAmounts)
+
+    @property
+    def limitLower(self) -> int:
+        return self._limitLower
+
+    @property
+    def limitUpper(self) -> int:
+        return self._limitUpper
+
+    @property
+    def maxTotalSupply(self) -> int:
+        return self._maxTotalSupply
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def owner(self) -> str:
+        return self._owner
+
+    @property
+    def pool(self) -> poolv3_multicall:
+        return self._pool
+
+    @property
+    def tickSpacing(self) -> int:
+        return self._tickSpacing
+
+    @property
+    def token0(self) -> erc20_multicall:
+        return self._token0
+
+    @property
+    def token1(self) -> erc20_multicall:
+        return self._token1
+
+    @property
+    def witelistedAddress(self) -> str:
+        return self._witelistedAddress
+
+    #################
+
+    @property
+    def custom_rpcType(self) -> str | None:
+        """ """
+        return self._custom_rpcType
+
+    @custom_rpcType.setter
+    def custom_rpcType(self, value: str | None):
+        """ """
+        if not isinstance(value, str):
+            raise ValueError(f"custom_rpcType must be a string")
+        try:
+            self._custom_rpcType = value
+            self.pool.custom_rpcType = value
+            self.token0.custom_rpcType = value
+            self.token1.custom_rpcType = value
+        except:
+            pass
+
+    def fill_with_multicall(
+        self,
+        pool_address: str | None = None,
+        token0_address: str | None = None,
+        token1_address: str | None = None,
+    ):
+        data = execute_multicall(
+            network=self._network,
+            block=self.block,
+            hypervisor_address=self._address,
+            pool_address=pool_address,
+            token0_address=token0_address,
+            token1_address=token1_address,
+            hypervisor_abi_filename=self._abi_filename,
+            hypervisor_abi_path=self._abi_path,
+            pool_abi_filename=self._pool_abi_filename,
+            pool_abi_path=self._pool_abi_path,
+            convert_bint=False,
+        )
+
+        # fill addresses
+        if pool_address:
+            data["pool"]["address"] = pool_address
+        if token0_address:
+            data["token0"]["address"] = token0_address
+        if token1_address:
+            data["token1"]["address"] = token1_address
+
+        self._fill_from_known_data(known_data=data)
+
+    def _fill_from_known_data(self, known_data: dict):
+        # ERC20
+        self._name = known_data["name"]
+        self._symbol = known_data["symbol"]
+        self._decimals = known_data["decimals"]
+        self._totalSupply = known_data["totalSupply"]
+        #
+        self._baseLower = known_data["baseLower"]
+        self._baseUpper = known_data["baseUpper"]
+        self._currentTick = known_data["currentTick"]
+        self._deposit0Max = known_data["deposit0Max"]
+        self._deposit1Max = known_data["deposit1Max"]
+        self._directDeposit = known_data.get("directDeposit", None)
+        self._fee = known_data["fee"]
+        self._feeRecipient = known_data.get("feeRecipient", None)
+        self._getBasePosition = {
+            "liquidity": known_data["getBasePosition"][0],
+            "amount0": known_data["getBasePosition"][1],
+            "amount1": known_data["getBasePosition"][2],
+        }
+        self._getLimitPosition = {
+            "liquidity": known_data["getLimitPosition"][0],
+            "amount0": known_data["getLimitPosition"][1],
+            "amount1": known_data["getLimitPosition"][2],
+        }
+        self._getTotalAmounts = {
+            "total0": known_data["getTotalAmounts"][0],
+            "total1": known_data["getTotalAmounts"][1],
+        }
+        self._limitLower = known_data["limitLower"]
+        self._limitUpper = known_data["limitUpper"]
+        self._maxTotalSupply = known_data["maxTotalSupply"]
+        self._name = known_data["name"]
+        self._owner = known_data["owner"]
+        self._tickSpacing = known_data["tickSpacing"]
+        self._whitelistedAddress = known_data.get("whitelistedAddress", None)
+
+        # add tokens to pool
+        known_data["pool"]["token0"] = known_data["token0"]
+        known_data["pool"]["token1"] = known_data["token1"]
+
+        # create objects
+        self._fill_from_known_data_objects(known_data=known_data)
+
+    def _fill_from_known_data_objects(self, known_data: dict):
+        self._pool = poolv3_multicall(
+            address=known_data["pool"]["address"],
+            network=self._network,
+            block=self.block,
+            timestamp=self._timestamp,
+            known_data=known_data["pool"],
+        )
+        self._token0 = erc20_multicall(
+            address=known_data["token0"]["address"],
+            network=self._network,
+            block=self.block,
+            timestamp=self._timestamp,
+            known_data=known_data["token0"],
+        )
+        self._token1 = erc20_multicall(
+            address=known_data["token1"]["address"],
+            network=self._network,
+            block=self.block,
+            timestamp=self._timestamp,
+            known_data=known_data["token1"],
+        )
+
+
+class gamma_hypervisor_bep20(bep20, gamma_hypervisor):
+    # SETUP
+    def __init__(
+        self,
+        address: str,
+        network: str,
+        abi_filename: str = "",
+        abi_path: str = "",
+        block: int = 0,
+        timestamp: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
+    ):
+        self._abi_filename = abi_filename or ABI_FILENAME
+        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+
+        self._pool: poolv3_bep20 | None = None
+        self._token0: bep20 | None = None
+        self._token1: bep20 | None = None
+
+        super().__init__(
+            address=address,
+            network=network,
+            abi_filename=self._abi_filename,
+            abi_path=self._abi_path,
+            block=block,
+            timestamp=timestamp,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
+        )
+
+    @property
+    def pool(self) -> poolv3_bep20:
+        if self._pool is None:
+            self._pool = poolv3_bep20(
+                address=self.call_function_autoRpc("pool"),
+                network=self._network,
+                block=self.block,
+            )
+        return self._pool
+
+    @property
+    def token0(self) -> bep20:
+        if self._token0 is None:
+            self._token0 = bep20(
+                address=self.call_function_autoRpc("token0"),
+                network=self._network,
+                block=self.block,
+            )
+        return self._token0
+
+    @property
+    def token1(self) -> bep20:
+        if self._token1 is None:
+            self._token1 = bep20(
+                address=self.call_function_autoRpc("token1"),
+                network=self._network,
+                block=self.block,
+            )
+        return self._token1
+
+    def _build_fixed_objects_from_multicall_result(self, multicall_result: dict):
+        # build fixed objects like (pool, token0, token1..)
+        try:
+            if self._pool is None:
+                self._pool = poolv3_bep20(
+                    address=multicall_result["pool"],
+                    network=self._network,
+                    block=self.block,
+                )
+        except:
+            pass
+        try:
+            if self._token0 is None:
+                self._token0 = bep20(
+                    address=multicall_result["token0"],
+                    network=self._network,
+                    block=self.block,
+                )
+        except:
+            pass
+        try:
+            if self._token1 is None:
+                self._token1 = bep20(
+                    address=multicall_result["token1"],
+                    network=self._network,
+                    block=self.block,
+                )
+        except:
+            pass
+
+
 class gamma_hypervisor_bep20_cached(bep20_cached, gamma_hypervisor_bep20):
     SAVE2FILE = True
 
@@ -1714,3 +2095,40 @@ class gamma_hypervisor_bep20_cached(bep20_cached, gamma_hypervisor_bep20):
                 save2file=self.SAVE2FILE,
             )
         return result
+
+
+class gamma_hypervisor_bep20_multicall(gamma_hypervisor_multicall):
+    @property
+    def pool(self) -> poolv3_bep20_multicall:
+        return self._pool
+
+    @property
+    def token0(self) -> bep20_multicall:
+        return self._token0
+
+    @property
+    def token1(self) -> bep20_multicall:
+        return self._token1
+
+    def _fill_from_known_data_objects(self, known_data: dict):
+        self._pool = poolv3_bep20_multicall(
+            address=known_data["pool"]["address"],
+            network=self._network,
+            block=self.block,
+            timestamp=self._timestamp,
+            known_data=known_data["pool"],
+        )
+        self._token0 = bep20_multicall(
+            address=known_data["token0"]["address"],
+            network=self._network,
+            block=self.block,
+            timestamp=self._timestamp,
+            known_data=known_data["token0"],
+        )
+        self._token1 = bep20_multicall(
+            address=known_data["token1"]["address"],
+            network=self._network,
+            block=self.block,
+            timestamp=self._timestamp,
+            known_data=known_data["token1"],
+        )

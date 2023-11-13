@@ -1,3 +1,4 @@
+from copy import deepcopy
 import logging
 from hexbytes import HexBytes
 from web3 import Web3
@@ -540,3 +541,176 @@ class pool_cached(pool, uniswap.pool.poolv3_cached):
                 block=self.block,
             )
         return self._token1
+
+
+class pool_multicall(uniswap.pool.poolv3_multicall):
+    # SETUP
+    def __init__(
+        self,
+        address: str,
+        network: str,
+        abi_filename: str = "",
+        abi_path: str = "",
+        block: int = 0,
+        timestamp: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
+        known_data: dict | None = None,
+    ):
+        self._abi_filename = abi_filename or ABI_FILENAME
+        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+
+        super().__init__(
+            address=address,
+            network=network,
+            abi_filename=self._abi_filename,
+            abi_path=self._abi_path,
+            block=block,
+            timestamp=timestamp,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
+        )
+
+        if known_data:
+            self._fill_from_known_data(known_data=known_data)
+
+    def identify_dex_name(self) -> str:
+        return DEX_NAME
+
+    @property
+    def fee(self) -> int:
+        """Return currentFee cause RAMSES uses a mutable fee that we will map to fee for our internal coherence but reality is
+        that this fee property is mapped to currentFee prop. in RAMSES.
+        """
+        return self._currentFee
+
+    @property
+    def currentFee(self) -> int:
+        """The pool's current fee in hundredths of a bip, i.e. 1e-6
+        returns the real fee that can change over time
+        Returns uint24
+        """
+        return self._currentFee
+
+    @property
+    def boostedLiquidity(self) -> int:
+        return self._boostedLiquidity
+
+    @property
+    def lastPeriod(self) -> int:
+        return self._lastPeriod
+
+    @property
+    def nfpManager(self) -> str:
+        return self._nfpManager
+
+    @property
+    def veRam(self) -> str:
+        return self._veRam
+
+    @property
+    def voter(self) -> str:
+        return self._voter
+
+    @property
+    def protocolFees(self) -> tuple[int, int]:
+        return deepcopy(self._protocolFees)
+
+    # CUSTOM
+    def ticks(self, tick: int) -> dict:
+        """
+
+        Args:
+           tick (int):
+
+        Returns:
+           _type_:     liquidityGross   uint128 :  0
+                       liquidityNet   int128 :  0
+                       feeGrowthOutside0X128   uint256 :  0
+                       feeGrowthOutside1X128   uint256 :  0
+                       tickCumulativeOutside   int56 :  0
+                       spoolecondsPerLiquidityOutsideX128   uint160 :  0
+                       secondsOutside   uint32 :  0
+                       initialized   bool :  false
+        """
+        if not tick in self._ticks:
+            if result := self.call_function_autoRpc("ticks", None, tick):
+                self._ticks[tick] = {
+                    "liquidityGross": result[0],
+                    "liquidityNet": result[1],
+                    "boostedLiquidityGross": result[2],
+                    "boostedLiquidityNet": result[3],
+                    "feeGrowthOutside0X128": result[4],
+                    "feeGrowthOutside1X128": result[5],
+                    "tickCumulativeOutside": result[6],
+                    "secondsPerLiquidityOutsideX128": result[7],
+                    "secondsOutside": result[8],
+                    "initialized": result[9],
+                }
+            else:
+                raise ProcessingError(
+                    chain=text_to_chain(self._network),
+                    item={
+                        "pool_address": self.address,
+                        "block": self.block,
+                        "object": "pool.ticks",
+                    },
+                    identity=error_identity.RETURN_NONE,
+                    action="",
+                    message=f" ticks function of {self.address} at block {self.block} returned none. (Check contract creation block)",
+                )
+        return deepcopy(self._ticks[tick])
+
+    def positions(self, position_key: str) -> dict:
+        """
+
+        Args:
+           position_key (str): 0x....
+
+        Returns:
+           _type_:
+                   liquidity   uint128 :  99225286851746
+                   feeGrowthInside0LastX128   uint256 :  0
+                   feeGrowthInside1LastX128   uint256 :  0
+                   tokensOwed0   uint128 :  0
+                   tokensOwed1   uint128 :  0
+        """
+
+        if not position_key in self._positions:
+            position_key = (
+                HexBytes(position_key) if type(position_key) == str else position_key
+            )
+            if result := self.call_function_autoRpc("positions", None, position_key):
+                self._positions[position_key] = {
+                    "liquidity": result[0],
+                    "feeGrowthInside0LastX128": result[1],
+                    "feeGrowthInside1LastX128": result[2],
+                    "tokensOwed0": result[3],
+                    "tokensOwed1": result[4],
+                    "attachedVeRamId": result[5],
+                }
+            else:
+                raise ProcessingError(
+                    chain=text_to_chain(self._network),
+                    item={
+                        "pool_address": self.address,
+                        "block": self.block,
+                        "object": "pool.positions",
+                    },
+                    identity=error_identity.RETURN_NONE,
+                    action="",
+                    message=f" positions function of {self.address} at block {self.block} returned none using {position_key} as position_key",
+                )
+
+        return deepcopy(self._positions[position_key])
+
+    def _fill_from_known_data(self, known_data: dict):
+        self._currentFee = known_data["currentFee"]
+        self._boostedLiquidity = known_data["boostedLiquidity"]
+        self._lastPeriod = known_data["lastPeriod"]
+        self._nfpManager = known_data["nfpManager"]
+        self._veRam = known_data["veRam"]
+        self._voter = known_data["voter"]
+        self._protocolFees = known_data["protocolFees"]
+
+        super()._fill_from_known_data(known_data=known_data)

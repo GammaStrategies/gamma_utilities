@@ -1,15 +1,20 @@
+from copy import deepcopy
 import logging
 import sys
 
 from decimal import Decimal
 from hexbytes import HexBytes
 from web3 import Web3
+from eth_abi import abi
 
-from bins.errors.general import ProcessingError
-from bins.formulas.fees import feeGrowth_to_fee, fees_uncollected_inRange
+from bins.general import file_utilities
+from bins.w3.helpers.multicaller import execute_multicall
+from ....errors.general import ProcessingError
+from ..multicall import multicall3
 
 from ....config.current import WEB3_CHAIN_IDS  # ,CFG
 from ....formulas.full_math import mulDiv
+from ....formulas.fees import feeGrowth_to_fee, fees_uncollected_inRange
 from ....formulas.position import (
     get_positionKey_algebra,
     get_positionKey_ramses,
@@ -18,12 +23,14 @@ from ....formulas.position import (
 from ....formulas.tick_math import getSqrtRatioAtTick
 from ....formulas.liquidity_math import getAmountsForLiquidity
 from ....general.enums import Protocol, error_identity, text_to_chain
+from ..base_wrapper import web3wrap
 from ..general import (
     bep20,
     bep20_cached,
-    web3wrap,
     erc20,
     erc20_cached,
+    erc20_multicall,
+    bep20_multicall,
 )
 from ....cache import cache_utilities
 
@@ -99,6 +106,29 @@ class dataStorageOperator(web3wrap):
             int: 86400 uint32
         """
         return self.call_function_autoRpc("window")
+
+
+class dataStorageOperator_cached(dataStorageOperator):
+    @property
+    def feeConfig(self) -> dict:
+        prop_name = "feeConfig"
+        result = self._cache.get_data(
+            chain_id=self._chain_id,
+            address=self.address,
+            block=self.block,
+            key=prop_name,
+        )
+        if result is None:
+            result = getattr(super(), prop_name)
+            self._cache.add_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+                data=result,
+                save2file=self.SAVE2FILE,
+            )
+        return result
 
 
 class poolv3(web3wrap):
@@ -720,7 +750,9 @@ class poolv3(web3wrap):
         # return result
         return result.copy()
 
-    def as_dict(self, convert_bint=False, static_mode: bool = False) -> dict:
+    def as_dict(
+        self, convert_bint=False, static_mode: bool = False, minimal: bool = False
+    ) -> dict:
         """as_dict _summary_
 
         Args:
@@ -731,31 +763,44 @@ class poolv3(web3wrap):
             dict:
         """
 
-        result = super().as_dict(convert_bint=convert_bint)
+        result = super().as_dict(convert_bint=convert_bint, minimal=minimal)
+
+        if not minimal:
+            try:
+                result["liquidityCooldown"] = (
+                    str(self.liquidityCooldown)
+                    if convert_bint
+                    else self.liquidityCooldown
+                )
+            except Exception as e:
+                # some algebra contracts have no liquidityCooldown function
+                pass
+
+            result["maxLiquidityPerTick"] = (
+                str(self.maxLiquidityPerTick)
+                if convert_bint
+                else self.maxLiquidityPerTick
+            )
+
+            # t spacing
+            # result["tickSpacing"] = (
+            #     self.tickSpacing if not convert_bint else str(self.tickSpacing)
+            # )
+
+            result["token0"] = self.token0.as_dict(
+                convert_bint=convert_bint, minimal=minimal
+            )
+            result["token1"] = self.token1.as_dict(
+                convert_bint=convert_bint, minimal=minimal
+            )
 
         result["activeIncentive"] = self.activeIncentive
-
-        result["liquidityCooldown"] = (
-            str(self.liquidityCooldown) if convert_bint else self.liquidityCooldown
-        )
-
-        result["maxLiquidityPerTick"] = (
-            str(self.maxLiquidityPerTick) if convert_bint else self.maxLiquidityPerTick
-        )
-
-        # t spacing
-        # result["tickSpacing"] = (
-        #     self.tickSpacing if not convert_bint else str(self.tickSpacing)
-        # )
-
-        # add fee so that it has same field as univ3 pool to dict
-        result["fee"] = self.globalState["fee"]
 
         # identify pool dex
         result["dex"] = self.identify_dex_name()
 
-        result["token0"] = self.token0.as_dict(convert_bint=convert_bint)
-        result["token1"] = self.token1.as_dict(convert_bint=convert_bint)
+        # add fee so that it has same field as univ3 pool to dict
+        result["fee"] = self.globalState["fee"]
 
         if not static_mode:
             result["feeGrowthGlobal0X128"] = (
@@ -809,84 +854,106 @@ class poolv3(web3wrap):
 
         return result
 
-
-class poolv3_bep20(poolv3):
-    # SETUP
-    def __init__(
-        self,
-        address: str,
-        network: str,
-        abi_filename: str = "",
-        abi_path: str = "",
-        block: int = 0,
-        timestamp: int = 0,
-        custom_web3: Web3 | None = None,
-        custom_web3Url: str | None = None,
-    ):
-        self._abi_filename = abi_filename or ABI_FILENAME
-        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
-
-        self._token0: bep20 = None
-        self._token1: bep20 = None
-
-        self._dataStorage: dataStorageOperator = None
-
-        super().__init__(
-            address=address,
-            network=network,
-            abi_filename=self._abi_filename,
-            abi_path=self._abi_path,
-            block=block,
-            timestamp=timestamp,
-            custom_web3=custom_web3,
-            custom_web3Url=custom_web3Url,
+    def _get_dict_from_multicall(self) -> dict:
+        """Only this object and its super() will be returned as dict ( no pools nor objects within this)
+             When any of the function is not returned ( for any reason ), its key will not appear in the result.
+            All functions defined in the abi without "inputs" will be returned here
+        Returns:
+            dict:
+        """
+        # create multicall helper
+        _multicall_helper = multicall3(network=self._network, block=self.block)
+        # get data thru multicall contract
+        multicall_result = _multicall_helper.try_get_data(
+            contract_functions=self.contract_functions, address=self.address
         )
+        # decode result
+        result = {}
+        for idx, _res_itm in enumerate(multicall_result):
+            # first item returned is success bool
+            if _res_itm[0]:
+                # success
 
-    @property
-    def token0(self) -> bep20:
-        if self._token0 is None:
-            self._token0 = bep20(
-                address=self.call_function_autoRpc("token0"),
-                network=self._network,
-                block=self.block,
-            )
-        return self._token0
+                data = abi.decode(
+                    [out["type"] for out in self.contract_functions[idx]["outputs"]],
+                    _res_itm[1],
+                )
 
-    @property
-    def token1(self) -> bep20:
-        if self._token1 is None:
-            self._token1 = bep20(
-                address=self.call_function_autoRpc("token1"),
-                network=self._network,
-                block=self.block,
-            )
-        return self._token1
+                # build result key = function name
+                key = self.contract_functions[idx]["name"]
 
+                # set var context
+                if len(self.contract_functions[idx]["outputs"]) > 1:
+                    if not [
+                        1
+                        for x in self.contract_functions[idx]["outputs"]
+                        if x["name"] != ""
+                    ]:
+                        # dictionary
+                        result[key] = {}
+                    else:
+                        # list
+                        result[key] = []
+                else:
+                    # one item
+                    result[key] = None
 
-# -> Cached version of the pool
+                # loop thru output
+                for output_idx, output in enumerate(
+                    self.contract_functions[idx]["outputs"]
+                ):
+                    # add to result
+                    if isinstance(result[key], list):
+                        result[key].append(data[output_idx])
+                    elif isinstance(result[key], dict):
+                        result[key][output["name"]] = data[output_idx]
+                    else:
+                        result[key] = data[output_idx]
 
+        # build fixed objects like (token0, token1..)
+        self._build_fixed_objects_from_multicall_result(multicall_result=result)
+        # format list vars ( like globalState...)
+        result = self._convert_formats_multicall_result(multicall_result=result)
 
-class dataStorageOperator_cached(dataStorageOperator):
-    @property
-    def feeConfig(self) -> dict:
-        prop_name = "feeConfig"
-        result = self._cache.get_data(
-            chain_id=self._chain_id,
-            address=self.address,
-            block=self.block,
-            key=prop_name,
-        )
-        if result is None:
-            result = getattr(super(), prop_name)
-            self._cache.add_data(
-                chain_id=self._chain_id,
-                address=self.address,
-                block=self.block,
-                key=prop_name,
-                data=result,
-                save2file=self.SAVE2FILE,
-            )
         return result
+
+    def _build_fixed_objects_from_multicall_result(self, multicall_result: dict):
+        # build fixed objects like (token0, token1..)
+        try:
+            if self._token0 is None:
+                self._token0 = erc20(
+                    address=multicall_result["token0"],
+                    network=self._network,
+                    block=self.block,
+                )
+        except:
+            pass
+        try:
+            if self._token1 is None:
+                self._token1 = erc20(
+                    address=multicall_result["token1"],
+                    network=self._network,
+                    block=self.block,
+                )
+        except:
+            pass
+
+    def _convert_formats_multicall_result(self, multicall_result: dict) -> dict:
+        # format list vars ( like getTotalAmounts...)
+        try:
+            multicall_result["globalState"] = {
+                "sqrtPriceX96": multicall_result["globalState"][0],
+                "tick": multicall_result["globalState"][1],
+                "fee": multicall_result["globalState"][2],
+                "timepointIndex": multicall_result["globalState"][3],
+                "communityFeeToken0": multicall_result["globalState"][4],
+                "communityFeeToken1": multicall_result["globalState"][5],
+                "unlocked": multicall_result["globalState"][6],
+            }
+        except:
+            pass
+
+        return multicall_result
 
 
 class poolv3_cached(poolv3):
@@ -1171,6 +1238,319 @@ class poolv3_cached(poolv3):
         return result
 
 
+class poolv3_multicall(poolv3):
+    def __init__(
+        self,
+        address: str,
+        network: str,
+        abi_filename: str = "",
+        abi_path: str = "",
+        block: int = 0,
+        timestamp: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
+        known_data: dict = None,
+    ):
+        self._abi_filename = abi_filename or ABI_FILENAME
+        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+
+        self._ticks = {}
+        self._positions = {}
+
+        super().__init__(
+            address=address,
+            network=network,
+            abi_filename=self._abi_filename,
+            abi_path=self._abi_path,
+            block=block,
+            timestamp=timestamp,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
+        )
+
+        if known_data:
+            self._fill_from_known_data(known_data=known_data)
+
+    @property
+    def activeIncentive(self) -> str:
+        return self._activeIncentive
+
+    @property
+    def dataStorageOperator(self) -> dataStorageOperator:
+        """ """
+        return self._dataStorageOperator
+
+    @property
+    def factory(self) -> str:
+        return self._factory
+
+    @property
+    def globalState(self) -> dict:
+        return deepcopy(self._globalState)
+
+    @property
+    def liquidity(self) -> int:
+        return self._liquidity
+
+    @property
+    def liquidityCooldown(self) -> int:
+        return self._liquidityCooldown
+
+    @property
+    def maxLiquidityPerTick(self) -> int:
+        return self._maxLiquidityPerTick
+
+    @property
+    def tickSpacing(self) -> int:
+        return self._tickSpacing
+
+    @property
+    def token0(self) -> erc20_multicall:
+        return self._token0
+
+    @property
+    def token1(self) -> erc20_multicall:
+        return self._token1
+
+    @property
+    def feeGrowthGlobal0X128(self) -> int:
+        return self._feeGrowthGlobal0X128
+
+    @property
+    def feeGrowthGlobal1X128(self) -> int:
+        return self._feeGrowthGlobal1X128
+
+    # CUSTOM
+    def ticks(self, tick: int) -> dict:
+        """
+
+        Args:
+           tick (int):
+
+        Returns:
+           _type_:     liquidityGross   uint128 :  0
+                       liquidityNet   int128 :  0
+                       feeGrowthOutside0X128   uint256 :  0
+                       feeGrowthOutside1X128   uint256 :  0
+                       tickCumulativeOutside   int56 :  0
+                       spoolecondsPerLiquidityOutsideX128   uint160 :  0
+                       secondsOutside   uint32 :  0
+                       initialized   bool :  false
+        """
+        if not tick in self._ticks:
+            if result := self.call_function_autoRpc("ticks", None, tick):
+                self._ticks[tick] = {
+                    "liquidityGross": result[0],
+                    "liquidityNet": result[1],
+                    "feeGrowthOutside0X128": result[2],
+                    "feeGrowthOutside1X128": result[3],
+                    "tickCumulativeOutside": result[4],
+                    "secondsPerLiquidityOutsideX128": result[5],
+                    "secondsOutside": result[6],
+                    "initialized": result[7],
+                }
+            else:
+                raise ProcessingError(
+                    chain=text_to_chain(self._network),
+                    item={
+                        "pool_address": self.address,
+                        "block": self.block,
+                        "object": "pool.ticks",
+                    },
+                    identity=error_identity.RETURN_NONE,
+                    action="",
+                    message=f" ticks function of {self.address} at block {self.block} returned none. (Check contract creation block)",
+                )
+        return deepcopy(self._ticks[tick])
+
+    def positions(self, position_key: str) -> dict:
+        """
+
+        Args:
+           position_key (str): 0x....
+
+        Returns:
+           _type_:
+                   liquidity   uint128 :  99225286851746
+                   feeGrowthInside0LastX128   uint256 :  0
+                   feeGrowthInside1LastX128   uint256 :  0
+                   tokensOwed0   uint128 :  0
+                   tokensOwed1   uint128 :  0
+        """
+
+        if not position_key in self._positions:
+            position_key = (
+                HexBytes(position_key) if type(position_key) == str else position_key
+            )
+            if result := self.call_function_autoRpc("positions", None, position_key):
+                self._positions[position_key] = {
+                    "liquidity": result[0],
+                    "feeGrowthInside0LastX128": result[1],
+                    "feeGrowthInside1LastX128": result[2],
+                    "tokensOwed0": result[3],
+                    "tokensOwed1": result[4],
+                }
+            else:
+                raise ProcessingError(
+                    chain=text_to_chain(self._network),
+                    item={
+                        "pool_address": self.address,
+                        "block": self.block,
+                        "object": "pool.positions",
+                    },
+                    identity=error_identity.RETURN_NONE,
+                    action="",
+                    message=f" positions function of {self.address} at block {self.block} returned none using {position_key} as position_key",
+                )
+
+        return deepcopy(self._positions[position_key])
+
+    def fill_with_multicall(
+        self,
+        pool_address: str | None = None,
+        token0_address: str | None = None,
+        token1_address: str | None = None,
+    ):
+        # POOL
+        pool_abi_filename = self._abi_filename
+        pool_abi_path = self._abi_path
+
+        data = execute_multicall(
+            network=self._network,
+            block=self.block,
+            hypervisor_address=self._address,
+            pool_address=pool_address,
+            token0_address=token0_address,
+            token1_address=token1_address,
+            hypervisor_abi_filename=None,
+            hypervisor_abi_path=None,
+            pool_abi_filename=pool_abi_filename,
+            pool_abi_path=pool_abi_path,
+            convert_bint=False,
+        )
+
+        self._fill_from_known_data(known_data=data)
+
+    def _fill_from_known_data(self, known_data: dict):
+        self._factory = known_data["factory"]
+        self._feeGrowthGlobal0X128 = known_data["totalFeeGrowth0Token"]
+        self._feeGrowthGlobal1X128 = known_data["totalFeeGrowth1Token"]
+        self._liquidity = known_data["liquidity"]
+        self._maxLiquidityPerTick = known_data["maxLiquidityPerTick"]
+        # self._protocolFees = known_data["protocolFees"]
+        self._tickSpacing = known_data["tickSpacing"]
+        self._activeIncentive = known_data["activeIncentive"]
+        self._liquidityCooldown = known_data["liquidityCooldown"]
+        self._globalState = {
+            "sqrtPriceX96": known_data["globalState"][0],
+            "tick": known_data["globalState"][1],
+            "fee": known_data["globalState"][2],
+            "timepointIndex": known_data["globalState"][3],
+            "communityFeeToken0": known_data["globalState"][4],
+            "communityFeeToken1": known_data["globalState"][5],
+            "unlocked": known_data["globalState"][6],
+        }
+
+        self._fill_from_known_data_objects(known_data=known_data)
+
+    def _fill_from_known_data_objects(self, known_data: dict):
+        self._token0 = erc20_multicall(
+            address=known_data["token0"]["address"],
+            network=self._network,
+            block=self.block,
+            timestamp=self._timestamp,
+            known_data=known_data["token0"],
+        )
+        self._token1 = erc20_multicall(
+            address=known_data["token1"]["address"],
+            network=self._network,
+            block=self.block,
+            timestamp=self._timestamp,
+            known_data=known_data["token1"],
+        )
+
+        self._dataStorageOperator = dataStorageOperator(
+            address=known_data["dataStorageOperator"],
+            network=self._network,
+            block=self.block,
+            timestamp=self._timestamp,
+        )
+
+
+class poolv3_bep20(poolv3):
+    # SETUP
+    def __init__(
+        self,
+        address: str,
+        network: str,
+        abi_filename: str = "",
+        abi_path: str = "",
+        block: int = 0,
+        timestamp: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
+    ):
+        self._abi_filename = abi_filename or ABI_FILENAME
+        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+
+        self._token0: bep20 = None
+        self._token1: bep20 = None
+
+        self._dataStorage: dataStorageOperator = None
+
+        super().__init__(
+            address=address,
+            network=network,
+            abi_filename=self._abi_filename,
+            abi_path=self._abi_path,
+            block=block,
+            timestamp=timestamp,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
+        )
+
+    @property
+    def token0(self) -> bep20:
+        if self._token0 is None:
+            self._token0 = bep20(
+                address=self.call_function_autoRpc("token0"),
+                network=self._network,
+                block=self.block,
+            )
+        return self._token0
+
+    @property
+    def token1(self) -> bep20:
+        if self._token1 is None:
+            self._token1 = bep20(
+                address=self.call_function_autoRpc("token1"),
+                network=self._network,
+                block=self.block,
+            )
+        return self._token1
+
+    def _build_fixed_objects_from_multicall_result(self, multicall_result: dict):
+        # build fixed objects like (token0, token1..)
+        try:
+            if self._token0 is None:
+                self._token0 = bep20(
+                    address=multicall_result["token0"],
+                    network=self._network,
+                    block=self.block,
+                )
+        except:
+            pass
+        try:
+            if self._token1 is None:
+                self._token1 = bep20(
+                    address=multicall_result["token1"],
+                    network=self._network,
+                    block=self.block,
+                )
+        except:
+            pass
+
+
 class poolv3_bep20_cached(poolv3_bep20):
     SAVE2FILE = True
 
@@ -1451,3 +1831,36 @@ class poolv3_bep20_cached(poolv3_bep20):
                 save2file=self.SAVE2FILE,
             )
         return result
+
+
+class poolv3_bep20_multicall(poolv3_multicall):
+    @property
+    def token0(self) -> bep20_multicall:
+        return self._token0
+
+    @property
+    def token1(self) -> bep20_multicall:
+        return self._token1
+
+    def _fill_from_known_data_objects(self, known_data: dict):
+        self._token0 = bep20_multicall(
+            address=known_data["token0"]["address"],
+            network=self._network,
+            block=self.block,
+            timestamp=self._timestamp,
+            known_data=known_data["token0"],
+        )
+        self._token1 = bep20_multicall(
+            address=known_data["token1"]["address"],
+            network=self._network,
+            block=self.block,
+            timestamp=self._timestamp,
+            known_data=known_data["token1"],
+        )
+
+        self._dataStorageOperator = dataStorageOperator(
+            address=known_data["dataStorageOperator"],
+            network=self._network,
+            block=self.block,
+            timestamp=self._timestamp,
+        )

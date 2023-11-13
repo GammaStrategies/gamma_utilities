@@ -398,3 +398,117 @@ class pool_cached(pool, algebra.pool.poolv3_cached):
                 save2file=self.SAVE2FILE,
             )
         return result
+
+
+class pool_multicall(algebra.pool.poolv3_multicall):
+    # SETUP
+    def __init__(
+        self,
+        address: str,
+        network: str,
+        abi_filename: str = "",
+        abi_path: str = "",
+        block: int = 0,
+        timestamp: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
+        known_data: dict | None = None,
+    ):
+        self._abi_filename = abi_filename or ABI_FILENAME
+        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+
+        super().__init__(
+            address=address,
+            network=network,
+            abi_filename=self._abi_filename,
+            abi_path=self._abi_path,
+            block=block,
+            timestamp=timestamp,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
+        )
+
+        if known_data:
+            self._fill_from_known_data(known_data=known_data)
+
+    def identify_dex_name(self) -> str:
+        return DEX_NAME
+
+    @property
+    def communityVault(self) -> str:
+        """The contract to which community fees are transferred
+
+        Returns:
+            str: The communityVault address
+        """
+        return self._communityVault
+
+    @property
+    def getCommunityFeePending(self) -> tuple[int, int]:
+        """The amounts of token0 and token1 that will be sent to the vault
+        Will be sent COMMUNITY_FEE_TRANSFER_FREQUENCY after communityFeeLastTimestamp
+        Returns:
+            tuple[int,int]: communityFeePending0,communityFeePending1
+        """
+        return self._getCommunityFeePending
+
+    @property
+    def getReserves(self) -> tuple[int, int]:
+        """The amounts of token0 and token1 currently held in reserves
+            If at any time the real balance is larger, the excess will be transferred to liquidity providers as additional fee.
+            If the balance exceeds uint128, the excess will be sent to the communityVault.
+        Returns:
+            tuple[int,int]: reserve0,reserve1
+        """
+        return self._getReserves
+
+    @property
+    def secondsPerLiquidityCumulative(self) -> int:
+        """The accumulator of seconds per liquidity since the pool was first initialized"""
+        return self._secondsPerLiquidityCumulative
+
+    @property
+    def tickSpacingLimitOrders(self) -> int:
+        """The current tick spacing for limit orders
+        Ticks can only be used for limit orders at multiples of this value
+        This value is an int24 to avoid casting even though it is always positive.
+        """
+        return self._tickSpacingLimitOrders
+
+    @property
+    def communityFeeLastTimestamp(self) -> int:
+        """The timestamp of the last sending of tokens to community vault"""
+        return self._communityFeeLastTimestamp
+
+    def _fill_from_known_data(self, known_data: dict):
+        self._factory = known_data["factory"]
+        self._feeGrowthGlobal0X128 = known_data["totalFeeGrowth0Token"]
+        self._feeGrowthGlobal1X128 = known_data["totalFeeGrowth1Token"]
+        self._liquidity = known_data["liquidity"]
+        self._maxLiquidityPerTick = known_data["maxLiquidityPerTick"]
+        # self._protocolFees = known_data["protocolFees"]
+        self._tickSpacing = known_data["tickSpacing"]
+        self._activeIncentive = known_data["activeIncentive"]
+        self._liquidityCooldown = known_data["liquidityCooldown"]
+
+        self._communityVault = known_data["communityVault"]
+        self._getCommunityFeePending = known_data["getCommunityFeePending"]
+        self._getReserves = known_data["etReserves"]
+        self._secondsPerLiquidityCumulative = known_data[
+            "secondsPerLiquidityCumulative"
+        ]
+        self._tickSpacingLimitOrders = known_data["tickSpacingLimitOrders"]
+        self._communityFeeLastTimestamp = known_data["communityFeeLastTimestamp"]
+
+        self._globalState = {
+            "sqrtPriceX96": known_data["globalState"][0],
+            "tick": known_data["globalState"][1],
+            "prevInitializedTick": known_data["globalState"][2],
+            "fee": known_data["globalState"][3],
+            "timepointIndex": known_data["globalState"][4],
+            "communityFeeToken0": known_data["globalState"][5],
+            "communityFeeToken1": known_data["globalState"][5],
+            "unlocked": known_data["globalState"][6],
+        }
+
+        self._fill_from_known_data_objects(known_data=known_data)

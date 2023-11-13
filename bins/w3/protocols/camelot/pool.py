@@ -1,3 +1,4 @@
+from copy import deepcopy
 from web3 import Web3
 
 from bins.errors.general import ProcessingError
@@ -9,6 +10,10 @@ from ..general import erc20_cached
 ABI_FILENAME = "camelot_pool"
 ABI_FOLDERNAME = "camelot"
 DEX_NAME = Protocol.CAMELOT.database_name
+
+# ABI_FILENAMES = {
+#     "0xb7Dd20F3FBF4dB42Fd85C839ac0241D09F72955f".lower(): "camelot_pool_old"
+# }
 
 
 class pool(algebra.pool.poolv3):
@@ -394,3 +399,93 @@ class pool_cached(pool):
                 save2file=self.SAVE2FILE,
             )
         return result
+
+
+class pool_multicall(algebra.pool.poolv3_multicall):
+    # SETUP
+    def __init__(
+        self,
+        address: str,
+        network: str,
+        abi_filename: str = "",
+        abi_path: str = "",
+        block: int = 0,
+        timestamp: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
+        known_data: dict | None = None,
+    ):
+        self._abi_filename = abi_filename or ABI_FILENAME
+        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+
+        super().__init__(
+            address=address,
+            network=network,
+            abi_filename=self._abi_filename,
+            abi_path=self._abi_path,
+            block=block,
+            timestamp=timestamp,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
+        )
+
+        if known_data:
+            self._fill_from_known_data(known_data=known_data)
+
+    def identify_dex_name(self) -> str:
+        return DEX_NAME
+
+    @property
+    def communityFeeLastTimestamp(self) -> int:
+        return self._communityFeeLastTimestamp
+
+    @property
+    def communityVault(self) -> str:
+        return self._communityVault
+
+    @property
+    def getCommunityFeePending(self) -> tuple[int, int]:
+        """The amounts of token0 and token1 that will be sent to the vault
+
+        Returns:
+            tuple[int,int]: token0,token1
+        """
+        return deepcopy(self._getCommunityFeePending)
+
+    @property
+    def getReserves(self) -> tuple[int, int]:
+        """The amounts of token0 and token1 currently held in reserves
+
+        Returns:
+            tuple[int,int]: token0,token1
+        """
+        return deepcopy(self._getReserves)
+
+    def _fill_from_known_data(self, known_data: dict):
+        self._factory = known_data["factory"]
+        self._communityFeeLastTimestamp = known_data["communityFeeLastTimestamp"]
+        self._communityVault = known_data["communityVault"]
+        self._getCommunityFeePending = known_data["getCommunityFeePending"]
+        self._getReserves = known_data["getReserves"]
+        self._feeGrowthGlobal0X128 = known_data["totalFeeGrowth0Token"]
+        self._feeGrowthGlobal1X128 = known_data["totalFeeGrowth1Token"]
+        self._liquidity = known_data["liquidity"]
+        self._maxLiquidityPerTick = known_data["maxLiquidityPerTick"]
+        # self._protocolFees = known_data["protocolFees"]
+        self._tickSpacing = known_data["tickSpacing"]
+        self._activeIncentive = known_data["activeIncentive"]
+        self._liquidityCooldown = known_data["liquidityCooldown"]
+        self._globalState = {
+            "sqrtPriceX96": known_data["globalState"][0],
+            "tick": known_data["globalState"][1],
+            "fee": known_data["globalState"][2],
+            "timepointIndex": known_data["globalState"][4],
+            "communityFeeToken0": known_data["globalState"][5],
+            "communityFeeToken1": known_data["globalState"][5],
+            "unlocked": known_data["globalState"][6],
+            # special
+            "feeZto": known_data["globalState"][2],
+            "feeOtz": known_data["globalState"][3],
+        }
+
+        self._fill_from_known_data_objects(known_data=known_data)

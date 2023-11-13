@@ -97,3 +97,5 @@ class config:
         return _dict
 
     # get provider settings
+
+    # get blacklisted hypervisors

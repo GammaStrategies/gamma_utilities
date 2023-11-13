@@ -13,3 +13,8 @@ class gamma_hypervisor(uniswap.hypervisor.gamma_hypervisor):
 class gamma_hypervisor_cached(uniswap.hypervisor.gamma_hypervisor_cached):
     def identify_dex_name(self) -> str:
         return DEX_NAME
+
+
+class gamma_hypervisor_multicall(uniswap.hypervisor.gamma_hypervisor_multicall):
+    def identify_dex_name(self) -> str:
+        return DEX_NAME

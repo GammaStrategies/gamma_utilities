@@ -118,3 +118,66 @@ class pool_cached(pool, algebra.pool.poolv3_cached):
                 save2file=self.SAVE2FILE,
             )
         return result.copy()
+
+
+class pool_multicall(pool, algebra.pool.poolv3_multicall):
+    def __init__(
+        self,
+        address: str,
+        network: str,
+        abi_filename: str = "",
+        abi_path: str = "",
+        block: int = 0,
+        timestamp: int = 0,
+        custom_web3: Web3 | None = None,
+        custom_web3Url: str | None = None,
+        known_data: dict = None,
+    ):
+        self._abi_filename = abi_filename or ABI_FILENAME
+        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+
+        self._ticks = {}
+        self._positions = {}
+
+        super().__init__(
+            address=address,
+            network=network,
+            abi_filename=self._abi_filename,
+            abi_path=self._abi_path,
+            block=block,
+            timestamp=timestamp,
+            custom_web3=custom_web3,
+            custom_web3Url=custom_web3Url,
+        )
+
+        if known_data:
+            self._fill_from_known_data(known_data=known_data)
+
+    def _fill_from_known_data(self, known_data: dict):
+        self._factory = known_data["factory"]
+        self._feeGrowthGlobal0X128 = known_data["totalFeeGrowth0Token"]
+        self._feeGrowthGlobal1X128 = known_data["totalFeeGrowth1Token"]
+        self._liquidity = known_data["liquidity"]
+        self._maxLiquidityPerTick = known_data["maxLiquidityPerTick"]
+        # self._protocolFees = known_data["protocolFees"]
+        self._tickSpacing = known_data["tickSpacing"]
+        self._activeIncentive = known_data["activeIncentive"]
+        self._liquidityCooldown = known_data["liquidityCooldown"]
+        self._globalState = {
+            "sqrtPriceX96": known_data["globalState"][0],
+            "tick": known_data["globalState"][1],
+            "fee": known_data["globalState"][2],
+            "timepointIndex": known_data["globalState"][3],
+            "communityFeeToken0": known_data["globalState"][4],
+            "communityFeeToken1": known_data["globalState"][5],
+            "unlocked": known_data["globalState"][6],
+            "sqrtPriceX96": known_data["globalState"][0],
+            "tick": known_data["globalState"][1],
+            "fee": known_data["globalState"][2],
+            "timepointIndex": known_data["globalState"][3],
+            "communityFeeToken0": known_data["globalState"][4],
+            "communityFeeToken1": known_data["globalState"][5],
+            "unlocked": known_data["globalState"][6],
+        }
+
+        self._fill_from_known_data_objects(known_data=known_data)

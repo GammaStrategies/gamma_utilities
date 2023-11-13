@@ -604,23 +604,3 @@ class hypervisor_database_object:
     fee: int
 
     pool: pool_database_object
-
-    # po = {
-    #     "fees_uncollected": {"qtty_token0": "0.0", "qtty_token1": "0.0"},
-    #     "qtty_depoloyed": {
-    #         "qtty_token0": "87894155111268607852544",
-    #         "qtty_token1": "52895224729826058320",
-    #         "fees_owed_token1": "7175975284136330",
-    #         "fees_owed_token0": "2295857379051732021",
-    #     },
-    #     "tvl": {
-    #         "parked_token0": "9003375040416080851840",
-    #         "parked_token1": "5372306510917633682",
-    #         "deployed_token0": "87894155111268607852544",
-    #         "deployed_token1": "52895224729826058320",
-    #         "fees_owed_token0": "2295857379051732021",
-    #         "fees_owed_token1": "7175975284136330",
-    #         "tvl_token0": "96899826009063740436405",
-    #         "tvl_token1": "58274707216027828332",
-    #     },
-    # }
