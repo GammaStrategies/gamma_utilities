@@ -1,6 +1,7 @@
 from web3 import Web3
 from ....general.enums import rewarderType
-from ..general import erc20_cached, web3wrap
+from ..base_wrapper import web3wrap
+from ..general import erc20_cached
 from ..gamma.rewarder import gamma_rewarder
 
 

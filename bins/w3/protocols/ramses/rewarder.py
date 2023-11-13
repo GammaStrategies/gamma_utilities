@@ -2,7 +2,7 @@ from web3 import Web3
 
 from bins.errors.general import ProcessingError
 from ....general.enums import error_identity, rewarderType, text_to_chain
-from ..general import web3wrap
+from ..base_wrapper import web3wrap
 from .pool import pool
 
 # [position_token0_amount, position_token1_amount] = token_amounts_from_current_price(pool['sqrtPrice'], range_delta, pool['liquidity'])

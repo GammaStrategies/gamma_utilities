@@ -1,6 +1,6 @@
 import logging
 from web3 import Web3
-from ..general import web3wrap
+from ..base_wrapper import web3wrap
 
 
 class gamma_hypervisor_registry(web3wrap):
@@ -141,3 +141,6 @@ class gamma_hypervisor_registry(web3wrap):
             self.__blacklist_addresses[self._network] = blacklist
         else:
             self.__blacklist_addresses[self._network] += blacklist
+
+
+# TODO: multicall
