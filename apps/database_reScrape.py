@@ -110,9 +110,9 @@ def reScrape_loopWork_hypervisor_status(
             network=chain.database_name,
             block=hype_status["block"],
             dex=hype_status["dex"],
-            pool_address=hype_status["pool_address"],
-            token0_address=hype_status["token0_address"],
-            token1_address=hype_status["token1_address"],
+            pool_address=hype_status["pool"]["address"],
+            token0_address=hype_status["pool"]["token0"]["address"],
+            token1_address=hype_status["pool"]["token1"]["address"],
             force_rpcType="private",
         ):
             # TODO: compare n log diffs and rewrite
