@@ -594,10 +594,9 @@ class gamma_hypervisor_multicall(gamma.hypervisor.gamma_hypervisor_multicall):
         return self._voter
 
     def _fill_from_known_data(self, known_data: dict):
-        self._gauge = known_data["gauge"]
-        self._receiver = known_data["receiver"]
+        # self._gauge = known_data["gauge"]
+        # self._receiver = known_data["receiver"]
         self._veRamTokenId = known_data["veRamTokenId"]
-
         self._voter = known_data["voter"]
         super()._fill_from_known_data(known_data=known_data)
 
@@ -622,4 +621,18 @@ class gamma_hypervisor_multicall(gamma.hypervisor.gamma_hypervisor_multicall):
             block=self.block,
             timestamp=self._timestamp,
             known_data=known_data["token1"],
+        )
+
+        self._gauge = gauge(
+            address=known_data["gauge"],
+            network=self._network,
+            block=self.block,
+            timestamp=self._timestamp,
+        )
+
+        self._receiver = multiFeeDistribution(
+            address=known_data["receiver"],
+            network=self._network,
+            block=self.block,
+            timestamp=self._timestamp,
         )
