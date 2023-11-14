@@ -4,7 +4,6 @@ import tqdm
 import concurrent.futures
 import contextlib
 from datetime import datetime, timezone
-from apps.feeds.latest.report.gross_fees import feed_report_ramses_gross_fees
 
 from apps.feeds.queue.pull import pull_from_queue
 from bins.general.enums import Chain

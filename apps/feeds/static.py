@@ -21,7 +21,12 @@ from bins.general.enums import (
     rewarderType,
     text_to_chain,
 )
-from bins.w3.builders import build_erc20_helper, build_hypervisor, convert_dex_protocol
+from bins.w3.builders import (
+    build_db_hypervisor_multicall,
+    build_erc20_helper,
+    build_hypervisor,
+    convert_dex_protocol,
+)
 
 from bins.w3.protocols.general import erc20, bep20
 
@@ -386,17 +391,29 @@ def _create_hypervisor_static_databaseObject(
     """
 
     try:
-        # create hypervisor object
-        hypervisor_w3 = build_hypervisor(
+        hypervisor_database = build_db_hypervisor_multicall(
+            address=hypervisor["address"],
             network=network,
-            protocol=convert_dex_protocol(dex),
             block=0,
-            hypervisor_address=hypervisor["address"],
-            check=True,
+            dex=dex,
+            pool_address=hypervisor["pool"]["address"],
+            token0_address=hypervisor["pool"]["token0"]["address"],
+            token1_address=hypervisor["pool"]["token1"]["address"],
+            static_mode=True,
+            convert_bint=True,
         )
 
-        # convert hypervisor to dictionary static mode on
-        hypervisor_database = hypervisor_w3.as_dict(convert_bint=True, static_mode=True)
+        # # create hypervisor object
+        # hypervisor_w3 = build_hypervisor(
+        #     network=network,
+        #     protocol=convert_dex_protocol(dex),
+        #     block=0,
+        #     hypervisor_address=hypervisor["address"],
+        #     check=True,
+        # )
+
+        # # convert hypervisor to dictionary static mode on
+        # hypervisor_database = hypervisor_w3.as_dict(convert_bint=True, static_mode=True)
 
     except HTTPError as e:
         logging.getLogger(__name__).error(
