@@ -123,6 +123,7 @@ def build_db_hypervisor_multicall(
     custom_web3: Web3 | None = None,
     custom_web3Url: str | None = None,
     force_rpcType: str | None = None,
+    convert_bint: bool = True,
 ) -> dict():
     try:
         # build hypervisor
@@ -149,13 +150,13 @@ def build_db_hypervisor_multicall(
         )
 
         hype_as_dict = hypervisor.as_dict(
-            convert_bint=True, static_mode=static_mode, minimal=False
+            convert_bint=convert_bint, static_mode=static_mode, minimal=False
         )
 
         if network == "binance":
-            # BEP20 is not ERC20-> TODO: change
+            # BEP20 is not ERC20-> TODO: change name
             check_erc20_fields(
-                hypervisor=hypervisor, hype=hype_as_dict, convert_bint=True
+                hypervisor=hypervisor, hype=hype_as_dict, convert_bint=convert_bint
             )
 
         # check hypervisor validity
@@ -1036,16 +1037,16 @@ def build_protocol_pool(
                 address=pool_address, network=chain.database_name, block=block
             )
         )
-    elif protocol == Protocol.LYNEX:
-        return (
-            protocols.lynex.pool.pool(
-                address=pool_address, network=chain.database_name, block=block
-            )
-            if not cached
-            else protocols.lynex.pool.pool_cached(
-                address=pool_address, network=chain.database_name, block=block
-            )
-        )
+    # elif protocol == Protocol.LYNEX:
+    #     return (
+    #         protocols.lynex.pool.pool(
+    #             address=pool_address, network=chain.database_name, block=block
+    #         )
+    #         if not cached
+    #         else protocols.lynex.pool.pool_cached(
+    #             address=pool_address, network=chain.database_name, block=block
+    #         )
+    #     )
     elif protocol == Protocol.FUSIONX:
         return (
             protocols.fusionx.pool.pool(
