@@ -249,6 +249,10 @@ def create_reward_status_from_hype_status(
                 rewarder_static=rewarder_static,
                 hypervisor_status=hypervisor_status,
             )
+        else:
+            raise ValueError(
+                f" Unknown rewarder type {rewarder_static['rewarder_type']} for {network}'s rewarder: {rewarder_static['rewarder_address']}  hype: {hypervisor_status['address']} at block {hypervisor_status['block']}"
+            )
 
     except ProcessingError as e:
         logging.getLogger(__name__).error(
