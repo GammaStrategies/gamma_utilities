@@ -1321,89 +1321,89 @@ class poolv3_multicall(poolv3):
         return self._feeGrowthGlobal1X128
 
     # CUSTOM
-    def ticks(self, tick: int) -> dict:
-        """
+    # def ticks(self, tick: int) -> dict:
+    #     """
 
-        Args:
-           tick (int):
+    #     Args:
+    #        tick (int):
 
-        Returns:
-           _type_:     liquidityGross   uint128 :  0
-                       liquidityNet   int128 :  0
-                       feeGrowthOutside0X128   uint256 :  0
-                       feeGrowthOutside1X128   uint256 :  0
-                       tickCumulativeOutside   int56 :  0
-                       spoolecondsPerLiquidityOutsideX128   uint160 :  0
-                       secondsOutside   uint32 :  0
-                       initialized   bool :  false
-        """
-        if not tick in self._ticks:
-            if result := self.call_function_autoRpc("ticks", None, tick):
-                self._ticks[tick] = {
-                    "liquidityGross": result[0],
-                    "liquidityNet": result[1],
-                    "feeGrowthOutside0X128": result[2],
-                    "feeGrowthOutside1X128": result[3],
-                    "tickCumulativeOutside": result[4],
-                    "secondsPerLiquidityOutsideX128": result[5],
-                    "secondsOutside": result[6],
-                    "initialized": result[7],
-                }
-            else:
-                raise ProcessingError(
-                    chain=text_to_chain(self._network),
-                    item={
-                        "pool_address": self.address,
-                        "block": self.block,
-                        "object": "pool.ticks",
-                    },
-                    identity=error_identity.RETURN_NONE,
-                    action="",
-                    message=f" ticks function of {self.address} at block {self.block} returned none. (Check contract creation block)",
-                )
-        return deepcopy(self._ticks[tick])
+    #     Returns:
+    #        _type_:     liquidityGross   uint128 :  0
+    #                    liquidityNet   int128 :  0
+    #                    feeGrowthOutside0X128   uint256 :  0
+    #                    feeGrowthOutside1X128   uint256 :  0
+    #                    tickCumulativeOutside   int56 :  0
+    #                    spoolecondsPerLiquidityOutsideX128   uint160 :  0
+    #                    secondsOutside   uint32 :  0
+    #                    initialized   bool :  false
+    #     """
+    #     if not tick in self._ticks:
+    #         if result := self.call_function_autoRpc("ticks", None, tick):
+    #             self._ticks[tick] = {
+    #                 "liquidityGross": result[0],
+    #                 "liquidityNet": result[1],
+    #                 "feeGrowthOutside0X128": result[2],
+    #                 "feeGrowthOutside1X128": result[3],
+    #                 "tickCumulativeOutside": result[4],
+    #                 "secondsPerLiquidityOutsideX128": result[5],
+    #                 "secondsOutside": result[6],
+    #                 "initialized": result[7],
+    #             }
+    #         else:
+    #             raise ProcessingError(
+    #                 chain=text_to_chain(self._network),
+    #                 item={
+    #                     "pool_address": self.address,
+    #                     "block": self.block,
+    #                     "object": "pool.ticks",
+    #                 },
+    #                 identity=error_identity.RETURN_NONE,
+    #                 action="",
+    #                 message=f" ticks function of {self.address} at block {self.block} returned none. (Check contract creation block)",
+    #             )
+    #     return deepcopy(self._ticks[tick])
 
-    def positions(self, position_key: str) -> dict:
-        """
+    # def positions(self, position_key: str) -> dict:
+    #     """
 
-        Args:
-           position_key (str): 0x....
+    #     Args:
+    #        position_key (str): 0x....
 
-        Returns:
-           _type_:
-                   liquidity   uint128 :  99225286851746
-                   feeGrowthInside0LastX128   uint256 :  0
-                   feeGrowthInside1LastX128   uint256 :  0
-                   tokensOwed0   uint128 :  0
-                   tokensOwed1   uint128 :  0
-        """
+    #     Returns:
+    #        _type_:
+    #                liquidity   uint128 :  99225286851746
+    #                feeGrowthInside0LastX128   uint256 :  0
+    #                feeGrowthInside1LastX128   uint256 :  0
+    #                tokensOwed0   uint128 :  0
+    #                tokensOwed1   uint128 :  0
+    #     """
 
-        if not position_key in self._positions:
-            position_key = (
-                HexBytes(position_key) if type(position_key) == str else position_key
-            )
-            if result := self.call_function_autoRpc("positions", None, position_key):
-                self._positions[position_key] = {
-                    "liquidity": result[0],
-                    "feeGrowthInside0LastX128": result[1],
-                    "feeGrowthInside1LastX128": result[2],
-                    "tokensOwed0": result[3],
-                    "tokensOwed1": result[4],
-                }
-            else:
-                raise ProcessingError(
-                    chain=text_to_chain(self._network),
-                    item={
-                        "pool_address": self.address,
-                        "block": self.block,
-                        "object": "pool.positions",
-                    },
-                    identity=error_identity.RETURN_NONE,
-                    action="",
-                    message=f" positions function of {self.address} at block {self.block} returned none using {position_key} as position_key",
-                )
+    #     if not position_key in self._positions:
+    #         position_key = (
+    #             HexBytes(position_key) if type(position_key) == str else position_key
+    #         )
+    #         if result := self.call_function_autoRpc("positions", None, position_key):
+    #             self._positions[position_key] = {
+    #                 "liquidity": result[0],
+    #                 "feeGrowthInside0LastX128": result[1],
+    #                 "feeGrowthInside1LastX128": result[2],
+    #                 "tokensOwed0": result[3],
+    #                 "tokensOwed1": result[4],
+    #             }
+    #         else:
+    #             raise ProcessingError(
+    #                 chain=text_to_chain(self._network),
+    #                 item={
+    #                     "pool_address": self.address,
+    #                     "block": self.block,
+    #                     "object": "pool.positions",
+    #                 },
+    #                 identity=error_identity.RETURN_NONE,
+    #                 action="",
+    #                 message=f" positions function of {self.address} at block {self.block} returned none using {position_key} as position_key",
+    #             )
 
-        return deepcopy(self._positions[position_key])
+    #     return deepcopy(self._positions[position_key])
 
     def fill_with_multicall(
         self,
