@@ -908,6 +908,9 @@ def repair_hypervisor_status():
     # missing hypes
     repair_missing_hype_status()
 
+    # uncollected fees > 10000000
+    repair_uncollected_fees()
+
     # binance
     repair_binance_hypervisor_status()
     repair_binance_queue_hype_status()
@@ -1270,6 +1273,100 @@ def repair_missing_hypervisor_status(
             logging.getLogger(__name__).debug(
                 f" No missing status blocks found for {network}'s {hype['address']}"
             )
+
+
+def repair_uncollected_fees():
+    networks = (
+        CONFIGURATION["_custom_"]["cml_parameters"].networks
+        or CONFIGURATION["script"]["protocols"]["gamma"]["networks"]
+    )
+    batch_size = 100000
+
+    query = [
+        {
+            "$addFields": {
+                "fees_uncollected": {
+                    "qtty_token0": {
+                        "$divide": [
+                            {"$toDecimal": "$fees_uncollected.qtty_token0"},
+                            {"$pow": [10, "$pool.token0.decimals"]},
+                        ]
+                    },
+                    "qtty_token1": {
+                        "$divide": [
+                            {"$toDecimal": "$fees_uncollected.qtty_token1"},
+                            {"$pow": [10, "$pool.token1.decimals"]},
+                        ]
+                    },
+                }
+            }
+        },
+        {
+            "$match": {
+                "$or": [
+                    {"fees_uncollected.qtty_token0": {"$gte": 100000000}},
+                    {"fees_uncollected.qtty_token1": {"$gte": 100000000}},
+                ]
+            }
+        },
+    ]
+
+    for network in networks:
+        chain = text_to_chain(network)
+        logging.getLogger(__name__).info(
+            f"> try Repair {network} uncollected fees with humongous quantities"
+        )
+        for hype in tqdm.tqdm(
+            get_from_localdb(
+                network=chain.database_name,
+                collection="status",
+                aggregate=query,
+                batch_size=batch_size,
+            )
+        ):
+            # build hypervisor
+            if new_hypervisor := build_db_hypervisor_multicall(
+                address=hype["address"],
+                network=chain.database_name,
+                block=hype["block"],
+                dex=hype["dex"],
+                pool_address=hype["pool"]["address"],
+                token0_address=hype["pool"]["token0"]["address"],
+                token1_address=hype["pool"]["token1"]["address"],
+            ):
+                # check if uncollected fees are different
+                are_different = False
+
+                # check uncollected fees difference
+                if (
+                    new_hypervisor["fees_uncollected"]["qtty_token0"]
+                    != hype["fees_uncollected"]["qtty_token0"]
+                ):
+                    logging.getLogger(__name__).debug(
+                        f" Found uncollected fees difference for {chain.database_name}'s {hype['address']} token0. from {hype['fees_uncollected']['qtty_token0']} to {new_hypervisor['fees_uncollected']['qtty_token0']}"
+                    )
+                    are_different = True
+                if (
+                    new_hypervisor["fees_uncollected"]["qtty_token1"]
+                    != hype["fees_uncollected"]["qtty_token1"]
+                ):
+                    logging.getLogger(__name__).debug(
+                        f" Found uncollected fees difference for {chain.database_name}'s {hype['address']} token1. from {hype['fees_uncollected']['qtty_token1']} to {new_hypervisor['fees_uncollected']['qtty_token1']}"
+                    )
+                    are_different = True
+
+                if not are_different:
+                    logging.getLogger(__name__).info(
+                        f" No uncollected fees difference found for {chain.database_name}'s {hype['address']} at block {hype['block']} -> {hype['fees_uncollected']}"
+                    )
+                else:
+                    # sacve to dataabse
+                    db_return = get_default_localdb(
+                        network=chain.database_name
+                    ).set_status(data=new_hypervisor)
+                    logging.getLogger(__name__).info(
+                        f" Solved {chain.database_name}'s {hype['address']} uncollected fees at block {hype['block']} -> db mod: {db_return.modified_count} "
+                    )
 
 
 def repair_rewards_status():
