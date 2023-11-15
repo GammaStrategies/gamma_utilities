@@ -1285,27 +1285,25 @@ def repair_uncollected_fees():
     query = [
         {
             "$addFields": {
-                "fees_uncollected": {
-                    "qtty_token0": {
-                        "$divide": [
-                            {"$toDecimal": "$fees_uncollected.qtty_token0"},
-                            {"$pow": [10, "$pool.token0.decimals"]},
-                        ]
-                    },
-                    "qtty_token1": {
-                        "$divide": [
-                            {"$toDecimal": "$fees_uncollected.qtty_token1"},
-                            {"$pow": [10, "$pool.token1.decimals"]},
-                        ]
-                    },
-                }
+                "uncollected_qtty_token0": {
+                    "$divide": [
+                        {"$toDecimal": "$fees_uncollected.qtty_token0"},
+                        {"$pow": [10, "$pool.token0.decimals"]},
+                    ]
+                },
+                "uncollected_qtty_token1": {
+                    "$divide": [
+                        {"$toDecimal": "$fees_uncollected.qtty_token1"},
+                        {"$pow": [10, "$pool.token1.decimals"]},
+                    ]
+                },
             }
         },
         {
             "$match": {
                 "$or": [
-                    {"fees_uncollected.qtty_token0": {"$gte": 100000000}},
-                    {"fees_uncollected.qtty_token1": {"$gte": 100000000}},
+                    {"uncollected_qtty_token0": {"$gte": 10000000}},
+                    {"uncollected_qtty_token1": {"$gte": 10000000}},
                 ]
             }
         },
