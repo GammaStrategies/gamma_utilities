@@ -550,7 +550,7 @@ def get_hypervisors_data_for_apr(
 
     except Exception as e:
         logging.getLogger(__name__).error(
-            f" Error getting {hypervisor_addresses} hype data to construct hypervisor_data_for_apr from { 'blocks' if block_ini and block_end else 'timestamps'} {block_ini if block_ini else timestamp_ini} to {block_end if block_end else timestamp_end}. Trying to slice it in chunks."
+            f" Error getting {hypervisor_addresses} hype data to construct hypervisor_data_for_apr from { 'blocks' if block_ini and block_end else 'timestamps'} {block_ini if block_ini else timestamp_ini} to {block_end if (block_ini and block_end) else timestamp_end}. Trying to slice it in chunks."
         )
 
     # try to avoid mongodb's 16Mb errors by slicing the query in small chunks
