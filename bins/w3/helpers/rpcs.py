@@ -287,6 +287,34 @@ class w3Providers:
 
         return result
 
+    def totals(self, type: str = None, network: str = None) -> tuple[int, int]:
+        """Total attempts and total CUs for a type and network
+
+        Args:
+            type (str, optional): type. Defaults to None.
+            network (str, optional): network. Defaults to None.
+
+        Returns:
+            tuple[int, int]: total attempts, total CUs
+        """
+        total_atempts = 0
+        total_cus = 0
+        # self.providers[key_name][network]
+        for key_name, net_data in self.providers.items():
+            # skip if type is not the one we want
+            if type and key_name != type:
+                continue
+
+            for rpc in net_data:
+                # skip if network is not the one we want
+                if network and rpc.network != network:
+                    continue
+
+                total_atempts += rpc.attempts
+                total_cus += rpc.compute_unit_cost
+
+        return total_atempts, total_cus
+
 
 # singleton
 RPC_MANAGER = w3Providers()
