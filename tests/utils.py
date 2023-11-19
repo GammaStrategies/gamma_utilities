@@ -88,41 +88,28 @@ def get_status_hypes_of_each_protocol(
     )
     with tqdm.tqdm(total=len(_grouped_hypes)) as progress_bar:
         for itm in _grouped_hypes:
+            # one dex multiple hypes
+            #
             # randomize hype order
             if itm["hypes"]:
                 random.shuffle(itm["hypes"])
+
+            # progress
+            progress_bar.set_description(
+                f" {len(itm['hypes'])} {itm['_id']} hypes found: evaluating cashuistics"
+            )
+            progress_bar.refresh()
 
             # get status for each protocol ( with as many cashuistics as possible)
             #   uncollected > 0
             #   uncollected = 0
             #   out of range positions
             #   in range positions
-            for hype in itm["hypes"]:
-                # progress
-                progress_bar.set_description(
-                    f" {len(itm['hypes'])} {itm['_id']} hypes found:  evaluating the selection of {hype['symbol']}"
-                )
-                progress_bar.refresh()
-                #
-                if cashuistics:
-                    # get status with as many cashuistics as possible ( one of each)
-                    if _cases := get_cashuistics(
-                        chain=chain,
-                        static_hypervisor=hype,
-                        brake_on_notfound=brake_on_notfound,
-                    ):
-                        result += _cases
-                    else:
-                        logging.getLogger(__name__).debug(
-                            f" Skipping {hype['symbol']} bc not all cashuistics found"
-                        )
-                else:
-                    result.append(hype)
-
-                # check qtty
-                if len(result) >= qtty:
-                    # next protocol
-                    break
+            result += get_cashuistics_many(
+                chain=chain,
+                hypervisor_addresses=[x["address"] for x in itm["hypes"]],
+                qtty_each=qtty,
+            )
 
             # progress
             progress_bar.update(1)
@@ -328,6 +315,254 @@ def get_cashuistics(
         )
         if brake_on_notfound:
             return []
+
+    # return
+    return output
+
+
+def get_cashuistics_many(
+    chain: Chain, hypervisor_addresses: list[str], qtty_each: int = 1
+) -> list[dict]:
+    """Get all cashuistics for a given hypervisor address list
+            Try get as different hypes as possible
+
+    Args:
+        chain (Chain): network
+        hypervisor_addresses (list[str]):  list of hypervisor addresses
+        qtty_each (int, optional): Quantity of cashuistics to return per each hypervisor. Defaults to 1.
+
+    Returns:
+        list[dict]: list of hype status
+    """
+    # select
+    output = []
+    _addresses_processed = {}
+    # 1st uncollected > 0
+    output += get_cashuistics_many_helper(
+        get_from_localdb(
+            network=chain.database_name,
+            collection="status",
+            find={
+                "address": {"$in": hypervisor_addresses},
+                "$or": [
+                    {"fees_uncollected.qtty_token0": {"$ne": "0"}},
+                    {"fees_uncollected.qtty_token1": {"$ne": "0"}},
+                ],
+                "basePosition_data": {"$exists": True},
+                "limitPosition_data": {"$exists": True},
+                "basePosition_ticksLower": {"$exists": True},
+                "limitPosition_ticksLower": {"$exists": True},
+                "basePosition_ticksUpper": {"$exists": True},
+                "limitPosition_ticksUpper": {"$exists": True},
+            },
+            limit=int(10 * qtty_each),
+        ),
+        _addresses_processed,
+        qtty=qtty_each,
+    )
+    # 2nd uncollected = 0
+    output += get_cashuistics_many_helper(
+        get_from_localdb(
+            network=chain.database_name,
+            collection="status",
+            find={
+                "address": {"$in": hypervisor_addresses},
+                "$or": [
+                    {"fees_uncollected.qtty_token0": "0"},
+                    {"fees_uncollected.qtty_token1": "0"},
+                ],
+                "basePosition_data": {"$exists": True},
+                "limitPosition_data": {"$exists": True},
+                "basePosition_ticksLower": {"$exists": True},
+                "limitPosition_ticksLower": {"$exists": True},
+                "basePosition_ticksUpper": {"$exists": True},
+                "limitPosition_ticksUpper": {"$exists": True},
+            },
+            limit=int(10 * qtty_each),
+        ),
+        _addresses_processed,
+        qtty=qtty_each,
+    )
+    # 3rd out of range positions
+    output += get_cashuistics_many_helper(
+        get_from_localdb(
+            network=chain.database_name,
+            collection="status",
+            aggregate=[
+                {
+                    "$match": {
+                        "address": {"$in": hypervisor_addresses},
+                        "basePosition_data": {"$exists": True},
+                        "limitPosition_data": {"$exists": True},
+                        "basePosition_ticksLower": {"$exists": True},
+                        "limitPosition_ticksLower": {"$exists": True},
+                        "basePosition_ticksUpper": {"$exists": True},
+                        "limitPosition_ticksUpper": {"$exists": True},
+                    }
+                },
+                {"$limit": 2000},
+                {
+                    "$addFields": {
+                        "deleteme": {
+                            "currentTick": {"$toDecimal": "$currentTick"},
+                            "baseLower": {"$toDecimal": "$baseLower"},
+                            "baseUpper": {"$toDecimal": "$baseUpper"},
+                            "limitLower": {"$toDecimal": "$limitLower"},
+                            "limitUpper": {"$toDecimal": "$limitUpper"},
+                        },
+                    }
+                },
+                {
+                    "$match": {
+                        "$expr": {
+                            "$or": [
+                                {
+                                    "$gt": [
+                                        "$deleteme.baseLower",
+                                        "$deleteme.currentTick",
+                                    ]
+                                },
+                                {
+                                    "$lt": [
+                                        "$deleteme.baseUpper",
+                                        "$deleteme.currentTick",
+                                    ]
+                                },
+                                {
+                                    "$gt": [
+                                        "$deleteme.limitLower",
+                                        "$deleteme.currentTick",
+                                    ]
+                                },
+                                {
+                                    "$lt": [
+                                        "$deleteme.limitUpper",
+                                        "$deleteme.currentTick",
+                                    ]
+                                },
+                            ]
+                        }
+                    }
+                },
+                {"$unset": "deleteme"},
+            ],
+            limit=int(10 * qtty_each),
+        ),
+        _addresses_processed,
+        qtty=qtty_each,
+    )
+    # 4th in range positions
+    output += get_cashuistics_many_helper(
+        get_from_localdb(
+            network=chain.database_name,
+            collection="status",
+            aggregate=[
+                {
+                    "$match": {
+                        "address": {"$in": hypervisor_addresses},
+                        "basePosition_data": {"$exists": True},
+                        "limitPosition_data": {"$exists": True},
+                        "basePosition_ticksLower": {"$exists": True},
+                        "limitPosition_ticksLower": {"$exists": True},
+                        "basePosition_ticksUpper": {"$exists": True},
+                        "limitPosition_ticksUpper": {"$exists": True},
+                    }
+                },
+                {"$limit": 2000},
+                {
+                    "$addFields": {
+                        "deleteme": {
+                            "currentTick": {"$toDecimal": "$currentTick"},
+                            "baseLower": {"$toDecimal": "$baseLower"},
+                            "baseUpper": {"$toDecimal": "$baseUpper"},
+                            "limitLower": {"$toDecimal": "$limitLower"},
+                            "limitUpper": {"$toDecimal": "$limitUpper"},
+                        }
+                    }
+                },
+                {
+                    "$match": {
+                        "$expr": {
+                            "$or": [
+                                {
+                                    "$and": [
+                                        {
+                                            "$lte": [
+                                                "$deleteme.baseLower",
+                                                "$deleteme.currentTick",
+                                            ]
+                                        },
+                                        {
+                                            "$gte": [
+                                                "$deleteme.baseUpper",
+                                                "$deleteme.currentTick",
+                                            ]
+                                        },
+                                    ]
+                                },
+                                {
+                                    "$and": [
+                                        {
+                                            "$lte": [
+                                                "$deleteme.limitLower",
+                                                "$deleteme.currentTick",
+                                            ]
+                                        },
+                                        {
+                                            "$gte": [
+                                                "$deleteme.limitUpper",
+                                                "$deleteme.currentTick",
+                                            ]
+                                        },
+                                    ]
+                                },
+                            ]
+                        }
+                    }
+                },
+                {"$unset": "deleteme"},
+            ],
+            limit=int(10 * qtty_each),
+        ),
+        _addresses_processed,
+        qtty=qtty_each,
+    )
+
+    # return
+    return output
+
+
+def get_cashuistics_many_helper(hypervisors: list, addresses: dict, qtty: int = 1):
+    output = []
+
+    # shuffle
+    random.shuffle(hypervisors)
+    # process
+    for idx, hype in enumerate(hypervisors):
+        if hype["address"] not in addresses:
+            # create
+            addresses[hype["address"]] = [hype["block"]]
+            # add to output
+            output.append(hype)
+        elif (
+            hype["address"] in addresses
+            and hype["block"] not in addresses[hype["address"]]
+        ):
+            # add to output
+            output.append(hype)
+            # add block
+            addresses[hype["address"]].append(hype["block"])
+
+        elif idx == len(hypervisors) - 1 and len(output) == 0:
+            # add this one as the only possible
+            # create
+            addresses[hype["address"]] = [hype["block"]]
+            # add to output
+            output.append(hype)
+
+        # check if we already have enough
+        if len(output) >= qtty:
+            break
 
     # return
     return output
