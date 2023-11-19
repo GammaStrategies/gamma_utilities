@@ -237,7 +237,12 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
             self.result.append(reward_data)
 
     def _scrape_last_item(
-        self, chain: Chain, hypervisor_address: str, block: int, protocol: Protocol
+        self,
+        chain: Chain,
+        hypervisor_address: str,
+        block: int,
+        protocol: Protocol,
+        hypervisor_status: dict | None = None,
     ) -> dict:
         return None
         # to be able to return , multiple issues must be addressed:

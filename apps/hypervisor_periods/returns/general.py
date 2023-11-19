@@ -10,7 +10,7 @@ from bins.database.common.objects.hypervisor import (
 from bins.database.helpers import get_default_globaldb
 from bins.errors.general import ProcessingError
 from bins.general.enums import Chain, Protocol, rewarderType
-from bins.w3.builders import build_db_hypervisor
+from bins.w3.builders import build_db_hypervisor, build_db_hypervisor_multicall
 from bins.errors.actions import process_error
 
 
@@ -218,19 +218,50 @@ class hypervisor_periods_returns(hypervisor_periods_base):
         pass
 
     def _scrape_last_item(
-        self, chain: Chain, hypervisor_address: str, block: int, protocol: Protocol
+        self,
+        chain: Chain,
+        hypervisor_address: str,
+        block: int,
+        protocol: Protocol,
+        hypervisor_status: dict | None = None,
     ) -> dict:
         return None
         # to be able to return , multiple issues must be addressed:
         # last item must not have supply changed
         # prices must be scraped on the fly ( bc there will be no prices in database for that block )
-        return build_db_hypervisor(
+        if result := build_db_hypervisor_multicall(
             address=hypervisor_address,
             network=chain.database_name,
             block=block,
             dex=protocol.database_name,
-            cached=True,
-        )
+            pool_address=hypervisor_status["pool"]["address"],
+            token0_address=hypervisor_status["pool"]["token0"]["address"],
+            token1_address=hypervisor_status["pool"]["token1"]["address"],
+            # cached=True,
+        ):
+            result["operations"] = []
+            result["rewards_static"] = []
+            result["rewards_status"] = []
+
+            # get current prices from db and save em in token_prices
+            for tmp_price in get_default_globaldb().get_items_from_database(
+                collection_name="current_usd_prices",
+                find={
+                    "network": self.chain.database_name,
+                    "address": {
+                        "$in": [
+                            result["pool"]["token0"]["address"],
+                            result["pool"]["token1"]["address"],
+                        ]
+                    },
+                },
+            ):
+                self.token_prices[
+                    f"{tmp_price['address']}_{result['block']}"
+                ] = tmp_price["price"]
+
+            # return result
+            return result
 
     def execute_processes_within_hypervisor_periods(
         self,

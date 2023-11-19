@@ -97,7 +97,12 @@ class hypervisor_periods_base:
         pass
 
     def _scrape_last_item(
-        self, chain: Chain, hypervisor_address: str, block: int, protocol: Protocol
+        self,
+        chain: Chain,
+        hypervisor_address: str,
+        block: int,
+        protocol: Protocol,
+        hypervisor_status: dict | None = None,
     ) -> dict:
         """Only executed when the last available item is an initial value and defined end block is greater than last available block"""
         # should meke sure supply doesn change
@@ -204,6 +209,7 @@ class hypervisor_periods_base:
                                 hypervisor_address=hypervisor_address,
                                 block=block_end,
                                 protocol=text_to_protocol(status_data["dex"]),
+                                hypervisor_status=status_data,
                             ):
                                 logging.getLogger(__name__).debug(
                                     f" {chain.database_name}'s {status_data['dex']} {hypervisor_address} creating the last item on-the-fly at block_end {block_end}"
@@ -245,6 +251,7 @@ class hypervisor_periods_base:
                                     hypervisor_address=hypervisor_address,
                                     block=block,
                                     protocol=text_to_protocol(status_data["dex"]),
+                                    hypervisor_status=status_data,
                                 ):
                                     logging.getLogger(__name__).debug(
                                         f" {chain.database_name}'s {status_data['dex']} {hypervisor_address} creating the last item on-the-fly at block_end {block}"

@@ -220,7 +220,12 @@ class hypervisor_periods_ramses(hypervisor_periods_base):
             self.result.append(reward_data)
 
     def _scrape_last_item(
-        self, chain: Chain, hypervisor_address: str, block: int, protocol: Protocol
+        self,
+        chain: Chain,
+        hypervisor_address: str,
+        block: int,
+        protocol: Protocol,
+        hypervisor_status: dict | None = None,
     ) -> dict:
         return None
         return build_db_hypervisor(
