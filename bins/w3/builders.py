@@ -2,6 +2,7 @@ import logging
 
 from web3 import Web3
 from bins.checkers.hypervisor import check_hypervisor_is_valid
+from bins.config.current import MULTICALL3_ADDRESSES
 
 from bins.errors.general import CheckingError, ProcessingError
 
@@ -126,6 +127,23 @@ def build_db_hypervisor_multicall(
     convert_bint: bool = True,
 ) -> dict():
     try:
+        # check if multicall contract is created after block to avoid problems
+        if MULTICALL3_ADDRESSES.get(text_to_chain(network), {}).get("block", 0) > block:
+            logging.getLogger(__name__).debug(
+                f" Returning non multicall db dict hypervisor bcause multicall contract creation block is gt {block}."
+            )
+            return build_db_hypervisor(
+                address=address,
+                network=network,
+                block=block,
+                dex=dex,
+                static_mode=static_mode,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+                cached=True,
+                force_rpcType=force_rpcType,
+            )
+
         # build hypervisor
         hypervisor = build_hypervisor(
             network=network,
