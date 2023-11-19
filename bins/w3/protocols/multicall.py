@@ -1,8 +1,11 @@
-from web3 import Web3
+from hexbytes import HexBytes
+from web3 import Web3, _utils
 from eth_abi import abi
-from eth_utils import function_signature_to_4byte_selector
+from eth_utils import function_signature_to_4byte_selector, hexadecimal, conversions
+
 
 from bins.config.current import MULTICALL3_ADDRESSES
+from bins.general.enums import text_to_chain
 
 from .base_wrapper import web3wrap
 
@@ -25,7 +28,9 @@ class multicall3(web3wrap):
         custom_web3Url: str | None = None,
     ):
         if not address:
-            address = MULTICALL3_ADDRESSES.get(network, MULTICALL3_ADDRESSES["default"])
+            address = MULTICALL3_ADDRESSES.get(text_to_chain(network), {}).get(
+                "address", MULTICALL3_ADDRESSES["default"]["address"]
+            )
 
         self._abi_filename = abi_filename or ABI_FILENAME
         self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
@@ -117,14 +122,41 @@ class multicall3(web3wrap):
             address (str, Optional): if no 'address' key found in contract_functions, this address will be used
         """
         # build function calls
-        return [
-            [
-                Web3.toChecksumAddress(value.get("address", address)),
-                function_signature_to_4byte_selector(f"{value['name']}()"),
-                *value["inputs"],
-            ]
-            for value in contract_functions
-        ]
+
+        result = []
+        for value in contract_functions:
+            # build inputs if provided
+            if value["inputs"]:
+                _inputs_types = []
+                _inputs_values = []
+                for _input in value["inputs"]:
+                    # 'internalType':'bytes32'
+                    # 'name':''
+                    # 'type':'bytes32'
+                    # 'value':
+                    _inputs_types.append(_input["type"])
+                    _inputs_values.append(_input["value"])
+
+                _encoded_arguments = abi.encode(_inputs_types, _inputs_values)
+
+                result.append(
+                    (
+                        Web3.toChecksumAddress(value["address"]),
+                        # function_name(input_type1, input_type2, ...)
+                        function_signature_to_4byte_selector(
+                            f"{value['name']}({','.join(_inputs_types)})"
+                        )
+                        + _encoded_arguments,
+                    )
+                )
+            else:
+                result.append(
+                    (
+                        Web3.toChecksumAddress(value["address"]),
+                        function_signature_to_4byte_selector(f"{value['name']}()"),
+                    )
+                )
+        return result
 
     def get_data(self, contract_functions: list[dict], address: str | None = None):
         """Get data and throw error when any of the functions fail
