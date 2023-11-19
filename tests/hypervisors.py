@@ -101,17 +101,24 @@ def test_multicall(chain: Chain, hypervisor_status: dict):
         if "id" in hypervisor_status:
             hypervisor_status.pop("id")
         # compare
-        isEqual, field = compare_dictionaries(
+        if comparison_result := compare_dictionaries(
             _testing_hype_status_multicall, hypervisor_status
-        )
-        if isEqual:
+        ):
+            logging.getLogger(__name__).info(
+                f" 1.1- (multicall)  ERROR -> comparison unsuccessfull: {len(comparison_result)} different field value found for {chain.fantasy_name} hypervisor {hypervisor_status['address']} {hypervisor_status['dex']} at block {hypervisor_status['block']}"
+            )
+            for differences in comparison_result:
+                # differences[0] -> field name
+                # differences[1] -> or tuple of 3 values with string and 2 values
+                #                -> or 1 value ( can be a list of values )
+                logging.getLogger(__name__).info(
+                    f"                       {differences}"
+                )
+        else:
             logging.getLogger(__name__).debug(
                 f" 1.1- (multicall)  comparison successfull"
             )
-        else:
-            logging.getLogger(__name__).info(
-                f" 1.1- (multicall)  ERROR -> comparison unsuccessfull: different field value found at: {field}. {chain.fantasy_name} hypervisor {hypervisor_status['address']} {hypervisor_status['dex']} at block {hypervisor_status['block']}"
-            )
+
     else:
         logging.getLogger(__name__).info(
             f" 1- (multicall)  ERROR -> build unsuccessfull {chain.fantasy_name} hypervisor {hypervisor_status['address']} {hypervisor_status['dex']} at block {hypervisor_status['block']}"
@@ -140,17 +147,21 @@ def test_singlecall(chain: Chain, hypervisor_status: dict):
         if "id" in hypervisor_status:
             hypervisor_status.pop("id")
         # compare
-        isEqual, field = compare_dictionaries(
+        if comparison_result := compare_dictionaries(
             _testing_hype_status_singlecall, hypervisor_status
-        )
-        if isEqual:
+        ):
+            logging.getLogger(__name__).info(
+                f" 2.1- (singlecall)  ERROR -> comparison unsuccessfull: {len(comparison_result)} different field value found for {chain.fantasy_name} hypervisor {hypervisor_status['address']} {hypervisor_status['dex']} at block {hypervisor_status['block']}"
+            )
+            for differences in comparison_result:
+                logging.getLogger(__name__).info(
+                    f"                       {differences}"
+                )
+        else:
             logging.getLogger(__name__).debug(
                 f" 2.1- (singlecall) comparison successfull"
             )
-        else:
-            logging.getLogger(__name__).info(
-                f" 2.1- (singlecall)  ERROR -> comparison unsuccessfull: different field value found at: {field} {chain.fantasy_name} hypervisor {hypervisor_status['address']} {hypervisor_status['dex']} at block {hypervisor_status['block']}"
-            )
+
     else:
         logging.getLogger(__name__).info(
             f" 2- (singlecall)  ERROR -> build unsuccessfull {chain.fantasy_name} hypervisor {hypervisor_status['address']} {hypervisor_status['dex']} at block {hypervisor_status['block']}"

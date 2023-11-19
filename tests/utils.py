@@ -2,8 +2,10 @@ import logging
 import random
 
 import tqdm
+from bins.configuration import CONFIGURATION
 from bins.database.helpers import get_from_localdb
 from bins.general.enums import Chain, Protocol
+from bins.general.general_utilities import differences
 
 
 #### DATABASE ####
@@ -71,6 +73,14 @@ def get_status_hypes_of_each_protocol(
         f"  Building a representative list of at least {qtty} hypervisor status for each protocol found in {chain}"
     )
 
+    # do not add hypervisors_not_included in config
+    try:
+        hypervisors_not_included = CONFIGURATION["script"]["protocols"]["gamma"][
+            "filters"
+        ]["hypervisors_not_included"][chain.database_name]
+    except KeyError:
+        hypervisors_not_included = []
+
     # get all
     query = [{"$group": {"_id": "$dex", "hypes": {"$push": "$$ROOT"}}}]
 
@@ -93,6 +103,11 @@ def get_status_hypes_of_each_protocol(
             # randomize hype order
             if itm["hypes"]:
                 random.shuffle(itm["hypes"])
+
+            # filter out hypervisors_not_included
+            itm["hypes"] = [
+                x for x in itm["hypes"] if x["address"] not in hypervisors_not_included
+            ]
 
             # progress
             progress_bar.set_description(
@@ -571,7 +586,50 @@ def get_cashuistics_many_helper(hypervisors: list, addresses: dict, qtty: int = 
 ####   COMPARE     ####
 
 
-def compare_dictionaries(dict1: dict, dict2: dict) -> tuple[bool, str]:
+def compare_dictionaries(dict1: dict, dict2: dict) -> list[tuple]:
+    """Compare two dictionaries recursively
+
+    Args:
+        dict1 (dict): dictionary 1
+        dict2 (dict): dictionary 2
+
+    Returns:
+        list[tuple]: list of fields differences as tuple (key, (field1, field2 )) or
+                            difference may be a tuple (key, ( field, (field1, field2 )  ) if the difference is in a subfield
+                                           or a tuple (field1, field2 )
+    """
+
+    result = []
+
+    if len(dict1) != len(dict2):
+        result.append(("_lenght_", len(dict1), len(dict2)))
+
+    for key in dict1:
+        # check if key is in dict2
+        if key not in dict2:
+            result.append((key, dict1[key], None))
+
+        if isinstance(dict1[key], dict):
+            # add field
+            if _sub_result := compare_dictionaries(dict1[key], dict2[key]):
+                result.append((key, _sub_result))
+        elif isinstance(dict1[key], list):
+            # compare lists
+            if _sub_result := differences(dict1[key], dict2[key]):
+                result.append((key, dict1[key], dict1[key]))
+        else:
+            if not compare_types(dict1[key], dict2[key]):
+                logging.getLogger(__name__).error(
+                    f"  {key}  different types !!!->>  {dict1[key]} != {dict2[key]} "
+                )
+                result.append((key, dict1[key], dict2[key]))
+            elif dict1[key] != dict2[key]:
+                result.append((key, dict1[key], dict2[key]))
+
+    return result
+
+
+def compare_dictionaries_old(dict1: dict, dict2: dict) -> tuple[bool, str]:
     """Compare two dictionaries recursively
 
     Args:
