@@ -123,6 +123,10 @@ loggers:
         level: INFO
         handlers: [benchmark_file_handler]
         propagate: False
+    tests:
+        level: DEBUG
+        handlers: [console, debug_file_handler, info_file_handler, warning_file_handler, critical_file_handler, error_file_handler]
+        propagate: False
 
 root:
     level: INFO

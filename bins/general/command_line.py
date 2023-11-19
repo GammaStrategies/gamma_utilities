@@ -137,7 +137,7 @@ def parse_commandLine_args():
     # tests
     par_test = exGroup.add_argument(
         "--test",
-        choices=["protocols"],
+        choices=["protocols", "hypervisors"],
         help=" execute tests ",
     )
 

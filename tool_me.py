@@ -19,6 +19,7 @@ from apps import (
     database_reScrape,
     save_config,
 )
+from tests import test
 from bins.cache.files_manager import reset_cache_files
 
 
@@ -112,6 +113,8 @@ if __name__ == "__main__":
         save_config.main(
             cfg_name=CONFIGURATION["_custom_"]["cml_parameters"].save_config
         )
+    elif CONFIGURATION["_custom_"]["cml_parameters"].test:
+        test.main(option=CONFIGURATION["_custom_"]["cml_parameters"].test)
 
     else:
         # nothin todo
