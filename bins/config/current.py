@@ -13,6 +13,65 @@ BLOCKS_PER_SECOND = {}
 
 
 MULTICALL3_ADDRESSES = {
-    "default": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
-    # <chain>: <address> to lower
+    "default": {"address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower()},
+    Chain.ETHEREUM: {
+        "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
+        "block": 14353601,
+    },
+    Chain.ARBITRUM: {
+        "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
+        "block": 7654707,
+    },
+    Chain.OPTIMISM: {
+        "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
+        "block": 4286263,
+    },
+    Chain.POLYGON: {
+        "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
+        "block": 25770160,
+    },
+    Chain.AVALANCHE: {
+        "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
+        "block": 11907934,
+    },
+    Chain.FANTOM: {
+        "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
+        "block": 33001987,
+    },
+    Chain.BSC: {
+        "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
+        "block": 15921452,
+    },
+    Chain.OPBNB: {
+        "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
+        "block": 512881,
+    },
+    Chain.MOONBEAM: {
+        "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
+        "block": 609002,
+    },
+    Chain.CELO: {
+        "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
+        "block": 13112599,
+    },
+    Chain.KAVA: {
+        "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
+        "block": 3661165,
+    },
+    Chain.MANTLE: {
+        "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
+        "block": 304717,
+    },
+    Chain.BASE: {
+        "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
+        "block": 5022,
+    },
+    # Chain.LINEA:{
+    #     "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
+    #     "block":  ,
+    # },
+    # Chain.METIS:{
+    #     "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
+    #     "block":  2338552
+    # },
 }
