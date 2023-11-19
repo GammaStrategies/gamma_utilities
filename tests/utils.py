@@ -53,6 +53,7 @@ def get_status_hypes_of_each_protocol(
     qtty: int = 1,
     cashuistics: bool = True,
     protocols: list[Protocol] = None,
+    brake_on_notfound: bool = True,
 ) -> list[dict]:
     """Get status of hypes of each protocol
 
@@ -61,6 +62,7 @@ def get_status_hypes_of_each_protocol(
         qtty (int, optional): lazy desired qtty per protocol ( depends on cashuistics ). Defaults to 1.
         cashuistics (bool, optional): Get as many cashuistics as possible ( and as defined as cashuistic). Defaults to True.
         protocols (list[Protocol], optional): list of protocols to get status from. Defaults to None.
+        brake_on_notfound (bool, optional): only get status with all casuhistics. May return empty list. Defaults to True.
     Returns:
         list[dict]: hypervisor status
     """
@@ -105,7 +107,9 @@ def get_status_hypes_of_each_protocol(
                 if cashuistics:
                     # get status with as many cashuistics as possible ( one of each)
                     if _cases := get_cashuistics(
-                        chain=chain, static_hypervisor=hype, brake_on_notfound=True
+                        chain=chain,
+                        static_hypervisor=hype,
+                        brake_on_notfound=brake_on_notfound,
                     ):
                         result += _cases
                     else:

@@ -10,7 +10,7 @@ from bins.w3.builders import build_db_hypervisor, build_db_hypervisor_multicall
 from tests.utils import compare_dictionaries, get_status_hypes_of_each_protocol
 
 
-def test_hypervisors():
+def test_hypervisors(qtty_per_protocol: int = 1):
     chains = (
         [
             text_to_chain(text=network)
@@ -31,9 +31,26 @@ def test_hypervisors():
     for chain in chains:
         logging.getLogger(__name__).debug(f" Testing hypervisors on {chain} STARTED")
         # get a representative list of hypervisors ( all protocols n cashuistics )
-        for hype_status in get_status_hypes_of_each_protocol(
-            chain=chain, qtty=1, cashuistics=True, protocols=protocols
-        ):
+        _cashuistics_hypervisors = get_status_hypes_of_each_protocol(
+            chain=chain,
+            qtty=qtty_per_protocol,
+            cashuistics=True,
+            protocols=protocols,
+            brake_on_notfound=True,
+        )
+        if not _cashuistics_hypervisors:
+            logging.getLogger(__name__).info(
+                f" Not all cashuistics can be found for {chain} hypervisors. Trying to get as many as possible to test."
+            )
+            _cashuistics_hypervisors = get_status_hypes_of_each_protocol(
+                chain=chain,
+                qtty=qtty_per_protocol,
+                cashuistics=True,
+                protocols=protocols,
+                brake_on_notfound=False,
+            )
+
+        for hype_status in _cashuistics_hypervisors:
             logging.getLogger(__name__).info(
                 f" Testing {chain} {hype_status['dex']} {hype_status['symbol']} on block {hype_status['block']}"
             )

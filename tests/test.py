@@ -14,4 +14,4 @@ def main(option):
         test_protocols()
     elif option == test_type.Hypervisors:
         # test hypervisors
-        test_hypervisors()
+        test_hypervisors(qtty_per_protocol=1)
