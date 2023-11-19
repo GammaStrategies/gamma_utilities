@@ -25,38 +25,15 @@ DEX_NAME = Protocol.RAMSES.database_name
 
 # Hype v1.3
 class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
-    # SETUP
-    def __init__(
-        self,
-        address: str,
-        network: str,
-        abi_filename: str = "",
-        abi_path: str = "",
-        block: int = 0,
-        timestamp: int = 0,
-        custom_web3: Web3 | None = None,
-        custom_web3Url: str | None = None,
-    ):
+    def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
         self._abi_filename = abi_filename or ABI_FILENAME
         self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
 
-        self._pool: pool | None = None
-        self._token0: erc20 | None = None
-        self._token1: erc20 | None = None
-
+    def _initialize_objects(self):
+        super()._initialize_objects()
+        self._pool: pool = None
         self._gauge: gauge | None = None
         self._multiFeeDistribution: multiFeeDistribution | None = None
-
-        super().__init__(
-            address=address,
-            network=network,
-            abi_filename=self._abi_filename,
-            abi_path=self._abi_path,
-            block=block,
-            timestamp=timestamp,
-            custom_web3=custom_web3,
-            custom_web3Url=custom_web3Url,
-        )
 
     def identify_dex_name(self) -> str:
         return DEX_NAME
@@ -70,16 +47,6 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
     @property
     def PRECISION(self) -> int:
         return self.call_function_autoRpc("PRECISION")
-
-    @property
-    def pool(self) -> pool:
-        if self._pool is None:
-            self._pool = pool(
-                address=self.call_function_autoRpc("pool"),
-                network=self._network,
-                block=self.block,
-            )
-        return self._pool
 
     @property
     def gauge(self) -> gauge:
@@ -362,37 +329,36 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
         # return result
         return _base_position + _limit_position
 
+    def build_pool(
+        self,
+        address: str,
+        network: str,
+        block: int,
+        timestamp: int | None = None,
+    ) -> pool:
+        return pool(
+            address=address,
+            network=network,
+            block=block,
+            timestamp=timestamp,
+        )
+
 
 class gamma_hypervisor_cached(
-    gamma_hypervisor, gamma.hypervisor.gamma_hypervisor_cached
+    gamma.hypervisor.gamma_hypervisor_cached, gamma_hypervisor
 ):
-    @property
-    def pool(self) -> pool_cached:
-        if self._pool is None:
-            # check if cached
-            prop_name = "pool"
-            result = self._cache.get_data(
-                chain_id=self._chain_id,
-                address=self.address,
-                block=self.block,
-                key=prop_name,
-            )
-            if result is None:
-                result = self.call_function_autoRpc(prop_name)
-                self._cache.add_data(
-                    chain_id=self._chain_id,
-                    address=self.address,
-                    block=self.block,
-                    key=prop_name,
-                    data=result,
-                    save2file=self.SAVE2FILE,
-                )
-            self._pool = pool_cached(
-                address=result,
-                network=self._network,
-                block=self.block,
-            )
-        return self._pool
+    def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
+        self._abi_filename = abi_filename or ABI_FILENAME
+        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+
+    def _initialize_objects(self):
+        super()._initialize_objects()
+        self._pool: pool_cached = None
+        self._gauge: gauge | None = None
+        self._multiFeeDistribution: multiFeeDistribution | None = None
+
+    def identify_dex_name(self) -> str:
+        return DEX_NAME
 
     @property
     def gauge(self) -> gauge:
@@ -528,53 +494,40 @@ class gamma_hypervisor_cached(
             )
         return result
 
-
-class gamma_hypervisor_multicall(gamma.hypervisor.gamma_hypervisor_multicall):
-    # SETUP
-    def __init__(
+    def build_pool(
         self,
         address: str,
         network: str,
-        abi_filename: str = "",
-        abi_path: str = "",
-        block: int = 0,
-        timestamp: int = 0,
-        custom_web3: Web3 | None = None,
-        custom_web3Url: str | None = None,
-        known_data: dict | None = None,
-    ):
+        block: int,
+        timestamp: int | None = None,
+    ) -> pool_cached:
+        return pool_cached(
+            address=address,
+            network=network,
+            block=block,
+            timestamp=timestamp,
+        )
+
+
+class gamma_hypervisor_multicall(
+    gamma.hypervisor.gamma_hypervisor_multicall, gamma_hypervisor
+):
+    def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
         self._abi_filename = abi_filename or ABI_FILENAME
         self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
 
-        self._pool: pool_multicall | None = None
-        self._token0: erc20_multicall | None = None
-        self._token1: erc20_multicall | None = None
+    def _initialize_abi_pool(self, abi_filename: str = "", abi_path: str = ""):
+        self._pool_abi_filename = abi_filename or POOL_ABI_FILENAME
+        self._pool_abi_path = abi_path or f"{self.abi_root_path}/{POOL_ABI_FOLDERNAME}"
 
+    def _initialize_objects(self):
+        super()._initialize_objects()
+        self._pool: pool_multicall = None
         self._gauge: gauge | None = None
         self._multiFeeDistribution: multiFeeDistribution | None = None
 
-        super().__init__(
-            address=address,
-            network=network,
-            abi_filename=self._abi_filename,
-            abi_path=self._abi_path,
-            block=block,
-            timestamp=timestamp,
-            custom_web3=custom_web3,
-            custom_web3Url=custom_web3Url,
-            pool_abi_filename=POOL_ABI_FILENAME,
-            pool_abi_path=f"{self.abi_root_path}/{POOL_ABI_FOLDERNAME}",
-        )
-
-        if known_data:
-            self._fill_from_known_data(known_data=known_data)
-
     def identify_dex_name(self) -> str:
         return DEX_NAME
-
-    @property
-    def pool(self) -> pool_multicall:
-        return self._pool
 
     @property
     def gauge(self) -> gauge:
@@ -593,46 +546,124 @@ class gamma_hypervisor_multicall(gamma.hypervisor.gamma_hypervisor_multicall):
     def voter(self) -> str:
         return self._voter
 
-    def _fill_from_known_data(self, known_data: dict):
-        # self._gauge = known_data["gauge"]
-        # self._receiver = known_data["receiver"]
-        self._veRamTokenId = known_data["veRamTokenId"]
-        self._voter = known_data["voter"]
-        super()._fill_from_known_data(known_data=known_data)
-
-    def _fill_from_known_data_objects(self, known_data: dict):
-        self._pool = pool_multicall(
-            address=known_data["pool"]["address"],
-            network=self._network,
-            block=self.block,
-            timestamp=self._timestamp,
-            known_data=known_data["pool"],
-        )
-        self._token0 = erc20_multicall(
-            address=known_data["token0"]["address"],
-            network=self._network,
-            block=self.block,
-            timestamp=self._timestamp,
-            known_data=known_data["token0"],
-        )
-        self._token1 = erc20_multicall(
-            address=known_data["token1"]["address"],
-            network=self._network,
-            block=self.block,
-            timestamp=self._timestamp,
-            known_data=known_data["token1"],
+    # builds
+    def build_pool(
+        self,
+        address: str,
+        network: str,
+        block: int,
+        timestamp: int | None = None,
+        processed_calls: list | None = None,
+    ) -> pool_multicall:
+        return pool_multicall(
+            address=address,
+            network=network,
+            block=block,
+            timestamp=timestamp,
+            processed_calls=processed_calls,
         )
 
-        self._gauge = gauge(
-            address=known_data["gauge"],
-            network=self._network,
-            block=self.block,
-            timestamp=self._timestamp,
-        )
+    def _fill_from_processed_calls(self, processed_calls: list):
+        _this_object_names = ["hypervisor"]
+        for _pCall in processed_calls:
+            # filter by address
+            if _pCall["address"].lower() == self._address.lower():
+                # filter by object type
+                if _pCall["object"] in _this_object_names:
+                    if _pCall["name"] in [
+                        "name",
+                        "symbol",
+                        "decimals",
+                        "totalSupply",
+                        "baseLower",
+                        "baseUpper",
+                        "currentTick",
+                        "deposit0Max",
+                        "deposit1Max",
+                        "directDeposit",
+                        "fee",
+                        "feeRecipient",
+                        "limitLower",
+                        "limitUpper",
+                        "maxTotalSupply",
+                        "owner",
+                        "tickSpacing",
+                        "whitelistedAddress",
+                        "veRamTokenId",
+                        "voter",
+                        "DOMAIN_SEPARATOR",
+                        "PRECISION",
+                    ]:
+                        # one output only
+                        if len(_pCall["outputs"]) != 1:
+                            raise ValueError(
+                                f"Expected only one output for {_pCall['name']}"
+                            )
+                        # check if value exists
+                        if "value" not in _pCall["outputs"][0]:
+                            raise ValueError(
+                                f"Expected value in output for {_pCall['name']}"
+                            )
+                        _object_name = f"_{_pCall['name']}"
+                        setattr(self, _object_name, _pCall["outputs"][0]["value"])
 
-        self._receiver = multiFeeDistribution(
-            address=known_data["receiver"],
-            network=self._network,
-            block=self.block,
-            timestamp=self._timestamp,
-        )
+                    elif _pCall["name"] in ["getBasePosition", "getLimitPosition"]:
+                        _object_name = f"_{_pCall['name']}"
+                        setattr(
+                            self,
+                            _object_name,
+                            {
+                                "liquidity": _pCall["outputs"][0]["value"],
+                                "amount0": _pCall["outputs"][1]["value"],
+                                "amount1": _pCall["outputs"][2]["value"],
+                            },
+                        )
+                    elif _pCall["name"] == "getTotalAmounts":
+                        _object_name = f"_{_pCall['name']}"
+                        setattr(
+                            self,
+                            _object_name,
+                            {
+                                "total0": _pCall["outputs"][0]["value"],
+                                "total1": _pCall["outputs"][1]["value"],
+                            },
+                        )
+                    elif _pCall["name"] == "pool":
+                        self._pool = self.build_pool(
+                            address=_pCall["outputs"][0]["value"],
+                            network=self._network,
+                            block=self.block,
+                            timestamp=self._timestamp,
+                            processed_calls=processed_calls,
+                        )
+                    elif _pCall["name"] in ["token0", "token1"]:
+                        _object_name = f"_{_pCall['name']}"
+                        setattr(
+                            self,
+                            _object_name,
+                            self.build_token(
+                                address=_pCall["outputs"][0]["value"],
+                                network=self._network,
+                                block=self.block,
+                                timestamp=self._timestamp,
+                                processed_calls=processed_calls,
+                            ),
+                        )
+                    elif _pCall["name"] == "gauge":
+                        self._gauge = gauge(
+                            address=_pCall["outputs"][0]["value"],
+                            network=self._network,
+                            block=self.block,
+                            timestamp=self._timestamp,
+                        )
+                    elif _pCall["name"] == "receiver":
+                        self._receiver = multiFeeDistribution(
+                            address=_pCall["outputs"][0]["value"],
+                            network=self._network,
+                            block=self.block,
+                            timestamp=self._timestamp,
+                        )
+                    else:
+                        logging.getLogger(__name__).debug(
+                            f" {_pCall['name']} multicall field not defined to be processed. Ignoring"
+                        )

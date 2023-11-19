@@ -1,5 +1,6 @@
 from copy import deepcopy
 from decimal import Decimal
+import logging
 from web3 import Web3
 
 
@@ -14,7 +15,12 @@ from ..general import (
     bep20_cached,
     erc20_multicall,
 )
-from ...helpers.multicaller import build_call, execute_multicall
+from ...helpers.multicaller import (
+    build_call,
+    build_calls_fromfiles,
+    execute_multicall,
+    execute_parse_calls,
+)
 from ..uniswap.pool import (
     poolv3,
     poolv3_bep20,
@@ -62,12 +68,8 @@ class gamma_hypervisor(erc20):
         custom_web3: Web3 | None = None,
         custom_web3Url: str | None = None,
     ):
-        self._abi_filename = abi_filename or ABI_FILENAME
-        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
-
-        self._pool: poolv3 | None = None
-        self._token0: erc20 | None = None
-        self._token1: erc20 | None = None
+        self._initialize_abi(abi_filename=abi_filename, abi_path=abi_path)
+        self._initialize_objects()
 
         super().__init__(
             address=address,
@@ -79,6 +81,15 @@ class gamma_hypervisor(erc20):
             custom_web3=custom_web3,
             custom_web3Url=custom_web3Url,
         )
+
+    def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
+        self._abi_filename = abi_filename or ABI_FILENAME
+        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+
+    def _initialize_objects(self):
+        self._pool: poolv3 = None
+        self._token0: erc20 = None
+        self._token1: erc20 = None
 
     def identify_dex_name(self) -> str:
         return DEX_NAME
@@ -280,10 +291,11 @@ class gamma_hypervisor(erc20):
     @property
     def pool(self) -> poolv3:
         if self._pool is None:
-            self._pool = poolv3(
+            self._pool = self.build_pool(
                 address=self.call_function_autoRpc("pool"),
                 network=self._network,
                 block=self.block,
+                timestamp=self._timestamp,
             )
         return self._pool
 
@@ -299,20 +311,22 @@ class gamma_hypervisor(erc20):
     @property
     def token0(self) -> erc20:
         if self._token0 is None:
-            self._token0 = erc20(
+            self._token0 = self.build_token(
                 address=self.call_function_autoRpc("token0"),
                 network=self._network,
                 block=self.block,
+                timestamp=self._timestamp,
             )
         return self._token0
 
     @property
     def token1(self) -> erc20:
         if self._token1 is None:
-            self._token1 = erc20(
+            self._token1 = self.build_token(
                 address=self.call_function_autoRpc("token1"),
                 network=self._network,
                 block=self.block,
+                timestamp=self._timestamp,
             )
         return self._token1
 
@@ -500,6 +514,35 @@ class gamma_hypervisor(erc20):
 
         return result.copy()
 
+    # builds
+    def build_pool(
+        self,
+        address: str,
+        network: str,
+        block: int,
+        timestamp: int | None = None,
+    ) -> poolv3:
+        return poolv3(
+            address=address,
+            network=network,
+            block=block,
+            timestamp=timestamp,
+        )
+
+    def build_token(
+        self,
+        address: str,
+        network: str,
+        block: int,
+        timestamp: int | None = None,
+    ) -> erc20:
+        return erc20(
+            address=address,
+            network=network,
+            block=block,
+            timestamp=timestamp,
+        )
+
     # Convert
 
     def as_dict(
@@ -550,6 +593,15 @@ class gamma_hypervisor(erc20):
             except Exception as e:
                 # this hype version may not have feeRecipient func
                 pass
+
+        # TODO: deleteme:
+        if (
+            not "basePosition_ticksLower" in result
+            or not "limitPosition_ticksLower" in result
+            or not "basePosition_data" in result
+        ):
+            po = "STOP"
+
         return result
 
     def _as_dict_not_static_items(self, convert_bint, result, minimal: bool = False):
@@ -693,84 +745,14 @@ class gamma_hypervisor(erc20):
             if k not in exclue_conversion:
                 result[position_key][k] = str(result[position_key][k])
 
-    # dict from multicall
-    def _get_dict_from_multicall(self) -> dict:
-        """Only this object and its super() will be returned as dict ( no pools nor objects within this)
-             When any of the function is not returned ( for any reason ), its key will not appear in the result.
-            All functions defined in the abi without "inputs" will be returned here
-        Returns:
-            dict:
-        """
-        #
-        result = super()._get_dict_from_multicall()
 
-        # build fixed objects like (pool, token0, token1..)
-        self._build_fixed_objects_from_multicall_result(multicall_result=result)
-        # format list vars ( like getTotalAmounts...)
-        result = self._convert_formats_multicall_result(multicall_result=result)
-        return result
-
-    def _build_fixed_objects_from_multicall_result(self, multicall_result: dict):
-        # build fixed objects like (pool, token0, token1..)
-        try:
-            if self._pool is None:
-                self._pool = poolv3(
-                    address=multicall_result["pool"],
-                    network=self._network,
-                    block=self.block,
-                )
-        except:
-            pass
-        try:
-            if self._token0 is None:
-                self._token0 = erc20(
-                    address=multicall_result["token0"],
-                    network=self._network,
-                    block=self.block,
-                )
-        except:
-            pass
-        try:
-            if self._token1 is None:
-                self._token1 = erc20(
-                    address=multicall_result["token1"],
-                    network=self._network,
-                    block=self.block,
-                )
-        except:
-            pass
-
-    def _convert_formats_multicall_result(self, multicall_result: dict) -> dict:
-        # format list vars ( like getTotalAmounts...)
-        try:
-            multicall_result["getTotalAmounts"] = {
-                "total0": multicall_result["getTotalAmounts"][0],
-                "total1": multicall_result["getTotalAmounts"][1],
-            }
-        except:
-            pass
-        try:
-            multicall_result["getLimitPosition"] = {
-                "liquidity": multicall_result["getLimitPosition"][0],
-                "amount0": multicall_result["getLimitPosition"][1],
-                "amount1": multicall_result["getLimitPosition"][2],
-            }
-        except:
-            pass
-        try:
-            multicall_result["getBasePosition"] = {
-                "liquidity": multicall_result["getBasePosition"][0],
-                "amount0": multicall_result["getBasePosition"][1],
-                "amount1": multicall_result["getBasePosition"][2],
-            }
-        except:
-            pass
-
-        return multicall_result
-
-
-class gamma_hypervisor_cached(erc20_cached, gamma_hypervisor):
+class gamma_hypervisor_cached(gamma_hypervisor, erc20_cached):
     SAVE2FILE = True
+
+    def _initialize_objects(self):
+        self._pool: poolv3_cached = None
+        self._token0: erc20_cached = None
+        self._token1: erc20_cached = None
 
     # PROPERTIES
     @property
@@ -1153,10 +1135,11 @@ class gamma_hypervisor_cached(erc20_cached, gamma_hypervisor):
                     data=result,
                     save2file=self.SAVE2FILE,
                 )
-            self._pool = poolv3_cached(
+            self._pool = self.build_pool(
                 address=result,
                 network=self._network,
                 block=self.block,
+                timestamp=self._timestamp,
             )
         return self._pool
 
@@ -1202,10 +1185,11 @@ class gamma_hypervisor_cached(erc20_cached, gamma_hypervisor):
                     data=result,
                     save2file=self.SAVE2FILE,
                 )
-            self._token0 = erc20_cached(
+            self._token0 = self.build_token(
                 address=result,
                 network=self._network,
                 block=self.block,
+                timestamp=self._timestamp,
             )
         return self._token0
 
@@ -1230,10 +1214,11 @@ class gamma_hypervisor_cached(erc20_cached, gamma_hypervisor):
                     data=result,
                     save2file=self.SAVE2FILE,
                 )
-            self._token1 = erc20_cached(
+            self._token1 = self.build_token(
                 address=result,
                 network=self._network,
                 block=self.block,
+                timestamp=self._timestamp,
             )
         return self._token1
 
@@ -1258,6 +1243,35 @@ class gamma_hypervisor_cached(erc20_cached, gamma_hypervisor):
             )
         return result
 
+    # builds
+    def build_pool(
+        self,
+        address: str,
+        network: str,
+        block: int,
+        timestamp: int | None = None,
+    ) -> poolv3_cached:
+        return poolv3_cached(
+            address=address,
+            network=network,
+            block=block,
+            timestamp=timestamp,
+        )
+
+    def build_token(
+        self,
+        address: str,
+        network: str,
+        block: int,
+        timestamp: int | None = None,
+    ) -> erc20_cached:
+        return erc20_cached(
+            address=address,
+            network=network,
+            block=block,
+            timestamp=timestamp,
+        )
+
 
 class gamma_hypervisor_multicall(gamma_hypervisor):
     # SETUP
@@ -1271,30 +1285,37 @@ class gamma_hypervisor_multicall(gamma_hypervisor):
         timestamp: int = 0,
         custom_web3: Web3 | None = None,
         custom_web3Url: str | None = None,
-        known_data: dict | None = None,
+        processed_calls: dict | None = None,
         pool_abi_filename: str = "",
         pool_abi_path: str = "",
     ):
-        self._abi_filename = abi_filename or ABI_FILENAME
-        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
-        self._pool_abi_filename = pool_abi_filename or POOL_ABI_FILENAME
-        self._pool_abi_path = (
-            pool_abi_path or f"{self.abi_root_path}/{POOL_ABI_FOLDERNAME}"
-        )
-
         super().__init__(
             address=address,
             network=network,
-            abi_filename=self._abi_filename,
-            abi_path=self._abi_path,
+            abi_filename=abi_filename,
+            abi_path=abi_path,
             block=block,
             timestamp=timestamp,
             custom_web3=custom_web3,
             custom_web3Url=custom_web3Url,
         )
 
-        if known_data:
-            self._fill_from_known_data(known_data=known_data)
+        # set pool abi
+        self._initialize_abi_pool(
+            abi_filename=pool_abi_filename, abi_path=pool_abi_path
+        )
+        # fill multicall data, if provided
+        if processed_calls:
+            self._fill_from_processed_calls(processed_calls=processed_calls)
+
+    def _initialize_abi_pool(self, abi_filename: str = "", abi_path: str = ""):
+        self._pool_abi_filename = abi_filename or POOL_ABI_FILENAME
+        self._pool_abi_path = abi_path or f"{self.abi_root_path}/{POOL_ABI_FOLDERNAME}"
+
+    def _initialize_objects(self):
+        self._pool: poolv3_multicall = None
+        self._token0: erc20_multicall = None
+        self._token1: erc20_multicall = None
 
     # PROPERTIES
     @property
@@ -1423,9 +1444,9 @@ class gamma_hypervisor_multicall(gamma_hypervisor):
         token0_address: str | None = None,
         token1_address: str | None = None,
     ):
-        data = execute_multicall(
+        # build input functions calls from abis
+        calls = build_calls_fromfiles(
             network=self._network,
-            block=self.block,
             hypervisor_address=self._address,
             pool_address=pool_address,
             token0_address=token0_address,
@@ -1434,180 +1455,223 @@ class gamma_hypervisor_multicall(gamma_hypervisor):
             hypervisor_abi_path=self._abi_path,
             pool_abi_filename=self._pool_abi_filename,
             pool_abi_path=self._pool_abi_path,
+        )
+
+        # add custom calls:
+        # custom pool.token0.balanceOf(hypervisor_address)
+        calls.append(
+            build_call(
+                inputs=[{"name": "_owner", "type": "address", "value": self._address}],
+                outputs=[{"name": "balance", "type": "uint256"}],
+                address=token0_address,
+                name="balanceOf",
+                object="token0",
+            )
+        )
+        # custom pool.token1.balanceOf(hypervisor_address)
+        calls.append(
+            build_call(
+                inputs=[{"name": "_owner", "type": "address", "value": self._address}],
+                outputs=[{"name": "balance", "type": "uint256"}],
+                address=token1_address,
+                name="balanceOf",
+                object="token1",
+            )
+        )
+
+        # execute calls
+        calls = execute_parse_calls(
+            network=self._network, block=self.block, calls=calls, convert_bint=False
+        )
+
+        # fill objects
+        self._fill_from_processed_calls(processed_calls=calls)
+
+        # place a second multicall to get positions and ticks
+        secondary_calls = [
+            self._pool._create_call_position(
+                Web3.toChecksumAddress(self.address.lower()),
+                self.baseLower,
+                self.baseUpper,
+            ),
+            self._pool._create_call_position(
+                Web3.toChecksumAddress(self.address.lower()),
+                self.limitLower,
+                self.limitUpper,
+            ),
+            self._pool._create_call_ticks(self.baseLower),
+            self._pool._create_call_ticks(self.baseUpper),
+            self._pool._create_call_ticks(self.limitLower),
+            self._pool._create_call_ticks(self.limitUpper),
+        ]
+        secondary_calls = execute_parse_calls(
+            network=self._network,
+            block=self.block,
+            calls=secondary_calls,
             convert_bint=False,
         )
+        # fill pool with secondary calls
+        self._pool._fill_from_processed_calls(calls + secondary_calls)
 
-        # fill addresses
-        if pool_address:
-            data["pool"]["address"] = pool_address
-        if token0_address:
-            data["token0"]["address"] = token0_address
-        if token1_address:
-            data["token1"]["address"] = token1_address
+    def _fill_from_processed_calls(self, processed_calls: list):
+        # TODO: change known data:dict to processed_calls:list
+        _this_object_names = ["hypervisor"]
+        for _pCall in processed_calls:
+            # filter by address
+            if _pCall["address"].lower() == self._address.lower():
+                # filter by object type
+                if _pCall["object"] in _this_object_names:
+                    if _pCall["name"] in [
+                        "name",
+                        "symbol",
+                        "decimals",
+                        "totalSupply",
+                        "baseLower",
+                        "baseUpper",
+                        "currentTick",
+                        "deposit0Max",
+                        "deposit1Max",
+                        "directDeposit",
+                        "fee",
+                        "feeRecipient",
+                        "limitLower",
+                        "limitUpper",
+                        "maxTotalSupply",
+                        "owner",
+                        "tickSpacing",
+                        "whitelistedAddress",
+                        "DOMAIN_SEPARATOR",
+                        "PRECISION",
+                    ]:
+                        # one output only
+                        if len(_pCall["outputs"]) != 1:
+                            raise ValueError(
+                                f"Expected only one output for {_pCall['name']}"
+                            )
+                        # check if value exists
+                        if "value" not in _pCall["outputs"][0]:
+                            # feeRecipient may not exist
+                            if _pCall["name"] == "feeRecipient":
+                                continue
+                            else:
+                                raise ValueError(
+                                    f"Expected value in output for {_pCall['name']}"
+                                )
 
-        self._fill_from_known_data(known_data=data)
+                        _object_name = f"_{_pCall['name']}"
+                        setattr(self, _object_name, _pCall["outputs"][0]["value"])
 
-    def _fill_from_known_data(self, known_data: dict):
-        # ERC20
-        self._name = known_data["name"]
-        self._symbol = known_data["symbol"]
-        self._decimals = known_data["decimals"]
-        self._totalSupply = known_data["totalSupply"]
-        #
-        self._baseLower = known_data["baseLower"]
-        self._baseUpper = known_data["baseUpper"]
-        self._currentTick = known_data["currentTick"]
-        self._deposit0Max = known_data["deposit0Max"]
-        self._deposit1Max = known_data["deposit1Max"]
-        self._directDeposit = known_data.get("directDeposit", None)
-        self._fee = known_data["fee"]
-        self._feeRecipient = known_data.get("feeRecipient", None)
-        self._getBasePosition = {
-            "liquidity": known_data["getBasePosition"][0],
-            "amount0": known_data["getBasePosition"][1],
-            "amount1": known_data["getBasePosition"][2],
-        }
-        self._getLimitPosition = {
-            "liquidity": known_data["getLimitPosition"][0],
-            "amount0": known_data["getLimitPosition"][1],
-            "amount1": known_data["getLimitPosition"][2],
-        }
-        self._getTotalAmounts = {
-            "total0": known_data["getTotalAmounts"][0],
-            "total1": known_data["getTotalAmounts"][1],
-        }
-        self._limitLower = known_data["limitLower"]
-        self._limitUpper = known_data["limitUpper"]
-        self._maxTotalSupply = known_data["maxTotalSupply"]
-        self._name = known_data["name"]
-        self._owner = known_data["owner"]
-        self._tickSpacing = known_data["tickSpacing"]
-        self._whitelistedAddress = known_data.get("whitelistedAddress", None)
+                    elif _pCall["name"] in ["getBasePosition", "getLimitPosition"]:
+                        _object_name = f"_{_pCall['name']}"
+                        setattr(
+                            self,
+                            _object_name,
+                            {
+                                "liquidity": _pCall["outputs"][0]["value"],
+                                "amount0": _pCall["outputs"][1]["value"],
+                                "amount1": _pCall["outputs"][2]["value"],
+                            },
+                        )
+                        # setattr(self, _object_name, {_output["name"]:_output["value"] for _output in _pCall["outputs"]})
+                    elif _pCall["name"] == "getTotalAmounts":
+                        _object_name = f"_{_pCall['name']}"
+                        setattr(
+                            self,
+                            _object_name,
+                            {
+                                "total0": _pCall["outputs"][0]["value"],
+                                "total1": _pCall["outputs"][1]["value"],
+                            },
+                        )
+                    elif _pCall["name"] == "pool":
+                        self._pool = self.build_pool(
+                            address=_pCall["outputs"][0]["value"],
+                            network=self._network,
+                            block=self.block,
+                            timestamp=self._timestamp,
+                            processed_calls=processed_calls,
+                        )
+                    elif _pCall["name"] in ["token0", "token1"]:
+                        _object_name = f"_{_pCall['name']}"
+                        setattr(
+                            self,
+                            _object_name,
+                            self.build_token(
+                                address=_pCall["outputs"][0]["value"],
+                                network=self._network,
+                                block=self.block,
+                                timestamp=self._timestamp,
+                                processed_calls=processed_calls,
+                            ),
+                        )
+                    else:
+                        logging.getLogger(__name__).debug(
+                            f" {_pCall['name']} multicall field not defined to be processed. Ignoring"
+                        )
 
-        # add tokens to pool
-        known_data["pool"]["token0"] = known_data["token0"]
-        known_data["pool"]["token1"] = known_data["token1"]
-
-        # create objects
-        self._fill_from_known_data_objects(known_data=known_data)
-
-    def _fill_from_known_data_objects(self, known_data: dict):
-        self._pool = poolv3_multicall(
-            address=known_data["pool"]["address"],
-            network=self._network,
-            block=self.block,
-            timestamp=self._timestamp,
-            known_data=known_data["pool"],
-        )
-        self._token0 = erc20_multicall(
-            address=known_data["token0"]["address"],
-            network=self._network,
-            block=self.block,
-            timestamp=self._timestamp,
-            known_data=known_data["token0"],
-        )
-        self._token1 = erc20_multicall(
-            address=known_data["token1"]["address"],
-            network=self._network,
-            block=self.block,
-            timestamp=self._timestamp,
-            known_data=known_data["token1"],
-        )
-
-
-class gamma_hypervisor_bep20(bep20, gamma_hypervisor):
-    # SETUP
-    def __init__(
+    # builds
+    def build_pool(
         self,
         address: str,
         network: str,
-        abi_filename: str = "",
-        abi_path: str = "",
-        block: int = 0,
-        timestamp: int = 0,
-        custom_web3: Web3 | None = None,
-        custom_web3Url: str | None = None,
-    ):
-        self._abi_filename = abi_filename or ABI_FILENAME
-        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
-
-        self._pool: poolv3_bep20 | None = None
-        self._token0: bep20 | None = None
-        self._token1: bep20 | None = None
-
-        super().__init__(
+        block: int,
+        timestamp: int | None = None,
+        processed_calls: list | None = None,
+    ) -> poolv3_multicall:
+        return poolv3_multicall(
             address=address,
             network=network,
-            abi_filename=self._abi_filename,
-            abi_path=self._abi_path,
             block=block,
             timestamp=timestamp,
-            custom_web3=custom_web3,
-            custom_web3Url=custom_web3Url,
+            processed_calls=processed_calls,
         )
 
-    @property
-    def pool(self) -> poolv3_bep20:
-        if self._pool is None:
-            self._pool = poolv3_bep20(
-                address=self.call_function_autoRpc("pool"),
-                network=self._network,
-                block=self.block,
-            )
-        return self._pool
-
-    @property
-    def token0(self) -> bep20:
-        if self._token0 is None:
-            self._token0 = bep20(
-                address=self.call_function_autoRpc("token0"),
-                network=self._network,
-                block=self.block,
-            )
-        return self._token0
-
-    @property
-    def token1(self) -> bep20:
-        if self._token1 is None:
-            self._token1 = bep20(
-                address=self.call_function_autoRpc("token1"),
-                network=self._network,
-                block=self.block,
-            )
-        return self._token1
-
-    def _build_fixed_objects_from_multicall_result(self, multicall_result: dict):
-        # build fixed objects like (pool, token0, token1..)
-        try:
-            if self._pool is None:
-                self._pool = poolv3_bep20(
-                    address=multicall_result["pool"],
-                    network=self._network,
-                    block=self.block,
-                )
-        except:
-            pass
-        try:
-            if self._token0 is None:
-                self._token0 = bep20(
-                    address=multicall_result["token0"],
-                    network=self._network,
-                    block=self.block,
-                )
-        except:
-            pass
-        try:
-            if self._token1 is None:
-                self._token1 = bep20(
-                    address=multicall_result["token1"],
-                    network=self._network,
-                    block=self.block,
-                )
-        except:
-            pass
+    def build_token(
+        self,
+        address: str,
+        network: str,
+        block: int,
+        timestamp: int | None = None,
+        processed_calls: list | None = None,
+    ) -> erc20_multicall:
+        return erc20_multicall(
+            address=address,
+            network=network,
+            block=block,
+            timestamp=timestamp,
+            processed_calls=processed_calls,
+        )
 
 
-class gamma_hypervisor_bep20_cached(bep20_cached, gamma_hypervisor_bep20):
+class gamma_hypervisor_bep20(gamma_hypervisor):
+    def _initialize_objects(self):
+        self._pool: poolv3_bep20 = None
+        self._token0: bep20 = None
+        self._token1: bep20 = None
+
+    # builds
+    def build_pool(
+        self,
+        address: str,
+        network: str,
+        block: int,
+        timestamp: int | None = None,
+    ) -> poolv3_bep20:
+        return poolv3_bep20(
+            address=address, network=network, block=block, timestamp=timestamp
+        )
+
+    def build_token(
+        self,
+        address: str,
+        network: str,
+        block: int,
+        timestamp: int | None = None,
+    ) -> bep20:
+        return bep20(address=address, network=network, block=block, timestamp=timestamp)
+
+
+class gamma_hypervisor_bep20_cached(gamma_hypervisor_bep20, bep20_cached):
     SAVE2FILE = True
 
     # PROPERTIES
@@ -1991,10 +2055,11 @@ class gamma_hypervisor_bep20_cached(bep20_cached, gamma_hypervisor_bep20):
                     data=result,
                     save2file=self.SAVE2FILE,
                 )
-            self._pool = poolv3_bep20_cached(
+            self._pool = self.build_pool(
                 address=result,
                 network=self._network,
                 block=self.block,
+                timestamp=self._timestamp,
             )
         return self._pool
 
@@ -2040,10 +2105,11 @@ class gamma_hypervisor_bep20_cached(bep20_cached, gamma_hypervisor_bep20):
                     data=result,
                     save2file=self.SAVE2FILE,
                 )
-            self._token0 = bep20_cached(
+            self._token0 = self.build_token(
                 address=result,
                 network=self._network,
                 block=self.block,
+                timestamp=self._timestamp,
             )
         return self._token0
 
@@ -2068,10 +2134,11 @@ class gamma_hypervisor_bep20_cached(bep20_cached, gamma_hypervisor_bep20):
                     data=result,
                     save2file=self.SAVE2FILE,
                 )
-            self._token1 = bep20_cached(
+            self._token1 = self.build_token(
                 address=result,
                 network=self._network,
                 block=self.block,
+                timestamp=self._timestamp,
             )
         return self._token1
 
@@ -2096,39 +2163,65 @@ class gamma_hypervisor_bep20_cached(bep20_cached, gamma_hypervisor_bep20):
             )
         return result
 
+    # builds
+    def build_pool(
+        self,
+        address: str,
+        network: str,
+        block: int,
+        timestamp: int | None = None,
+    ) -> poolv3_bep20_cached:
+        return poolv3_bep20_cached(
+            address=address, network=network, block=block, timestamp=timestamp
+        )
+
+    def build_token(
+        self,
+        address: str,
+        network: str,
+        block: int,
+        timestamp: int | None = None,
+    ) -> bep20_cached:
+        return bep20_cached(
+            address=address, network=network, block=block, timestamp=timestamp
+        )
+
 
 class gamma_hypervisor_bep20_multicall(gamma_hypervisor_multicall):
-    @property
-    def pool(self) -> poolv3_bep20_multicall:
-        return self._pool
+    def _initialize_objects(self):
+        self._pool: poolv3_bep20_multicall = None
+        self._token0: bep20_multicall = None
+        self._token1: bep20_multicall = None
 
-    @property
-    def token0(self) -> bep20_multicall:
-        return self._token0
-
-    @property
-    def token1(self) -> bep20_multicall:
-        return self._token1
-
-    def _fill_from_known_data_objects(self, known_data: dict):
-        self._pool = poolv3_bep20_multicall(
-            address=known_data["pool"]["address"],
-            network=self._network,
-            block=self.block,
-            timestamp=self._timestamp,
-            known_data=known_data["pool"],
+    # builds
+    def build_pool(
+        self,
+        address: str,
+        network: str,
+        block: int,
+        timestamp: int | None = None,
+        processed_calls: list | None = None,
+    ) -> poolv3_bep20_multicall:
+        return poolv3_bep20_multicall(
+            address=address,
+            network=network,
+            block=block,
+            timestamp=timestamp,
+            processed_calls=processed_calls,
         )
-        self._token0 = bep20_multicall(
-            address=known_data["token0"]["address"],
-            network=self._network,
-            block=self.block,
-            timestamp=self._timestamp,
-            known_data=known_data["token0"],
-        )
-        self._token1 = bep20_multicall(
-            address=known_data["token1"]["address"],
-            network=self._network,
-            block=self.block,
-            timestamp=self._timestamp,
-            known_data=known_data["token1"],
+
+    def build_token(
+        self,
+        address: str,
+        network: str,
+        block: int,
+        timestamp: int | None = None,
+        processed_calls: list | None = None,
+    ) -> bep20_multicall:
+        return bep20_multicall(
+            address=address,
+            network=network,
+            block=block,
+            timestamp=timestamp,
+            processed_calls=processed_calls,
         )

@@ -1,3 +1,4 @@
+import logging
 from web3 import Web3
 from eth_abi import abi
 
@@ -9,8 +10,6 @@ from ...cache import cache_utilities
 
 
 # ERC20
-
-
 class erc20(web3wrap):
     # SETUP
     def __init__(
@@ -24,8 +23,8 @@ class erc20(web3wrap):
         custom_web3: Web3 | None = None,
         custom_web3Url: str | None = None,
     ):
-        self._abi_filename = abi_filename or "erc20"
-        self._abi_path = abi_path or self.abi_root_path
+        self._initialize_abi(abi_filename=abi_filename, abi_path=abi_path)
+        self._initialize_objects()
 
         super().__init__(
             address=address,
@@ -37,6 +36,13 @@ class erc20(web3wrap):
             custom_web3=custom_web3,
             custom_web3Url=custom_web3Url,
         )
+
+    def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
+        self._abi_filename = abi_filename or "erc20"
+        self._abi_path = abi_path or self.abi_root_path
+
+    def _initialize_objects(self):
+        pass
 
     def inmutable_fields(self) -> dict[str, bool]:
         """inmutable fields by contract
@@ -260,10 +266,10 @@ class erc20_multicall(erc20):
         timestamp: int = 0,
         custom_web3: Web3 | None = None,
         custom_web3Url: str | None = None,
-        known_data: dict | None = None,
+        processed_calls: list | None = None,
     ):
-        self._abi_filename = abi_filename or "erc20"
-        self._abi_path = abi_path or self.abi_root_path
+        self._initialize_abi(abi_filename=abi_filename, abi_path=abi_path)
+        self._initialize_objects()
 
         super().__init__(
             address=address,
@@ -276,8 +282,11 @@ class erc20_multicall(erc20):
             custom_web3Url=custom_web3Url,
         )
 
-        if known_data:
-            self._fill_from_known_data(known_data=known_data)
+        if processed_calls:
+            self._fill_from_processed_calls(processed_calls=processed_calls)
+
+    def _initialize_objects(self):
+        self._balanceOf: dict[str, int] = {}
 
     # PROPERTIES
     @property
@@ -292,15 +301,57 @@ class erc20_multicall(erc20):
     def symbol(self) -> str:
         return self._symbol
 
-    def _fill_from_known_data(self, known_data: dict):
+    def balanceOf(self, address: str) -> int:
+        _address = Web3.toChecksumAddress(address)
+
+        if not _address in self._balanceOf:
+            self._balanceOf[_address] = super().balanceOf(address)
+        return self._balanceOf[_address]
+
+    def _fill_from_processed_calls(self, processed_calls: list):
         """Fill data from known data dict
 
         Args:
-            known_data (dict): known data dict
+            processed_calls (dict): known data dict
         """
-        self._decimals = known_data["decimals"]
-        self._totalSupply = known_data["totalSupply"]
-        self._symbol = known_data["symbol"]
+        _this_object_names = ["token0", "token1"]
+        for _pCall in processed_calls:
+            # filter by address
+            if _pCall["address"].lower() == self._address.lower():
+                # filter by type
+                if _pCall["object"] in _this_object_names:
+                    if _pCall["name"] in [
+                        "decimals",
+                        "totalSupply",
+                        "symbol",
+                        "name",
+                    ]:
+                        # one output only
+                        if len(_pCall["outputs"]) != 1:
+                            raise ValueError(
+                                f"Expected only one output for {_pCall['name']}"
+                            )
+                        # check if value exists
+                        if "value" not in _pCall["outputs"][0]:
+                            raise ValueError(
+                                f"Expected value in output for {_pCall['name']}"
+                            )
+                        _object_name = f"_{_pCall['name']}"
+                        setattr(self, _object_name, _pCall["outputs"][0]["value"])
+                    elif _pCall["name"] == "balanceOf":
+                        _object_name = f"_{_pCall['name']}"
+
+                        if getattr(self, _object_name, None) is None:
+                            setattr(self, _object_name, {})
+
+                        getattr(self, _object_name)[
+                            _pCall["inputs"][0]["value"]
+                        ] = _pCall["outputs"][0]["value"]
+                    else:
+                        logging.getLogger(__name__).debug(
+                            f" {_pCall['name']} multicall field not defined to be processed. Ignoring"
+                        )
+                        # raise ValueError(f"Unknown function {_pCall['name']}")
 
 
 # BEP20
@@ -435,7 +486,7 @@ class bep20_multicall(erc20_multicall):
         timestamp: int = 0,
         custom_web3: Web3 | None = None,
         custom_web3Url: str | None = None,
-        known_data: dict | None = None,
+        processed_calls: list | None = None,
     ):
         self._abi_filename = abi_filename or "bep20"
         self._abi_path = abi_path or self.abi_root_path
@@ -449,8 +500,5 @@ class bep20_multicall(erc20_multicall):
             timestamp=timestamp,
             custom_web3=custom_web3,
             custom_web3Url=custom_web3Url,
-            known_data=known_data,
+            processed_calls=processed_calls,
         )
-
-        # if known_data:
-        #     self._fill_from_known_data(known_data=known_data)

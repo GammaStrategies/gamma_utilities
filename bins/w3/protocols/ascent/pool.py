@@ -1,81 +1,22 @@
-from web3 import Web3
 from ....general.enums import Protocol
-from .. import uniswap
+from .. import pancakeswap
 
 # TODO: https://polygonscan.com/address/0x8486881bcbda4f6f494e9a4e7dfa37f24aa80cb0#readContract
 
-# ABI_FILENAME = "ascent_v3_pool"
-# ABI_FOLDERNAME = "ascent"
-ABI_FILENAME = "pancakeswapv3_pool"
-ABI_FOLDERNAME = "pancakeswap"
+
 DEX_NAME = Protocol.ASCENT.database_name
 
 
-class pool(uniswap.pool.poolv3):
-    # SETUP
-    def __init__(
-        self,
-        address: str,
-        network: str,
-        abi_filename: str = "",
-        abi_path: str = "",
-        block: int = 0,
-        timestamp: int = 0,
-        custom_web3: Web3 | None = None,
-        custom_web3Url: str | None = None,
-    ):
-        self._abi_filename = abi_filename or ABI_FILENAME
-        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
-
-        super().__init__(
-            address=address,
-            network=network,
-            abi_filename=self._abi_filename,
-            abi_path=self._abi_path,
-            block=block,
-            timestamp=timestamp,
-            custom_web3=custom_web3,
-            custom_web3Url=custom_web3Url,
-        )
-
+class pool(pancakeswap.pool.pool):
     def identify_dex_name(self) -> str:
         return DEX_NAME
 
 
-class pool_cached(pool, uniswap.pool.poolv3_cached):
-    pass
+class pool_cached(pancakeswap.pool.pool_cached):
+    def identify_dex_name(self) -> str:
+        return DEX_NAME
 
 
-class pool_multicall(uniswap.pool.poolv3_multicall):
-    # SETUP
-    def __init__(
-        self,
-        address: str,
-        network: str,
-        abi_filename: str = "",
-        abi_path: str = "",
-        block: int = 0,
-        timestamp: int = 0,
-        custom_web3: Web3 | None = None,
-        custom_web3Url: str | None = None,
-        known_data: dict | None = None,
-    ):
-        self._abi_filename = abi_filename or ABI_FILENAME
-        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
-
-        super().__init__(
-            address=address,
-            network=network,
-            abi_filename=self._abi_filename,
-            abi_path=self._abi_path,
-            block=block,
-            timestamp=timestamp,
-            custom_web3=custom_web3,
-            custom_web3Url=custom_web3Url,
-        )
-
-        if known_data:
-            self._fill_from_known_data(known_data=known_data)
-
+class pool_multicall(pancakeswap.pool.pool_multicall):
     def identify_dex_name(self) -> str:
         return DEX_NAME

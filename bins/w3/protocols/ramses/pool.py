@@ -2,10 +2,10 @@ from copy import deepcopy
 import logging
 from hexbytes import HexBytes
 from web3 import Web3
+from bins.w3.helpers.multicaller import build_call
 
-from bins.w3.protocols.general import erc20_cached
+from bins.w3.protocols.general import erc20_cached, erc20_multicall
 
-from ....cache import cache_utilities
 from ....errors.general import ProcessingError
 from ....formulas.position import get_positionKey_ramses
 from ....general.enums import Protocol, error_identity, text_to_chain
@@ -27,31 +27,9 @@ INMUTABLE_FIELDS = {
 
 
 class pool(uniswap.pool.poolv3):
-    # SETUP
-    def __init__(
-        self,
-        address: str,
-        network: str,
-        abi_filename: str = "",
-        abi_path: str = "",
-        block: int = 0,
-        timestamp: int = 0,
-        custom_web3: Web3 | None = None,
-        custom_web3Url: str | None = None,
-    ):
+    def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
         self._abi_filename = abi_filename or ABI_FILENAME
         self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
-
-        super().__init__(
-            address=address,
-            network=network,
-            abi_filename=self._abi_filename,
-            abi_path=self._abi_path,
-            block=block,
-            timestamp=timestamp,
-            custom_web3=custom_web3,
-            custom_web3Url=custom_web3Url,
-        )
 
     def identify_dex_name(self) -> str:
         return DEX_NAME
@@ -296,7 +274,14 @@ class pool(uniswap.pool.poolv3):
         )
 
 
-class pool_cached(pool, uniswap.pool.poolv3_cached):
+class pool_cached(uniswap.pool.poolv3_cached, pool):
+    def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
+        self._abi_filename = abi_filename or ABI_FILENAME
+        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+
+    def identify_dex_name(self) -> str:
+        return DEX_NAME
+
     # PROPERTIES
     @property
     def fee(self) -> int:
@@ -543,36 +528,10 @@ class pool_cached(pool, uniswap.pool.poolv3_cached):
         return self._token1
 
 
-class pool_multicall(uniswap.pool.poolv3_multicall):
-    # SETUP
-    def __init__(
-        self,
-        address: str,
-        network: str,
-        abi_filename: str = "",
-        abi_path: str = "",
-        block: int = 0,
-        timestamp: int = 0,
-        custom_web3: Web3 | None = None,
-        custom_web3Url: str | None = None,
-        known_data: dict | None = None,
-    ):
+class pool_multicall(uniswap.pool.poolv3_multicall, pool):
+    def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
         self._abi_filename = abi_filename or ABI_FILENAME
         self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
-
-        super().__init__(
-            address=address,
-            network=network,
-            abi_filename=self._abi_filename,
-            abi_path=self._abi_path,
-            block=block,
-            timestamp=timestamp,
-            custom_web3=custom_web3,
-            custom_web3Url=custom_web3Url,
-        )
-
-        if known_data:
-            self._fill_from_known_data(known_data=known_data)
 
     def identify_dex_name(self) -> str:
         return DEX_NAME
@@ -602,115 +561,251 @@ class pool_multicall(uniswap.pool.poolv3_multicall):
 
     @property
     def nfpManager(self) -> str:
-        return self._nfpManager
+        return self._nfpManager.lower()
 
     @property
     def veRam(self) -> str:
-        return self._veRam
+        return self._veRam.lower()
 
     @property
     def voter(self) -> str:
-        return self._voter
+        return self._voter.lower()
 
     @property
     def protocolFees(self) -> tuple[int, int]:
         return deepcopy(self._protocolFees)
 
-    # CUSTOM
-    # def ticks(self, tick: int) -> dict:
-    #     """
+    # builds
+    def build_token(
+        self,
+        address: str,
+        network: str,
+        block: int,
+        timestamp: int | None = None,
+        processed_calls: list = None,
+    ) -> erc20_multicall:
+        return erc20_multicall(
+            address=address,
+            network=network,
+            block=block,
+            timestamp=timestamp,
+            processed_calls=processed_calls,
+        )
 
-    #     Args:
-    #        tick (int):
+    def _fill_from_processed_calls(self, processed_calls: list):
+        _this_object_names = ["pool"]
+        for _pCall in processed_calls:
+            # filter by address
+            if _pCall["address"].lower() == self._address.lower():
+                # filter by type
+                if _pCall["object"] in _this_object_names:
+                    if _pCall["name"] in [
+                        "factory",
+                        "fee",
+                        "feeGrowthGlobal0X128",
+                        "feeGrowthGlobal1X128",
+                        "liquidity",
+                        "maxLiquidityPerTick",
+                        "tickSpacing",
+                        "lmPool",
+                        "boostedLiquidity",
+                        "currentFee",
+                        "lastPeriod",
+                        "nfpManager",
+                        "veRam",
+                        "voter",
+                    ]:
+                        # one output only
+                        if len(_pCall["outputs"]) != 1:
+                            raise ValueError(
+                                f"Expected only one output for {_pCall['name']}"
+                            )
+                        # check if value exists
+                        if "value" not in _pCall["outputs"][0]:
+                            raise ValueError(
+                                f"Expected value in output for {_pCall['name']}"
+                            )
+                        _object_name = f"_{_pCall['name']}"
+                        setattr(self, _object_name, _pCall["outputs"][0]["value"])
+                    elif _pCall["name"] == "slot0":
+                        _object_name = f"_{_pCall['name']}"
+                        setattr(
+                            self,
+                            _object_name,
+                            {
+                                "sqrtPriceX96": _pCall["outputs"][0]["value"],
+                                "tick": _pCall["outputs"][1]["value"],
+                                "observationIndex": _pCall["outputs"][2]["value"],
+                                "observationCardinality": _pCall["outputs"][3]["value"],
+                                "observationCardinalityNext": _pCall["outputs"][4][
+                                    "value"
+                                ],
+                                "feeProtocol": _pCall["outputs"][5]["value"],
+                                "unlocked": _pCall["outputs"][6]["value"],
+                            },
+                        )
+                    elif _pCall["name"] == "protocolFees":
+                        _object_name = f"_{_pCall['name']}"
+                        setattr(
+                            self,
+                            _object_name,
+                            (
+                                _pCall["outputs"][0]["value"],
+                                _pCall["outputs"][1]["value"],
+                            ),
+                        )
+                    elif _pCall["name"] in ["token0", "token1"]:
+                        _object_name = f"_{_pCall['name']}"
+                        setattr(
+                            self,
+                            _object_name,
+                            self.build_token(
+                                address=_pCall["outputs"][0]["value"],
+                                network=self._network,
+                                block=self.block,
+                                timestamp=self._timestamp,
+                                processed_calls=processed_calls,
+                            ),
+                        )
 
-    #     Returns:
-    #        _type_:     liquidityGross   uint128 :  0
-    #                    liquidityNet   int128 :  0
-    #                    feeGrowthOutside0X128   uint256 :  0
-    #                    feeGrowthOutside1X128   uint256 :  0
-    #                    tickCumulativeOutside   int56 :  0
-    #                    spoolecondsPerLiquidityOutsideX128   uint160 :  0
-    #                    secondsOutside   uint32 :  0
-    #                    initialized   bool :  false
-    #     """
-    #     if not tick in self._ticks:
-    #         if result := self.call_function_autoRpc("ticks", None, tick):
-    #             self._ticks[tick] = {
-    #                 "liquidityGross": result[0],
-    #                 "liquidityNet": result[1],
-    #                 "boostedLiquidityGross": result[2],
-    #                 "boostedLiquidityNet": result[3],
-    #                 "feeGrowthOutside0X128": result[4],
-    #                 "feeGrowthOutside1X128": result[5],
-    #                 "tickCumulativeOutside": result[6],
-    #                 "secondsPerLiquidityOutsideX128": result[7],
-    #                 "secondsOutside": result[8],
-    #                 "initialized": result[9],
-    #             }
-    #         else:
-    #             raise ProcessingError(
-    #                 chain=text_to_chain(self._network),
-    #                 item={
-    #                     "pool_address": self.address,
-    #                     "block": self.block,
-    #                     "object": "pool.ticks",
-    #                 },
-    #                 identity=error_identity.RETURN_NONE,
-    #                 action="",
-    #                 message=f" ticks function of {self.address} at block {self.block} returned none. (Check contract creation block)",
-    #             )
-    #     return deepcopy(self._ticks[tick])
+                    elif _pCall["name"] == "ticks":
+                        _object_name = f"_{_pCall['name']}"
+                        # create if not exists
+                        if getattr(self, _object_name, None) is None:
+                            setattr(self, _object_name, {})
+                        # set
+                        getattr(self, _object_name)[_pCall["inputs"][0]["value"]] = {
+                            "liquidityGross": _pCall["outputs"][0]["value"],
+                            "liquidityNet": _pCall["outputs"][1]["value"],
+                            "boostedLiquidityGross": _pCall["outputs"][2]["value"],
+                            "boostedLiquidityNet": _pCall["outputs"][3]["value"],
+                            "feeGrowthOutside0X128": _pCall["outputs"][4]["value"],
+                            "feeGrowthOutside1X128": _pCall["outputs"][5]["value"],
+                            "tickCumulativeOutside": _pCall["outputs"][6]["value"],
+                            "secondsPerLiquidityOutsideX128": _pCall["outputs"][7][
+                                "value"
+                            ],
+                            "secondsOutside": _pCall["outputs"][8]["value"],
+                            "initialized": _pCall["outputs"][9]["value"],
+                        }
+                    elif _pCall["name"] == "positions":
+                        _object_name = f"_{_pCall['name']}"
+                        # create if not exists
+                        if getattr(self, _object_name, None) is None:
+                            setattr(self, _object_name, {})
+                        # set
+                        getattr(self, _object_name)[_pCall["inputs"][0]["value"]] = {
+                            "liquidity": _pCall["outputs"][0]["value"],
+                            "feeGrowthInside0LastX128": _pCall["outputs"][1]["value"],
+                            "feeGrowthInside1LastX128": _pCall["outputs"][2]["value"],
+                            "tokensOwed0": _pCall["outputs"][3]["value"],
+                            "tokensOwed1": _pCall["outputs"][4]["value"],
+                            "attachedVeRamId": _pCall["outputs"][5]["value"],
+                        }
 
-    # def positions(self, position_key: str) -> dict:
-    #     """
+                    else:
+                        logging.getLogger(__name__).debug(
+                            f" {_pCall['name']} multicall field not defined to be processed. Ignoring"
+                        )
 
-    #     Args:
-    #        position_key (str): 0x....
+    def _create_call_position(
+        self, ownerAddress, tickLower, tickUpper, object_name: str = "pool"
+    ) -> dict:
+        _position_key = get_positionKey_ramses(
+            ownerAddress=ownerAddress,
+            tickLower=tickLower,
+            tickUpper=tickUpper,
+        )
 
-    #     Returns:
-    #        _type_:
-    #                liquidity   uint128 :  99225286851746
-    #                feeGrowthInside0LastX128   uint256 :  0
-    #                feeGrowthInside1LastX128   uint256 :  0
-    #                tokensOwed0   uint128 :  0
-    #                tokensOwed1   uint128 :  0
-    #     """
+        _position_key = (
+            HexBytes(_position_key) if type(_position_key) == str else _position_key
+        )
 
-    #     if not position_key in self._positions:
-    #         position_key = (
-    #             HexBytes(position_key) if type(position_key) == str else position_key
-    #         )
-    #         if result := self.call_function_autoRpc("positions", None, position_key):
-    #             self._positions[position_key] = {
-    #                 "liquidity": result[0],
-    #                 "feeGrowthInside0LastX128": result[1],
-    #                 "feeGrowthInside1LastX128": result[2],
-    #                 "tokensOwed0": result[3],
-    #                 "tokensOwed1": result[4],
-    #                 "attachedVeRamId": result[5],
-    #             }
-    #         else:
-    #             raise ProcessingError(
-    #                 chain=text_to_chain(self._network),
-    #                 item={
-    #                     "pool_address": self.address,
-    #                     "block": self.block,
-    #                     "object": "pool.positions",
-    #                 },
-    #                 identity=error_identity.RETURN_NONE,
-    #                 action="",
-    #                 message=f" positions function of {self.address} at block {self.block} returned none using {position_key} as position_key",
-    #             )
+        return build_call(
+            inputs=[
+                {
+                    "internalType": "bytes32",
+                    "name": "",
+                    "type": "bytes32",
+                    "value": _position_key,
+                }
+            ],
+            name="positions",
+            outputs=[
+                {"internalType": "uint128", "name": "liquidity", "type": "uint128"},
+                {
+                    "internalType": "uint256",
+                    "name": "feeGrowthInside0LastX128",
+                    "type": "uint256",
+                },
+                {
+                    "internalType": "uint256",
+                    "name": "feeGrowthInside1LastX128",
+                    "type": "uint256",
+                },
+                {"internalType": "uint128", "name": "tokensOwed0", "type": "uint128"},
+                {"internalType": "uint128", "name": "tokensOwed1", "type": "uint128"},
+                {
+                    "internalType": "uint256",
+                    "name": "attachedVeRamId",
+                    "type": "uint256",
+                },
+            ],
+            address=self._address,
+            object=object_name,
+        )
 
-    #     return deepcopy(self._positions[position_key])
-
-    def _fill_from_known_data(self, known_data: dict):
-        self._currentFee = known_data["currentFee"]
-        self._boostedLiquidity = known_data["boostedLiquidity"]
-        self._lastPeriod = known_data["lastPeriod"]
-        self._nfpManager = known_data["nfpManager"]
-        self._veRam = known_data["veRam"]
-        self._voter = known_data["voter"]
-        self._protocolFees = known_data["protocolFees"]
-
-        super()._fill_from_known_data(known_data=known_data)
+    def _create_call_ticks(self, tick: int, object_name: str = "pool") -> dict:
+        return build_call(
+            inputs=[
+                {
+                    "internalType": "int24",
+                    "name": "",
+                    "type": "int24",
+                    "value": tick,
+                }
+            ],
+            name="ticks",
+            outputs=[
+                {
+                    "internalType": "uint128",
+                    "name": "liquidityGross",
+                    "type": "uint128",
+                },
+                {"internalType": "int128", "name": "liquidityNet", "type": "int128"},
+                {
+                    "internalType": "uint128",
+                    "name": "boostedLiquidityGross",
+                    "type": "uint128",
+                },
+                {
+                    "internalType": "int128",
+                    "name": "boostedLiquidityNet",
+                    "type": "int128",
+                },
+                {
+                    "internalType": "uint256",
+                    "name": "feeGrowthOutside0X128",
+                    "type": "uint256",
+                },
+                {
+                    "internalType": "uint256",
+                    "name": "feeGrowthOutside1X128",
+                    "type": "uint256",
+                },
+                {
+                    "internalType": "int56",
+                    "name": "tickCumulativeOutside",
+                    "type": "int56",
+                },
+                {
+                    "internalType": "uint160",
+                    "name": "secondsPerLiquidityOutsideX128",
+                    "type": "uint160",
+                },
+                {"internalType": "uint32", "name": "secondsOutside", "type": "uint32"},
+                {"internalType": "bool", "name": "initialized", "type": "bool"},
+            ],
+            address=self._address,
+            object=object_name,
+        )

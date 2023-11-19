@@ -1,10 +1,12 @@
 from copy import deepcopy
+import logging
 from web3 import Web3
 
 from bins.errors.general import ProcessingError
+from bins.w3.protocols.algebra.pool import dataStorageOperator
 from ....general.enums import Protocol, error_identity, text_to_chain
 from .. import algebra
-from ..general import erc20_cached
+from ..general import erc20_cached, erc20_multicall
 
 
 ABI_FILENAME = "camelot_pool"
@@ -17,31 +19,9 @@ DEX_NAME = Protocol.CAMELOT.database_name
 
 
 class pool(algebra.pool.poolv3):
-    # SETUP
-    def __init__(
-        self,
-        address: str,
-        network: str,
-        abi_filename: str = "",
-        abi_path: str = "",
-        block: int = 0,
-        timestamp: int = 0,
-        custom_web3: Web3 | None = None,
-        custom_web3Url: str | None = None,
-    ):
+    def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
         self._abi_filename = abi_filename or ABI_FILENAME
         self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
-
-        super().__init__(
-            address=address,
-            network=network,
-            abi_filename=self._abi_filename,
-            abi_path=self._abi_path,
-            block=block,
-            timestamp=timestamp,
-            custom_web3=custom_web3,
-            custom_web3Url=custom_web3Url,
-        )
 
     def identify_dex_name(self) -> str:
         return DEX_NAME
@@ -96,8 +76,8 @@ class pool(algebra.pool.poolv3):
                 "fee": tmp[2],
                 "timepointIndex": tmp[4],
                 "communityFeeToken0": tmp[5],
-                "communityFeeToken1": tmp[5],
-                "unlocked": tmp[6],
+                "communityFeeToken1": tmp[6],
+                "unlocked": tmp[7],
                 # special
                 "feeZto": tmp[2],
                 "feeOtz": tmp[3],
@@ -118,6 +98,11 @@ class pool(algebra.pool.poolv3):
 
 class pool_cached(pool):
     SAVE2FILE = True
+
+    def _initialize_objects(self):
+        self._token0: erc20_cached = None
+        self._token1: erc20_cached = None
+        self._dataStorage: dataStorageOperator = None
 
     # PROPERTIES
 
@@ -323,10 +308,11 @@ class pool_cached(pool):
                     data=result,
                     save2file=self.SAVE2FILE,
                 )
-            self._token0 = erc20_cached(
+            self._token0 = self.build_token(
                 address=result,
                 network=self._network,
                 block=self.block,
+                timestamp=self._timestamp,
             )
         return self._token0
 
@@ -351,10 +337,11 @@ class pool_cached(pool):
                     data=result,
                     save2file=self.SAVE2FILE,
                 )
-            self._token1 = erc20_cached(
+            self._token1 = self.build_token(
                 address=result,
                 network=self._network,
                 block=self.block,
+                timestamp=self._timestamp,
             )
         return self._token1
 
@@ -400,37 +387,33 @@ class pool_cached(pool):
             )
         return result
 
-
-class pool_multicall(algebra.pool.poolv3_multicall):
-    # SETUP
-    def __init__(
+    # builds
+    def build_token(
         self,
         address: str,
         network: str,
-        abi_filename: str = "",
-        abi_path: str = "",
-        block: int = 0,
-        timestamp: int = 0,
-        custom_web3: Web3 | None = None,
-        custom_web3Url: str | None = None,
-        known_data: dict | None = None,
-    ):
+        block: int,
+        timestamp: int | None = None,
+    ) -> erc20_cached:
+        return erc20_cached(
+            address=address,
+            network=network,
+            block=block,
+            timestamp=timestamp,
+        )
+
+
+class pool_multicall(algebra.pool.poolv3_multicall):
+    def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
         self._abi_filename = abi_filename or ABI_FILENAME
         self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
 
-        super().__init__(
-            address=address,
-            network=network,
-            abi_filename=self._abi_filename,
-            abi_path=self._abi_path,
-            block=block,
-            timestamp=timestamp,
-            custom_web3=custom_web3,
-            custom_web3Url=custom_web3Url,
-        )
-
-        if known_data:
-            self._fill_from_known_data(known_data=known_data)
+    def _initialize_objects(self):
+        self._token0: erc20_multicall = None
+        self._token1: erc20_multicall = None
+        self._dataStorage: dataStorageOperator = None
+        self._ticks = {}
+        self._positions = {}
 
     def identify_dex_name(self) -> str:
         return DEX_NAME
@@ -441,7 +424,7 @@ class pool_multicall(algebra.pool.poolv3_multicall):
 
     @property
     def communityVault(self) -> str:
-        return self._communityVault
+        return self._communityVault.lower()
 
     @property
     def getCommunityFeePending(self) -> tuple[int, int]:
@@ -461,31 +444,138 @@ class pool_multicall(algebra.pool.poolv3_multicall):
         """
         return deepcopy(self._getReserves)
 
-    def _fill_from_known_data(self, known_data: dict):
-        self._factory = known_data["factory"]
-        self._communityFeeLastTimestamp = known_data["communityFeeLastTimestamp"]
-        self._communityVault = known_data["communityVault"]
-        self._getCommunityFeePending = known_data["getCommunityFeePending"]
-        self._getReserves = known_data["getReserves"]
-        self._feeGrowthGlobal0X128 = known_data["totalFeeGrowth0Token"]
-        self._feeGrowthGlobal1X128 = known_data["totalFeeGrowth1Token"]
-        self._liquidity = known_data["liquidity"]
-        self._maxLiquidityPerTick = known_data["maxLiquidityPerTick"]
-        # self._protocolFees = known_data["protocolFees"]
-        self._tickSpacing = known_data["tickSpacing"]
-        self._activeIncentive = known_data["activeIncentive"]
-        self._liquidityCooldown = known_data["liquidityCooldown"]
-        self._globalState = {
-            "sqrtPriceX96": known_data["globalState"][0],
-            "tick": known_data["globalState"][1],
-            "fee": known_data["globalState"][2],
-            "timepointIndex": known_data["globalState"][4],
-            "communityFeeToken0": known_data["globalState"][5],
-            "communityFeeToken1": known_data["globalState"][5],
-            "unlocked": known_data["globalState"][6],
-            # special
-            "feeZto": known_data["globalState"][2],
-            "feeOtz": known_data["globalState"][3],
-        }
+    # builds
+    def build_token(
+        self,
+        address: str,
+        network: str,
+        block: int,
+        timestamp: int | None = None,
+        processed_calls: list = None,
+    ) -> erc20_multicall:
+        return erc20_multicall(
+            address=address,
+            network=network,
+            block=block,
+            timestamp=timestamp,
+            processed_calls=processed_calls,
+        )
 
-        self._fill_from_known_data_objects(known_data=known_data)
+    def _fill_from_processed_calls(self, processed_calls: list):
+        _this_object_names = ["pool"]
+        for _pCall in processed_calls:
+            # filter by address
+            if _pCall["address"].lower() == self._address.lower():
+                # filter by type
+                if _pCall["object"] in _this_object_names:
+                    if _pCall["name"] in [
+                        "factory",
+                        "totalFeeGrowth0Token",
+                        "totalFeeGrowth1Token",
+                        "liquidity",
+                        "maxLiquidityPerTick",
+                        "tickSpacing",
+                        "activeIncentive",
+                        "liquidityCooldown",
+                        "communityVault",
+                        "communityFeeLastTimestamp",
+                    ]:
+                        # one output only
+                        if len(_pCall["outputs"]) != 1:
+                            raise ValueError(
+                                f"Expected only one output for {_pCall['name']}"
+                            )
+                        # check if value exists
+                        if "value" not in _pCall["outputs"][0]:
+                            raise ValueError(
+                                f"Expected value in output for {_pCall['name']}"
+                            )
+                        _object_name = f"_{_pCall['name']}"
+                        setattr(self, _object_name, _pCall["outputs"][0]["value"])
+                    elif _pCall["name"] == "globalState":
+                        _object_name = f"_{_pCall['name']}"
+                        setattr(
+                            self,
+                            _object_name,
+                            {
+                                "sqrtPriceX96": _pCall["outputs"][0]["value"],
+                                "tick": _pCall["outputs"][1]["value"],
+                                "fee": _pCall["outputs"][2]["value"],
+                                "timepointIndex": _pCall["outputs"][4]["value"],
+                                "communityFeeToken0": _pCall["outputs"][5]["value"],
+                                "communityFeeToken1": _pCall["outputs"][6]["value"],
+                                "unlocked": _pCall["outputs"][7]["value"],
+                                # special
+                                "feeZto": _pCall["outputs"][2]["value"],
+                                "feeOtz": _pCall["outputs"][3]["value"],
+                            },
+                        )
+                    elif _pCall["name"] in ["token0", "token1"]:
+                        _object_name = f"_{_pCall['name']}"
+                        setattr(
+                            self,
+                            _object_name,
+                            self.build_token(
+                                address=_pCall["outputs"][0]["value"],
+                                network=self._network,
+                                block=self.block,
+                                timestamp=self._timestamp,
+                                processed_calls=processed_calls,
+                            ),
+                        )
+                    elif _pCall["name"] == "dataStorageOperator":
+                        _object_name = f"_{_pCall['name']}"
+                        setattr(
+                            self,
+                            _object_name,
+                            dataStorageOperator(
+                                address=_pCall["outputs"][0]["value"],
+                                network=self._network,
+                                block=self.block,
+                                timestamp=self._timestamp,
+                            ),
+                        )
+                    elif _pCall["name"] in ["getCommunityFeePending", "getReserves"]:
+                        # tuples
+                        _object_name = f"_{_pCall['name']}"
+                        setattr(
+                            self,
+                            _object_name,
+                            [_o["value"] for _o in _pCall["outputs"]],
+                        )
+                    elif _pCall["name"] == "ticks":
+                        _object_name = f"_{_pCall['name']}"
+                        # create if not exists
+                        if getattr(self, _object_name, None) is None:
+                            setattr(self, _object_name, {})
+                        # set
+                        getattr(self, _object_name)[_pCall["inputs"][0]["value"]] = {
+                            "liquidityGross": _pCall["outputs"][0]["value"],
+                            "liquidityNet": _pCall["outputs"][1]["value"],
+                            "feeGrowthOutside0X128": _pCall["outputs"][2]["value"],
+                            "feeGrowthOutside1X128": _pCall["outputs"][3]["value"],
+                            "tickCumulativeOutside": _pCall["outputs"][4]["value"],
+                            "secondsPerLiquidityOutsideX128": _pCall["outputs"][5][
+                                "value"
+                            ],
+                            "secondsOutside": _pCall["outputs"][6]["value"],
+                            "initialized": _pCall["outputs"][7]["value"],
+                        }
+                    elif _pCall["name"] == "positions":
+                        _object_name = f"_{_pCall['name']}"
+                        # create if not exists
+                        if getattr(self, _object_name, None) is None:
+                            setattr(self, _object_name, {})
+                        # set
+                        getattr(self, _object_name)[_pCall["inputs"][0]["value"]] = {
+                            "liquidity": _pCall["outputs"][0]["value"],
+                            "feeGrowthInside0LastX128": _pCall["outputs"][1]["value"],
+                            "feeGrowthInside1LastX128": _pCall["outputs"][2]["value"],
+                            "tokensOwed0": _pCall["outputs"][3]["value"],
+                            "tokensOwed1": _pCall["outputs"][4]["value"],
+                        }
+
+                    else:
+                        logging.getLogger(__name__).debug(
+                            f" {_pCall['name']} multicall field not defined to be processed. Ignoring"
+                        )

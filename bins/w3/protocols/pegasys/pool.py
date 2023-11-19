@@ -1,5 +1,3 @@
-from web3 import Web3
-
 from ....general.enums import Protocol
 from .. import uniswap
 
@@ -9,73 +7,27 @@ DEX_NAME = Protocol.PEGASYS.database_name
 
 
 class pool(uniswap.pool.poolv3):
-    # SETUP
-    def __init__(
-        self,
-        address: str,
-        network: str,
-        abi_filename: str = "",
-        abi_path: str = "",
-        block: int = 0,
-        timestamp: int = 0,
-        custom_web3: Web3 | None = None,
-        custom_web3Url: str | None = None,
-    ):
+    def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
         self._abi_filename = abi_filename or ABI_FILENAME
         self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
-
-        super().__init__(
-            address=address,
-            network=network,
-            abi_filename=self._abi_filename,
-            abi_path=self._abi_path,
-            block=block,
-            timestamp=timestamp,
-            custom_web3=custom_web3,
-            custom_web3Url=custom_web3Url,
-        )
 
     def identify_dex_name(self) -> str:
         return DEX_NAME
 
-    # PROPERTIES
 
-
-class pool_cached(pool, uniswap.pool.poolv3_cached):
-    pass
-
-
-class pool_multicall(uniswap.pool.poolv3_multicall):
-    # SETUP
-    def __init__(
-        self,
-        address: str,
-        network: str,
-        abi_filename: str = "",
-        abi_path: str = "",
-        block: int = 0,
-        timestamp: int = 0,
-        custom_web3: Web3 | None = None,
-        custom_web3Url: str | None = None,
-        known_data: dict | None = None,
-    ):
+class pool_cached(uniswap.pool.poolv3_cached):
+    def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
         self._abi_filename = abi_filename or ABI_FILENAME
         self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
 
-        super().__init__(
-            address=address,
-            network=network,
-            abi_filename=self._abi_filename,
-            abi_path=self._abi_path,
-            block=block,
-            timestamp=timestamp,
-            custom_web3=custom_web3,
-            custom_web3Url=custom_web3Url,
-            known_data=known_data,
-        )
+    def identify_dex_name(self) -> str:
+        return DEX_NAME
 
-        # if known_data:
-        #     self._fill_from_known_data(known_data=known_data)
+
+class pool_multicall(uniswap.pool.poolv3_multicall):
+    def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
+        self._abi_filename = abi_filename or ABI_FILENAME
+        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
 
     def identify_dex_name(self) -> str:
         return DEX_NAME
