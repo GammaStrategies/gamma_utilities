@@ -15,7 +15,7 @@ from ...configuration import CONFIGURATION
 from ...config.current import WEB3_CHAIN_IDS  # ,CFG
 from ...general import file_utilities
 from ...cache import cache_utilities
-from ...general.enums import Chain, error_identity, text_to_chain
+from ...general.enums import Chain, cuType, error_identity, text_to_chain
 
 
 # main base class
@@ -475,7 +475,7 @@ class web3wrap:
             # get chunk entries
             try:
                 # add rpc attempt
-                rpc.add_attempt()
+                rpc.add_attempt(method=cuType.eth_getLogs)
                 if entries := self._w3.eth.filter(filter).get_all_entries():
                     # exit rpc loop
                     break
@@ -543,7 +543,7 @@ class web3wrap:
         # loop choose url
         for rpc in rpcs:
             try:
-                rpc.add_attempt()
+                rpc.add_attempt(method=cuType.eth_call)
                 # create web3 conn
                 chain_connection = self.setup_w3(network=self._network, web3Url=rpc.url)
                 # set root w3 conn
@@ -710,10 +710,16 @@ class web3wrap:
 
             except exceptions.BadFunctionCallOutput as e:
                 # web3.exceptions.BadFunctionCallOutput: Could not decode contract ..... with return data: b''
-                logging.getLogger(__name__).debug(
-                    f" {rpc.type} RPC {rpc.url} returned a BadFunctionCallOutput while calling function {function_name} in {self._network}'s contract {self.address} at block {self.block}. adding failed attempt. err: {e}"
-                )
-                rpc.add_failed(error=e)
+
+                if len(e.args) and "with return data: b''" in e.args[0]:
+                    # No bytes returned error: this may be an RPC error, so add it n try again
+                    rpc.add_failed(error=e)
+                else:
+                    logging.getLogger(__name__).error(
+                        f" {rpc.type} RPC {rpc.url} returned a BadFunctionCallOutput while calling function {function_name} in {self._network}'s contract {self.address} at block {self.block}. BREAKING. err: {e}"
+                    )
+                    # exit loop
+                    break
 
             except Exception as e:
                 # unknown error
@@ -781,7 +787,7 @@ class web3wrap:
         # get w3Provider list
         for rpc in RPC_MANAGER.get_rpc_list(network=self._network):
             try:
-                rpc.add_attempt()
+                rpc.add_attempt(method=cuType.eth_getTransactionReceipt)
                 _w3 = self.setup_w3(network=self._network, web3Url=rpc.url)
                 if "GENESIS" in txHash:
                     logging.getLogger(__name__).debug(
@@ -812,7 +818,7 @@ class web3wrap:
         # get w3Provider list
         for rpc in RPC_MANAGER.get_rpc_list(network=self._network):
             try:
-                rpc.add_attempt()
+                rpc.add_attempt(method=cuType.eth_getBlockByNumber)
                 _w3 = self.setup_w3(network=self._network, web3Url=rpc.url)
                 return _w3.eth.get_block(block)
 
@@ -869,7 +875,7 @@ class web3wrap:
         # get w3Provider list
         for rpc in RPC_MANAGER.get_rpc_list(network=self._network):
             try:
-                rpc.add_attempt()
+                rpc.add_attempt(method=cuType.eth_getCode)
                 _w3 = self.setup_w3(network=self._network, web3Url=rpc.url)
                 if contract_bytecode := self._w3.eth.get_code(
                     Web3.toChecksumAddress(self.address)

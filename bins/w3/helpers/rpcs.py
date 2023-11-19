@@ -4,6 +4,7 @@ import random
 import time
 
 from bins.configuration import CONFIGURATION
+from bins.general.enums import cuType
 
 
 class w3Provider:
@@ -24,6 +25,9 @@ class w3Provider:
         # cooldown
         self._cooldown = 120
         self._cooldown_start = time.time()
+
+        # CU costs tracker
+        self.compute_unit_cost = 0
 
     @property
     def url(self) -> str:
@@ -80,8 +84,9 @@ class w3Provider:
         else:
             self._modify_state()
 
-    def add_attempt(self):
+    def add_attempt(self, method: cuType | None = None):
         self._attempts += 1
+        self._add_compute_unit(method=method)
 
     def _set_unavailable(self, cooldown: int = 120):
         self._is_available = False
@@ -129,7 +134,43 @@ class w3Provider:
             else 0,
             "is_available": self._is_available,
             "cooldown": self._cooldown,
+            "compute_unit_cost": self.compute_unit_cost,
         }
+
+    def _add_compute_unit(self, method: cuType | None = None):
+        self.compute_unit_cost += self._compute_unit_prices(method)
+
+    def _compute_unit_prices(self, method: cuType | None = None) -> int:
+        """Compute unit costs for a method
+
+        Args:
+            method (cuType): method
+
+        Returns:
+            int: cu quantity
+        """
+        if not method:
+            # guess standard
+            return 26
+
+        if method == cuType.eth_call:
+            return 26
+        elif method == cuType.eth_getBlockByNumber:
+            return 16
+        elif method == cuType.eth_chainId:
+            return 0
+        elif method == cuType.eth_getFilterLogs:
+            return 75
+        elif method == cuType.eth_getLogs:
+            return 75
+        elif method == cuType.eth_getBalance:
+            return 19
+        elif method == cuType.eth_getTransactionReceipt:
+            return 15
+        elif method == cuType.eth_getCode:
+            return 19
+        else:
+            return 0
 
 
 class w3Providers:
@@ -221,6 +262,30 @@ class w3Providers:
                     return provider
 
         raise Exception(f"RPC {url} not found in providers list")
+
+    def get_stats(self) -> dict:
+        result = {}
+        for key_name in CONFIGURATION["sources"].get(
+            "w3Providers_default_order", ["public", "private"]
+        ):
+            result[key_name] = {}
+            for network, rpcUrls in (
+                CONFIGURATION["sources"]
+                .get("w3Providers", {})
+                .get(key_name, {})
+                .items()
+            ):
+                # add network if not exists
+                if network not in result[key_name]:
+                    result[key_name][network] = []
+
+                if rpcUrls:
+                    # convert to w3Providers
+                    result[key_name][network].extend(
+                        [x.get_stats() for x in self.providers[key_name][network]]
+                    )
+
+        return result
 
 
 # singleton

@@ -334,6 +334,19 @@ class frontendType(str, Enum):
     REVENUE_STATS = "revenue_stats"
 
 
+class cuType(str, Enum):
+    """Computer units used by RPC providers"""
+
+    eth_chainId = "eth_chainId"
+    eth_call = "eth_call"
+    eth_getFilterLogs = "eth_getFilterLogs"
+    eth_getLogs = "eth_getLogs"
+    eth_getBlockByNumber = "eth_getBlockByNumber"
+    eth_getTransactionReceipt = "eth_getTransactionReceipt"
+    eth_getBalance = "eth_getBalance"
+    eth_getCode = "eth_getCode"
+
+
 # HELPERS
 def text_to_chain(text: str) -> Chain:
     """Text to Chain conversion
