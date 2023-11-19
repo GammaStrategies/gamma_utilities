@@ -33,7 +33,7 @@ from ..uniswap.pool import (
 )
 from ....formulas.fees import calculate_gamma_fee
 
-ABI_FILENAME = "hypervisor_modded"
+ABI_FILENAME = "hypervisor_v2"
 ABI_FOLDERNAME = "gamma"
 DEX_NAME = Protocol.GAMMA.database_name
 INMUTABLE_FIELDS = {
@@ -184,7 +184,7 @@ class gamma_hypervisor(erc20):
         """fee
 
         Returns:
-            int: 10 uint8 ( in polygon is uint24)
+            int: 10 uint8 ( in some hypes is uint24  [old ethereum.. polygon])
         """
         return self.call_function_autoRpc("fee")
 

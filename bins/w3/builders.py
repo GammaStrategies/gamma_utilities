@@ -3,6 +3,7 @@ import logging
 from web3 import Web3
 from bins.checkers.hypervisor import check_hypervisor_is_valid
 from bins.config.current import MULTICALL3_ADDRESSES
+from bins.config.hardcodes import GAMMA_HYPERVISOR_ABIS
 
 from bins.errors.general import CheckingError, ProcessingError
 
@@ -354,6 +355,18 @@ def build_hypervisor(
     """
     _chain = text_to_chain(network)
 
+    # set hardcoded abis, if any
+    abi_filename = (
+        GAMMA_HYPERVISOR_ABIS.get(_chain, {})
+        .get(hypervisor_address, {})
+        .get("file", "")
+    )
+    abi_path = (
+        GAMMA_HYPERVISOR_ABIS.get(_chain, {})
+        .get(hypervisor_address, {})
+        .get("folder", "")
+    )
+
     # choose type based on Protocol
     if protocol == Protocol.UNISWAPv3:
         hypervisor = (
@@ -361,6 +374,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -369,6 +384,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -377,6 +394,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -387,6 +406,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -395,6 +416,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -403,6 +426,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -413,6 +438,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -421,6 +448,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -429,6 +458,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -439,6 +470,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -447,6 +480,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -455,6 +490,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -465,6 +502,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -473,6 +512,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -481,6 +522,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -491,6 +534,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -499,6 +544,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -507,6 +554,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -517,6 +566,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -525,6 +576,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -533,6 +586,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -543,6 +598,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -551,6 +608,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -559,6 +618,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -569,6 +630,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -577,6 +640,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -585,6 +650,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -595,6 +662,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -603,6 +672,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -611,6 +682,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -621,6 +694,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -629,6 +704,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -637,6 +714,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -647,6 +726,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -655,6 +736,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -663,6 +746,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -673,6 +758,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -681,6 +768,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -689,6 +778,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -699,6 +790,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -707,6 +800,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -715,6 +810,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -725,6 +822,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -733,6 +832,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -741,6 +842,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -751,6 +854,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -759,6 +864,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -767,6 +874,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -778,6 +887,8 @@ def build_hypervisor(
                     address=hypervisor_address,
                     network=network,
                     block=block,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
                     custom_web3=custom_web3,
                     custom_web3Url=custom_web3Url,
                 )
@@ -786,6 +897,8 @@ def build_hypervisor(
                     address=hypervisor_address,
                     network=network,
                     block=block,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
                     custom_web3=custom_web3,
                     custom_web3Url=custom_web3Url,
                 )
@@ -794,6 +907,8 @@ def build_hypervisor(
                     address=hypervisor_address,
                     network=network,
                     block=block,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
                     custom_web3=custom_web3,
                     custom_web3Url=custom_web3Url,
                 )
@@ -804,6 +919,8 @@ def build_hypervisor(
                     address=hypervisor_address,
                     network=network,
                     block=block,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
                     custom_web3=custom_web3,
                     custom_web3Url=custom_web3Url,
                 )
@@ -812,6 +929,8 @@ def build_hypervisor(
                     address=hypervisor_address,
                     network=network,
                     block=block,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
                     custom_web3=custom_web3,
                     custom_web3Url=custom_web3Url,
                 )
@@ -820,6 +939,8 @@ def build_hypervisor(
                     address=hypervisor_address,
                     network=network,
                     block=block,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
                     custom_web3=custom_web3,
                     custom_web3Url=custom_web3Url,
                 )
@@ -830,6 +951,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -838,6 +961,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -846,6 +971,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -856,6 +983,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -864,6 +993,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
@@ -872,6 +1003,8 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
             )
