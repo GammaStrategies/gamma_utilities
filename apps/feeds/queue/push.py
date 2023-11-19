@@ -184,9 +184,13 @@ def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network
         if (
             "end_rewards_timestamp" in reward_static
             and reward_static["end_rewards_timestamp"] < hypervisor_status["timestamp"]
+        ) or (
+            "start_rewards_timestamp" in reward_static
+            and reward_static["start_rewards_timestamp"]
+            > hypervisor_status["timestamp"]
         ):
             logging.getLogger(__name__).debug(
-                f" {network}'s {hypervisor_status['address']} hype's reward status at block {hypervisor_status['block']} will not be queued bc ended at timestamp {reward_static['end_rewards_timestamp']}. Skipping."
+                f" {network}'s {hypervisor_status['address']} hype's reward status at block {hypervisor_status['block']} will not be queued bc its not within its active timewindow {reward_static['start_rewards_timestamp']}-{reward_static['end_rewards_timestamp']}. Skipping."
             )
             continue
 
