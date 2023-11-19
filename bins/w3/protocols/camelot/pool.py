@@ -569,13 +569,16 @@ class pool_multicall(algebra.pool.poolv3_multicall):
                         # set
                         getattr(self, _object_name)[_pCall["inputs"][0]["value"]] = {
                             "liquidity": _pCall["outputs"][0]["value"],
-                            "feeGrowthInside0LastX128": _pCall["outputs"][1]["value"],
-                            "feeGrowthInside1LastX128": _pCall["outputs"][2]["value"],
-                            "tokensOwed0": _pCall["outputs"][3]["value"],
-                            "tokensOwed1": _pCall["outputs"][4]["value"],
+                            "lastLiquidityAddTimestamp": _pCall["outputs"][1]["value"],
+                            "feeGrowthInside0LastX128": _pCall["outputs"][2]["value"],
+                            "feeGrowthInside1LastX128": _pCall["outputs"][3]["value"],
+                            "tokensOwed0": _pCall["outputs"][4]["value"],
+                            "tokensOwed1": _pCall["outputs"][5]["value"],
                         }
 
                     else:
                         logging.getLogger(__name__).debug(
                             f" {_pCall['name']} multicall field not defined to be processed. Ignoring"
                         )
+                else:
+                    pass
