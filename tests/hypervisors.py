@@ -112,7 +112,7 @@ def test_multicall(chain: Chain, hypervisor_status: dict):
                 # differences[1] -> or tuple of 3 values with string and 2 values
                 #                -> or 1 value ( can be a list of values )
                 logging.getLogger(__name__).info(
-                    f"                       {differences}"
+                    f"        (<key>,new,old)      {differences}"
                 )
         else:
             logging.getLogger(__name__).debug(
