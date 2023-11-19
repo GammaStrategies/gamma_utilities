@@ -26,10 +26,12 @@ def manual_reScrape(
     chain: Chain,
     loop_work: callable,
     find: dict = {},
+    aggregate: list | None = None,
     sort: list = [("block", -1)],
     db_collection: str = "status",
     threaded: bool = True,
     rewrite: bool | None = None,
+    max_workers: int | None = None,
 ):
     """Rescrape database items
 
@@ -43,9 +45,6 @@ def manual_reScrape(
         rewrite (bool, optional): rewrite items from database when no rewards found. Defaults to False.
     """
 
-    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-    db_collection = db_collection
-    db_name = f"{chain.database_name}_gamma"
     batch_size = 100000
 
     if not sort:
@@ -55,14 +54,30 @@ def manual_reScrape(
         f" Starting a manual {'threaded ' if threaded else ''}rescraping process using {db_collection} for {chain} {f'using filter: {find}' if find else ''} {f'sorted by : {sort}' if sort else ''} {f'rewrite on' if rewrite else ''}"
     )
 
-    if database_items := database_local(
-        mongo_url=mongo_url, db_name=db_name
-    ).get_items_from_database(
-        collection_name=db_collection,
-        find=find,
-        batch_size=batch_size,
-        sort=sort,
+    if (
+        database_items := get_from_localdb(
+            network=chain.database_name,
+            collection=db_collection,
+            aggregate=aggregate,
+            batch_size=batch_size,
+        )
+        if aggregate
+        else get_from_localdb(
+            network=chain.database_name,
+            collection=db_collection,
+            find=find,
+            batch_size=batch_size,
+            sort=sort,
+        )
     ):
+        # if database_items := database_local(
+        #     mongo_url=mongo_url, db_name=db_name
+        # ).get_items_from_database(
+        #     collection_name=db_collection,
+        #     find=find,
+        #     batch_size=batch_size,
+        #     sort=sort,
+        # ):
         error = 0
         ok = 0
         with tqdm.tqdm(total=len(database_items)) as progress_bar:
@@ -76,7 +91,9 @@ def manual_reScrape(
                     )
                     for item in database_items
                 )
-                with concurrent.futures.ThreadPoolExecutor() as ex:
+                with concurrent.futures.ThreadPoolExecutor(
+                    max_workers=max_workers
+                ) as ex:
                     for result in ex.map(lambda p: loop_work(*p), args):
                         if result:
                             ok += 1
