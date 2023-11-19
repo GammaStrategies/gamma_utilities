@@ -6,6 +6,7 @@ import tqdm
 import concurrent.futures
 import contextlib
 import re
+from apps.database_reScrape import manual_reScrape, reScrape_loopWork_hypervisor_status
 from apps.feeds.operations import feed_operations
 from apps.feeds.price_paths import create_price_paths_json
 
@@ -908,12 +909,8 @@ def repair_hypervisor_status():
     # missing hypes
     repair_missing_hype_status()
 
-    # humongous values
-    repair_status_humongous_values()
-    # missing fiels
-    repair_status_missing_fields()
-    # wrong types ( TODO: add more)
-    repair_wrong_types()
+    # humongous values, missing fiels, wrong types ( TODO: add more)
+    repar_multiple_wrongs()
 
     # binance
     repair_binance_hypervisor_status()
@@ -1370,6 +1367,97 @@ def repair_uncollected_fees():
                     logging.getLogger(__name__).info(
                         f" Solved {chain.database_name}'s {hype['address']} uncollected fees at block {hype['block']} -> db mod: {db_return.modified_count} "
                     )
+
+
+def repar_multiple_wrongs():
+    """humongous values, missing fields, wrong types"""
+    chains = [
+        text_to_chain(x)
+        for x in (
+            CONFIGURATION["_custom_"]["cml_parameters"].networks
+            or CONFIGURATION["script"]["protocols"]["gamma"]["networks"]
+        )
+    ]
+
+    # build humongous values query
+    query_humongous = [
+        {
+            "$addFields": {
+                "_data": {
+                    "uncollected_qtty_token0": {
+                        "$divide": [
+                            {"$toDecimal": "$fees_uncollected.qtty_token0"},
+                            {"$pow": [10, "$pool.token0.decimals"]},
+                        ]
+                    },
+                    "uncollected_qtty_token1": {
+                        "$divide": [
+                            {"$toDecimal": "$fees_uncollected.qtty_token1"},
+                            {"$pow": [10, "$pool.token1.decimals"]},
+                        ]
+                    },
+                    "qtty_tvl_token0": {
+                        "$divide": [
+                            {"$toDecimal": "$tvl.tvl_token0"},
+                            {"$pow": [10, "$pool.token0.decimals"]},
+                        ]
+                    },
+                    "qtty_tvl_token1": {
+                        "$divide": [
+                            {"$toDecimal": "$tvl.tvl_token1"},
+                            {"$pow": [10, "$pool.token1.decimals"]},
+                        ]
+                    },
+                }
+            }
+        },
+        {
+            "$match": {
+                "$or": [
+                    {"_data.uncollected_qtty_token0": {"$gte": 10000000}},
+                    {"_data.uncollected_qtty_token1": {"$gte": 10000000}},
+                    {"_data.qtty_tvl_token0": {"$gte": 100000000000}},
+                    {"_data.qtty_tvl_token1": {"$gte": 100000000000}},
+                ]
+            }
+        },
+    ]
+    # build missing fields query
+    missing_fields = [
+        "basePosition_data",
+        "limitPosition_data",
+        "basePosition_ticksLower",
+        "limitPosition_ticksLower",
+        "basePosition_ticksUpper",
+        "limitPosition_ticksUpper",
+    ]
+    query_missing_fields = [
+        {"$match": {"$or": [{x: {"$exists": False}} for x in missing_fields]}},
+    ]
+    # build wrong types query
+    wrong_types = [
+        {"$match": {"pool.globalState": {"$exists": True}}},
+        {"$addFields": {"deleteme": {"$type": "pool.globalState.unlocked"}}},
+        {"$match": {"$or": [{"deleteme": {"$ne": {"$type": "bool"}}}]}},
+        {"$unset": "deleteme"},
+    ]
+
+    for chain in chains:
+        names = ["humongous values", "missing fields", "wrong types"]
+        for idx, query in enumerate(
+            [query_humongous, query_missing_fields, wrong_types]
+        ):
+            logging.getLogger(__name__).info(
+                f" {chain.database_name} repairing {names[idx]}"
+            )
+            manual_reScrape(
+                chain=chain,
+                loop_work=reScrape_loopWork_hypervisor_status,
+                aggregate=query,
+                sort=[("timestamp", 1)],
+                db_collection="status",
+                rewrite=True,
+            )
 
 
 def repair_status_humongous_values():
