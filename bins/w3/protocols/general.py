@@ -107,63 +107,6 @@ class erc20(web3wrap):
 
         return result
 
-    # dict from multicall
-    def _get_dict_from_multicall(self, contract_abi: list[dict] | None = None) -> dict:
-        """Only this object and its super() will be returned as dict ( no pools nor objects within this)
-             When any of the function is not returned ( for any reason ), its key will not appear in the result.
-            All functions defined in the abi without "inputs" will be returned here
-        Returns:
-            dict:
-        """
-        contract_functions = contract_abi or self.contract_functions
-
-        # create multicall helper
-        _multicall_helper = multicall3(network=self._network, block=self.block)
-        # get data thru multicall contract
-        multicall_result = _multicall_helper.try_get_data(
-            contract_functions=contract_functions, address=self.address
-        )
-        # decode result
-        result = {}
-        for idx, _res_itm in enumerate(multicall_result):
-            # first item returned is success bool
-            if _res_itm[0]:
-                # success
-
-                data = abi.decode(
-                    [out["type"] for out in contract_functions[idx]["outputs"]],
-                    _res_itm[1],
-                )
-
-                # build result key = function name
-                key = contract_functions[idx]["name"]
-
-                # set var context
-                if len(contract_functions[idx]["outputs"]) > 1:
-                    if not [
-                        1 for x in contract_functions[idx]["outputs"] if x["name"] != ""
-                    ]:
-                        # dictionary
-                        result[key] = {}
-                    else:
-                        # list
-                        result[key] = []
-                else:
-                    # one item
-                    result[key] = None
-
-                # loop thru output
-                for output_idx, output in enumerate(contract_functions[idx]["outputs"]):
-                    # add to result
-                    if isinstance(result[key], list):
-                        result[key].append(data[output_idx])
-                    elif isinstance(result[key], dict):
-                        result[key][output["name"]] = data[output_idx]
-                    else:
-                        result[key] = data[output_idx]
-
-        return result
-
 
 class erc20_cached(erc20):
     SAVE2FILE = True
