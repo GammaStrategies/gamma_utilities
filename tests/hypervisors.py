@@ -108,11 +108,14 @@ def test_multicall(chain: Chain, hypervisor_status: dict):
                 f" 1.1- (multicall)  ERROR -> comparison unsuccessfull: {len(comparison_result)} different field value found for {chain.fantasy_name} hypervisor {hypervisor_status['address']} {hypervisor_status['dex']} at block {hypervisor_status['block']}"
             )
             for differences in comparison_result:
+                logging.getLogger(__name__).info(
+                    f"                       (<key>,new,old) "
+                )
                 # differences[0] -> field name
                 # differences[1] -> or tuple of 3 values with string and 2 values
                 #                -> or 1 value ( can be a list of values )
                 logging.getLogger(__name__).info(
-                    f"        (<key>,new,old)      {differences}"
+                    f"                       {differences}"
                 )
         else:
             logging.getLogger(__name__).debug(
