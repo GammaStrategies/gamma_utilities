@@ -221,9 +221,11 @@ def create_reward_status_from_hype_status(
                 hypervisor_status=hypervisor_status,
                 rewarder_static=rewarder_static,
             )
-            # limit to 2 week data back
+            # limit to 2 week data back ( from status )
+
             rewards_data = aMerkl_helper.execute_processes_within_hypervisor_periods(
                 timestamp_ini=hypervisor_status["timestamp"] - 60 * 60 * 24 * 14,
+                timestamp_end=hypervisor_status["timestamp"],
             )
 
         elif rewarder_static["rewarder_type"] in [
@@ -237,6 +239,7 @@ def create_reward_status_from_hype_status(
             # limit to >2 week data back
             rewards_data = ramses_helper.execute_processes_within_hypervisor_periods(
                 timestamp_ini=hypervisor_status["timestamp"] - 60 * 60 * 24 * 16,
+                timestamp_end=hypervisor_status["timestamp"],
             )
 
         elif rewarder_static["rewarder_type"] in [
