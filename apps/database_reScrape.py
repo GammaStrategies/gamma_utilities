@@ -71,16 +71,11 @@ def manual_reScrape(
             sort=sort,
         )
     ):
-        # if database_items := database_local(
-        #     mongo_url=mongo_url, db_name=db_name
-        # ).get_items_from_database(
-        #     collection_name=db_collection,
-        #     find=find,
-        #     batch_size=batch_size,
-        #     sort=sort,
-        # ):
         error = 0
         ok = 0
+        logging.getLogger(__name__).info(
+            f"          {len(database_items)} items to process"
+        )
         with tqdm.tqdm(total=len(database_items)) as progress_bar:
             if threaded:
                 # prepare arguments for threaded
