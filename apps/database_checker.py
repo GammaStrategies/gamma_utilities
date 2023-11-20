@@ -1277,7 +1277,7 @@ def repair_missing_hypervisor_status(
 
 
 # DEPRECATED: use humongous values instead
-def repair_uncollected_fees():
+def repair_uncollected_fees_deprecated():
     networks = (
         CONFIGURATION["_custom_"]["cml_parameters"].networks
         or CONFIGURATION["script"]["protocols"]["gamma"]["networks"]
@@ -1430,6 +1430,8 @@ def repar_multiple_wrongs():
         "limitPosition_ticksLower",
         "basePosition_ticksUpper",
         "limitPosition_ticksUpper",
+        "fees_uncollected.gamma_qtty_token0",
+        "fees_collected",
     ]
     query_missing_fields = [
         {"$match": {"$or": [{x: {"$exists": False}} for x in missing_fields]}},
@@ -1460,7 +1462,8 @@ def repar_multiple_wrongs():
             )
 
 
-def repair_status_humongous_values():
+# DEPRECATED: use repar_multiple_wrongs instead
+def repair_status_humongous_values_deprecated():
     """Identify and repair bad snapshots with humongous values"""
     networks = (
         CONFIGURATION["_custom_"]["cml_parameters"].networks
@@ -1582,7 +1585,8 @@ def repair_status_humongous_values():
                     )
 
 
-def repair_status_missing_fields():
+# DEPRECATED: use repar_multiple_wrongs instead
+def repair_status_missing_fields_deprecated():
     """Identify and repair bad snapshots with missing fields"""
     missing_fields = [
         "basePosition_data",
@@ -1643,7 +1647,8 @@ def repair_status_missing_fields():
                     )
 
 
-def repair_wrong_types():
+# DEPRECATED: use repar_multiple_wrongs instead
+def repair_wrong_types_deprecated():
     # camelot unlocked must be bool
 
     networks = (
@@ -1822,6 +1827,34 @@ def repair_missing_rewards_status(
             logging.getLogger(__name__).debug(
                 f" No missing rewards status found for {chain.database_name}'s {reward_static['hypervisor_address']}"
             )
+
+
+# CAUTION: fire manually --> do not use in loops bc it scrapes a suspicious status (not factual errors).
+def repair_suspicious_rewards_status():
+    logging.getLogger(__name__).info(
+        f" > Repairing suspicious rewards status... DO NOT RUN IN LOOPS"
+    )
+    chains = [
+        text_to_chain(x)
+        for x in (
+            CONFIGURATION["_custom_"]["cml_parameters"].networks
+            or CONFIGURATION["script"]["protocols"]["gamma"]["networks"]
+        )
+    ]
+
+    for chain in chains:
+        logging.getLogger(__name__).info(
+            f" {chain.database_name} repairing suspicious rewards status"
+        )
+        # find humongous hyperviosor share price
+        manual_reScrape(
+            chain=chain,
+            loop_work=reScrape_loopWork_hypervisor_status,
+            find={"hypervisor_share_price_usd": {"$gte": 10000000000}},
+            sort=[("timestamp", 1)],
+            db_collection="rewards_status",
+            rewrite=False,
+        )
 
 
 def repair_hype_status_from_user(min_count: int = 1):
