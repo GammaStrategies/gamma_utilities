@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import logging
 import concurrent.futures
 import time
@@ -168,9 +169,17 @@ def reScrape_loopWork_hypervisor_status(
                     network=chain.database_name
                 ).set_status(data=new_hypervisor):
                     db_return.modified_count
+                    # report object datetime
+                    try:
+                        object_datetime = datetime.fromtimestamp(
+                            new_hypervisor["timestamp"],
+                            tz=timezone.utc,
+                        )
+                    except:
+                        object_datetime = None
                     # log database result
                     logging.getLogger(__name__).debug(
-                        f" {chain.database_name}'s hypervisor {new_hypervisor['address']} at block {new_hypervisor['block']} dbResult-> mod:{db_return.modified_count} ups:{db_return.upserted_id} match: {db_return.matched_count}"
+                        f"{chain.database_name} hypervisor {new_hypervisor['address']} block {new_hypervisor['block']} [{object_datetime.strftime('%Y-%m-%d') if object_datetime else ''} ] db->mod:{db_return.modified_count} ups:{db_return.upserted_id} match:{db_return.matched_count}"
                     )
 
                     curr_time = seconds_to_time_passed(time.time() - _starttime)
@@ -287,8 +296,16 @@ def reScrape_loopWork_rewards_status(
                         logging.getLogger("benchmark").info(
                             f" {chain.database_name} queue item {queueItemType.REWARD_STATUS}  processing time: {curr_time}  total lifetime: {curr_time}"
                         )
+                        # report object datetime
+                        try:
+                            object_datetime = datetime.fromtimestamp(
+                                new_rewarder_status["timestamp"],
+                                tz=timezone.utc,
+                            )
+                        except:
+                            object_datetime = None
                         logging.getLogger(__name__).info(
-                            f" {chain.database_name} {new_rewarder_status['hypervisor_address']} {new_rewarder_status['block']} {new_rewarder_status['rewardToken_symbol']} reward status finished processing correctly"
+                            f"{chain.database_name} {new_rewarder_status['hypervisor_address']} {new_rewarder_status['block']} {new_rewarder_status['rewardToken_symbol']} reward status finished correctly [{object_datetime.strftime('%Y-%m-%d') if object_datetime else ''}]"
                         )
                         return True
                 else:
