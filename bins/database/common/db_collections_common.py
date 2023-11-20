@@ -2905,7 +2905,7 @@ class database_local(db_collections_common):
         block_end: int | None = None,
     ) -> list[dict]:
         """Returns a list of hypervisor status following LOC APR method calculation-> (operation) to (operation+1)(block-1)
-            No filter is applied
+            Will include only operations affecting totalSupply ( deposit, withdraw, rebalance, zeroBurn)
         Args:
             hypervisor_address (str | None, optional): . Defaults to None.
             timestamp_ini (int | None, optional): greater or equal to . Defaults to None.
@@ -2914,7 +2914,7 @@ class database_local(db_collections_common):
             block_end (int | None, optional): lower or equal to  . Defaults to None.
 
         Returns:
-            list[dict]: _description_
+            list[dict]:
         """
         # build match
         _and = [
@@ -3053,6 +3053,15 @@ class database_local(db_collections_common):
                                             ]
                                         },
                                         {"$eq": ["$blockNumber", "$$op_block"]},
+                                        # only operations affecting totalSupply
+                                        {
+                                            "$in": [
+                                                "deposit",
+                                                "withdraw",
+                                                "rebalance",
+                                                "zeroBurn",
+                                            ]
+                                        },
                                     ],
                                 }
                             }
