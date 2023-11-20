@@ -19,7 +19,7 @@ def add(x, y, ui256: bool = False) -> int:
     z = x + y
     if z > MAX_UINT256:
         if ui256:
-            logging.getLogger(__name__).error(
+            logging.getLogger(__name__).debug(
                 f" Addition overflow: {x} + {y} = {z} . Trying to convert to uint256."
             )
             return toUint256(z)
@@ -46,7 +46,7 @@ def sub(x, y, ui256: bool = False) -> int:
     z = x - y
     if z < 0:
         if ui256:
-            logging.getLogger(__name__).error(
+            logging.getLogger(__name__).debug(
                 f" Subtraction underflow: {x} - {y} = {z} . Trying to convert to uint256."
             )
             return toUint256(z)
