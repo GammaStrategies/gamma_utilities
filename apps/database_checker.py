@@ -1370,7 +1370,7 @@ def repair_uncollected_fees_deprecated():
 
 
 def repar_multiple_wrongs():
-    """humongous values, missing fields, wrong types"""
+    """humongous values, missing fields  ( wrong types are disabled for now)"""
     chains = [
         text_to_chain(x)
         for x in (
@@ -1447,7 +1447,7 @@ def repar_multiple_wrongs():
     for chain in chains:
         names = ["humongous values", "missing fields", "wrong types"]
         for idx, query in enumerate(
-            [query_humongous, query_missing_fields, wrong_types]
+            [query_humongous, query_missing_fields]#, wrong_types]
         ):
             logging.getLogger(__name__).info(
                 f" {chain.database_name} repairing {names[idx]}"
