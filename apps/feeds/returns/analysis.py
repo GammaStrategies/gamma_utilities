@@ -1925,7 +1925,8 @@ class period_yield_analyzer:
         self._impermanent_qtty_token0 = (
             yield_item.status.end.underlying.qtty.token0
             - yield_item.fees.qtty.token0
-            - self._deposit_qtty_token0
+            # - self._deposit_qtty_token0
+            - yield_item.status.ini.underlying.qtty.token0
         )
         self._impermanent_qtty_token1 = (
             yield_item.status.end.underlying.qtty.token1

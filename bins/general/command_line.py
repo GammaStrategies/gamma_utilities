@@ -75,6 +75,8 @@ def parse_commandLine_args():
             "queue",
             "static_hypervisors",
             "static_rewards",
+            "frontend_revenue_stats",
+            "returns",
         ],
         help="feed database",
     )

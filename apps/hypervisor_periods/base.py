@@ -140,7 +140,7 @@ class hypervisor_periods_base:
         if data_list := get_hypervisors_data_for_apr(
             network=chain.database_name,
             hypervisor_addresses=[hypervisor_address],
-            timestamp_ini=timestamp_ini or 1400000000,
+            timestamp_ini=timestamp_ini or 1400000000 if not block_ini else None,
             timestamp_end=timestamp_end,
             block_ini=block_ini,
             block_end=block_end,

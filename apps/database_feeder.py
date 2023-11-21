@@ -4,9 +4,11 @@ import tqdm
 import concurrent.futures
 import contextlib
 from datetime import datetime, timezone
+from apps.feeds.frontend.revenue_stats import feed_revenue_stats
 
 from apps.feeds.queue.pull import pull_from_queue
-from bins.general.enums import Chain
+from apps.feeds.returns.builds import feed_hypervisor_returns
+from bins.general.enums import Chain, text_to_chain
 from .feeds.operations import feed_operations
 
 from bins.configuration import CONFIGURATION
@@ -438,6 +440,15 @@ def main(option="operations"):
                         logging.getLogger(__name__).exception(
                             f" Error processing {option} data from {network} {dex}  )-:  {e} "
                         )
+
+            elif option == "frontend_revenue_stats":
+                feed_revenue_stats(
+                    chains=[text_to_chain(network)],
+                    rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
+                )
+
+            elif option == "returns":
+                feed_hypervisor_returns(chain=text_to_chain(network))
 
             else:
                 raise NotImplementedError(
