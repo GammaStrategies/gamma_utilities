@@ -3056,10 +3056,13 @@ class database_local(db_collections_common):
                                         # only operations affecting totalSupply
                                         {
                                             "$in": [
-                                                "deposit",
-                                                "withdraw",
-                                                "rebalance",
-                                                "zeroBurn",
+                                                "$topic",
+                                                [
+                                                    "deposit",
+                                                    "withdraw",
+                                                    "rebalance",
+                                                    "zeroBurn",
+                                                ],
                                             ]
                                         },
                                     ],
