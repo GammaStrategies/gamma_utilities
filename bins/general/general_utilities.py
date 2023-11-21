@@ -204,9 +204,15 @@ def create_chunks(min: int, max: int, chunk_size: int) -> list[tuple[int, int]]:
     Returns:
         list: list of tuples with chunk (start:int, end:int)
     """
-
+    result = []
     # create chunks
-    return [(i, i + chunk_size) for i in range(min, max, chunk_size)]
+    for i in range(min, max, chunk_size):
+        # add chunk to list if it is not the last one
+        if i + chunk_size < max:
+            result.append((i, i + chunk_size))
+        else:
+            result.append((i, max))
+    return result
 
 
 # DATETIME
