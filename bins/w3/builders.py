@@ -1290,3 +1290,8 @@ def build_erc20_helper(
             custom_web3Url=custom_web3Url,
         )
     )
+
+
+def get_latest_block(chain: Chain) -> int:
+    helper = build_erc20_helper(chain=chain)
+    return helper.block
