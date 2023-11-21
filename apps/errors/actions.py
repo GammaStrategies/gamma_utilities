@@ -45,6 +45,7 @@ def process_error(error: ProcessingError):
                     f" The old hypervisor {error.item.get('hypervisor_name')} has negative uncollected fees between periods. Nothing to do"
                 )
             else:
+                # _handle_error_send_message(f"Negative fees: {error.message}")
                 return
 
                 # this is an old hypervisor, Cant do anything
@@ -77,8 +78,8 @@ def process_error(error: ProcessingError):
                 )
 
                 if (
-                    fees0_uncollected != error.item["fees0_uncollected"]
-                    or fees1_uncollected != error.item["fees1_uncollected"]
+                    fees0_uncollected != error.item["fees_token0"]
+                    or fees1_uncollected != error.item["fees_token1"]
                 ):
                     # TODO: save new hypes to db
                     # logging.getLogger(__name__).debug(f" Hypervisor {error.item.get('hypervisor_name')} has incorrect uncollected fees between ini/end period. Saving new data to db")
@@ -176,7 +177,15 @@ def process_error(error: ProcessingError):
                     f"  Error while trying to solve an error (wtf loop): {e}"
                 )
 
+    elif error.identity == error_identity.WRONG_CONTRACT_FIELD_TYPE:
+        # process error
+        _handle_error_send_message(error.message)
+
     else:
         logging.getLogger(__name__).warning(
             f"Unknown error identity {error.identity}. Can't process error"
         )
+
+
+def _handle_error_send_message(msg: str):
+    logging.getLogger("telegram").info(msg)

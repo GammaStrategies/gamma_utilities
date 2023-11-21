@@ -11,7 +11,7 @@ from bins.database.helpers import get_default_globaldb
 from bins.errors.general import ProcessingError
 from bins.general.enums import Chain, Protocol, rewarderType
 from bins.w3.builders import build_db_hypervisor, build_db_hypervisor_multicall
-from bins.errors.actions import process_error
+from apps.errors.actions import process_error
 
 
 class hypervisor_periods_returns(hypervisor_periods_base):
@@ -213,6 +213,14 @@ class hypervisor_periods_returns(hypervisor_periods_base):
             logging.getLogger(__name__).exception(
                 f" Error while creating hype returns.  {e}"
             )
+            if isinstance(e, ProcessingError):
+                try:
+                    # process error
+                    process_error(e)
+                except Exception as e2:
+                    logging.getLogger(__name__).exception(
+                        f" Error while processing another error.  {e2}"
+                    )
 
     def _execute_postLoop(self, hypervisor_data: dict):
         pass
@@ -272,7 +280,7 @@ class hypervisor_periods_returns(hypervisor_periods_base):
         try_solve_errors: bool = False,
     ) -> list:
         logging.getLogger(__name__).debug(
-            f" Getting returns of {self.chain.database_name} {self.hypervisor_address} timestamp_ini: {timestamp_ini} timestamp_end: {timestamp_end}  block_ini: {block_ini}  block_end: {block_end}"
+            f" Getting returns of {self.chain.database_name} {self.hypervisor_address} {f'timestamp_ini: {timestamp_ini} timestamp_end: {timestamp_end}' if timestamp_ini else f'block_ini: {block_ini}  block_end: {block_end}'}"
         )
         return super().execute_processes_within_hypervisor_periods(
             chain=self.chain,

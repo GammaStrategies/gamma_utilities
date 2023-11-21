@@ -718,8 +718,24 @@ class web3wrap:
                     logging.getLogger(__name__).error(
                         f" {rpc.type} RPC {rpc.url} returned a BadFunctionCallOutput while calling function {function_name} in {self._network}'s contract {self.address} at block {self.block}. BREAKING. err: {e}"
                     )
+
+                    # raise error to process
+                    raise ProcessingError(
+                        chain=text_to_chain(self._network),
+                        item={
+                            "address": self._address,
+                            "function": function_name,
+                            "block": self.block,
+                            "error": e.args[0],
+                            "rpc_type": rpc.type,
+                            "rpc_url": rpc.url,
+                        },
+                        identity=error_identity.WRONG_CONTRACT_FIELD_TYPE,
+                        action="important_message",
+                        message=f" Wrong ABI found for {self._network}'s contract {self.address} (fn:{function_name})",
+                    )
                     # exit loop
-                    break
+                    # break
 
             except Exception as e:
                 # unknown error

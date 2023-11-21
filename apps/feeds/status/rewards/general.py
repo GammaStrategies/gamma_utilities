@@ -12,7 +12,7 @@ from apps.hypervisor_periods.rewards.ramses import hypervisor_periods_ramses
 from bins.configuration import CONFIGURATION
 
 from bins.database.common.db_collections_common import database_global, database_local
-from bins.errors.actions import process_error
+from apps.errors.actions import process_error
 
 from bins.errors.general import ProcessingError
 from bins.general.enums import Chain, Protocol, rewarderType, text_to_chain

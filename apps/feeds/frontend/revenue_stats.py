@@ -29,7 +29,7 @@ from bins.database.helpers import (
     get_default_globaldb,
     get_default_localdb,
 )
-from bins.errors.actions import process_error
+from apps.errors.actions import process_error
 from bins.errors.general import ProcessingError
 from bins.formulas.fees import convert_feeProtocol
 from bins.formulas.tick_math import sqrtPriceX96_to_price_float

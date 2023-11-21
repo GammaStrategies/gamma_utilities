@@ -323,6 +323,8 @@ class error_identity(str, Enum):
     TOO_MANY_BLOCKS_TO_QUERY = "TOO_MANY_BLOCKS_TO_QUERY"
     # when LP fees are detected (using operations) but no revenue for those fees exist (in revenue_operations)
     LPFEES_WITHOUT_REVENUE = "LPFEES_WITHOUT_REVENUE"
+    # wrong contract types: when abis loaded are wrong (not matching the contract)
+    WRONG_CONTRACT_FIELD_TYPE = "WRONG_CONTRACT_FIELD_TYPE"
 
 
 class reportType(str, Enum):

@@ -592,7 +592,7 @@ class period_yield_data:
                 },
                 identity=error_identity.NEGATIVE_FEES,
                 action="rescrape",
-                message=f" Fees growth can't be negative and they are [0:{self.fees.qtty.token0} 1:{self.fees.qtty.token1}] for hypervisor {self.address} end block {self.timeframe.end.block}.",
+                message=f" Fees growth can't be negative and they are [0:{self.fees.qtty.token0} 1:{self.fees.qtty.token1}] for hypervisor {self.address} ini block {self.timeframe.ini.block} end block {self.timeframe.end.block}.",
             )
 
     # SETUP FUNCTIONS

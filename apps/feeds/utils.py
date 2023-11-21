@@ -549,7 +549,7 @@ def get_hypervisors_data_for_apr(
         return result
 
     except Exception as e:
-        logging.getLogger(__name__).error(
+        logging.getLogger(__name__).exception(
             f" Error getting {hypervisor_addresses} hype data to construct hypervisor_data_for_apr from { 'blocks' if block_ini and block_end else 'timestamps'} {block_ini if block_ini else timestamp_ini} to {block_end if (block_ini and block_end) else timestamp_end}. Trying to slice it in chunks."
         )
 
@@ -620,7 +620,7 @@ def get_hypervisors_data_for_apr(
                     # add to result
                     result[0]["status"].append(hype_status)
                     # add to processed ids
-                    _processed_ids.add(hype_status["_id"])
+                    _processed_ids.add(hype_status["id"])
 
     logging.getLogger(__name__).debug(
         f"  chunk process->  {len(result[0]['status'])} items found in {time.time() - _start_time} seconds"

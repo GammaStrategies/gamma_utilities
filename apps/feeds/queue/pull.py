@@ -21,7 +21,7 @@ from bins.database.helpers import (
     get_latest_prices_from_db,
     get_price_from_db,
 )
-from bins.errors.actions import process_error
+from apps.errors.actions import process_error
 from bins.errors.general import ProcessingError
 
 from ..status.rewards.general import create_reward_status_from_hype_status
@@ -971,7 +971,7 @@ def build_multiFeeDistribution_from_queueItem(
             collection="rewards_static",
             aggregate=query,
             limit=1,
-            batch_size=100000,
+            batch_size=10000,
         )
 
         # set common vars to be used multiple times
@@ -996,9 +996,8 @@ def build_multiFeeDistribution_from_queueItem(
                 continue
 
             # set common vars to be used multiple times
-            protocol = (
-                Protocol.RAMSES
-            )  # text_to_protocol(reward_static["rewards_status"][0]["dex"])
+            protocol = Protocol.RAMSES
+            # text_to_protocol(reward_static["rewards_status"][0]["dex"])
             hypervisor_address = reward_static["hypervisor_address"]
 
             # create multiFeeDistributior snapshot structure (to be saved to database later)
@@ -1082,7 +1081,7 @@ def build_multiFeeDistribution_from_queueItem(
                 reward_items_periods = []
                 # onchain_helper = onchain_data_helper.onchain_data_helper(protocol="gamma")
                 # periods from lastUpdateStatus to snapshot
-                for item in build_periods_timestamps(
+                for item in build_ramses_periods_timestamps(
                     ini_timestamp=rewardData["lastTimeUpdated"],
                     end_timestamp=snapshot.timestamp,
                 ):
@@ -1322,7 +1321,20 @@ def build_multiFeeDistribution_from_queueItem(
     return save_todb
 
 
-def build_periods_timestamps(ini_timestamp: int, end_timestamp: int) -> dict:
+def build_ramses_periods_timestamps(ini_timestamp: int, end_timestamp: int) -> list:
+    """Build a list of periods and timestamps for a given timeframe
+
+    Args:
+        ini_timestamp (int):
+        end_timestamp (int):
+
+    Returns:
+        list: { "period": <number>,
+                "from_timestamp": ,
+                "to_timestamp"
+                total_seconds:
+                }
+    """
     week_in_seconds = 60 * 60 * 24 * 7
     items_periods = []
 
