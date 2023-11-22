@@ -3,6 +3,7 @@ from hexbytes import HexBytes
 from web3 import Web3
 
 from bins.errors.general import ProcessingError
+from bins.formulas.position import get_positionKey_algebra
 from bins.w3.protocols.algebra.pool import dataStorageOperator
 from ....general.enums import Protocol, error_identity, text_to_chain
 from .. import algebra
@@ -152,6 +153,83 @@ class pool(algebra.pool.poolv3):
         """
         # does not implement liquidity cooldown
         return 0
+
+    def positions(self, position_key: str) -> dict:
+        """
+
+        Args:
+           position_key (str): 0x....
+
+        Returns:
+           _type_:
+                   liquidity uint256, innerFeeGrowth0Token uint256, innerFeeGrowth1Token uint256, fees0 uint128, fees1 uint128
+        """
+        position_key = (
+            HexBytes(position_key) if type(position_key) == str else position_key
+        )
+        if result := self.call_function_autoRpc("positions", None, position_key):
+            return {
+                "liquidity": result[0],
+                "feeGrowthInside0LastX128": result[1],
+                "feeGrowthInside1LastX128": result[2],
+                "tokensOwed0": result[3],
+                "tokensOwed1": result[4],
+            }
+        else:
+            raise ProcessingError(
+                chain=text_to_chain(self._network),
+                item={
+                    "pool_address": self.address,
+                    "block": self.block,
+                    "object": "pool.positions",
+                },
+                identity=error_identity.RETURN_NONE,
+                action="",
+                message=f" positions function of {self.address} at block {self.block} returned none using {position_key} as position_key",
+            )
+
+    def ticks(self, tick: int) -> dict:
+        """
+
+        Args:
+           tick (int):
+
+        Returns:
+           _type_:
+                       liquidityGross   uint128 :  0        liquidityTotal
+                       liquidityNet   int128 :  0           liquidityDelta
+                       feeGrowthOutside0X128   uint256 :  0 outerFeeGrowth0Token
+                       feeGrowthOutside1X128   uint256 :  0 outerFeeGrowth1Token
+                       prevTick: int24 :  0                 prevTick
+                       nextTick: int24 :  0                 nextTick
+                       spoolecondsPerLiquidityOutsideX128   uint160 :  0    outerSecondsPerLiquidity
+                       secondsOutside   uint32 :  0         outerSecondsSpent
+                       hasLimitOrders   bool :  false          hasLimitOrders
+        """
+        if result := self.call_function_autoRpc("ticks", None, tick):
+            return {
+                "liquidityGross": result[0],
+                "liquidityNet": result[1],
+                "feeGrowthOutside0X128": result[2],
+                "feeGrowthOutside1X128": result[3],
+                "prevTick": result[4],
+                "nextTick": result[5],
+                "secondsPerLiquidityOutsideX128": result[6],
+                "secondsOutside": result[7],
+                "hasLimitOrders": result[8],
+            }
+        else:
+            raise ProcessingError(
+                chain=text_to_chain(self._network),
+                item={
+                    "pool_address": self.address,
+                    "block": self.block,
+                    "object": "pool.ticks",
+                },
+                identity=error_identity.RETURN_NONE,
+                action="",
+                message=f" ticks function of {self.address} at block {self.block} returned none. (Check contract creation block)",
+            )
 
 
 class pool_cached(algebra.pool.poolv3_cached, pool):
@@ -551,3 +629,105 @@ class pool_multicall(algebra.pool.poolv3_multicall, pool):
             timestamp=timestamp,
             processed_calls=processed_calls,
         )
+
+    def _create_call_position(self, ownerAddress, tickLower, tickUpper) -> dict:
+        _position_key = get_positionKey_algebra(
+            ownerAddress=ownerAddress,
+            tickLower=tickLower,
+            tickUpper=tickUpper,
+        )
+
+        _position_key = (
+            HexBytes(_position_key) if type(_position_key) == str else _position_key
+        )
+
+        return {
+            "inputs": [
+                {
+                    "internalType": "bytes32",
+                    "name": "",
+                    "type": "bytes32",
+                    "value": _position_key,
+                }
+            ],
+            "name": "positions",
+            "outputs": [
+                {"internalType": "uint256", "name": "liquidity", "type": "uint128"},
+                {
+                    "internalType": "uint256",
+                    "name": "feeGrowthInside0LastX128",
+                    "type": "uint256",
+                },
+                {
+                    "internalType": "uint256",
+                    "name": "feeGrowthInside1LastX128",
+                    "type": "uint256",
+                },
+                {
+                    "internalType": "uint128",
+                    "name": "tokensOwed0",
+                    "type": "uint128",
+                },
+                {
+                    "internalType": "uint128",
+                    "name": "tokensOwed1",
+                    "type": "uint128",
+                },
+            ],
+            "stateMutability": "view",
+            "type": "function",
+            "address": self._address,
+            "object": "pool",
+        }
+
+    def _create_call_ticks(self, tick: int) -> dict:
+        return {
+            "inputs": [
+                {
+                    "internalType": "int24",
+                    "name": "",
+                    "type": "int24",
+                    "value": tick,
+                }
+            ],
+            "name": "ticks",
+            "outputs": [
+                {
+                    "internalType": "uint128",
+                    "name": "liquidityGross",
+                    "type": "uint128",
+                },
+                {"internalType": "int128", "name": "liquidityNet", "type": "int128"},
+                {
+                    "internalType": "uint256",
+                    "name": "feeGrowthOutside0X128",
+                    "type": "uint256",
+                },
+                {
+                    "internalType": "uint256",
+                    "name": "feeGrowthOutside1X128",
+                    "type": "uint256",
+                },
+                {
+                    "internalType": "int24",
+                    "name": "prevTick",
+                    "type": "int24",
+                },
+                {
+                    "internalType": "int24",
+                    "name": "nextTick",
+                    "type": "int24",
+                },
+                {
+                    "internalType": "uint160",
+                    "name": "secondsPerLiquidityOutsideX128",
+                    "type": "uint160",
+                },
+                {"internalType": "uint32", "name": "secondsOutside", "type": "uint32"},
+                {"internalType": "bool", "name": "hasLimitOrders", "type": "bool"},
+            ],
+            "stateMutability": "view",
+            "type": "function",
+            "address": self._address,
+            "object": "pool",
+        }

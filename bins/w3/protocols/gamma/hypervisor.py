@@ -1551,7 +1551,11 @@ class gamma_hypervisor_multicall(gamma_hypervisor):
                         # check if value exists
                         if "value" not in _pCall["outputs"][0]:
                             # feeRecipient may not exist
-                            if _pCall["name"] == "feeRecipient":
+                            if _pCall["name"] in [
+                                "feeRecipient",
+                                "DOMAIN_SEPARATOR",
+                                "PRECISION",
+                            ]:
                                 continue
                             else:
                                 raise ValueError(
