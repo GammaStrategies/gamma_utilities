@@ -3,7 +3,7 @@ from datetime import datetime
 import re
 
 
-def analize_benchmark_log(log_file: str) -> dict | None:
+def analyze_benchmark_log(log_file: str) -> dict | None:
     # result
     result = {
         "total_items": 0,
@@ -155,7 +155,7 @@ def analize_benchmark_log(log_file: str) -> dict | None:
     return result
 
 
-def analize_benchmark_info_log(log_file: str) -> dict | None:
+def analyze_benchmark_info_log(log_file: str) -> dict | None:
     """Extract all items processed (successfully or not) from the info log file
 
     Args:

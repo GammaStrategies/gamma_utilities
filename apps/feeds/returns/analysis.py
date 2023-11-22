@@ -1487,7 +1487,7 @@ def log_debug_data(
             impermanent_per_share_sinceIni / ini_price_per_share
         )
 
-        # analize share price ALL
+        # analyze share price ALL
         logging.getLogger("benchmark").info(
             f"FE: {fees_per_share:,.2f} [ {fees_per_share_yield:,.2%} ] \t  RE: {rewards_per_share:,.2f} [ {rewards_per_share_yield:,.2%} ] \t IL: {impermanent_per_share:,.2f} [ {impermanent_per_share_yield:,.2%} ]  \t  RO: {roi_per_share:,.2f} [ {roi_per_share_yield:,.2%} ]  IL_tst {impermanent_per_share_sinceIni:,.2f} [ {impermanent_per_share_sinceIni_yield:,.2%} ]"
         )
