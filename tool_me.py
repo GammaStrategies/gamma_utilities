@@ -37,6 +37,18 @@ if __name__ == "__main__":
     # start time log
     _startime = datetime.now(timezone.utc)
 
+    # set telegram token and chat id if passed from command line
+    if CONFIGURATION["_custom_"]["cml_parameters"].telegram_token:
+        CONFIGURATION["logs"]["telegram"]["token"] = CONFIGURATION["_custom_"][
+            "cml_parameters"
+        ].telegram_token
+        CONFIGURATION["logs"]["telegram"]["enabled"] = True
+    if CONFIGURATION["_custom_"]["cml_parameters"].telegram_chat_id:
+        CONFIGURATION["logs"]["telegram"]["chat_id"] = CONFIGURATION["_custom_"][
+            "cml_parameters"
+        ].telegram_chat_id
+        CONFIGURATION["logs"]["telegram"]["enabled"] = True
+
     # cml debug mode ?
     if CONFIGURATION["_custom_"]["cml_parameters"].debug:
         try:
@@ -49,7 +61,7 @@ if __name__ == "__main__":
 
     # convert datetimes if exist
     if CONFIGURATION["_custom_"]["cml_parameters"].ini_datetime:
-        # convert to datetime
+        # convert to datetime UTC
         try:
             CONFIGURATION["_custom_"][
                 "cml_parameters"

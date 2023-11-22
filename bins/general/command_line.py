@@ -47,6 +47,18 @@ class ValidateQueueTypes(argparse.Action):
             setattr(args, self.dest, result)
 
 
+class ValidateAddresses(argparse.Action):
+    def __call__(self, parser, args, addresses, option_string=None):
+        # modify only if not empty
+        if result := [
+            address.lower()
+            for item in addresses
+            for address in item.split(" ")
+            if address[:2] == "0x" and len(address) == 42
+        ]:
+            setattr(args, self.dest, result)
+
+
 def parse_commandLine_args():
     # main parsers
     par_main = argparse.ArgumentParser(
@@ -120,7 +132,7 @@ def parse_commandLine_args():
     # analysis
     par_analysis = exGroup.add_argument(
         "--analysis",
-        choices=["user", "network", "queue", "benchmark_logs"],
+        choices=["user", "network", "queue", "benchmark_logs", "user_deposits"],
         help=" execute analysis",
     )
 
@@ -181,6 +193,15 @@ def parse_commandLine_args():
         type=str,
         help="specify a hypervisor address to be analyzed",
     )
+
+    # TODO: replace hyperisor_address and user_address with XXXX_addresses
+    par_main.add_argument(
+        "--hypervisor_addresses",
+        action=ValidateAddresses,
+        nargs="+",
+        help="specify a list of addresses to be processed. Enclose within ' ' separator being an empty space ",
+    )
+
     par_main.add_argument(
         "--do_prices",
         action="store_true",
@@ -266,6 +287,24 @@ def parse_commandLine_args():
         "--donot_enforce_contract_creation",
         action="store_true",
         help=" Do not enforce static hypervisor info to have contract creation block and timestamp. When true, if not found, current block and timestamp will be used",
+    )
+
+    # telegram config #####
+    par_main.add_argument(
+        "--telegram_token",
+        type=str,
+        help=" Telegram bot token to send messages",
+    )
+    par_main.add_argument(
+        "--telegram_chat_id",
+        type=str,
+        help=" Telegram chat id to send messages",
+    )
+
+    par_main.add_argument(
+        "--send_to_telegram",
+        action="store_true",
+        help=" send defined output to telegram (analysis)",
     )
 
     # print helpwhen no command is passed

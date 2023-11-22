@@ -1,4 +1,5 @@
 import contextlib
+import json
 import re
 import sys
 import os
@@ -9,13 +10,18 @@ from datetime import datetime, timedelta
 
 from datetime import timezone
 from decimal import Decimal
+from hexbytes import HexBytes
+
+import tqdm
 from apps.feeds.queue.queue_item import QueueItem
 
 from bins.general.enums import Chain, queueItemType, text_to_chain
+from bins.general.exports import telegram_send_file
 from bins.performance.benchmark_logs import (
-    analize_benchmark_info_log,
-    analize_benchmark_log,
+    analyze_benchmark_info_log,
+    analyze_benchmark_log,
 )
+from bins.w3.builders import build_erc20_helper
 
 if __name__ == "__main__":
     # append parent directory pth
@@ -520,9 +526,9 @@ def benchmark_logs_analysis():
     aggregated_networks = {}
     # process logs
     for log_file in log_files:
-        # analize log file
+        # analyze log file
         logging.getLogger(__name__).debug(f" analyzing {log_file}")
-        if result := analize_benchmark_log(log_file=load_logFile(log_file)):
+        if result := analyze_benchmark_log(log_file=load_logFile(log_file)):
             # check if there is data in result
             if not result["total_items"] > 0:
                 logging.getLogger(__name__).debug(
@@ -795,9 +801,9 @@ def benchmark_logs_analysis_get_processing() -> dict:
     aggregated_networks = {}
     # process logs
     for log_file in log_files:
-        # analize log file
+        # analyze log file
         logging.getLogger(__name__).debug(f" analyzing {log_file}")
-        if result := analize_benchmark_info_log(log_file=load_logFile(log_file)):
+        if result := analyze_benchmark_info_log(log_file=load_logFile(log_file)):
             # check if there is data in result
             if not result["total_items"] > 0:
                 logging.getLogger(__name__).debug(
@@ -1021,11 +1027,11 @@ def get_list_failing_queue_items(chain: Chain, find: dict | None = None):
     return result
 
 
-def analize_queues(chains: list[Chain] | None = None):
+def analyze_queues(chains: list[Chain] | None = None):
     """Analize queues
 
     Args:
-        chains (list[Chain], optional): list of chains to analize. Defaults to None.
+        chains (list[Chain], optional): list of chains to analyze. Defaults to None.
     """
     # get chains
     chains = chains or list(Chain)
@@ -1130,6 +1136,342 @@ def analize_queues(chains: list[Chain] | None = None):
         )
 
 
+def analyze_user_deposits(
+    chains: list[Chain] | None = None,
+    protocols: list[str] | None = None,
+    hypervisor_addresses: list[str] | None = None,
+    user_addresses: list[str] | None = None,
+    ini_timestamp: int | None = None,
+    end_timestamp: int | None = None,
+    send_to_telegram: bool = False,
+) -> dict:
+    if user_addresses:
+        raise NotImplementedError("user_addresses not implemented yet")
+
+    addresses = hypervisor_addresses or user_addresses or None
+
+    if not ini_timestamp and CONFIGURATION["_custom_"]["cml_parameters"].ini_datetime:
+        ini_timestamp = CONFIGURATION["_custom_"][
+            "cml_parameters"
+        ].ini_datetime.timestamp()
+
+    if not end_timestamp and CONFIGURATION["_custom_"]["cml_parameters"].end_datetime:
+        end_timestamp = CONFIGURATION["_custom_"][
+            "cml_parameters"
+        ].end_datetime.timestamp()
+
+    # control vars to define if we should set timestamps when no value is provided
+    _set_ini_timestamp = True if not ini_timestamp else False
+    _set_end_timestamp = True if not end_timestamp else False
+
+    # set known proxy addresses
+    proxy_addresses = {
+        Chain.ARBITRUM: ["0x851b3Fb3c3178Cd3FBAa0CdaAe0175Efa15a30f1".lower()]
+    }
+
+    # set chains to process
+    chains = (
+        chains
+        or [
+            text_to_chain(x)
+            for x in (
+                CONFIGURATION["_custom_"]["cml_parameters"].networks
+                or CONFIGURATION["script"]["protocols"]["gamma"]["networks"]
+            )
+        ]
+        or list(Chain)
+    )
+
+    # set result var
+    result = {}
+
+    # analyze
+    for chain in chains:
+        logging.getLogger(__name__).info(
+            f" Analyzing user deposits in {chain.fantasy_name}"
+        )
+        # get static hypervisor data
+        hypervisors_static_list = {
+            x["address"]: x
+            for x in get_from_localdb(
+                network=chain.database_name,
+                collection="static",
+                find={"address": {"$in": addresses}} if addresses else {},
+                batch_size=10000,
+                projection={"_id": 0, "address": 1, "pool": 1, "symbol": 1, "dex": 1},
+            )
+        }
+
+    # get all deposits
+    find = {
+        "$and": [
+            {"topic": "deposit"},
+        ],
+    }
+    if addresses:
+        find["$and"].append({"address": {"$in": addresses}})
+    if ini_timestamp:
+        find["$and"].append({"timestamp": {"$gte": ini_timestamp}})
+    if end_timestamp:
+        find["$and"].append({"timestamp": {"$lte": end_timestamp}})
+
+    # get operations from database
+    database_operations = get_from_localdb(
+        network=chain.database_name,
+        collection="operations",
+        find=find,
+        batch_size=10000,
+        projection={
+            "_id": 0,
+            "address": 1,
+            "sender": 1,
+            "to": 1,
+            "blockNumber": 1,
+            "transactionHash": 1,
+            "timestamp": 1,
+            "qtty_token0": 1,
+            "qtty_token1": 1,
+        },
+    )
+    with tqdm.tqdm(total=len(database_operations)) as progress_bar:
+        for deposit in database_operations:
+            _hypervisor_address = deposit["address"].lower()
+            _deposit_token0_qtty = int(deposit["qtty_token0"])
+            _deposit_token1_qtty = int(deposit["qtty_token1"])
+            _token0_address = hypervisors_static_list[_hypervisor_address]["pool"][
+                "token0"
+            ]["address"].lower()
+            _token1_address = hypervisors_static_list[_hypervisor_address]["pool"][
+                "token1"
+            ]["address"].lower()
+
+            # process as proxied or not
+            if deposit["sender"] in proxy_addresses:
+                progress_bar.set_description(
+                    f" proxied deposit {hypervisors_static_list[_hypervisor_address]['symbol']}"
+                )
+                progress_bar.refresh()
+                # PROXIED
+                analyze_user_deposits_process_proxied_deposit(
+                    chain=chain,
+                    deposit=deposit,
+                    _uniproxy_address=deposit["sender"],
+                    _hypervisor_address=_hypervisor_address,
+                    _deposit_token0_qtty=_deposit_token0_qtty,
+                    _deposit_token1_qtty=_deposit_token1_qtty,
+                    _token0_address=_token0_address,
+                    _token1_address=_token1_address,
+                    result=result,
+                )
+            else:
+                # NOT PROXIED
+                progress_bar.set_description(
+                    f" deposit {hypervisors_static_list[_hypervisor_address]['symbol']}"
+                )
+                progress_bar.refresh()
+                _user_address = deposit["sender"].lower()
+                # create user address in result, if needed
+                if _user_address not in result:
+                    result[_user_address] = {
+                        "total_deposits": {"token0": 0, "token1": 0},
+                        "hypervisors": {},
+                    }
+                if _hypervisor_address not in result[_user_address]["hypervisors"]:
+                    result[_user_address]["hypervisors"][_hypervisor_address] = {
+                        "total_deposits": {"token0": 0, "token1": 0},
+                        "transactions": [],
+                    }
+
+                # add to result
+                # result["total_deposits"]["token0"] += _deposit_token0_qtty
+                # result["total_deposits"]["token1"] += _deposit_token1_qtty
+                # add qtty to user address
+                result[_user_address]["total_deposits"][
+                    "token0"
+                ] += _deposit_token0_qtty
+                result[_user_address]["total_deposits"][
+                    "token1"
+                ] += _deposit_token1_qtty
+                # add qtty to hypervisor address
+                result[_user_address]["hypervisors"][_hypervisor_address][
+                    "total_deposits"
+                ]["token0"] += _deposit_token0_qtty
+                result[_user_address]["hypervisors"][_hypervisor_address][
+                    "total_deposits"
+                ]["token1"] += _deposit_token1_qtty
+                # add transaction
+                result[_user_address]["hypervisors"][_hypervisor_address][
+                    "transactions"
+                ].append(
+                    {
+                        "block": deposit["blockNumber"],
+                        "txHash": deposit["transactionHash"],
+                        "timestamp": deposit["timestamp"],
+                        "token0": _deposit_token0_qtty,
+                        "token1": _deposit_token1_qtty,
+                        "user_address": _user_address,
+                        "from": deposit["sender"].lower(),
+                        "to": deposit["to"].lower(),
+                    }
+                )
+
+            # set timestamps
+            if _set_ini_timestamp:
+                ini_timestamp = (
+                    deposit["timestamp"]
+                    if not ini_timestamp
+                    else min(ini_timestamp, deposit["timestamp"])
+                )
+            if _set_end_timestamp:
+                end_timestamp = (
+                    deposit["timestamp"]
+                    if not end_timestamp
+                    else max(end_timestamp, deposit["timestamp"])
+                )
+
+            progress_bar.update(1)
+
+    if send_to_telegram:
+        # build caption message
+        caption = (
+            f"user_deposits for {' '.join([x for x in chains])} {len(hypervisor_addresses) if hypervisor_addresses else 'all'} hypes from {datetime.fromtimestamp(ini_timestamp,timezone.utc)} to {datetime.fromtimestamp(end_timestamp,timezone.utc)}",
+        )
+
+        # send to telegram
+        telegram_send_file(
+            input_file_content=json.dumps(result).encode("utf-8"),
+            full_filename=f"user_deposits.json",
+            mime_type="application/json",
+            telegram_file_type="Document",
+            caption=caption,
+        )
+
+    return result
+
+
+def analyze_user_deposits_process_proxied_deposit(
+    chain: Chain,
+    deposit: dict,
+    _uniproxy_address: str,
+    _hypervisor_address: str,
+    _deposit_token0_qtty: int,
+    _deposit_token1_qtty: int,
+    _token0_address: str,
+    _token1_address: str,
+    result: dict,
+):
+    """add user address
+
+    Args:
+        chain (Chain): _description_
+        deposit (dict): _description_
+        _uniproxy_address (str): _description_
+        _hypervisor_address (str): _description_
+        _deposit_token0_qtty (int): _description_
+        _deposit_token1_qtty (int): _description_
+        _token0_address (str): _description_
+        _token1_address (str): _description_
+        result (dict): _description_
+    """
+    ercHelper = build_erc20_helper(chain=chain)
+    receipt = ercHelper._w3.eth.get_transaction_receipt(
+        transaction_hash=HexBytes(deposit["transactionHash"])
+    )
+    # decoansfers = decode_transfers(receipt.logs)
+    decoded_logs = ercHelper.contract.events.Transfer().processReceipt(receipt)
+
+    found_addresses = []
+    # find hypervisor address deposit (to)
+    for log in decoded_logs:
+        _contract_address = log.address.lower()
+        _current_qtty = int(log.args["value"])
+        _current_from = log.args["from"].lower()
+        _current_to = log.args["to"].lower()
+        # make sure this is not a transfer to the hypervisor nor a transfer from 0x0000
+        if (
+            _contract_address in [_token0_address, _token1_address]
+            and _current_to == _uniproxy_address
+            and _contract_address != _hypervisor_address
+        ):
+            if _deposit_token0_qtty == _current_qtty:
+                # this is the one
+                found_addresses.append(_current_from)
+            elif _deposit_token1_qtty == _current_qtty:
+                # this is the one
+                found_addresses.append(_current_from)
+            else:
+                # this is not the one
+                pass
+
+    # check if found and if they are equal to each other
+    if found_addresses:
+        if len(found_addresses) == 2:
+            # set user address
+            _user_address = found_addresses[0]
+            # check if they are equal
+            if found_addresses[0] != found_addresses[1]:
+                # not equal! check if one of them is minted
+                if "0x0000000000000000000000000000000000000000" in found_addresses:
+                    # this may be a wrapped eth deposit, or another token wraped by the user directly to proxy contract.
+                    # because it matches qtty, we assume it is correct and use the other address as user address.
+                    logging.getLogger(__name__).debug(f" Found wrapped eth deposit!!  ")
+                    # select the other address
+                    _user_address = [
+                        x.lower()
+                        for x in found_addresses
+                        if x != "0x0000000000000000000000000000000000000000"
+                    ][0]
+                else:
+                    logging.getLogger(__name__).debug(
+                        f" Found TWO different addresses!!  {deposit['address']} {deposit['blockNumber']} -> {found_addresses}"
+                    )
+                    return
+
+            # create user address in result, if needed
+            if _user_address not in result:
+                result[_user_address] = {
+                    "total_deposits": {"token0": 0, "token1": 0},
+                    "hypervisors": {},
+                }
+            # add hypervisor
+            if _hypervisor_address not in result[_user_address]["hypervisors"]:
+                result[_user_address]["hypervisors"][_hypervisor_address] = {
+                    "total_deposits": {"token0": 0, "token1": 0},
+                    "transactions": [],
+                }
+
+            # add qtty to user address
+            result[_user_address]["hypervisors"][_hypervisor_address]["total_deposits"][
+                "token0"
+            ] += _deposit_token0_qtty
+            result[_user_address]["hypervisors"][_hypervisor_address]["total_deposits"][
+                "token1"
+            ] += _deposit_token1_qtty
+            # add transaction
+            result[_user_address]["hypervisors"][_hypervisor_address][
+                "transactions"
+            ].append(
+                {
+                    "block": deposit["blockNumber"],
+                    "txHash": deposit["transactionHash"],
+                    "timestamp": deposit["timestamp"],
+                    "token0": _deposit_token0_qtty,
+                    "token1": _deposit_token1_qtty,
+                    "user_address": _user_address,
+                    "from": _current_from,
+                    "to": _current_to,
+                }
+            )
+        else:
+            logging.getLogger(__name__).debug(
+                f" ERROR !!  {deposit['address']} {deposit['blockNumber']} -> {found_addresses}"
+            )
+    else:
+        logging.getLogger(__name__).debug(
+            f" Not found {deposit['address']} {deposit['blockNumber']} -> {found_addresses}"
+        )
+
+
 def main(option: str, **kwargs):
     # get dates range from command line
     try:
@@ -1188,4 +1530,38 @@ def main(option: str, **kwargs):
                 or CONFIGURATION["script"]["protocols"][protocol]["networks"]
             )
 
-            analize_queues(chains=[text_to_chain(network) for network in networks])
+            analyze_queues(chains=[text_to_chain(network) for network in networks])
+
+    elif option == "user_deposits":
+        # hypervisor addresses must be provided
+        print(
+            analyze_user_deposits(
+                hypervisor_addresses=CONFIGURATION["_custom_"][
+                    "cml_parameters"
+                ].hypervisor_addresses,
+                user_addresses=CONFIGURATION["_custom_"]["cml_parameters"].user_address,
+                send_to_telegram=CONFIGURATION["_custom_"][
+                    "cml_parameters"
+                ].send_to_telegram,
+            )
+        )
+        # elif CONFIGURATION["_custom_"]["cml_parameters"].user_address:
+        #     # TODO: replace with user addresses
+        #     print(
+        #         analyze_user_deposits(
+
+        #             send_to_telegram=CONFIGURATION["_custom_"][
+        #                 "cml_parameters"
+        #             ].send_to_telegram,
+        #         )
+        #     )
+
+        # else:
+        #     analyze_user_deposits(
+        #             send_to_telegram=CONFIGURATION["_custom_"][
+        #                 "cml_parameters"
+        #             ].send_to_telegram,
+        #         )
+        #     raise ValueError(
+        #         "no addresses provided to analyze. Use --hypervisor_addresses '<address> <address> ...'   or --user_addresses '<address> <address> ...'"
+        #     )
