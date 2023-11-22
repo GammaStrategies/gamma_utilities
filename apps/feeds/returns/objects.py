@@ -1000,8 +1000,10 @@ class period_yield_data:
         # We want to xtrapolate to the self.period_seconds
         # xtrapolate rewards for the period
         self.rewards.period_yield = (
-            yield_cumulative / total_period_seconds
-        ) * self.period_seconds
+            ((yield_cumulative / total_period_seconds) * self.period_seconds)
+            if total_period_seconds
+            else 0
+        )
 
         # xtrapolate rewards to the period underlying value to get usd value
         self.rewards.usd = self.ini_underlying_usd * self.rewards.period_yield
