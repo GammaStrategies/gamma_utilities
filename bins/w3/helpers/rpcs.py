@@ -305,13 +305,14 @@ class w3Providers:
             if type and key_name != type:
                 continue
 
-            for rpc in net_data:
+            for chain_key, rpc_list in net_data.items():
                 # skip if network is not the one we want
-                if network and rpc.network != network:
+                if network and chain_key != network:
                     continue
 
-                total_atempts += rpc.attempts
-                total_cus += rpc.compute_unit_cost
+                for rpc in rpc_list:
+                    total_atempts += rpc.attempts
+                    total_cus += rpc.compute_unit_cost
 
         return total_atempts, total_cus
 
