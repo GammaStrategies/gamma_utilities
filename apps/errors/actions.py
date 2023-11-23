@@ -1,6 +1,6 @@
 import logging
-from apps.errors.fees.negative_fees import actions_on_negative_fees
-from apps.feeds.operations import feed_operations
+from apps.errors.processing.negative_fees import actions_on_negative_fees
+from apps.errors.processing.supply_difference import actions_on_supply_difference
 from apps.feeds.queue.queue_item import QueueItem
 from apps.feeds.revenue_operations import feed_revenue_operations
 from bins.database.helpers import get_default_localdb, get_from_localdb
@@ -17,27 +17,13 @@ def process_error(error: ProcessingError):
     elif error.identity == error_identity.OVERLAPED_PERIODS:
         pass
     elif error.identity == error_identity.SUPPLY_DIFFERENCE:
-        # this can indicate missing operation between two blocks
+        # this can indicate wrong snapshots or missing operation between two blocks
         if error.action == "rescrape":
-            rescrape_block_ini = error.item["ini_block"]
-            rescrape_block_end = error.item["end_block"]
-
-            # rescrape operations for this chain between defined blocks
-            logging.getLogger(__name__).info(
-                f" Rescraping operations for {error.chain.database_name} between blocks {rescrape_block_ini} and {rescrape_block_end}. Reason: supply difference error"
-            )
-            feed_operations(
-                protocol="gamma",
-                network=error.chain.database_name,
-                block_ini=rescrape_block_ini,
-                block_end=rescrape_block_end,
-            )
-
+            actions_on_supply_difference(error=error)
     elif error.identity == error_identity.NEGATIVE_FEES:
         if error.action == "rescrape":
             # take actions
             actions_on_negative_fees(error=error)
-
     elif error.identity == error_identity.INVALID_MFD:
         if error.action == "remove":
             # remove invalid mfd? TODO

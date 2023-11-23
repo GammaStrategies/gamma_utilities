@@ -35,9 +35,9 @@ def actions_on_negative_fees(error: ProcessingError):
             network=error.chain.database_name,
             block=error.item["ini_block"],
             dex=text_to_protocol(error.item["dex"]),
-            pool_address=_hypervisor_static["pool_address"],
-            token0_address=_hypervisor_static["token0_address"],
-            token1_address=_hypervisor_static["token1_address"],
+            pool_address=_hypervisor_static["pool"]["address"],
+            token0_address=_hypervisor_static["pool"]["token0"]["address"],
+            token1_address=_hypervisor_static["pool"]["token1"]["address"],
             convert_bint=True,
         )
 
@@ -46,9 +46,9 @@ def actions_on_negative_fees(error: ProcessingError):
             network=error.chain.database_name,
             block=error.item["end_block"],
             dex=text_to_protocol(error.item["dex"]),
-            pool_address=_hypervisor_static["pool_address"],
-            token0_address=_hypervisor_static["token0_address"],
-            token1_address=_hypervisor_static["token1_address"],
+            pool_address=_hypervisor_static["pool"]["address"],
+            token0_address=_hypervisor_static["pool"]["token0"]["address"],
+            token1_address=_hypervisor_static["pool"]["token1"]["address"],
             convert_bint=True,
         )
 
@@ -72,7 +72,7 @@ def actions_on_negative_fees(error: ProcessingError):
                 network=error.chain.database_name
             ).set_status(end_hype_db)
             logging.getLogger(__name__).debug(
-                f" Hypervisor {error.item.get('hypervisor_name')} has incorrect uncollected fees between ini/end period. Saved new data to db. Ini: {db_return_ini}. End: {db_return_end}"
+                f" Hypervisor {error.item.get('hypervisor_name')} had incorrect uncollected fees between ini/end period. Now solved. new data to db. Ini: {db_return_ini.modified_count}. End: {db_return_end.modified_count}"
             )
             # end of the process
             return

@@ -325,6 +325,8 @@ class error_identity(str, Enum):
     LPFEES_WITHOUT_REVENUE = "LPFEES_WITHOUT_REVENUE"
     # wrong contract types: when abis loaded are wrong (not matching the contract)
     WRONG_CONTRACT_FIELD_TYPE = "WRONG_CONTRACT_FIELD_TYPE"
+    # mongodb has a 16MB default limit per document
+    DATABASE_LIMIT = "DATABASE_LIMIT"
 
 
 class reportType(str, Enum):

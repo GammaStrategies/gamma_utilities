@@ -552,6 +552,8 @@ class period_yield_data:
                     "ini_block": self.timeframe.ini.block,
                     "end_block": self.timeframe.end.block,
                     "supply_difference": supply_diff,
+                    "ini_supply": self.status.ini.supply,
+                    "end_supply": self.status.end.supply,
                 },
                 identity=error_identity.SUPPLY_DIFFERENCE,
                 action="rescrape",

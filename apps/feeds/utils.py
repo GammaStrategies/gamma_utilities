@@ -5,6 +5,7 @@ from bins.database.helpers import (
     get_from_localdb,
     get_price_from_db,
 )
+from bins.errors.general import ProcessingError
 from bins.formulas.apr import calculate_rewards_apr
 from bins.general.general_utilities import create_chunks
 
@@ -249,8 +250,12 @@ def get_hypervisor_data_for_apr(
             aggregate=query,
             batch_size=batch_size,
         )
+    except ProcessingError as e:
+        logging.getLogger(__name__).debug(
+            f" Could not get {hypervisor_address} hype data to construct hypervisor_data_for_apr from { 'blocks' if block_ini and block_end else 'timestamps'} {block_ini if block_ini else timestamp_ini} to {block_end if block_end else timestamp_end}. Trying to slice it in chunks"
+        )
     except Exception as e:
-        logging.getLogger(__name__).error(
+        logging.getLogger(__name__).exception(
             f" Error getting {hypervisor_address} hype data to construct hypervisor_data_for_apr from { 'blocks' if block_ini and block_end else 'timestamps'} {block_ini if block_ini else timestamp_ini} to {block_end if block_end else timestamp_end}. Trying to slice it in chunks."
         )
 
@@ -410,8 +415,12 @@ def get_hypervisor_data_for_apr_custom_test(
             aggregate=query,
             batch_size=batch_size,
         )
+    except ProcessingError as e:
+        logging.getLogger(__name__).debug(
+            f" Could not get {hypervisor_address} hype data to construct hypervisor_data_for_apr from { 'blocks' if block_ini and block_end else 'timestamps'} {block_ini if block_ini else timestamp_ini} to {block_end if block_end else timestamp_end}. Trying to slice it in chunks"
+        )
     except Exception as e:
-        logging.getLogger(__name__).error(
+        logging.getLogger(__name__).exception(
             f" Error getting {hypervisor_address} hype data to construct hypervisor_data_for_apr from { 'blocks' if block_ini and block_end else 'timestamps'} {block_ini if block_ini else timestamp_ini} to {block_end if block_end else timestamp_end}. Trying to slice it in chunks."
         )
 
@@ -551,6 +560,10 @@ def get_hypervisors_data_for_apr(
 
         return result
 
+    except ProcessingError as e:
+        logging.getLogger(__name__).debug(
+            f" Could not get {hypervisor_addresses} hype data to construct hypervisor_data_for_apr from { 'blocks' if block_ini and block_end else 'timestamps'} {block_ini if block_ini else timestamp_ini} to {block_end if block_end else timestamp_end}. Trying to slice it in chunks"
+        )
     except Exception as e:
         logging.getLogger(__name__).exception(
             f" Error getting {hypervisor_addresses} hype data to construct hypervisor_data_for_apr from { 'blocks' if block_ini and block_end else 'timestamps'} {block_ini if block_ini else timestamp_ini} to {block_end if (block_ini and block_end) else timestamp_end}. Trying to slice it in chunks."

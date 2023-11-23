@@ -2,6 +2,7 @@ import logging
 from bins.config.current import BLOCKS_PER_SECOND
 
 from bins.errors.general import ProcessingError
+from pymongo.errors import OperationFailure
 from bins.w3.builders import build_erc20_helper
 from ..configuration import CONFIGURATION
 from ..database.common.db_collections_common import database_global, database_local
@@ -31,10 +32,33 @@ def get_from_localdb(network: str, collection: str, **kwargs) -> list:
     Returns:
         list: result
     """
-    # TODO: except pymongo.errors.OperationFailure as e: and raise a Process error
-    return get_default_localdb(network=network).get_items_from_database(
-        collection_name=collection, **kwargs
-    )
+    try:
+        return get_default_localdb(network=network).get_items_from_database(
+            collection_name=collection, **kwargs
+        )
+    except OperationFailure as e:
+        # check if its the 16Mb limit error.
+        # full error: {'ok': 0.0, 'errmsg': 'PlanExecutor error during aggregation :: caused by :: BSONObj size: 22253350 (0x1538F26) is invalid. Size must be between 0 and 16793600(16MB) First element: _id: "...."', 'code': 10334, 'codeName': 'BSONObjectTooLarge'}
+        if e.code == 10334:
+            # raise a ProcessingError
+            raise ProcessingError(
+                chain=text_to_chain(network),
+                item=kwargs,
+                identity=error_identity.DATABASE_LIMIT,
+                action="",
+                message=f" 16MB default object limit error while calling collection {collection}:  {e}",
+            )
+        elif e.code == 13548:
+            # raise a ProcessingError
+            raise ProcessingError(
+                chain=text_to_chain(network),
+                item=kwargs,
+                identity=error_identity.DATABASE_LIMIT,
+                action="",
+                message=f" 64MB memmory buffer limit error while calling collection {collection}:  {e}",
+            )
+        else:
+            raise e
 
 
 # PRICE HELPERS
