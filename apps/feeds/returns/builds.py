@@ -1,6 +1,7 @@
 from decimal import Decimal
 import logging
 import time
+from apps.errors.actions import process_error
 from apps.feeds.operations import feed_operations
 from apps.feeds.utils import filter_hypervisor_data_for_apr, get_hypervisor_data_for_apr
 from apps.hypervisor_periods.returns.general import hypervisor_periods_returns
@@ -10,6 +11,7 @@ from bins.database.helpers import (
     get_default_localdb,
     get_from_localdb,
 )
+from bins.errors.general import ProcessingError
 from bins.general.enums import Chain, Protocol, error_identity
 from bins.general.general_utilities import create_chunks
 from bins.w3.builders import (
@@ -23,7 +25,7 @@ def feed_hypervisor_returns(
     chain: Chain, hypervisor_addresses: list[str] | None = None
 ):
     """Feed hypervisor returns from the specified chain and hypervisor addresses
-        ( will try to solve errors when encountered)
+
     Args:
         chain (Chain):
         hypervisor_addresses (list[str]): list of hype addresses
@@ -42,13 +44,13 @@ def feed_hypervisor_returns(
             # get chain latest block
             latest_block = get_latest_block(chain=chain)
 
-            # create yield data
+        try:
             if period_yield_list := create_period_yields(
                 chain=chain,
                 hypervisor_address=hypervisor_address,
                 block_ini=block_ini,
                 block_end=latest_block,
-                try_solve_errors=True,
+                try_solve_errors=False,
             ):
                 # convert to dict and save
                 try:
@@ -67,6 +69,12 @@ def feed_hypervisor_returns(
                     logging.getLogger(__name__).exception(
                         f" Could not convert yield result to dictionary, so not saved -> {e}"
                     )
+        except ProcessingError as e:
+            logging.getLogger(__name__).error(
+                f" Could not create yield data for {chain.database_name} {hypervisor_address} -> {e}"
+            )
+            # try solve error
+            process_error(error=e)
 
     else:
         logging.getLogger(__name__).info(
@@ -129,13 +137,24 @@ def create_period_yields(
         chain=chain, hypervisor_address=hypervisor_address
     )
 
-    return return_helper.execute_processes_within_hypervisor_periods(
-        timestamp_ini=timestamp_ini,
-        timestamp_end=timestamp_end,
-        block_ini=block_ini,
-        block_end=block_end,
-        try_solve_errors=try_solve_errors,
-    )
+    try:
+        return return_helper.execute_processes_within_hypervisor_periods(
+            timestamp_ini=timestamp_ini,
+            timestamp_end=timestamp_end,
+            block_ini=block_ini,
+            block_end=block_end,
+            try_solve_errors=try_solve_errors,
+        )
+    except ProcessingError as e:
+        logging.getLogger(__name__).debug(
+            f" Could not create yield data for {chain.database_name} {hypervisor_address} -> {e}"
+        )
+        # try solve error
+        process_error(error=e)
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            f"  Error while creating yield data -> {e}"
+        )
 
 
 def get_last_return_data_from_db(

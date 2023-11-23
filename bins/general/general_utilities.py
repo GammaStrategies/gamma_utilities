@@ -227,11 +227,25 @@ def convert_string_datetime(string: str) -> dt.datetime:
     """
     if string.lower().strip() == "now":
         return dt.datetime.now(dt.timezone.utc)
-        # POSIBILITY 01
+
+    # POSIBILITY 01
     with contextlib.suppress(Exception):
         _datetime = dt.datetime.strptime(string + " +0000", "%Y-%m-%d %H:%M:%S %z")
         return _datetime
-        # POSIBILITY 02
+    # POSIBILITY 01.1
+    with contextlib.suppress(Exception):
+        _datetime = dt.datetime.strptime(string + " +0000", "%Y-%m-%dT%H:%M:%S %z")
+        return _datetime
+
+    # POSIBILITY 02
+    with contextlib.suppress(Exception):
+        _datetime = dt.datetime.strptime(string, "%Y-%m-%d %H:%M:%S.%fZ")
+        logging.getLogger(__name__).debug(f" {string} converted to {_datetime}")
+        # convert timezone to utc
+        _datetime = _datetime.replace(tzinfo=dt.timezone.utc)
+        logging.getLogger(__name__).debug(f"  Changed to utc {_datetime}")
+        return _datetime
+    # POSIBILITY 02.1
     with contextlib.suppress(Exception):
         _datetime = dt.datetime.strptime(string, "%Y-%m-%dT%H:%M:%S.%fZ")
         logging.getLogger(__name__).debug(f" {string} converted to {_datetime}")
@@ -239,13 +253,19 @@ def convert_string_datetime(string: str) -> dt.datetime:
         _datetime = _datetime.replace(tzinfo=dt.timezone.utc)
         logging.getLogger(__name__).debug(f"  Changed to utc {_datetime}")
         return _datetime
-        # POSIBILITY 03
+
+    # POSIBILITY 03
     with contextlib.suppress(Exception):
         _datetime = dt.datetime.strptime(string + " +0000", "%Y-%m-%d %z")
         return _datetime
-        # POSIBILITY 04
+
+    # POSIBILITY 04
     with contextlib.suppress(Exception):
         _datetime = dt.datetime.strptime(string + " +0000", "%Y-%m-%d %H:%M:%S.%f %z")
+        return _datetime
+    # POSIBILITY 04.1
+    with contextlib.suppress(Exception):
+        _datetime = dt.datetime.strptime(string + " +0000", "%Y-%m-%dT%H:%M:%S.%f %z")
         return _datetime
 
     raise ValueError(f"Can't convert string to datetime: {string}")

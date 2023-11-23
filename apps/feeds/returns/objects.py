@@ -549,6 +549,7 @@ class period_yield_data:
                 chain=text_to_chain(network),
                 item={
                     "hypervisor_address": self.address,
+                    "dex": hype_differences.dex.database_name,
                     "ini_block": self.timeframe.ini.block,
                     "end_block": self.timeframe.end.block,
                     "supply_difference": supply_diff,

@@ -3,7 +3,8 @@ import logging
 from apps.feeds.operations import feed_operations_hypervisors
 from apps.feeds.utils import get_hypervisors_data_for_apr
 from bins.database.helpers import get_from_localdb
-from bins.general.enums import Chain, Protocol, text_to_protocol
+from bins.errors.general import ProcessingError
+from bins.general.enums import Chain, Protocol, error_identity, text_to_protocol
 from bins.w3.builders import build_hypervisor
 
 
@@ -396,7 +397,6 @@ class hypervisor_periods_base:
                 current_item=current_item,
                 try_solve_errors=try_solve_errors,
             )
-
             # check fee Growth
             self._hypervisors_periods_checkfeeGrowths(
                 chain=chain,
@@ -521,8 +521,26 @@ class hypervisor_periods_base:
             # blocks should not be consecutive
             if last_item["block"] + 1 != current_item["block"]:
                 if not try_solve_errors:
-                    raise ValueError(
-                        f"     FAIL index {idx} changed totalSupply from {last_item['totalSupply']} to {current_item['totalSupply']}  blocks: {last_item['block']}  {current_item['block']} {chain.fantasy_name}'s {hypervisor_address}"
+                    # raise ValueError(
+                    #     f"     FAIL index {idx} changed totalSupply from {last_item['totalSupply']} to {current_item['totalSupply']}  blocks: {last_item['block']}  {current_item['block']} {chain.fantasy_name}'s {hypervisor_address}"
+                    # )
+                    supply_diff = (
+                        int(current_item["totalSupply"]) - int(last_item["totalSupply"])
+                    ) / int(last_item["totalSupply"])
+                    raise ProcessingError(
+                        chain=chain,
+                        item={
+                            "hypervisor_address": hypervisor_address,
+                            "dex": current_item["dex"],
+                            "ini_block": last_item["block"],
+                            "end_block": current_item["block"],
+                            "supply_difference": supply_diff,
+                            "ini_supply": int(last_item["totalSupply"]),
+                            "end_supply": int(current_item["totalSupply"]),
+                        },
+                        identity=error_identity.SUPPLY_DIFFERENCE,
+                        action="rescrape",
+                        message=f" FAIL index {idx} changed totalSupply from {last_item['totalSupply']} to {current_item['totalSupply']}  blocks: {last_item['block']}  {current_item['block']} {chain.fantasy_name}'s {hypervisor_address}. Rescrape.",
                     )
 
                 logging.getLogger(__name__).debug(
@@ -578,10 +596,51 @@ class hypervisor_periods_base:
                     block_end=current_item["block"],
                     max_blocks_step=5000,
                 )
+
+                # # raise error
+                # supply_diff = (
+                #     int(current_item["totalSupply"]) - int(last_item["totalSupply"])
+                # ) / int(last_item["totalSupply"])
+
+                # # raise error to rescrape
+                # raise ProcessingError(
+                #     chain=chain,
+                #     item={
+                #         "hypervisor_address": hypervisor_address,
+                # "dex": current_item["dex"],
+                #         "ini_block": last_item["block"],
+                #         "end_block": current_item["block"],
+                #         "supply_difference": supply_diff,
+                #         "ini_supply": int(last_item["totalSupply"]),
+                #         "end_supply": int(current_item["totalSupply"]),
+                #     },
+                #     identity=error_identity.SUPPLY_DIFFERENCE,
+                #     action="rescrape",
+                #     message=f" Hypervisor supply at START differ {supply_diff:,.5%} from END, meaning there are missing operations in between. Rescrape.",
+                # )
+
             else:
-                raise ValueError(
-                    f"      FAIL index {idx} changed totalSupply from {last_item['totalSupply']} to {current_item['totalSupply']}  consecutive blocks: {last_item['block']}  {current_item['block']} {chain.fantasy_name}'s {hypervisor_address}"
+                supply_diff = (
+                    int(current_item["totalSupply"]) - int(last_item["totalSupply"])
+                ) / int(last_item["totalSupply"])
+                raise ProcessingError(
+                    chain=chain,
+                    item={
+                        "hypervisor_address": hypervisor_address,
+                        "dex": current_item["dex"],
+                        "ini_block": last_item["block"],
+                        "end_block": current_item["block"],
+                        "supply_difference": supply_diff,
+                        "ini_supply": int(last_item["totalSupply"]),
+                        "end_supply": int(current_item["totalSupply"]),
+                    },
+                    identity=error_identity.SUPPLY_DIFFERENCE,
+                    action="rescrape",
+                    message=f" FAIL index {idx} changed totalSupply from {last_item['totalSupply']} to {current_item['totalSupply']}  blocks: {last_item['block']}  {current_item['block']} {chain.fantasy_name}'s {hypervisor_address}. Rescrape.",
                 )
+                # raise ValueError(
+                #     f"      FAIL index {idx} changed totalSupply from {last_item['totalSupply']} to {current_item['totalSupply']}  consecutive blocks: {last_item['block']}  {current_item['block']} {chain.fantasy_name}'s {hypervisor_address}"
+                # )
 
     def _hypervisors_periods_checkfeeGrowths(
         self,
