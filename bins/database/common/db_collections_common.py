@@ -3107,6 +3107,216 @@ class database_local(db_collections_common):
         return query
 
     @staticmethod
+    def query_hypervisor_periods_flatten(
+        hypervisor_addresses: list[str] | None = None,
+        timestamp_ini: int | None = None,
+        timestamp_end: int | None = None,
+        block_ini: int | None = None,
+        block_end: int | None = None,
+    ) -> list[dict]:
+        """Same as query_hypervisor_periods but the last stage (group by hype address) is avoided in order to
+            avoid 16MB limit in mongodb.
+        Args:
+            hypervisor_address (str | None, optional): . Defaults to None.
+            timestamp_ini (int | None, optional): greater or equal to . Defaults to None.
+            timestamp_end (int | None, optional): lower or equal to. Defaults to None.
+            block_ini (int | None, optional): greater or equal to  . Defaults to None.
+            block_end (int | None, optional): lower or equal to  . Defaults to None.
+
+        Returns:
+            list[dict]:
+        """
+        # build match
+        _and = [
+            # {"$or": [{"qtty_token0": {"$ne": "0"}}, {"qtty_token1": {"$ne": "0"}}]},  # we need to consider rebalances with 0 qtty
+            {
+                "$or": [
+                    {"src": {"$exists": 0}},
+                    {"src": {"$ne": "0x0000000000000000000000000000000000000000"}},
+                ]
+            },
+            {
+                "$or": [
+                    {"dst": {"$exists": 0}},
+                    {"dst": {"$ne": "0x0000000000000000000000000000000000000000"}},
+                ]
+            },
+        ]
+        _match = {
+            "topic": {
+                "$in": [
+                    # "transfer", # transfers do not affect hype totalSupply -> careful changing this affect calculations bc transfers do not have block-1 hype status scraped
+                    "deposit",
+                    "withdraw",
+                    "rebalance",
+                    "zeroBurn",
+                ]
+            },
+        }
+        query = [
+            {"$sort": {"blockNumber": 1}},
+            {
+                "$group": {
+                    "_id": "$address",
+                    "block_ini": {"$push": "$blockNumber"},
+                    "block_end": {
+                        "$push": {"$toInt": {"$subtract": ["$blockNumber", 1]}}
+                    },
+                }
+            },
+            {
+                "$project": {
+                    "hypervisor_address": "$_id",
+                    "blocks": {"$setUnion": ["$block_ini", "$block_end"]},
+                    "_id": 0,
+                }
+            },
+            {
+                "$project": {
+                    "hypervisor_address": "$hypervisor_address",
+                    "block": "$blocks",
+                }
+            },
+            {"$unwind": "$block"},
+            # find hype status
+            {
+                "$lookup": {
+                    "from": "status",
+                    "let": {"op_block": "$block", "op_address": "$hypervisor_address"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$and": [
+                                        {"$eq": ["$address", "$$op_address"]},
+                                        {
+                                            "$or": [
+                                                {"$eq": ["$block", "$$op_block"]},
+                                            ]
+                                        },
+                                    ],
+                                }
+                            }
+                        },
+                        {"$limit": 1},
+                    ],
+                    "as": "status",
+                }
+            },
+            {"$unwind": "$status"},
+            # find hype's reward static
+            {
+                "$lookup": {
+                    "from": "rewards_static",
+                    "let": {"op_address": "$hypervisor_address"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$eq": ["$hypervisor_address", "$$op_address"],
+                                }
+                            }
+                        },
+                    ],
+                    "as": "status.rewards_static",
+                }
+            },
+            # find hype's reward status
+            {
+                "$lookup": {
+                    "from": "rewards_status",
+                    "let": {"op_block": "$block", "op_address": "$hypervisor_address"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$and": [
+                                        {
+                                            "$eq": [
+                                                "$hypervisor_address",
+                                                "$$op_address",
+                                            ]
+                                        },
+                                        {"$eq": ["$block", "$$op_block"]},
+                                    ],
+                                }
+                            }
+                        },
+                    ],
+                    "as": "status.rewards_status",
+                }
+            },
+            # find operations sorted by logIndex ( there are hype status without operations [end of period]])
+            {
+                "$lookup": {
+                    "from": "operations",
+                    "let": {"op_block": "$block", "op_address": "$hypervisor_address"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$and": [
+                                        {
+                                            "$eq": [
+                                                "$address",
+                                                "$$op_address",
+                                            ]
+                                        },
+                                        {"$eq": ["$blockNumber", "$$op_block"]},
+                                        # only operations affecting totalSupply
+                                        {
+                                            "$in": [
+                                                "$topic",
+                                                [
+                                                    "deposit",
+                                                    "withdraw",
+                                                    "rebalance",
+                                                    "zeroBurn",
+                                                ],
+                                            ]
+                                        },
+                                    ],
+                                }
+                            }
+                        },
+                        {"$sort": {"logIndex": 1}},
+                    ],
+                    "as": "status.operations",
+                }
+            },
+            # {
+            #     "$group": {
+            #         "_id": "$hypervisor_address",
+            #         "status": {"$push": "$status"},
+            #     }
+            # },
+        ]
+
+        # add block and timestamp in query
+        if block_ini:
+            _and.append({"blockNumber": {"$gte": block_ini}})
+        if timestamp_ini:
+            _and.append({"timestamp": {"$gte": timestamp_ini}})
+        if block_end:
+            _and.append({"blockNumber": {"$lte": block_end}})
+        if timestamp_end:
+            _and.append({"timestamp": {"$lte": timestamp_end}})
+
+        # add hype address
+        if hypervisor_addresses:
+            _and.append({"address": {"$in": hypervisor_addresses}})
+
+        # add to query
+        if _and:
+            _match["$and"] = _and
+
+        # add match to query
+        query.insert(0, {"$match": _match})
+
+        # debug_query = f"{query}"
+        return query
+
+    @staticmethod
     def query_hypervisor_rebalances_qtty(
         hypervisor_addresses: list[str] | None = None,
         timestamp_ini: int | None = None,
