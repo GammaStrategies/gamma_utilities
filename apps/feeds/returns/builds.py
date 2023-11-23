@@ -34,48 +34,49 @@ def feed_hypervisor_returns(
         f">Feeding {chain.database_name} returns information"
     )
 
-    # get addresses and blocks to feed
-    for hypervisor_address, block_ini in get_last_return_data_from_db(
+    if _last_returns_data_db := get_last_return_data_from_db(
         chain=chain, hypervisor_addresses=hypervisor_addresses
     ):
-        # beguin using one block after the last one found in database
-        # block_ini += 1
+        # get addresses and blocks to feed
+        for hypervisor_address, block_ini in _last_returns_data_db:
+            # beguin using one block after the last one found in database
+            # block_ini += 1
 
-        # create chunks of blocks to feed data so that we don't overload the database
-        # get chain latest block
-        latest_block = get_latest_block(chain=chain)
-        # define chunk size
-        # chunk_size = 50000  # blocks
-        # create chunks
-        # chunks = create_chunks(min=block_ini, max=latest_block, chunk_size=chunk_size)
+            # create chunks of blocks to feed data so that we don't overload the database
+            # get chain latest block
+            latest_block = get_latest_block(chain=chain)
+            # define chunk size
+            # chunk_size = 50000  # blocks
+            # create chunks
+            # chunks = create_chunks(min=block_ini, max=latest_block, chunk_size=chunk_size)
 
-        # logging.getLogger(__name__).debug(
-        #    f" {len(chunks)} chunks created to feed each hypervisor returns data so that the database does not overload"
-        # )
-        # get hypervisor returns for each chunk
-        # for block_chunk_ini, block_chink_end in chunks:
-        # logging.getLogger(__name__).debug(
-        #     f" Feeding block chunk {block_chunk_ini} to {block_chink_end} for {chain.database_name}'s {hypervisor_address} hypervisor"
-        # )
-        # create yield data
-        if period_yield_list := create_period_yields(
-            chain=chain,
-            hypervisor_address=hypervisor_address,
-            block_ini=block_ini,
-            block_end=latest_block,
-        ):
-            # convert to dict and save
-            try:
-                _todict = [x.to_dict() for x in period_yield_list]
-                # save converted to dict results to database
-                save_hypervisor_returns_to_database(
-                    chain=chain,
-                    period_yield_list=_todict,
-                )
-            except Exception as e:
-                logging.getLogger(__name__).exception(
-                    f" Could not convert yield result to dictionary, so not saved -> {e}"
-                )
+            # logging.getLogger(__name__).debug(
+            #    f" {len(chunks)} chunks created to feed each hypervisor returns data so that the database does not overload"
+            # )
+            # get hypervisor returns for each chunk
+            # for block_chunk_ini, block_chink_end in chunks:
+            # logging.getLogger(__name__).debug(
+            #     f" Feeding block chunk {block_chunk_ini} to {block_chink_end} for {chain.database_name}'s {hypervisor_address} hypervisor"
+            # )
+            # create yield data
+            if period_yield_list := create_period_yields(
+                chain=chain,
+                hypervisor_address=hypervisor_address,
+                block_ini=block_ini,
+                block_end=latest_block,
+            ):
+                # convert to dict and save
+                try:
+                    _todict = [x.to_dict() for x in period_yield_list]
+                    # save converted to dict results to database
+                    save_hypervisor_returns_to_database(
+                        chain=chain,
+                        period_yield_list=_todict,
+                    )
+                except Exception as e:
+                    logging.getLogger(__name__).exception(
+                        f" Could not convert yield result to dictionary, so not saved -> {e}"
+                    )
 
     else:
         logging.getLogger(__name__).info(
@@ -96,7 +97,7 @@ def save_hypervisor_returns_to_database(
         data=[database_local.convert_decimal_to_d128(x) for x in period_yield_list]
     ):
         logging.getLogger(__name__).debug(
-            f"     hypervisor returns db -> del: {db_return.deleted_count}  ins: {db_return.inserted_count}  mod: {db_return.modified_count}  ups: {db_return.upserted_count} matched: {db_return.matched_count}"
+            f"     {chain.database_name} saved returns -> del: {db_return.deleted_count}  ins: {db_return.inserted_count}  mod: {db_return.modified_count}  ups: {db_return.upserted_count} matched: {db_return.matched_count}"
         )
     else:
         logging.getLogger(__name__).error(

@@ -1898,6 +1898,9 @@ class period_yield_analyzer:
             # GRAPH ( needs all previous data )
             self._fill_graph(yield_item)
 
+            # TODO: remove this
+            self.debug_line(yield_item)
+
     # FILL VARIABLES
     def _fill_variables_fees(self, yield_item: period_yield_data):
         # FEES
@@ -1918,7 +1921,7 @@ class period_yield_analyzer:
         )
 
     def _fill_variables_impermanent(self, yield_item: period_yield_data):
-        # IMPERMANENT
+        # IMPERMANENT ( )
 
         self._impermanent_qtty_usd = self._hype_roi_qtty_usd - self._fees_qtty_usd
 
@@ -2019,18 +2022,6 @@ class period_yield_analyzer:
         )
 
     def _fill_graph(self, yield_item: period_yield_data):
-        # define year in seconds
-        year_secs = Decimal(str(60 * 60 * 24 * 365))
-
-        # year_fees_yield = self._fees_per_share_yield / self._total_seconds * year_secs
-        # year_fees_qtty_usd = self._fees_qtty_usd / self._total_seconds * year_secs
-        # year_rewards_yield = (
-        #     self._rewards_per_share_yield / self._total_seconds
-        # ) * year_secs
-        # year_rewards_qtty_usd = (
-        #     self._rewards_qtty_usd / self._total_seconds
-        # ) * year_secs
-
         # add to graph data
         self._graph_data.append(
             {
@@ -2324,3 +2315,8 @@ class period_yield_analyzer:
             _token0_end_usd_value + _token1_end_usd_value
         )
         return _token0_percentage, _token1_percentage
+
+    def debug_line(self,yield_item: period_yield_data):
+        logging.getLogger("benchmark").info(
+            f" {self._fees_per_share:,.2f}  {self._rewards_per_share:,.2f}  {self._impermanent_per_share:,.2f}  {yield_item.price_per_share:,.2f} [roi net:{self._net_roi_per_share:,.2f}] [roi hype:{self._hype_roi_per_share:,.2f}] [initial:{self._ini_price_per_share:,.2f} ]"
+        )
