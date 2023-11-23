@@ -13,6 +13,7 @@ import time
 from apps.feeds.latest.mutifeedistribution.currents import (
     feed_latest_multifeedistribution_snapshot,
 )
+from apps.feeds.price_paths import create_price_paths_json
 from apps.feeds.revenue_operations import (
     create_revenue_addresses,
     feed_revenue_operations,
@@ -476,6 +477,13 @@ def latest_db_service():
             "every": 60 * 3,  # 3 minutes
             "last": time.time(),
             "callable": feed_latest_multifeedistribution_snapshot,
+            "args": (),
+            "process": None,
+        },
+        "create_price_paths_json": {
+            "every": 60 * 60 * 24 * 3,  # 2 days
+            "last": time.time(),
+            "callable": create_price_paths_json,
             "args": (),
             "process": None,
         },
