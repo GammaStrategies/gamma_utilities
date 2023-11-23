@@ -481,7 +481,7 @@ def latest_db_service():
             "process": None,
         },
         "create_price_paths_json": {
-            "every": 60 * 60 * 24 * 3,  # 2 days
+            "every": 60 * 60 * 5,  # 5 hours
             "last": time.time(),
             "callable": create_price_paths_json,
             "args": (),
@@ -506,6 +506,11 @@ def latest_db_service():
                     logging.getLogger(__name__).debug(
                         f"   {key} finished in {time.time() - value['last']} seconds"
                     )
+            # wait 10 seconds to loop again
+            logging.getLogger(__name__).debug(
+                f"   Sleeping for 10 seconds to loop again"
+            )
+            time.sleep(10)
 
     except KeyboardInterrupt:
         logging.getLogger(__name__).debug(

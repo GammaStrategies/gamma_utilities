@@ -576,6 +576,7 @@ class hypervisor_periods_base:
                     hypervisor_addresses=[hypervisor_address],
                     block_ini=last_item["block"],
                     block_end=current_item["block"],
+                    max_blocks_step=5000,
                 )
             else:
                 raise ValueError(
