@@ -458,8 +458,8 @@ def get_hypervisor_data_for_apr_custom_test(
     _start_time = time.time()
     _processed_ids = set()
     for t_ini, t_end, b_ini, b_end in chunks:
-        # build query (ease debuging)
-        query = get_default_localdb(network=network).query_hypervisor_periods(
+        # build safest query ( avoid 16Mb errors as much as possible)
+        query = get_default_localdb(network=network).query_hypervisor_periods_flatten(
             hypervisor_addresses=[hypervisor_address],
             timestamp_ini=t_ini,
             timestamp_end=t_end,
@@ -473,6 +473,9 @@ def get_hypervisor_data_for_apr_custom_test(
             aggregate=query,
             batch_size=batch_size,
         ):
+            # group by hypervisor address: [ { '_id':<hype_address>, 'status': [ <hype_status> ] } ]
+            ordered_hype_status_list = group_by_hypervisors(ordered_hype_status_list)
+
             # add to result if id does not exist
             for hype_status in ordered_hype_status_list[0]["status"]:
                 if not hype_status["_id"] in _processed_ids:
@@ -599,8 +602,8 @@ def get_hypervisors_data_for_apr(
     _start_time = time.time()
     _processed_ids = set()
     for t_ini, t_end, b_ini, b_end in chunks:
-        # build query (ease debuging)
-        query = get_default_localdb(network=network).query_hypervisor_periods(
+        # build safest query ( avoid 16Mb errors as much as possible)
+        query = get_default_localdb(network=network).query_hypervisor_periods_flatten(
             hypervisor_addresses=hypervisor_addresses,
             timestamp_ini=t_ini,
             timestamp_end=t_end,
@@ -614,6 +617,9 @@ def get_hypervisors_data_for_apr(
             aggregate=query,
             batch_size=batch_size,
         ):
+            # group by hypervisor address: [ { '_id':<hype_address>, 'status': [ <hype_status> ] } ]
+            ordered_hype_status_list = group_by_hypervisors(ordered_hype_status_list)
+
             # add to result if id does not exist
             for hype_status in ordered_hype_status_list[0]["status"]:
                 if not hype_status["_id"] in _processed_ids:
@@ -635,3 +641,28 @@ def get_hypervisors_data_for_apr(
 
     # return
     return result
+
+
+def group_by_hypervisors(db_data_list) -> list[dict]:
+    """When using 'query_hypervisor_periods_flatten' query, this function will group the results by hypervisor address
+        emulating the results of 'query_hypervisor_periods' query, but saving mongo's 16Mb max. potential errors
+
+    Args:
+        db_data_list (_type_): use 'query_hypervisor_periods_flatten' query to get this data
+
+    Returns:
+        list[dict]:
+    """
+    # group by hypervisor address: [ { '_id':<hype_address>, 'status': [ <hype_status> ] } ]
+    result = {}
+    for idx, item in enumerate(db_data_list):
+        # ease var access
+        hype_address = item["hypervisor_address"]
+        # add hype address if not in result
+        if not hype_address in result:
+            result[hype_address] = {"_id": hype_address, "status": []}
+        # add status
+        result[hype_address]["status"].append(item["status"])
+
+    # return
+    return list(result.values())
