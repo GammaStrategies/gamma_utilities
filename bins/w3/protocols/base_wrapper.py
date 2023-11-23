@@ -836,6 +836,10 @@ class web3wrap:
             try:
                 rpc.add_attempt(method=cuType.eth_getBlockByNumber)
                 _w3 = self.setup_w3(network=self._network, web3Url=rpc.url)
+                if not isinstance(block, str) and not isinstance(block, int):
+                    logging.getLogger(__name__).error(
+                        f" ERROR --> Block {block} is not valid. address:{self._address} {self._network} {rpc.url}"
+                    )
                 return _w3.eth.get_block(block)
 
             except exceptions.BlockNotFound as e:

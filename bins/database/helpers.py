@@ -31,6 +31,7 @@ def get_from_localdb(network: str, collection: str, **kwargs) -> list:
     Returns:
         list: result
     """
+    # TODO: except pymongo.errors.OperationFailure as e: and raise a Process error
     return get_default_localdb(network=network).get_items_from_database(
         collection_name=collection, **kwargs
     )

@@ -1,4 +1,5 @@
 import logging
+from apps.errors.fees.negative_fees import actions_on_negative_fees
 from apps.feeds.operations import feed_operations
 from apps.feeds.queue.queue_item import QueueItem
 from apps.feeds.revenue_operations import feed_revenue_operations
@@ -34,72 +35,8 @@ def process_error(error: ProcessingError):
 
     elif error.identity == error_identity.NEGATIVE_FEES:
         if error.action == "rescrape":
-            # check if this is an old hypervisor
-            if "visor" in error.item.get(
-                "hypervisor_name", ""
-            ).lower() or error.item.get("hypervisor_symbol", "").lower().startswith(
-                "v"
-            ):
-                # this is an old hypervisor, Cant do anything
-                logging.getLogger(__name__).debug(
-                    f" The old hypervisor {error.item.get('hypervisor_name')} has negative uncollected fees between periods. Nothing to do"
-                )
-            else:
-                # _handle_error_send_message(f"Negative fees: {error.message}")
-                return
-
-                # this is an old hypervisor, Cant do anything
-                logging.getLogger(__name__).debug(
-                    f" Checking {error.item.get('hypervisor_name')} has a correct uncollected fees between ini/end period. Rescraping both blocks"
-                )
-                # check if hype uncollected are correct
-                ini_hype = build_hypervisor(
-                    network=error.chain.database_name,
-                    protocol=text_to_protocol(error.item["dex"]),
-                    hypervisor_address=error.item["hypervisor_address"],
-                    block=error.item["ini_block"],
-                    cached=True,
-                )
-                end_hype = build_hypervisor(
-                    network=error.chain.database_name,
-                    protocol=text_to_protocol(error.item["dex"]),
-                    hypervisor_address=error.item["hypervisor_address"],
-                    block=error.item["end_block"],
-                    cached=True,
-                )
-                ini_uncollected = ini_hype.get_fees_uncollected()
-                end_uncollected = end_hype.get_fees_uncollected()
-
-                fees0_uncollected = (
-                    end_uncollected["qtty_token0"] - ini_uncollected["qtty_token0"]
-                )
-                fees1_uncollected = (
-                    end_uncollected["qtty_token1"] - ini_uncollected["qtty_token1"]
-                )
-
-                if (
-                    fees0_uncollected != error.item["fees_token0"]
-                    or fees1_uncollected != error.item["fees_token1"]
-                ):
-                    # TODO: save new hypes to db
-                    # logging.getLogger(__name__).debug(f" Hypervisor {error.item.get('hypervisor_name')} has incorrect uncollected fees between ini/end period. Saving new data to db")
-                    # ini_hype.to_dict()
-                    # end_hype.to_dict()
-                    pass
-
-                # this is a new hypervisor, try rescrape
-                rescrape_block_ini = error.item["ini_block"]
-                rescrape_block_end = error.item["end_block"]
-                # rescrape operations for this chain between defined blocks
-                logging.getLogger(__name__).info(
-                    f" Rescraping operations for {error.chain.database_name} between blocks {rescrape_block_ini} and {rescrape_block_end}. Reason: negative fees error"
-                )
-                feed_operations(
-                    protocol="gamma",
-                    network=error.chain.database_name,
-                    block_ini=rescrape_block_ini,
-                    block_end=rescrape_block_end,
-                )
+            # take actions
+            actions_on_negative_fees(error=error)
 
     elif error.identity == error_identity.INVALID_MFD:
         if error.action == "remove":
