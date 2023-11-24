@@ -144,6 +144,7 @@ def parse_commandLine_args():
             "rewards_status",
             "status_fees_collected",
             "revenue_operations",
+            "queue",
         ],
         help=" execute a rescraping of the current database items",
     )

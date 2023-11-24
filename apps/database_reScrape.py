@@ -3,6 +3,8 @@ import logging
 import concurrent.futures
 import time
 import tqdm
+from apps.feeds.queue.pull import process_queue_item_type
+from apps.feeds.queue.queue_item import QueueItem
 from apps.feeds.revenue_operations import (
     create_revenue_addresses,
     feed_revenue_operations_from_hypervisors,
@@ -323,6 +325,40 @@ def reScrape_loopWork_rewards_status(
     return False
 
 
+def reScrape_loopWork_queue_items(
+    queue_item: dict,
+    chain: Chain,
+    rewrite: bool = False,
+) -> bool:
+    """Rescrape queue items"""
+
+    try:
+        # convert database queue item to class
+        queue_item_obj = QueueItem(**queue_item)
+
+        # process queue item
+        if process_queue_item_type(
+            network=chain.database_name, queue_item=queue_item_obj
+        ):
+            logging.getLogger(__name__).debug(
+                f"Queue item {queue_item_obj.id} processed successfully"
+            )
+            return True
+
+        else:
+            logging.getLogger(__name__).error(
+                f"Queue item {queue_item_obj.id} could not be processed"
+            )
+            return False
+
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            f" Unexpected error while processing queue item {queue_item['type']} {queue_item['id']}  -> error {e}"
+        )
+
+    return False
+
+
 # custom fill gaps for revenue operations
 def revenueOperations_fillGaps(chain: Chain):
     """Rescrape revenue operations from the first revenue operation block till now
@@ -405,49 +441,87 @@ def main(option=None):
         or CONFIGURATION["script"]["protocols"][main]["networks"]
     )
     for network in networks:
-        # override protocols if specified in cml
-        protocols = (
-            CONFIGURATION["_custom_"]["cml_parameters"].protocols
-            or CONFIGURATION["script"]["protocols"][main]["networks"][network]
-        )
-        for protocol in protocols:
-            # Hypervisor status  ( first, as its a backbone to all other statuses )
-            if option == "status" or option == "all":
-                manual_reScrape(
-                    chain=text_to_chain(network),
-                    loop_work=reScrape_loopWork_hypervisor_status,
-                    find={"dex": protocol},
-                    sort=[("block", -1)],
-                    db_collection="status",
-                    threaded=True,
-                    rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
-                )
-
-            # Rewards status
-            if option == "rewards_status" or option == "all":
-                manual_reScrape(
-                    chain=text_to_chain(network),
-                    loop_work=reScrape_loopWork_rewards_status,
-                    find={"dex": protocol},
-                    sort=[("block", -1)],
-                    db_collection="rewards_status",
-                    threaded=True,
-                    rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
-                )
-
-            # special option
-            if option == "status_fees_collected":
-                # rescrape when fees_collected field does not exist
-                manual_reScrape(
-                    chain=text_to_chain(network),
-                    loop_work=reScrape_loopWork_hypervisor_status,
-                    find={"dex": protocol, "fees_collected": {"$exists": False}},
-                    sort=[("block", 1)],
-                    db_collection="status",
-                    threaded=True,
-                    rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
-                )
-
+        # non protocol driven scrapers
         # Revenue operations
         if option == "revenue_operations":
             revenueOperations_fillGaps(chain=text_to_chain(network))
+        elif option == "queue":
+            # queue items
+            manual_reScrape(
+                chain=text_to_chain(network),
+                loop_work=reScrape_loopWork_queue_items,
+                find={
+                    "$and": [
+                        {
+                            "count": {
+                                "$gte": CONFIGURATION["_custom_"][
+                                    "cml_parameters"
+                                ].queue_level
+                                or 0
+                            }
+                        },
+                        {
+                            "count": {
+                                "$lte": CONFIGURATION["_custom_"][
+                                    "cml_parameters"
+                                ].max_queue_count
+                                or 5
+                            }
+                        },
+                    ]
+                },
+                sort=[
+                    ("count", 1),
+                    ("creation", 1),
+                ],
+                db_collection="queue",
+                threaded=True,
+                rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
+                # threaded=False,
+                max_workers=4,
+            )
+        #
+        # protocol driven scrapers
+        else:
+            # override protocols if specified in cml
+            protocols = (
+                CONFIGURATION["_custom_"]["cml_parameters"].protocols
+                or CONFIGURATION["script"]["protocols"][main]["networks"][network]
+            )
+            for protocol in protocols:
+                # Hypervisor status  ( first, as its a backbone to all other statuses )
+                if option == "status" or option == "all":
+                    manual_reScrape(
+                        chain=text_to_chain(network),
+                        loop_work=reScrape_loopWork_hypervisor_status,
+                        find={"dex": protocol},
+                        sort=[("block", -1)],
+                        db_collection="status",
+                        threaded=True,
+                        rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
+                    )
+
+                # Rewards status
+                elif option == "rewards_status" or option == "all":
+                    manual_reScrape(
+                        chain=text_to_chain(network),
+                        loop_work=reScrape_loopWork_rewards_status,
+                        find={"dex": protocol},
+                        sort=[("block", -1)],
+                        db_collection="rewards_status",
+                        threaded=True,
+                        rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
+                    )
+
+                # special option
+                elif option == "status_fees_collected":
+                    # rescrape when fees_collected field does not exist
+                    manual_reScrape(
+                        chain=text_to_chain(network),
+                        loop_work=reScrape_loopWork_hypervisor_status,
+                        find={"dex": protocol, "fees_collected": {"$exists": False}},
+                        sort=[("block", 1)],
+                        db_collection="status",
+                        threaded=True,
+                        rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
+                    )
