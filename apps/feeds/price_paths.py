@@ -1,6 +1,9 @@
 import logging
 import concurrent.futures
 
+# from multiprocessing import Pool
+# from functools import partial
+
 import tqdm
 from bins.configuration import CONFIGURATION, USDC_TOKEN_ADDRESSES  # DEX_POOLS
 from bins.config.price.pools_price_paths import DEX_POOLS
@@ -247,6 +250,7 @@ def build_token_paths(max_depth: int = 6, old_token_price_paths: dict = None) ->
     return result
 
 
+# TODO: multiprocessing
 def build_token_paths_threaded(
     max_depth: int = 6, old_token_price_paths: dict = None
 ) -> dict:
@@ -365,6 +369,127 @@ def build_token_paths_threaded(
             progress_hook("", 1)
 
     return result
+
+
+# def build_token_paths_multiprocessed(
+#     max_depth: int = 6, old_token_price_paths: dict = None
+# ) -> dict:
+#     logging.getLogger(__name__).info(" Building all network pools paths to USDC price")
+#     result = {}
+#     with tqdm.tqdm(total=len(Chain)) as progress_bar:
+
+#         def progress_hook(description: str, update: int):
+#             if description != "":
+#                 progress_bar.set_description(description)
+
+#             progress_bar.update(update)
+
+#         # 0) add all manually set pools available to token_pools
+#         token_pools = convert_DEX_POOLS(DEX_POOLS=DEX_POOLS)
+
+#         for chain in Chain:
+#             # add chain to result
+#             result[chain] = {}
+
+#             # add chain to token_pools, if not already there
+#             if not chain in token_pools:
+#                 token_pools[chain] = {}
+
+#             # progress bar
+#             progress_hook(f""" Chain: {chain} """, 0)
+
+#             # 0) add all database pools available to token_pools
+#             add_database_pools_to_paths(token_pools=token_pools, chain=chain)
+
+#             # 1) construct paths to usdc
+#             if not chain in USDC_TOKEN_ADDRESSES:
+#                 logging.getLogger(__name__).warning(
+#                     f"  no usdc token addresses found in USDC_TOKEN_ADDRESSES configuration var for {chain}"
+#                 )
+
+#             token_pools_paths = []
+#             for usdc_token_address in USDC_TOKEN_ADDRESSES.get(chain, []):
+#                 if usdc_token_address in token_pools[chain]:
+#                     # build paths to usdc only
+#                     path = []
+#                     processed_pools = []
+#                     for token, pool_data in token_pools[chain][
+#                         usdc_token_address
+#                     ].items():
+#                         # do not add the same pool address in the path twice
+#                         if not pool_data["address"] in processed_pools:
+#                             token_pools_paths.append(
+#                                 [
+#                                     {
+#                                         "token_to": usdc_token_address,
+#                                         "token_from": token,
+#                                         "protocol": pool_data["protocol"],
+#                                         "address": pool_data["address"],
+#                                         "min_block": pool_data["min_block"],
+#                                     }
+#                                 ]
+#                             )
+#                             processed_pools.append(pool_data["address"])
+
+#                         progress_hook(
+#                             f""" Chain: {chain} USDC paths: {len(token_pools_paths)}""",
+#                             0,
+#                         )
+
+#                 else:
+#                     logging.getLogger(__name__).warning(
+#                         f" {usdc_token_address} token defined as USD for {chain} was not found in token_pools ( gamma's + manual DEX POOLS)."
+#                     )
+
+#             # 2) add non usdc tokens to paths
+#             args = (
+#                 (
+#                     path,
+#                     token_pools,
+#                     chain,
+#                     max_depth,
+#                     None,
+#                 )
+#                 for path in token_pools_paths
+#             )
+#             # scrape missing status
+#             _errors = 0
+#             with Pool(5) as p:
+#                 # partial_func=partial(create_paths, token_pools, energy_interval=energy_interval, tstart=tstart, tstop=tstop, trigger_time=trigger_time)
+#                 for new_paths in p.map(lambda p: create_paths(*p), args):
+#                     if new_paths:
+#                         token_pools_paths.extend(new_paths)
+#                     else:
+#                         # error found
+#                         _errors += 1
+
+#             # 3) sort paths and select the shorter ones
+#             logging.getLogger(__name__).debug(f"  sorting paths for {chain}")
+#             for path in token_pools_paths:
+#                 # reverse path
+#                 path.reverse()
+#                 if path[0]["token_from"] in result[chain]:
+#                     # check if path is shorter than existing one
+#                     if len(path) < len(result[chain][path[0]["token_from"]]):
+#                         logging.getLogger(__name__).debug(
+#                             f"  shorter path found for {path[0]['token_from']} -> from {len(result[chain][path[0]['token_from']])} to {len(path)}"
+#                         )
+#                         result[chain][path[0]["token_from"]] = path
+#                 else:
+#                     result[chain][path[0]["token_from"]] = path
+
+#                 if len(path) > 1:
+#                     # update min_block as the maximum "min_block" field of all pools in the path
+#                     min_block = 0
+#                     for pool in path:
+#                         if pool["min_block"] > min_block:
+#                             min_block = pool["min_block"]
+#                     path[0]["min_block"] = min_block
+
+#             # update progress bar
+#             progress_hook("", 1)
+
+#     return result
 
 
 def add_database_pools_to_paths(token_pools: dict, chain: Chain):
