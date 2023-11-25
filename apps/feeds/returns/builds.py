@@ -39,42 +39,43 @@ def feed_hypervisor_returns(
     if _last_returns_data_db := get_last_return_data_from_db(
         chain=chain, hypervisor_addresses=hypervisor_addresses
     ):
+        latest_block = get_latest_block(chain=chain)
+
         # get addresses and blocks to feed
         for hypervisor_address, block_ini in _last_returns_data_db:
             # get chain latest block
-            latest_block = get_latest_block(chain=chain)
 
-        try:
-            if period_yield_list := create_period_yields(
-                chain=chain,
-                hypervisor_address=hypervisor_address,
-                block_ini=block_ini,
-                block_end=latest_block,
-                try_solve_errors=False,
-            ):
-                # convert to dict and save
-                try:
-                    _todict = [x.to_dict() for x in period_yield_list]
-                    # save converted to dict results to database
-                    save_hypervisor_returns_to_database(
-                        chain=chain,
-                        period_yield_list=_todict,
-                    )
-                except AttributeError as e:
-                    # AttributeError: 'NoneType' object has no attribute 'to_dict'
-                    logging.getLogger(__name__).error(
-                        f" Could not convert yield result to dictionary, so not saved. Probably because of a previous hopefully solved error -> {e}"
-                    )
-                except Exception as e:
-                    logging.getLogger(__name__).exception(
-                        f" Could not convert yield result to dictionary, so not saved -> {e}"
-                    )
-        except ProcessingError as e:
-            logging.getLogger(__name__).error(
-                f" Could not create yield data for {chain.database_name} {hypervisor_address} -> {e}"
-            )
-            # try solve error
-            process_error(error=e)
+            try:
+                if period_yield_list := create_period_yields(
+                    chain=chain,
+                    hypervisor_address=hypervisor_address,
+                    block_ini=block_ini,
+                    block_end=latest_block,
+                    try_solve_errors=False,
+                ):
+                    # convert to dict and save
+                    try:
+                        _todict = [x.to_dict() for x in period_yield_list]
+                        # save converted to dict results to database
+                        save_hypervisor_returns_to_database(
+                            chain=chain,
+                            period_yield_list=_todict,
+                        )
+                    except AttributeError as e:
+                        # AttributeError: 'NoneType' object has no attribute 'to_dict'
+                        logging.getLogger(__name__).error(
+                            f" Could not convert yield result to dictionary, so not saved. Probably because of a previous hopefully solved error -> {e}"
+                        )
+                    except Exception as e:
+                        logging.getLogger(__name__).exception(
+                            f" Could not convert yield result to dictionary, so not saved -> {e}"
+                        )
+            except ProcessingError as e:
+                logging.getLogger(__name__).error(
+                    f" Could not create yield data for {chain.database_name} {hypervisor_address} -> {e}"
+                )
+                # try solve error
+                process_error(error=e)
 
     else:
         logging.getLogger(__name__).info(
