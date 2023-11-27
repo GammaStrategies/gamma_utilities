@@ -3,7 +3,6 @@ import logging
 import time
 from apps.errors.actions import process_error
 from apps.feeds.operations import feed_operations
-from apps.feeds.utils import filter_hypervisor_data_for_apr, get_hypervisor_data_for_apr
 from apps.hypervisor_periods.returns.general import hypervisor_periods_returns
 from bins.configuration import CONFIGURATION
 from bins.database.common.db_collections_common import database_local

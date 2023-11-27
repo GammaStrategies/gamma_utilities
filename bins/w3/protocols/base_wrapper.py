@@ -206,14 +206,14 @@ class web3wrap:
         ]
 
     # HELPERS
-    def average_blockTime(self, blocksaway: int = 500) -> dt.datetime.timestamp:
+    def average_blockTime(self, blocksaway: int = 500) -> float:
         """Average time of block creation
 
         Args:
            blocksaway (int, optional): blocks used compute average. Defaults to 500.
 
         Returns:
-           dt.datetime.timestamp: average time per block
+           float: average time per block in seconds
         """
         result: int = 0
         # no decimals allowed

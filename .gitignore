@@ -155,3 +155,4 @@ logs/
 TODO
 apps/fastAPI
 /test/*
+profile.*

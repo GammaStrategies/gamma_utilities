@@ -286,7 +286,7 @@ class hypervisor_periods_base:
 
         else:
             logging.getLogger(__name__).error(
-                f"   {chain.database_name} {hypervisor_address} has no data from {block_ini or datetime.fromtimestamp(timestamp_ini) if timestamp_ini else None} to {block_end or datetime.fromtimestamp(timestamp_end) if timestamp_end else None}"
+                f"   {chain.database_name} {hypervisor_address} has no data from {block_ini or (datetime.fromtimestamp(timestamp_ini) if timestamp_ini else None)} to {block_end or (datetime.fromtimestamp(timestamp_end) if timestamp_end else None)}"
             )
 
         return self.result
