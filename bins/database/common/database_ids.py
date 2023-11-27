@@ -1,7 +1,7 @@
 # database ids
 
 ### QUEUE id is build in the class itself
-from ...general.enums import Chain, Protocol, frontendType, queueItemType
+from ...general.enums import Chain, Protocol, frontendType, queueItemType, reportType
 
 
 def combine_ids(*args) -> str:
@@ -97,3 +97,7 @@ def create_id_frontend_revenue_stats(
     chain: Chain, timestamp: int, protocol: Protocol
 ) -> str:
     return f"{timestamp}_{protocol.database_name}_{chain.database_name}"
+
+
+def create_id_report(chain: Chain, report_type: reportType, customId: str) -> str:
+    return f"{report_type}_{chain.database_name}_{customId}"

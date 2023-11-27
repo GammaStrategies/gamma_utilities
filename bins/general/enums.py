@@ -332,6 +332,7 @@ class error_identity(str, Enum):
 class reportType(str, Enum):
     GROSSFEES = "grossFees"
     KPI = "kpi"
+    USERS_ACTIVITY = "usersActivity"
 
 
 class frontendType(str, Enum):

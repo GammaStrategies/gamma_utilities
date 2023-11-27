@@ -14,8 +14,9 @@ from hexbytes import HexBytes
 
 import tqdm
 from apps.feeds.queue.queue_item import QueueItem
+from bins.database.common.database_ids import create_id_report
 
-from bins.general.enums import Chain, queueItemType, text_to_chain
+from bins.general.enums import Chain, queueItemType, reportType, text_to_chain
 from bins.general.exports import telegram_send_file
 from bins.performance.benchmark_logs import (
     analyze_benchmark_info_log,
@@ -40,7 +41,11 @@ from bins.general import general_utilities, file_utilities
 from bins.apis.thegraph_utilities import gamma_scraper
 
 
-from bins.database.helpers import get_default_localdb, get_from_localdb
+from bins.database.helpers import (
+    get_default_globaldb,
+    get_default_localdb,
+    get_from_localdb,
+)
 from .database_checker import get_all_logfiles, load_logFile
 
 
@@ -1144,6 +1149,7 @@ def analyze_user_deposits(
     ini_timestamp: int | None = None,
     end_timestamp: int | None = None,
     send_to_telegram: bool = False,
+    save_to_db: bool = True,
 ) -> dict:
     if user_addresses:
         raise NotImplementedError("user_addresses not implemented yet")
@@ -1202,149 +1208,207 @@ def analyze_user_deposits(
             )
         }
 
-    # get all deposits
-    find = {
-        "$and": [
-            {"topic": "deposit"},
-        ],
-    }
-    if addresses:
-        find["$and"].append({"address": {"$in": addresses}})
-    if ini_timestamp:
-        find["$and"].append({"timestamp": {"$gte": ini_timestamp}})
-    if end_timestamp:
-        find["$and"].append({"timestamp": {"$lte": end_timestamp}})
+        token_current_prices = {
+            x["address"]: x
+            for x in get_default_globaldb().get_items_from_database(
+                collection_name="current_usd_prices",
+                find={"network": chain.database_name},
+            )
+        }
 
-    # get operations from database
-    database_operations = get_from_localdb(
-        network=chain.database_name,
-        collection="operations",
-        find=find,
-        batch_size=10000,
-        projection={
-            "_id": 0,
-            "address": 1,
-            "sender": 1,
-            "to": 1,
-            "blockNumber": 1,
-            "transactionHash": 1,
-            "timestamp": 1,
-            "qtty_token0": 1,
-            "qtty_token1": 1,
-        },
-    )
-    with tqdm.tqdm(total=len(database_operations)) as progress_bar:
-        for deposit in database_operations:
-            _hypervisor_address = deposit["address"].lower()
-            _deposit_token0_qtty = int(deposit["qtty_token0"])
-            _deposit_token1_qtty = int(deposit["qtty_token1"])
-            _token0_address = hypervisors_static_list[_hypervisor_address]["pool"][
-                "token0"
-            ]["address"].lower()
-            _token1_address = hypervisors_static_list[_hypervisor_address]["pool"][
-                "token1"
-            ]["address"].lower()
+        # get all deposits
+        find = {
+            "$and": [
+                {"topic": "deposit"},
+            ],
+        }
+        if addresses:
+            find["$and"].append({"address": {"$in": addresses}})
+        if ini_timestamp:
+            find["$and"].append({"timestamp": {"$gte": ini_timestamp}})
+        if end_timestamp:
+            find["$and"].append({"timestamp": {"$lte": end_timestamp}})
 
-            # process as proxied or not
-            if deposit["sender"] in proxy_addresses:
-                progress_bar.set_description(
-                    f" proxied deposit {hypervisors_static_list[_hypervisor_address]['symbol']}"
-                )
-                progress_bar.refresh()
-                # PROXIED
-                analyze_user_deposits_process_proxied_deposit(
-                    chain=chain,
-                    deposit=deposit,
-                    _uniproxy_address=deposit["sender"],
-                    _hypervisor_address=_hypervisor_address,
-                    _deposit_token0_qtty=_deposit_token0_qtty,
-                    _deposit_token1_qtty=_deposit_token1_qtty,
-                    _token0_address=_token0_address,
-                    _token1_address=_token1_address,
-                    result=result,
-                )
-            else:
-                # NOT PROXIED
-                progress_bar.set_description(
-                    f" deposit {hypervisors_static_list[_hypervisor_address]['symbol']}"
-                )
-                progress_bar.refresh()
-                _user_address = deposit["sender"].lower()
-                # create user address in result, if needed
-                if _user_address not in result:
-                    result[_user_address] = {
-                        "total_deposits": {"token0": 0, "token1": 0},
-                        "hypervisors": {},
-                    }
-                if _hypervisor_address not in result[_user_address]["hypervisors"]:
-                    result[_user_address]["hypervisors"][_hypervisor_address] = {
-                        "total_deposits": {"token0": 0, "token1": 0},
-                        "transactions": [],
-                    }
-
-                # add to result
-                # result["total_deposits"]["token0"] += _deposit_token0_qtty
-                # result["total_deposits"]["token1"] += _deposit_token1_qtty
-                # add qtty to user address
-                result[_user_address]["total_deposits"][
+        # get operations from database
+        database_operations = get_from_localdb(
+            network=chain.database_name,
+            collection="operations",
+            find=find,
+            batch_size=10000,
+            projection={
+                "_id": 0,
+                "address": 1,
+                "sender": 1,
+                "to": 1,
+                "blockNumber": 1,
+                "transactionHash": 1,
+                "timestamp": 1,
+                "qtty_token0": 1,
+                "qtty_token1": 1,
+            },
+        )
+        with tqdm.tqdm(total=len(database_operations)) as progress_bar:
+            for deposit in database_operations:
+                _hypervisor_address = deposit["address"].lower()
+                _deposit_token0_qtty = int(deposit["qtty_token0"])
+                _deposit_token1_qtty = int(deposit["qtty_token1"])
+                _token0_address = hypervisors_static_list[_hypervisor_address]["pool"][
                     "token0"
-                ] += _deposit_token0_qtty
-                result[_user_address]["total_deposits"][
+                ]["address"].lower()
+                _token1_address = hypervisors_static_list[_hypervisor_address]["pool"][
                     "token1"
-                ] += _deposit_token1_qtty
-                # add qtty to hypervisor address
-                result[_user_address]["hypervisors"][_hypervisor_address][
-                    "total_deposits"
-                ]["token0"] += _deposit_token0_qtty
-                result[_user_address]["hypervisors"][_hypervisor_address][
-                    "total_deposits"
-                ]["token1"] += _deposit_token1_qtty
-                # add transaction
-                result[_user_address]["hypervisors"][_hypervisor_address][
-                    "transactions"
-                ].append(
-                    {
-                        "block": deposit["blockNumber"],
-                        "txHash": deposit["transactionHash"],
-                        "timestamp": deposit["timestamp"],
-                        "token0": _deposit_token0_qtty,
-                        "token1": _deposit_token1_qtty,
-                        "user_address": _user_address,
-                        "from": deposit["sender"].lower(),
-                        "to": deposit["to"].lower(),
-                    }
-                )
+                ]["address"].lower()
+                _token0_price = token_current_prices[_token0_address]["price"]
+                _token1_price = token_current_prices[_token1_address]["price"]
 
-            # set timestamps
-            if _set_ini_timestamp:
-                ini_timestamp = (
-                    deposit["timestamp"]
-                    if not ini_timestamp
-                    else min(ini_timestamp, deposit["timestamp"])
-                )
-            if _set_end_timestamp:
-                end_timestamp = (
-                    deposit["timestamp"]
-                    if not end_timestamp
-                    else max(end_timestamp, deposit["timestamp"])
-                )
+                # process as proxied or not
+                if deposit["sender"] in proxy_addresses[chain]:
+                    progress_bar.set_description(
+                        f" proxied deposit {hypervisors_static_list[_hypervisor_address]['symbol']}"
+                    )
+                    progress_bar.refresh()
+                    # PROXIED
+                    analyze_user_deposits_process_proxied_deposit(
+                        chain=chain,
+                        deposit=deposit,
+                        _uniproxy_address=deposit["sender"],
+                        _hypervisor_address=_hypervisor_address,
+                        _deposit_token0_qtty=_deposit_token0_qtty,
+                        _deposit_token1_qtty=_deposit_token1_qtty,
+                        _token0_decimals=hypervisors_static_list[_hypervisor_address][
+                            "pool"
+                        ]["token0"]["decimals"],
+                        _token1_decimals=hypervisors_static_list[_hypervisor_address][
+                            "pool"
+                        ]["token1"]["decimals"],
+                        _token0_address=_token0_address,
+                        _token1_address=_token1_address,
+                        _token0_price=_token0_price,
+                        _token1_price=_token1_price,
+                        result=result,
+                    )
+                else:
+                    # NOT PROXIED
+                    progress_bar.set_description(
+                        f" deposit {hypervisors_static_list[_hypervisor_address]['symbol']}"
+                    )
+                    progress_bar.refresh()
+                    # set easy to access vars
+                    _user_address = deposit["sender"].lower()
+                    _deposit_token0_qtty /= (
+                        10
+                        ** hypervisors_static_list[_hypervisor_address]["pool"][
+                            "token0"
+                        ]["decimals"]
+                    )
+                    _deposit_token1_qtty /= (
+                        10
+                        ** hypervisors_static_list[_hypervisor_address]["pool"][
+                            "token1"
+                        ]["decimals"]
+                    )
+                    _deposit_usd_value = (_deposit_token0_qtty * _token0_price) + (
+                        _deposit_token1_qtty * _token1_price
+                    )
 
-            progress_bar.update(1)
+                    # create user address in result, if needed
+                    if _user_address not in result:
+                        result[_user_address] = {
+                            "total_deposits": {"token0": 0, "token1": 0, "usd": 0},
+                            "hypervisors": {},
+                        }
+                    if _hypervisor_address not in result[_user_address]["hypervisors"]:
+                        result[_user_address]["hypervisors"][_hypervisor_address] = {
+                            "total_deposits": {"token0": 0, "token1": 0, "usd": 0},
+                            "transactions": [],
+                        }
 
-    if send_to_telegram:
-        # build caption message
-        caption = (
-            f"user_deposits for {' '.join([x for x in chains])} {len(hypervisor_addresses) if hypervisor_addresses else 'all'} hypes from {datetime.fromtimestamp(ini_timestamp,timezone.utc)} to {datetime.fromtimestamp(end_timestamp,timezone.utc)}",
-        )
+                    # add to result
+                    # add usd value
+                    result[_user_address]["total_deposits"]["usd"] += (
+                        _deposit_token0_qtty * _token0_price
+                    ) + (_deposit_token1_qtty * _token1_price)
+                    # add qtty to user address
+                    result[_user_address]["total_deposits"][
+                        "token0"
+                    ] += _deposit_token0_qtty
+                    result[_user_address]["total_deposits"][
+                        "token1"
+                    ] += _deposit_token1_qtty
+                    # add qtty to hypervisor address
+                    result[_user_address]["hypervisors"][_hypervisor_address][
+                        "total_deposits"
+                    ]["usd"] += _deposit_usd_value
+                    result[_user_address]["hypervisors"][_hypervisor_address][
+                        "total_deposits"
+                    ]["token0"] += _deposit_token0_qtty
+                    result[_user_address]["hypervisors"][_hypervisor_address][
+                        "total_deposits"
+                    ]["token1"] += _deposit_token1_qtty
+                    # add transaction
+                    result[_user_address]["hypervisors"][_hypervisor_address][
+                        "transactions"
+                    ].append(
+                        {
+                            "block": deposit["blockNumber"],
+                            "txHash": deposit["transactionHash"],
+                            "timestamp": deposit["timestamp"],
+                            "token0": _deposit_token0_qtty,
+                            "token1": _deposit_token1_qtty,
+                            "usd": (
+                                _deposit_token0_qtty * _token0_price
+                                + _deposit_token1_qtty * _token1_price
+                            ),
+                            "user_address": _user_address,
+                            "from": deposit["sender"].lower(),
+                            "to": deposit["to"].lower(),
+                        }
+                    )
 
-        # send to telegram
-        telegram_send_file(
-            input_file_content=json.dumps(result).encode("utf-8"),
-            full_filename=f"user_deposits.json",
-            mime_type="application/json",
-            telegram_file_type="Document",
-            caption=caption,
-        )
+                # set timestamps
+                if _set_ini_timestamp:
+                    ini_timestamp = (
+                        deposit["timestamp"]
+                        if not ini_timestamp
+                        else min(ini_timestamp, deposit["timestamp"])
+                    )
+                if _set_end_timestamp:
+                    end_timestamp = (
+                        deposit["timestamp"]
+                        if not end_timestamp
+                        else max(end_timestamp, deposit["timestamp"])
+                    )
+
+                progress_bar.update(1)
+
+        if send_to_telegram:
+            # build caption message
+            caption = (
+                f"user_deposits for {' '.join([x for x in chains])} {len(hypervisor_addresses) if hypervisor_addresses else 'all'} hypes from {datetime.fromtimestamp(ini_timestamp,timezone.utc)} to {datetime.fromtimestamp(end_timestamp,timezone.utc)}",
+            )
+
+            # send to telegram
+            telegram_send_file(
+                input_file_content=json.dumps(result).encode("utf-8"),
+                full_filename=f"user_deposits.json",
+                mime_type="application/json",
+                telegram_file_type="Document",
+                caption=caption,
+            )
+
+        if save_to_db:
+            # save to reports collection
+            result["id"] = create_id_report(
+                chain=chain,
+                report_type=reportType.USERS_ACTIVITY,
+                customId="user_deposits_Galxe",
+            )
+            db_return = get_default_localdb(
+                network=chain.database_name
+            ).replace_item_to_database(collection_name="reports", data=result)
+            logging.getLogger(__name__).debug(
+                f" Save result of user deposits report to database: {db_return.raw_result}"
+            )
 
     return result
 
@@ -1356,6 +1420,10 @@ def analyze_user_deposits_process_proxied_deposit(
     _hypervisor_address: str,
     _deposit_token0_qtty: int,
     _deposit_token1_qtty: int,
+    _token0_decimals: int,
+    _token1_decimals: int,
+    _token0_price: float,
+    _token1_price: float,
     _token0_address: str,
     _token1_address: str,
     result: dict,
@@ -1369,14 +1437,17 @@ def analyze_user_deposits_process_proxied_deposit(
         _hypervisor_address (str): _description_
         _deposit_token0_qtty (int): _description_
         _deposit_token1_qtty (int): _description_
+        _token0_price (float): _description_
+        _token1_price (float): _description_
         _token0_address (str): _description_
         _token1_address (str): _description_
         result (dict): _description_
     """
     ercHelper = build_erc20_helper(chain=chain)
-    receipt = ercHelper._w3.eth.get_transaction_receipt(
-        transaction_hash=HexBytes(deposit["transactionHash"])
-    )
+    receipt = ercHelper._getTransactionReceipt(deposit["transactionHash"])
+    # receipt = ercHelper._w3.eth.get_transaction_receipt(
+    #     transaction_hash=HexBytes(deposit["transactionHash"])
+    # )
     # decoansfers = decode_transfers(receipt.logs)
     decoded_logs = ercHelper.contract.events.Transfer().processReceipt(receipt)
 
@@ -1406,8 +1477,15 @@ def analyze_user_deposits_process_proxied_deposit(
     # check if found and if they are equal to each other
     if found_addresses:
         if len(found_addresses) == 2:
-            # set user address
+            # set easy to access vars
             _user_address = found_addresses[0]
+            _deposit_token0_qtty /= _token0_decimals
+            _deposit_token1_qtty /= _token1_decimals
+            _deposit_usd_value = (
+                _deposit_token0_qtty * _token0_price
+                + _deposit_token1_qtty * _token1_price
+            )
+
             # check if they are equal
             if found_addresses[0] != found_addresses[1]:
                 # not equal! check if one of them is minted
@@ -1430,16 +1508,26 @@ def analyze_user_deposits_process_proxied_deposit(
             # create user address in result, if needed
             if _user_address not in result:
                 result[_user_address] = {
-                    "total_deposits": {"token0": 0, "token1": 0},
+                    "total_deposits": {"token0": 0, "token1": 0, "usd": 0},
                     "hypervisors": {},
                 }
+
+            # add usd value and qtty to user address
+            result[_user_address]["total_deposits"]["usd"] += _deposit_usd_value
+            result[_user_address]["total_deposits"]["token0"] += _deposit_token0_qtty
+            result[_user_address]["total_deposits"]["token1"] += _deposit_token1_qtty
+
             # add hypervisor
             if _hypervisor_address not in result[_user_address]["hypervisors"]:
                 result[_user_address]["hypervisors"][_hypervisor_address] = {
-                    "total_deposits": {"token0": 0, "token1": 0},
+                    "total_deposits": {"token0": 0, "token1": 0, "usd": 0},
                     "transactions": [],
                 }
 
+            # add usd value
+            result[_user_address]["hypervisors"][_hypervisor_address]["total_deposits"][
+                "usd"
+            ] += _deposit_usd_value
             # add qtty to user address
             result[_user_address]["hypervisors"][_hypervisor_address]["total_deposits"][
                 "token0"
@@ -1457,6 +1545,7 @@ def analyze_user_deposits_process_proxied_deposit(
                     "timestamp": deposit["timestamp"],
                     "token0": _deposit_token0_qtty,
                     "token1": _deposit_token1_qtty,
+                    "usd": _deposit_usd_value,
                     "user_address": _user_address,
                     "from": _current_from,
                     "to": _current_to,
