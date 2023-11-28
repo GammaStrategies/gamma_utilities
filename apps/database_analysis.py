@@ -1325,9 +1325,7 @@ def analyze_user_deposits(
 
                     # add to result
                     # add usd value
-                    result[_user_address]["total_deposits"]["usd"] += (
-                        _deposit_token0_qtty * _token0_price
-                    ) + (_deposit_token1_qtty * _token1_price)
+                    result[_user_address]["total_deposits"]["usd"] += _deposit_usd_value
                     # add qtty to user address
                     result[_user_address]["total_deposits"][
                         "token0"
@@ -1355,10 +1353,7 @@ def analyze_user_deposits(
                             "timestamp": deposit["timestamp"],
                             "token0": _deposit_token0_qtty,
                             "token1": _deposit_token1_qtty,
-                            "usd": (
-                                _deposit_token0_qtty * _token0_price
-                                + _deposit_token1_qtty * _token1_price
-                            ),
+                            "usd": _deposit_usd_value,
                             "user_address": _user_address,
                             "from": deposit["sender"].lower(),
                             "to": deposit["to"].lower(),
@@ -1524,11 +1519,11 @@ def analyze_user_deposits_process_proxied_deposit(
                     "transactions": [],
                 }
 
-            # add usd value
+            # add hype usd value
             result[_user_address]["hypervisors"][_hypervisor_address]["total_deposits"][
                 "usd"
             ] += _deposit_usd_value
-            # add qtty to user address
+            # add qtty to user hype address
             result[_user_address]["hypervisors"][_hypervisor_address]["total_deposits"][
                 "token0"
             ] += _deposit_token0_qtty
