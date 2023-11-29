@@ -48,3 +48,4 @@ croniter
 polars
 ratelimit
 websocket-client
+psutil
