@@ -1299,4 +1299,4 @@ def get_latest_block(chain: Chain) -> int:
 
 def get_average_blockTime(chain: Chain) -> int:
     helper = build_erc20_helper(chain=chain)
-    return helper.average_blockTime
+    return helper.average_blockTime()
