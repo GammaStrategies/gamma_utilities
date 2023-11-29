@@ -343,6 +343,14 @@ class db_collections_common:
                 upsert=upsert,
             )
 
+    def count_documents(self, collection_name: str, filter=dict) -> int:
+        with MongoDbManager(
+            url=self._db_mongo_url,
+            db_name=self._db_name,
+            collections=self._db_collections,
+        ) as _db_manager:
+            return _db_manager.count_documents(coll_name=collection_name, filter=filter)
+
     @property
     def db_manager(self) -> MongoDbManager:
         return MongoDbManager(
@@ -3113,6 +3121,8 @@ class database_local(db_collections_common):
         timestamp_end: int | None = None,
         block_ini: int | None = None,
         block_end: int | None = None,
+        limit: int | None = None,
+        skip: int | None = None,
     ) -> list[dict]:
         """Same as query_hypervisor_periods but the last stage (group by hype address) is avoided in order to
             avoid 16MB limit in mongodb.
@@ -3122,6 +3132,8 @@ class database_local(db_collections_common):
             timestamp_end (int | None, optional): lower or equal to. Defaults to None.
             block_ini (int | None, optional): greater or equal to  . Defaults to None.
             block_end (int | None, optional): lower or equal to  . Defaults to None.
+            limit (int | None, optional): . Defaults to None.
+            skip (int | None, optional): . Defaults to None.
 
         Returns:
             list[dict]:
@@ -3291,6 +3303,12 @@ class database_local(db_collections_common):
             #     }
             # },
         ]
+
+        # first stage should skip and then limit total results after
+        if skip:
+            query.append({"$skip": skip})
+        if limit:
+            query.append({"$limit": limit})
 
         # add block and timestamp in query
         if block_ini:
