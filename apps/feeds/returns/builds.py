@@ -42,14 +42,53 @@ def feed_hypervisor_returns(
 
         # get addresses and blocks to feed
         for hypervisor_address, block_ini in _last_returns_data_db:
-            # get chain latest block
+            block_end = latest_block
+            # limit the qtty of blocks to feed at once and repeat next time if more blocks are needed
+            # find potential results qtty and filter > 25000
+            _count_potential_items = get_default_localdb(
+                network=chain.database_name
+            ).count_documents(
+                collection_name="operations",
+                filter={
+                    "address": hypervisor_address,
+                    "blockNumber": {"$gte": block_ini, "$lte": latest_block},
+                    "topic": {"$in": ["deposit", "withdraw", "rebalance", "zeroBurn"]},
+                },
+            )
+            if _count_potential_items > 25000:
+                # get the last block found in database, for those first 25000 items
+                block_end = get_default_localdb(
+                    network=chain.database_name
+                ).get_items_from_database(
+                    collection_name="operations",
+                    find={
+                        "address": hypervisor_address,
+                        "blockNumber": {"$gte": block_ini, "$lte": latest_block},
+                        "topic": {
+                            "$in": ["deposit", "withdraw", "rebalance", "zeroBurn"]
+                        },
+                    },
+                    projection={"blockNumber": 1, "_id": 0},
+                    skip=24999,
+                    limit=1,
+                    batch_size=1000,
+                    sort=[("blockNumber", 1)],
+                )[
+                    0
+                ][
+                    "blockNumber"
+                ]
+
+                logging.getLogger(__name__).debug(
+                    f" >25,000 items found for {chain.database_name} {hypervisor_address}. Limiting from {block_ini} to {block_end} blocks. Will continue from {block_end} on next loop ( make sure it happens)"
+                )
 
             try:
                 if period_yield_list := create_period_yields(
                     chain=chain,
                     hypervisor_address=hypervisor_address,
                     block_ini=block_ini,
-                    block_end=latest_block,
+                    block_end=block_end,
                     try_solve_errors=False,
                 ):
                     # convert to dict and save
