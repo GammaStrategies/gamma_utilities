@@ -193,13 +193,16 @@ def get_missing_integers(data: list[int], interval: int = 1200) -> list[int]:
     return result_list
 
 
-def create_chunks(min: int, max: int, chunk_size: int) -> list[tuple[int, int]]:
+def create_chunks(
+    min: int, max: int, chunk_size: int, allow_repeat: bool = False
+) -> list[tuple[int, int]]:
     """build chunks of data
 
     Args:
         min (int): minimum value
         max (int): maximum value
         chunk_size (int): size of each chunk
+        allow_repeat (bool, optional): allow to repeat the max last value at the initial next chunk. ( needed in database APR calc...). Defaults to False.
 
     Returns:
         list: list of tuples with chunk (start:int, end:int)
@@ -209,9 +212,19 @@ def create_chunks(min: int, max: int, chunk_size: int) -> list[tuple[int, int]]:
     for i in range(min, max, chunk_size):
         # add chunk to list if it is not the last one
         if i + chunk_size < max:
-            result.append((i, i + chunk_size))
+            if allow_repeat:
+                result.append((i, i + chunk_size))
+            else:
+                result.append((i, i + chunk_size)) if len(
+                    result
+                ) == 0 else result.append((i + 1, i + chunk_size))
         else:
-            result.append((i, max))
+            if allow_repeat:
+                result.append((i, max))
+            else:
+                result.append((i, max)) if len(result) == 0 else result.append(
+                    (i + 1, max)
+                )
     return result
 
 
