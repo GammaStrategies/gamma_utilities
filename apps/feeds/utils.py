@@ -1,4 +1,5 @@
 import logging
+import sys
 import time
 from bins.database.helpers import (
     get_default_localdb,
@@ -7,7 +8,10 @@ from bins.database.helpers import (
 )
 from bins.errors.general import ProcessingError
 from bins.formulas.apr import calculate_rewards_apr
+from bins.general.enums import text_to_chain
 from bins.general.general_utilities import create_chunks
+from bins.general.hardware import get_memory_usage
+from bins.w3.builders import get_average_blockTime
 
 
 def get_reward_pool_prices(
@@ -280,10 +284,10 @@ def get_hypervisors_data_for_apr(
         {"_id": hypervisor_address, "status": []}
         for hypervisor_address in hypervisor_addresses
     ]
-    #
+    # define chunks size
     chunks = [(None, None, None, None)]
-    timestamp_chunk_size = 60 * 60 * 24 * 10  # 10 days
-    block_chunk_size = 1000000
+    timestamp_chunk_size = 60 * 60 * 24 * (1 if network in ["mantle"] else 10)
+    # block_chunk_size = 1000000
     # create chunks of timeframes to process
     if timestamp_ini and timestamp_end:
         if timestamp_end - timestamp_ini > timestamp_chunk_size:
@@ -294,6 +298,7 @@ def get_hypervisors_data_for_apr(
                     min=int(timestamp_ini),
                     max=int(timestamp_end),
                     chunk_size=timestamp_chunk_size,
+                    allow_repeat=True,
                 )
             ]
         else:
@@ -303,12 +308,19 @@ def get_hypervisors_data_for_apr(
         )
 
     elif block_ini and block_end:
+        # calculate average blocks per defined timestamp_chunk_size
+        avg_blocks_per_second = get_average_blockTime(chain=text_to_chain(network))
+        block_chunk_size = int(timestamp_chunk_size // avg_blocks_per_second)
+
         if block_end - block_ini > block_chunk_size:
             # create chunks
             chunks = [
                 (None, None, _ini, _end)
                 for _ini, _end in create_chunks(
-                    min=block_ini, max=block_end, chunk_size=block_chunk_size
+                    min=block_ini,
+                    max=block_end,
+                    chunk_size=block_chunk_size,
+                    allow_repeat=True,
                 )
             ]
         else:
