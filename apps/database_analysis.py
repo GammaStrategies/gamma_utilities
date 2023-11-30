@@ -1207,15 +1207,8 @@ def analyze_user_transactions(
             )
         }
 
-        token_current_prices = {
-            x["address"]: x
-            for x in get_default_globaldb().get_items_from_database(
-                collection_name="current_usd_prices",
-                find={"network": chain.database_name},
-            )
-        }
-
         # get all deposits
+        _and = [{"topic": {"$in": ["deposit", "withdraw"]}}]
         find = {
             "$and": [
                 {"topic": {"$in": ["deposit", "withdraw"]}},
@@ -1223,30 +1216,84 @@ def analyze_user_transactions(
         }
         if addresses:
             find["$and"].append({"address": {"$in": addresses}})
+            _and.append({"address": {"$in": addresses}})
         if ini_timestamp:
             find["$and"].append({"timestamp": {"$gte": ini_timestamp}})
+            _and.append({"timestamp": {"$gte": ini_timestamp}})
         if end_timestamp:
             find["$and"].append({"timestamp": {"$lte": end_timestamp}})
-
+            _and.append({"timestamp": {"$lte": end_timestamp}})
+        query = [
+            {"$match": {"$and": _and}},
+            {
+                "$project": {
+                    "_id": 0,
+                    "address": 1,
+                    "sender": 1,
+                    "to": 1,
+                    "blockNumber": 1,
+                    "transactionHash": 1,
+                    "timestamp": 1,
+                    "qtty_token0": 1,
+                    "qtty_token1": 1,
+                    "topic": 1,
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "static",
+                    "let": {"op_address": "$address"},
+                    "pipeline": [
+                        {"$match": {"$expr": {"$eq": ["$address", "$$op_address"]}}},
+                        {"$limit": 1},
+                        {
+                            "$project": {
+                                "address": "$address",
+                                "symbol": "$symbol",
+                                "pool": {
+                                    "address": "$pool.address",
+                                    "token0": "$pool.token0.address",
+                                    "token1": "$pool.token1.address",
+                                    "dex": "$pool.dex",
+                                },
+                                "dex": "$dex",
+                            }
+                        },
+                        {"$unset": ["_id"]},
+                    ],
+                    "as": "static",
+                }
+            },
+            {"$unwind": {"path": "$static", "preserveNullAndEmptyArrays": True}},
+        ]
         # get operations from database
         database_operations = get_from_localdb(
             network=chain.database_name,
             collection="operations",
-            find=find,
+            aggregate=query,
             batch_size=10000,
-            projection={
-                "_id": 0,
-                "address": 1,
-                "sender": 1,
-                "to": 1,
-                "blockNumber": 1,
-                "transactionHash": 1,
-                "timestamp": 1,
-                "qtty_token0": 1,
-                "qtty_token1": 1,
-                "topic": 1,
-            },
         )
+
+        # get max min block to gather prices
+        max_block = database_operations[-1]["blockNumber"]
+        min_block = database_operations[0]["blockNumber"]
+        for t in database_operations:
+            max_block = max(max_block, t["blockNumber"])
+            min_block = min(min_block, t["blockNumber"])
+
+        # get and build token prices
+        prices_list = {}
+        for price in get_default_globaldb().get_items_from_database(
+            collection_name="usd_prices",
+            find={
+                "network": chain.database_name,
+                "block": {"$gte": min_block, "$lte": max_block},
+            },
+        ):
+            if price["address"] not in prices_list:
+                prices_list[price["address"]] = {}
+            prices_list[price["address"]][price["block"]] = price["price"]
+
         with tqdm.tqdm(total=len(database_operations)) as progress_bar:
             for transaction in database_operations:
                 # for deposit in database_operations:
@@ -1260,8 +1307,8 @@ def analyze_user_transactions(
                 _token1_address = hypervisors_static_list[_hypervisor_address]["pool"][
                     "token1"
                 ]["address"].lower()
-                _token0_price = token_current_prices[_token0_address]["price"]
-                _token1_price = token_current_prices[_token1_address]["price"]
+                _token0_price = prices_list[_token0_address][transaction["blockNumber"]]
+                _token1_price = prices_list[_token1_address][transaction["blockNumber"]]
 
                 # find out if this transaction is identified as proxied
                 if (
@@ -1468,6 +1515,8 @@ def analyze_user_transaction_process_proxied(
             if _user_address not in result:
                 result[_user_address] = {
                     "total_net_position": {"token0": 0, "token1": 0, "usd": 0},
+                    "total_deposits": {"token0": 0, "token1": 0, "usd": 0},
+                    "total_withdraws": {"token0": 0, "token1": 0, "usd": 0},
                     "hypervisors": {},
                 }
 
@@ -1476,10 +1525,21 @@ def analyze_user_transaction_process_proxied(
             result[_user_address]["total_net_position"]["token0"] += _tx_token0_qtty
             result[_user_address]["total_net_position"]["token1"] += _tx_token1_qtty
 
+            if transaction["topic"] == "deposit":
+                result[_user_address]["total_deposits"]["usd"] += _deposit_usd_value
+                result[_user_address]["total_deposits"]["token0"] += _tx_token0_qtty
+                result[_user_address]["total_deposits"]["token1"] += _tx_token1_qtty
+            elif transaction["topic"] == "withdraw":
+                result[_user_address]["total_withdraws"]["usd"] += _deposit_usd_value
+                result[_user_address]["total_withdraws"]["token0"] += _tx_token0_qtty
+                result[_user_address]["total_withdraws"]["token1"] += _tx_token1_qtty
+
             # add hypervisor
             if _hypervisor_address not in result[_user_address]["hypervisors"]:
                 result[_user_address]["hypervisors"][_hypervisor_address] = {
                     "total_net_position": {"token0": 0, "token1": 0, "usd": 0},
+                    "total_deposits": {"token0": 0, "token1": 0, "usd": 0},
+                    "total_withdraws": {"token0": 0, "token1": 0, "usd": 0},
                     "transactions": [],
                 }
 
@@ -1494,6 +1554,27 @@ def analyze_user_transaction_process_proxied(
             result[_user_address]["hypervisors"][_hypervisor_address][
                 "total_net_position"
             ]["token1"] += _tx_token1_qtty
+            if transaction["topic"] == "deposit":
+                result[_user_address]["hypervisors"][_hypervisor_address][
+                    "total_deposits"
+                ]["usd"] += _deposit_usd_value
+                result[_user_address]["hypervisors"][_hypervisor_address][
+                    "total_deposits"
+                ]["token0"] += _tx_token0_qtty
+                result[_user_address]["hypervisors"][_hypervisor_address][
+                    "total_deposits"
+                ]["token1"] += _tx_token1_qtty
+            elif transaction["topic"] == "withdraw":
+                result[_user_address]["hypervisors"][_hypervisor_address][
+                    "total_withdraws"
+                ]["usd"] += _deposit_usd_value
+                result[_user_address]["hypervisors"][_hypervisor_address][
+                    "total_withdraws"
+                ]["token0"] += _tx_token0_qtty
+                result[_user_address]["hypervisors"][_hypervisor_address][
+                    "total_withdraws"
+                ]["token1"] += _tx_token1_qtty
+
             # add transaction
             result[_user_address]["hypervisors"][_hypervisor_address][
                 "transactions"
@@ -1557,11 +1638,15 @@ def analyze_user_transaction_process(
     if _user_address not in result:
         result[_user_address] = {
             "total_net_position": {"token0": 0, "token1": 0, "usd": 0},
+            "total_deposits": {"token0": 0, "token1": 0, "usd": 0},
+            "total_withdraws": {"token0": 0, "token1": 0, "usd": 0},
             "hypervisors": {},
         }
     if _hypervisor_address not in result[_user_address]["hypervisors"]:
         result[_user_address]["hypervisors"][_hypervisor_address] = {
             "total_net_position": {"token0": 0, "token1": 0, "usd": 0},
+            "total_deposits": {"token0": 0, "token1": 0, "usd": 0},
+            "total_withdraws": {"token0": 0, "token1": 0, "usd": 0},
             "transactions": [],
         }
 
@@ -1574,6 +1659,15 @@ def analyze_user_transaction_process(
     # add qtty to user address
     result[_user_address]["total_net_position"]["token0"] += _tx_token0_qtty * _sign
     result[_user_address]["total_net_position"]["token1"] += _tx_token1_qtty * _sign
+    if transaction["topic"] == "deposit":
+        result[_user_address]["total_deposits"]["usd"] += _tx_usd_value
+        result[_user_address]["total_deposits"]["token0"] += _tx_token0_qtty
+        result[_user_address]["total_deposits"]["token1"] += _tx_token1_qtty
+    elif transaction["topic"] == "withdraw":
+        result[_user_address]["total_withdraws"]["usd"] += _tx_usd_value
+        result[_user_address]["total_withdraws"]["token0"] += _tx_token0_qtty
+        result[_user_address]["total_withdraws"]["token1"] += _tx_token1_qtty
+
     # add qtty to hypervisor address
     result[_user_address]["hypervisors"][_hypervisor_address]["total_net_position"][
         "usd"
@@ -1584,6 +1678,27 @@ def analyze_user_transaction_process(
     result[_user_address]["hypervisors"][_hypervisor_address]["total_net_position"][
         "token1"
     ] += (_tx_token1_qtty * _sign)
+    if transaction["topic"] == "deposit":
+        result[_user_address]["hypervisors"][_hypervisor_address]["total_deposits"][
+            "usd"
+        ] += _tx_usd_value
+        result[_user_address]["hypervisors"][_hypervisor_address]["total_deposits"][
+            "token0"
+        ] += _tx_token0_qtty
+        result[_user_address]["hypervisors"][_hypervisor_address]["total_deposits"][
+            "token1"
+        ] += _tx_token1_qtty
+    elif transaction["topic"] == "withdraw":
+        result[_user_address]["hypervisors"][_hypervisor_address]["total_withdraws"][
+            "usd"
+        ] += _tx_usd_value
+        result[_user_address]["hypervisors"][_hypervisor_address]["total_withdraws"][
+            "token0"
+        ] += _tx_token0_qtty
+        result[_user_address]["hypervisors"][_hypervisor_address]["total_withdraws"][
+            "token1"
+        ] += _tx_token1_qtty
+
     # add transaction
     result[_user_address]["hypervisors"][_hypervisor_address]["transactions"].append(
         {
