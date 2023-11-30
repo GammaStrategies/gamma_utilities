@@ -479,7 +479,7 @@ def create_lpFees(chain: Chain, ini_timestamp: int, end_timestamp: int) -> list:
         ).get("price", 0)
 
         if not token0_price or not token1_price:
-            logging.getLogger(__name__).error(
+            logging.getLogger(__name__).debug(
                 f" Database price not found for token0[{token0_price}] or token1[{token1_price}] of hypervisor {hype_summary['address']}. Using current prices"
             )
             # get price from current prices
