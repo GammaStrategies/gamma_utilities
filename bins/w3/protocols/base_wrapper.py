@@ -538,6 +538,47 @@ class web3wrap:
         result["address"] = self.address.lower()
         return result
 
+    def get_abi_function(
+        self,
+        name: str,
+        type: str = "function",
+        stateMutability: str = "view",
+        outputs_qtty: int | None = None,
+    ) -> dict:
+        """Get the ABI of a function
+
+        Args:
+            name (str): _description_
+            type (str, optional): _description_. Defaults to "function".
+            stateMutability (str, optional): _description_. Defaults to "view".
+            outputs_qtty (int | None, optional): _description_. Defaults to None.
+
+        Returns:
+            dict:      {
+                        "inputs": [],
+                        "name": "xToken",
+                        "outputs": [
+                            {
+                                "internalType": "contract IERC20",
+                                "name": "",
+                                "type": "address"
+                            }
+                        ],
+                        "stateMutability": "view",
+                        "type": "function"
+                    }
+        """
+        for fn in self._abi:
+            if (
+                fn.get("name", None) == name
+                and fn.get("type", None) == type
+                and fn.get("stateMutability", None) == stateMutability
+            ):
+                if outputs_qtty is None:
+                    return fn
+                elif len(fn["outputs"]) == outputs_qtty:
+                    return fn
+
     # universal failover execute funcion
     def call_function(self, function_name: str, rpcs: list[w3Provider], *args):
         # loop choose url
