@@ -1,6 +1,7 @@
 import copy
 import logging
 from eth_abi import abi
+from web3 import Web3
 from ..protocols.multicall import multicall3
 from ...configuration import CONFIGURATION
 from ...general import file_utilities
@@ -66,7 +67,7 @@ def _get_multicall_result(network: str, block: int, calls: list):
 
 def parse_multicall_readfunctions_result(
     calls: list, multicall_raw_result: list, convert_bint: bool = False
-):
+) -> list:
     """Parse returns on read functions
 
     Args:
@@ -228,3 +229,18 @@ def build_call(
         "address": address,
         "object": object,
     }
+
+
+def build_call_with_abi_part(
+    abi_part: dict,
+    inputs_values: list,
+    address: str,
+    object: str,
+) -> dict:
+    result = copy.deepcopy(abi_part)
+    for idx, input_value in enumerate(inputs_values):
+        result["inputs"][idx]["value"] = input_value
+    # add address and object
+    result["address"] = Web3.toChecksumAddress(address)
+    result["object"] = object
+    return result
