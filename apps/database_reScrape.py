@@ -188,6 +188,10 @@ def reScrape_loopWork_hypervisor_status(
             logging.getLogger(__name__).debug(
                 f" {chain.database_name}'s hypervisor {new_hypervisor['address']} at block {new_hypervisor['block']} not saved"
             )
+        else:
+            logging.getLogger(__name__).error(
+                f" {chain.database_name}'s hypervisor {hype_status['address']} at block {hype_status['block']} dict could not be created"
+            )
     except Exception as e:
         logging.getLogger(__name__).exception(
             f" Unexpected error while processing hypervisor status {hype_status['address']} at block {hype_status['block']} -> error {e}"
