@@ -27,6 +27,11 @@ from bins.w3.builders import (
     build_hypervisor,
     convert_dex_protocol,
 )
+from bins.w3.helpers.multicaller import build_call_with_abi_part, execute_parse_calls
+from bins.w3.protocols.camelot.rewarder import (
+    camelot_rewards_nft_pool,
+    camelot_rewards_nft_pool_master,
+)
 
 from bins.w3.protocols.general import erc20, bep20
 
@@ -1280,6 +1285,85 @@ def create_rewards_static_synthswap(
                     result.append(reward_data)
 
     return result
+
+
+def create_rewards_static_camelot(
+    chain: Chain,
+    hypervisors: list[dict],
+    already_processed: list[str],
+    rewrite: bool = False,
+    block: int = 0,
+) -> list[dict]:
+    # GET Active pools from camelot nft pool master
+    # using multicall
+
+    # create a camelot nft pool master object
+    nft_pool_master = camelot_rewards_nft_pool_master(
+        address=STATIC_REGISTRY_ADDRESSES[chain.database_name]["camelot_nft"]["master"],
+        network=chain.database_name,
+        block=block,
+    )
+    # get total number of active nft pools
+    active_nft_pools = nft_pool_master.call_fn(fn_name="activePoolsLength")
+    # prepare calls for the multicall: for range i to active pools lenght  call getPoolAddressByIndex(i)
+    abi_part = nft_pool_master.get_abi_function("getActivePoolAddressByIndex")
+    master_calls = [
+        build_call_with_abi_part(
+            abi_part=abi_part,
+            inputs_values=[i],
+            address=STATIC_REGISTRY_ADDRESSES[chain.database_name]["camelot_nft"][
+                "master"
+            ],
+            object="nft_pool_master",
+        )
+        for i in range(active_nft_pools)
+    ]
+    # place 100 calls at a time
+    nft_pool_addresses = []
+    for i in range(0, len(master_calls), 100):
+        nft_pool_addresses += execute_parse_calls(
+            network=chain.database_name,
+            block=block,
+            calls=master_calls[i : i + 100],
+            convert_bint=False,
+        )
+    nft_pool_addresses = [x["outputs"][0]["value"].lower() for x in nft_pool_addresses]
+    # for each result, load a camelot nft pool and getPoolInfo()
+    # using multicall
+    # create calls
+    # create a dummy nft pool to gather abi from
+    abi_part = camelot_rewards_nft_pool(
+        address="0x0000000000000000000000000000000000000000",
+        network=chain.database_name,
+    ).get_abi_function(name="getPoolInfo")
+    nft_pool_calls = [
+        build_call_with_abi_part(
+            abi_part=abi_part,
+            inputs_values=[],
+            address=address,
+            object="nft_pool",
+        )
+        for address in nft_pool_addresses
+    ]
+
+    nft_pool_info = []
+    for i in range(0, len(nft_pool_calls), 100):
+        nft_pool_info += execute_parse_calls(
+            network=chain.database_name,
+            block=block,
+            calls=nft_pool_calls[i : i + 100],
+            convert_bint=False,
+        )
+
+    # analyze LPtoken addresses to match any of camelots pool addresses
+    # ease access vars : create a pool address:hypervisor dict
+    pools_hypes = {x["pool"]["address"]: x for x in hypervisors}
+    for pool_info_call in nft_pool_info:
+        nft_pool_address = pool_info_call["address"]
+        lpToken_address = pool_info_call["outputs"][0]["value"].lower()
+        if lpToken_address in pools_hypes:
+            # save to database ( )
+            pass
 
 
 # TODO: complete gamma rewards

@@ -1,1 +1,1 @@
-from . import hypervisor, pool
+from . import hypervisor, pool, rewarder

@@ -282,6 +282,11 @@ class rewarderType(str, Enum):
     SYNTHSWAP_masterchef_v1 = "synthswap_masterchef_v1"
     SYNTHSWAP_masterchef_v1_rewarder = "synthswap_masterchef_v1_rewarder"
 
+    # https://docs.camelot.exchange/protocol/staked-positions-spnfts
+    CAMELOT_spNFT = "camelot_spnft"
+    # https://docs.camelot.exchange/protocol/nitro-pools
+    CAMELOT_nitro = "camelot_nitro"
+
 
 class Family_type(str, Enum):
     #      ( value , type , database_name, fantasy_name )

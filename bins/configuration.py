@@ -115,6 +115,11 @@ STATIC_REGISTRY_ADDRESSES = {
             "distributionCreator": "0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd".lower(),
             "coreMerkl": "0xA86CC1ae2D94C6ED2aB3bF68fB128c2825673267".lower(),
         },
+        "camelot_nft": {
+            "master": "0x55401A4F396b3655f66bf6948A1A4DC61Dfc21f4".lower(),
+            "nftPoolFactory": "0x6dB1EF0dF42e30acF139A70C1Ed0B7E6c51dBf6d".lower(),
+            "nitroPoolFactory": "0xe0a6b372Ac6AF4B37c7F3a989Fe5d5b194c24569".lower(),
+        },
     },
     "celo": {
         "hypervisors": {
