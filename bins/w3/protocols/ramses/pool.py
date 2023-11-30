@@ -622,9 +622,33 @@ class pool_multicall(uniswap.pool.poolv3_multicall, pool):
                             )
                         # check if value exists
                         if "value" not in _pCall["outputs"][0]:
-                            raise ValueError(
-                                f"Expected value in output for {_pCall['name']}"
-                            )
+                            # EXCEPTION: Ramses implemented currentFee at some point so lets use fee instead
+                            # only on this cases: Ramses pool contract without currentFee output
+                            if (
+                                _pCall["name"] == "currentFee"
+                                and "pool" in _this_object_names
+                            ):
+                                # search for current object's "fee" output value in processed calls list, and use it instead
+                                if _fee_output := [
+                                    _xc
+                                    for _xc in processed_calls
+                                    if _xc["name"] == "fee"
+                                    and _xc["object"] in _this_object_names
+                                    and "value" in _xc["outputs"][0]
+                                ]:
+                                    # set output currentFee value to fee
+                                    _pCall["outputs"][0]["value"] = _fee_output[0][
+                                        "outputs"
+                                    ][0]["value"]
+                                else:
+                                    raise ValueError(
+                                        f"Expected value in output for {_pCall['name']}"
+                                    )
+
+                            else:
+                                raise ValueError(
+                                    f"Expected value in output for {_pCall['name']}"
+                                )
                         _object_name = f"_{_pCall['name']}"
                         setattr(self, _object_name, _pCall["outputs"][0]["value"])
                     elif _pCall["name"] == "slot0":
