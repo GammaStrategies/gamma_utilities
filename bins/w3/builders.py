@@ -1346,6 +1346,22 @@ def build_protocol_pool(
                 timestamp=timestamp,
             )
         )
+    elif protocol == Protocol.BASEX:
+        return (
+            protocols.basex.pool.pool(
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
+            )
+            if not cached
+            else protocols.basex.pool.pool_cached(
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
+            )
+        )
     else:
         raise NotImplementedError(f"Protocol {protocol} not implemented")
 
