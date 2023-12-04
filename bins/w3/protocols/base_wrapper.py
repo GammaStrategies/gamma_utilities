@@ -579,6 +579,55 @@ class web3wrap:
                 elif len(fn["outputs"]) == outputs_qtty:
                     return fn
 
+    def get_abi_functions(
+        self,
+        names: list[str] | None = None,
+        types: list[str] = ["function"],
+        stateMutabilitys: list[str] = ["view"],
+        inputs_exist: bool = False,
+    ) -> list[dict]:
+        """Get multiple ABI  functions or props from the same contract
+
+        Args:
+            names (list[str], optional): . Defaults to None.
+            types (list[str], optional): . Defaults to "function".
+            stateMutabilitys (list[str], optional): . Defaults to "view".
+            inputs_exist (bool, optional): Must have inputs?. Defaults to False.
+
+        Returns:
+            list[dict]:  [    {
+                        "inputs": [],
+                        "name": "xToken",
+                        "outputs": [
+                            {
+                                "internalType": "contract IERC20",
+                                "name": "",
+                                "type": "address"
+                            }
+                        ],
+                        "stateMutability": "view",
+                        "type": "function"
+                    },...]
+        """
+        result = []
+        for fn in self._abi:
+            if (
+                ((fn.get("name", None) in names) if names else True)
+                and ((fn.get("type", None) in types) if types else True)
+                and (
+                    (fn.get("stateMutability", None) in stateMutabilitys)
+                    if stateMutabilitys
+                    else True
+                )
+            ):
+                if inputs_exist and len(fn["inputs"]) == 0:
+                    continue
+                elif not inputs_exist and len(fn["inputs"]) > 0:
+                    continue
+                result.append(fn)
+
+        return result
+
     # universal failover execute funcion
     def call_function(self, function_name: str, rpcs: list[w3Provider], *args):
         # loop choose url
