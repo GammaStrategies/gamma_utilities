@@ -191,7 +191,7 @@ class multicall3(web3wrap):
         """
         # call multicall
         return self.tryAggregate(
-            requireSuccess=False,
+            requireSuccess=requireSuccess,
             calls=self.build_calls(
                 contract_functions=contract_functions, address=address
             ),

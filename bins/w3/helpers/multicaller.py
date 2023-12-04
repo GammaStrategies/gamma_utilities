@@ -44,10 +44,11 @@ def execute_parse_calls(
     block: int,
     calls: list,
     convert_bint: bool = False,
+    requireSuccess: bool = False,
 ):
     # place em
     multicall_raw_result = _get_multicall_result(
-        network=network, block=block, calls=calls
+        network=network, block=block, calls=calls, requireSuccess=requireSuccess
     )
     return parse_multicall_readfunctions_result(
         calls=calls,
@@ -56,13 +57,17 @@ def execute_parse_calls(
     )
 
 
-def _get_multicall_result(network: str, block: int, calls: list):
+def _get_multicall_result(
+    network: str, block: int, calls: list, requireSuccess: bool = False
+):
     # execute call
     multicall_helper = multicall3(
         network=network,
         block=block,
     )
-    return multicall_helper.try_get_data(calls)
+    return multicall_helper.try_get_data(
+        contract_functions=calls, requireSuccess=requireSuccess
+    )
 
 
 def parse_multicall_readfunctions_result(
