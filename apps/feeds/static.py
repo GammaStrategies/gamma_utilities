@@ -1294,6 +1294,7 @@ def create_rewards_static_camelot(
     rewrite: bool = False,
     block: int = 0,
 ) -> list[dict]:
+    result = []
     # GET Active pools from camelot nft pool master
     # using multicall
 
@@ -1303,67 +1304,69 @@ def create_rewards_static_camelot(
         network=chain.database_name,
         block=block,
     )
-    # get total number of active nft pools
-    active_nft_pools = nft_pool_master.call_fn(fn_name="activePoolsLength")
-    # prepare calls for the multicall: for range i to active pools lenght  call getPoolAddressByIndex(i)
-    abi_part = nft_pool_master.get_abi_function("getActivePoolAddressByIndex")
-    master_calls = [
-        build_call_with_abi_part(
-            abi_part=abi_part,
-            inputs_values=[i],
-            address=STATIC_REGISTRY_ADDRESSES[chain.database_name]["camelot_nft"][
-                "master"
-            ],
-            object="nft_pool_master",
-        )
-        for i in range(active_nft_pools)
-    ]
-    # place 100 calls at a time
-    nft_pool_addresses = []
-    for i in range(0, len(master_calls), 100):
-        nft_pool_addresses += execute_parse_calls(
-            network=chain.database_name,
-            block=block,
-            calls=master_calls[i : i + 100],
-            convert_bint=False,
-        )
-    nft_pool_addresses = [x["outputs"][0]["value"].lower() for x in nft_pool_addresses]
-    # for each result, load a camelot nft pool and getPoolInfo()
-    # using multicall
-    # create calls
-    # create a dummy nft pool to gather abi from
-    abi_part = camelot_rewards_nft_pool(
-        address="0x0000000000000000000000000000000000000000",
-        network=chain.database_name,
-    ).get_abi_function(name="getPoolInfo")
-    nft_pool_calls = [
-        build_call_with_abi_part(
-            abi_part=abi_part,
-            inputs_values=[],
-            address=address,
-            object="nft_pool",
-        )
-        for address in nft_pool_addresses
-    ]
+    timestamp = nft_pool_master._timestamp
+    # dicr <nft_pool>:< lptoken...>
+    all_reward_pools_info = nft_pool_master.get_all_rewards_info(chain=chain)
 
-    nft_pool_info = []
-    for i in range(0, len(nft_pool_calls), 100):
-        nft_pool_info += execute_parse_calls(
+    # ease access vars : create a address:hypervisor dict
+    ordered_hypervisors = {x["address"]: x for x in hypervisors}
+    # analyze LPtoken addresses to match any of camelots hypervisor addresses
+    for nft_pool_address, nft_pool_data in all_reward_pools_info.items():
+        # 1. check if lptToken is a hypervisor address
+        if nft_pool_data["lpToken"] not in ordered_hypervisors:
+            continue
+        # 2. check if rewarder is active ( allocPoints > 0 )
+        if nft_pool_data["allocPoint"] == 0:  #
+            # TODO: if this rewarder is in the database, set it to inactive "start_rewards_timestamp": ????, "end_rewards_timestamp": ????,
+            continue
+
+        # 3. get data and save to database
+        # get contract creation block
+        if creation_data := _get_contract_creation_block(
             network=chain.database_name,
-            block=block,
-            calls=nft_pool_calls[i : i + 100],
-            convert_bint=False,
+            contract_address=nft_pool_address,
+        ):
+            reward_static_block = creation_data["block"]
+            creation_timestamp = creation_data["timestamp"]
+        else:
+            # modify block number manually -> block num. is later used to update rewards_status from
+            reward_static_block = block
+            creation_timestamp = timestamp
+
+        # get tokens specs
+        # build erc20 helper
+        grailTokenHelper = build_erc20_helper(
+            chain=chain, address=nft_pool_data["grailToken"], cached=True
+        )
+        xGrailTokenHelper = build_erc20_helper(
+            chain=chain, address=nft_pool_data["xGrailToken"], cached=True
         )
 
-    # analyze LPtoken addresses to match any of camelots pool addresses
-    # ease access vars : create a pool address:hypervisor dict
-    pools_hypes = {x["pool"]["address"]: x for x in hypervisors}
-    for pool_info_call in nft_pool_info:
-        nft_pool_address = pool_info_call["address"]
-        lpToken_address = pool_info_call["outputs"][0]["value"].lower()
-        if lpToken_address in pools_hypes:
-            # save to database ( )
-            pass
+        # Will create one staking reward per token (grail and xgrail), but they will share the same rewarder, so they should be updated at the same time
+        # TODO: scraping Camelot spNFT status, save both token rewards, not one, so there is no need to create 2 queue items for the same rewarder
+        result.append(
+            {
+                "block": reward_static_block,
+                "timestamp": timestamp,
+                "hypervisor_address": nft_pool_data["lpToken"],
+                "rewarder_address": nft_pool_address,
+                "rewarder_type": rewarderType.CAMELOT_spNFT,
+                # TODO: id at the master pool level ?
+                "rewarder_refIds": [],
+                "rewarder_registry": STATIC_REGISTRY_ADDRESSES[chain.database_name][
+                    "camelot_nft"
+                ]["master"],
+                "rewardToken": nft_pool_data["grailToken"],
+                "rewardToken_symbol": grailTokenHelper.symbol,
+                "rewardToken_decimals": grailTokenHelper.decimals,
+                "rewards_perSecond": nft_pool_data["poolEmissionRate"],
+                "total_hypervisorToken_qtty": nft_pool_data["lpSupplyWithMultiplier"],
+                "start_rewards_timestamp": creation_timestamp,
+                "end_rewards_timestamp": 0,
+            }
+        )
+
+    return result
 
 
 # TODO: complete gamma rewards
