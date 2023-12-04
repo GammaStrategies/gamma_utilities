@@ -470,7 +470,7 @@ class web3wrap:
             # set rpc
             self._w3 = self.setup_w3(network=self._network, web3Url=rpc.url)
             logging.getLogger(__name__).debug(
-                f"   Using {rpc.url} to gather {self._network}'s events"
+                f"   Using {rpc.url_short} to gather {self._network}'s events"
             )
             # get chunk entries
             try:
@@ -497,7 +497,7 @@ class web3wrap:
 
                     # too many blocks to query
                     logging.getLogger(__name__).debug(
-                        f" {rpc.type} RPC {rpc.url} returned a too many blocks to query error. Trying to lower blocks per query to 1000"
+                        f" {rpc.type} RPC {rpc.url_short} returned a too many blocks to query error. Trying to lower blocks per query to 1000"
                     )
                     # rpc.add_failed(error=e)
                     # raise loop
@@ -510,7 +510,7 @@ class web3wrap:
                     )
 
                 logging.getLogger(__name__).debug(
-                    f" Could not get {self._network}'s events usig {rpc.url} from filter  -> {e}"
+                    f" Could not get {self._network}'s events usig {rpc.url_short} from filter  -> {e}"
                 )
                 # failed rpc event
                 rpc.add_failed(error=e)
@@ -647,7 +647,7 @@ class web3wrap:
                     block_identifier=self.block
                 )
                 logging.getLogger(__name__).debug(
-                    f" {rpc.type} RPC {rpc.url} successfully returned result when calling function {function_name} in {self._network}'s contract {self.address} at block {self.block}"
+                    f" {rpc.type} RPC {rpc.url_short} successfully returned result when calling function {function_name} in {self._network}'s contract {self.address} at block {self.block}"
                 )
                 return result
 
@@ -677,7 +677,7 @@ class web3wrap:
                             if code in [4294935296, -32000]:
                                 # 'header not found' / 'missing trie node': this rpc endpoint does not have the data. Try another one and do not add failed attempt.
                                 logging.getLogger(__name__).debug(
-                                    f" {rpc.type} RPC {rpc.url} seems to not return information when calling function {function_name} in {self._network}'s contract {self.address} at block {self.block} message: {err.get('message')}. Continue without adding failed attempt."
+                                    f" {rpc.type} RPC {rpc.url_short} seems to not return information when calling function {function_name} in {self._network}'s contract {self.address} at block {self.block} message: {err.get('message')}. Continue without adding failed attempt."
                                 )
                                 continue
                             elif code in [
@@ -688,7 +688,7 @@ class web3wrap:
                             ):
                                 # exceeded concurrent requests capacity
                                 logging.getLogger(__name__).debug(
-                                    f" {rpc.type} RPC {rpc.url} exceeded its concurrent requests capacity. Adding failed attempt. err: {err.get('message')}"
+                                    f" {rpc.type} RPC {rpc.url_short} exceeded its concurrent requests capacity. Adding failed attempt. err: {err.get('message')}"
                                 )
                                 rpc.add_failed(error=e)
                                 # exit loop
@@ -696,31 +696,31 @@ class web3wrap:
                             elif code == 1:
                                 # {'message': 'No response or no available upstream for eth_call', 'code': 1}
                                 logging.getLogger(__name__).debug(
-                                    f" {rpc.type} RPC {rpc.url} is not responding. Adding failed attempt. err: {err.get('message')}"
+                                    f" {rpc.type} RPC {rpc.url_short} is not responding. Adding failed attempt. err: {err.get('message')}"
                                 )
                                 rpc.add_failed(error=e)
 
                             elif code == 12:
                                 # {'message': "Can't route your request to suitable provider, if you specified certain providers revise the list", 'code': 12}
                                 logging.getLogger(__name__).debug(
-                                    f" {rpc.type} RPC {rpc.url} is overwhelmed. Adding failed attempt. err: {err.get('message')}"
+                                    f" {rpc.type} RPC {rpc.url_short} is overwhelmed. Adding failed attempt. err: {err.get('message')}"
                                 )
                                 rpc.add_failed(error=e)
                             elif code in [-32005]:
                                 logging.getLogger(__name__).debug(
-                                    f" {rpc.type} RPC {rpc.url} current plan is not enough to place this kind of calls. Adding failed attempt. err: {err.get('message')}"
+                                    f" {rpc.type} RPC {rpc.url_short} current plan is not enough to place this kind of calls. Adding failed attempt. err: {err.get('message')}"
                                 )
                                 rpc.add_failed(error=e)
                             elif code in [-32801]:
                                 #'message': 'no historical RPC is available for this historical (pre-bedrock) execution request'}
                                 logging.getLogger(__name__).debug(
-                                    f" {rpc.type} RPC {rpc.url} has no data to return for {self._network}'s contract {self.address} at block {self.block}. err: {err.get('message')}"
+                                    f" {rpc.type} RPC {rpc.url_short} has no data to return for {self._network}'s contract {self.address} at block {self.block}. err: {err.get('message')}"
                                 )
 
                             elif code == 0:
                                 # {'code': 0, 'message': "we can't execute this request"}
                                 logging.getLogger(__name__).debug(
-                                    f" {rpc.type} RPC {rpc.url} returned a code 0 while querying function {function_name}. Adding failed attempt. err: {err.get('message')}"
+                                    f" {rpc.type} RPC {rpc.url_short} returned a code 0 while querying function {function_name}. Adding failed attempt. err: {err.get('message')}"
                                 )
                                 rpc.add_failed(error=e)
 
@@ -730,21 +730,21 @@ class web3wrap:
                             ):
                                 # https://lb.drpc.org/ogrpc?network=arbitrum&dkey...   -> {'message': 'Rate limit reached', 'code': 4294935199}
                                 logging.getLogger(__name__).debug(
-                                    f" {rpc.type} RPC {rpc.url} returned a rate limit error while querying function {function_name}. Adding failed attempt. err: {err.get('message')}"
+                                    f" {rpc.type} RPC {rpc.url_short} returned a rate limit error while querying function {function_name}. Adding failed attempt. err: {err.get('message')}"
                                 )
                                 rpc.add_failed(error=e)
 
                             else:
                                 # "Your app has exceeded its concurrent requests capacity. If you have retries enabled, you can safely ignore this message
                                 logging.getLogger(__name__).exception(
-                                    f" [1]Unknown ValueError: {rpc.type} RPC {rpc.url} function {function_name}   -> {err}"
+                                    f" [1]Unknown ValueError: {rpc.type} RPC {rpc.url_short} function {function_name}   -> {err}"
                                 )
                                 rpc.add_failed(error=e)
 
                         else:
                             # {'message': 'Upgrade to an archive plan add-on for your account. Max height of block allowed on archive for your current plan: 128', 'code': -32005}
                             logging.getLogger(__name__).exception(
-                                f" [2]Unknown ValueError: {rpc.type} RPC {rpc.url} function {function_name}   -> {err}"
+                                f" [2]Unknown ValueError: {rpc.type} RPC {rpc.url_short} function {function_name}   -> {err}"
                             )
                             rpc.add_failed(error=e)
 
@@ -753,38 +753,38 @@ class web3wrap:
                     if "too many requests" in err.lower() or "429" in err:
                         # "Too Many Requests": adding failed attempt  ('429 Client Error: Too Many Requests for url)
                         logging.getLogger(__name__).debug(
-                            f" Too many requests made to the {rpc.type} RPC {rpc.url} Continue adding failed attempt."
+                            f" Too many requests made to the {rpc.type} RPC {rpc.url_short} Continue adding failed attempt."
                         )
                         rpc.add_failed(error=e)
                     elif "401" in err:
                         # Unknown requests.HTTPError: 401 Client Error: Unauthorized for url
                         logging.getLogger(__name__).debug(
-                            f" Too many requests made to the {rpc.type} RPC {rpc.url} Disabling it for 120 sec."
+                            f" Too many requests made to the {rpc.type} RPC {rpc.url_short} Disabling it for 120 sec."
                         )
                         rpc._set_unavailable(cooldown=120)
                     elif "402" in err:
                         # Unknown requests.HTTPError: 402 Client Error: Payment Required for url:
                         logging.getLogger(__name__).debug(
-                            f" Too many requests made to the {rpc.type} RPC {rpc.url} Payment required... Disabling it for 120 hours"
+                            f" Too many requests made to the {rpc.type} RPC {rpc.url_short} Payment required... Disabling it for 120 hours"
                         )
                         rpc._set_unavailable(cooldown=60 * 60 * 120)
 
                     elif "403" in err:
                         # Unknown requests.HTTPError: 403 Client Error: Forbidden for url
                         logging.getLogger(__name__).debug(
-                            f" Forbidden response querying {rpc.type} RPC {rpc.url}. Disabling it for 120 sec."
+                            f" Forbidden response querying {rpc.type} RPC {rpc.url_short}. Disabling it for 120 sec."
                         )
                         rpc._set_unavailable(cooldown=120)
                     elif "502" in err:
                         # 502 Server Error: Bad Gateway for url
                         logging.getLogger(__name__).debug(
-                            f" Bad getaway response querying {rpc.type} RPC {rpc.url}. Disabling it for 120 sec."
+                            f" Bad getaway response querying {rpc.type} RPC {rpc.url_short}. Disabling it for 120 sec."
                         )
                         rpc._set_unavailable(cooldown=120)
                     elif "0" in err:
                         # unable to execute request
                         logging.getLogger(__name__).debug(
-                            f"  can't execute this request querying {rpc.type} RPC {rpc.url}. Disabling it for 120 sec."
+                            f"  can't execute this request querying {rpc.type} RPC {rpc.url_short}. Disabling it for 120 sec."
                         )
                         rpc._set_unavailable(cooldown=120)
                     else:
@@ -794,7 +794,7 @@ class web3wrap:
                         rpc.add_failed(error=e)
             except RemoteDisconnected as e:
                 logging.getLogger(__name__).debug(
-                    f" {rpc.type} RPC {rpc.url} disconnected without response. adding failed attempt."
+                    f" {rpc.type} RPC {rpc.url_short} disconnected without response. adding failed attempt."
                 )
                 rpc.add_failed(error=e)
 
@@ -806,7 +806,7 @@ class web3wrap:
                     rpc.add_failed(error=e)
                 else:
                     logging.getLogger(__name__).error(
-                        f" {rpc.type} RPC {rpc.url} returned a BadFunctionCallOutput while calling function {function_name} in {self._network}'s contract {self.address} at block {self.block}. BREAKING. err: {e}"
+                        f" {rpc.type} RPC {rpc.url_short} returned a BadFunctionCallOutput while calling function {function_name} in {self._network}'s contract {self.address} at block {self.block}. BREAKING. err: {e}"
                     )
 
                     # raise error to process
@@ -831,7 +831,7 @@ class web3wrap:
                 # unknown error
                 # not working rpc or function at block has no data
                 logging.getLogger(__name__).exception(
-                    f"  Error calling function {function_name} using {rpc.url} rpc: {e}  address: {self._address}"
+                    f"  Error calling function {function_name} using {rpc.url_short} rpc: {e}  address: {self._address}"
                 )
                 rpc.add_failed(error=e)
 
@@ -904,7 +904,7 @@ class web3wrap:
                 return _w3.eth.get_transaction_receipt(txHash)
             except Exception as e:
                 logging.getLogger(__name__).debug(
-                    f" error getting transaction receipt using {rpc.url} rpc: {e}"
+                    f" error getting transaction receipt using {rpc.url_short} rpc: {e}"
                 )
                 rpc.add_failed(error=e)
                 continue
@@ -928,16 +928,16 @@ class web3wrap:
                 _w3 = self.setup_w3(network=self._network, web3Url=rpc.url)
                 if not isinstance(block, str) and not isinstance(block, int):
                     logging.getLogger(__name__).error(
-                        f" ERROR --> Block {block} is not valid. address:{self._address} {self._network} {rpc.url}"
+                        f" ERROR --> Block {block} is not valid. address:{self._address} {self._network} {rpc.url_short}"
                     )
                 return _w3.eth.get_block(block)
 
             except exceptions.BlockNotFound as e:
                 logging.getLogger(__name__).error(
-                    f" Block {block} not found at {self._network} using {rpc.url}"
+                    f" Block {block} not found at {self._network} using {rpc.url_short}"
                 )
                 last_error = exceptions.BlockNotFound(
-                    f"Block {block} not found at {self._network} using {rpc.url}"
+                    f"Block {block} not found at {self._network} using {rpc.url_short}"
                 )
             except Exception as e:
                 for err in e.args:
@@ -945,29 +945,29 @@ class web3wrap:
                         if err.get("code", None) in [-32005, -32001]:
                             # {'code': -32001, 'message': 'Resource not found.'}
                             logging.getLogger(__name__).error(
-                                f" Block {block} not found at {self._network} using {rpc.url}"
+                                f" Block {block} not found at {self._network} using {rpc.url_short}"
                             )
                             last_error = exceptions.BlockNotFound(
-                                f"Block {block} not found at {self._network} using {rpc.url}"
+                                f"Block {block} not found at {self._network} using {rpc.url_short}"
                             )
                         else:
                             logging.getLogger(__name__).debug(
-                                f" [1]error getting block: {block}  data using {rpc.url} rpc: {e}"
+                                f" [1]error getting block: {block}  data using {rpc.url_short} rpc: {e}"
                             )
                     elif isinstance(err, str) and "not found" in err.lower():
                         logging.getLogger(__name__).error(
-                            f" Block {block} not found at {self._network} using {rpc.url}"
+                            f" Block {block} not found at {self._network} using {rpc.url_short}"
                         )
                         last_error = exceptions.BlockNotFound(
-                            f"Block {block} not found at {self._network} using {rpc.url}"
+                            f"Block {block} not found at {self._network} using {rpc.url_short}"
                         )
                     else:
                         #  Block with id: '0x1167a59' not found.
                         logging.getLogger(__name__).debug(
-                            f" [2]error getting block: {block}  data using {rpc.url} rpc: {e}"
+                            f" [2]error getting block: {block}  data using {rpc.url_short} rpc: {e}"
                         )
                         last_error = exceptions.BlockNotFound(
-                            f"Block {block} not found at {self._network} using {rpc.url}"
+                            f"Block {block} not found at {self._network} using {rpc.url_short}"
                         )
                 rpc.add_failed(error=e)
 
@@ -995,7 +995,7 @@ class web3wrap:
                     return False
             except Exception as e:
                 logging.getLogger(__name__).debug(
-                    f" error getting contract's bytecode data using {rpc.url} rpc: {e}"
+                    f" error getting contract's bytecode data using {rpc.url_short} rpc: {e}"
                 )
                 rpc.add_failed(error=e)
                 continue

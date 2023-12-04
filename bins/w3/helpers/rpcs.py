@@ -34,6 +34,16 @@ class w3Provider:
         return self._url
 
     @property
+    def url_short(self) -> str:
+        """Anonymize url keys as much possible, returning the url without protocol and only till first /
+            ( log purposes only )
+        Returns:
+            str: short url without protocol and only till first /
+        """
+
+        return self._url.replace("https://", "").replace("http://", "").split("/")[0]
+
+    @property
     def is_available(self) -> bool:
         # check if we are in cooldown
         if (
@@ -348,7 +358,9 @@ def cooldown_severity(error: Exception, rpc: w3Provider) -> int:
                 .get("message", "")
                 .startswith("Upgrade to an archive plan add-on for your account")
             ):
-                logging.getLogger(__name__).debug(f"  too many requests for {rpc.url}")
+                logging.getLogger(__name__).debug(
+                    f"  too many requests for {rpc.url_short}"
+                )
                 # return random cooldown between 2.5 and 5 minutes
                 cooldown = random.randint(150, 300)
 
@@ -357,7 +369,7 @@ def cooldown_severity(error: Exception, rpc: w3Provider) -> int:
             ).startswith("missing trie node"):
                 # disable by a small amount of time
                 logging.getLogger(__name__).debug(
-                    f"  rpc {rpc.url} has no data at the specified block (public node)"
+                    f"  rpc {rpc.url_short} has no data at the specified block (public node)"
                 )
                 # return random cooldown
                 cooldown = random.randint(40, 90)
