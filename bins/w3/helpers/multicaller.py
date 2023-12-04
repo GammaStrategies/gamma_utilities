@@ -45,10 +45,15 @@ def execute_parse_calls(
     calls: list,
     convert_bint: bool = False,
     requireSuccess: bool = False,
+    custom_rpcType: str | None = None,
 ):
     # place em
     multicall_raw_result = _get_multicall_result(
-        network=network, block=block, calls=calls, requireSuccess=requireSuccess
+        network=network,
+        block=block,
+        calls=calls,
+        requireSuccess=requireSuccess,
+        custom_rpcType=custom_rpcType,
     )
     return parse_multicall_readfunctions_result(
         calls=calls,
@@ -58,13 +63,22 @@ def execute_parse_calls(
 
 
 def _get_multicall_result(
-    network: str, block: int, calls: list, requireSuccess: bool = False
+    network: str,
+    block: int,
+    calls: list,
+    requireSuccess: bool = False,
+    custom_rpcType: str | None = None,
 ):
     # execute call
     multicall_helper = multicall3(
         network=network,
         block=block,
     )
+    # set custom rpcType
+    if custom_rpcType:
+        multicall_helper.custom_rpcType = custom_rpcType
+
+    # return data
     return multicall_helper.try_get_data(
         contract_functions=calls, requireSuccess=requireSuccess
     )
