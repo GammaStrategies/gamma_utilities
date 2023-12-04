@@ -333,6 +333,7 @@ def build_hypervisor(
     cached: bool = False,
     check: bool = False,
     multicall: bool = False,
+    timestamp: int = 0,
 ) -> protocols.uniswap.hypervisor.gamma_hypervisor:
     """Create a hypervisor
 
@@ -374,6 +375,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -384,6 +386,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -394,6 +397,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -406,6 +410,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -416,6 +421,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -426,6 +432,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -438,6 +445,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -448,6 +456,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -458,6 +467,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -470,6 +480,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -480,6 +491,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -490,6 +502,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -502,6 +515,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -512,6 +526,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -522,6 +537,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -534,6 +550,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -544,6 +561,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -554,6 +572,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -566,6 +585,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -576,6 +596,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -586,6 +607,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -598,6 +620,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -608,6 +631,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -618,6 +642,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -630,6 +655,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -640,6 +666,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -650,6 +677,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -662,6 +690,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -672,6 +701,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -682,6 +712,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -694,6 +725,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -704,6 +736,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -714,6 +747,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -726,6 +760,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -736,6 +771,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -746,6 +782,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -758,6 +795,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -768,6 +806,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -778,6 +817,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -790,6 +830,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -800,6 +841,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -810,6 +852,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -822,6 +865,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -832,6 +876,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -842,6 +887,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -854,6 +900,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -864,6 +911,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -874,6 +922,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -887,6 +936,7 @@ def build_hypervisor(
                     address=hypervisor_address,
                     network=network,
                     block=block,
+                    timestamp=timestamp,
                     abi_filename=abi_filename,
                     abi_path=abi_path,
                     custom_web3=custom_web3,
@@ -897,6 +947,7 @@ def build_hypervisor(
                     address=hypervisor_address,
                     network=network,
                     block=block,
+                    timestamp=timestamp,
                     abi_filename=abi_filename,
                     abi_path=abi_path,
                     custom_web3=custom_web3,
@@ -907,6 +958,7 @@ def build_hypervisor(
                     address=hypervisor_address,
                     network=network,
                     block=block,
+                    timestamp=timestamp,
                     abi_filename=abi_filename,
                     abi_path=abi_path,
                     custom_web3=custom_web3,
@@ -919,6 +971,7 @@ def build_hypervisor(
                     address=hypervisor_address,
                     network=network,
                     block=block,
+                    timestamp=timestamp,
                     abi_filename=abi_filename,
                     abi_path=abi_path,
                     custom_web3=custom_web3,
@@ -929,6 +982,7 @@ def build_hypervisor(
                     address=hypervisor_address,
                     network=network,
                     block=block,
+                    timestamp=timestamp,
                     abi_filename=abi_filename,
                     abi_path=abi_path,
                     custom_web3=custom_web3,
@@ -939,6 +993,7 @@ def build_hypervisor(
                     address=hypervisor_address,
                     network=network,
                     block=block,
+                    timestamp=timestamp,
                     abi_filename=abi_filename,
                     abi_path=abi_path,
                     custom_web3=custom_web3,
@@ -951,6 +1006,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -961,6 +1017,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -971,6 +1028,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -983,6 +1041,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -993,6 +1052,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -1003,6 +1063,7 @@ def build_hypervisor(
                 address=hypervisor_address,
                 network=network,
                 block=block,
+                timestamp=timestamp,
                 abi_filename=abi_filename,
                 abi_path=abi_path,
                 custom_web3=custom_web3,
@@ -1071,7 +1132,8 @@ def build_protocol_pool(
     chain: Chain,
     protocol: Protocol,
     pool_address: str,
-    block: int | None = None,
+    block: int = 0,
+    timestamp: int = 0,
     cached: bool = False,
 ):
     # select the right protocol
@@ -1079,113 +1141,167 @@ def build_protocol_pool(
         # construct helper
         return (
             protocols.uniswap.pool.poolv3(
-                address=pool_address, network=chain.database_name, block=block
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
             )
             if not cached
             else protocols.uniswap.pool.poolv3_cached(
-                address=pool_address, network=chain.database_name, block=block
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
             )
         )
     elif protocol == Protocol.ALGEBRAv3:
         # construct helper
         return (
             protocols.algebra.pool.poolv3(
-                address=pool_address, network=chain.database_name, block=block
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
             )
             if not cached
             else protocols.algebra.pool.poolv3_cached(
-                address=pool_address, network=chain.database_name, block=block
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
             )
         )
     elif protocol == Protocol.PANCAKESWAP:
         if chain == Chain.BSC:
             return (
                 protocols.pancakeswap.pool.pool_bep20(
-                    address=pool_address, network=chain.database_name, block=block
+                    address=pool_address,
+                    network=chain.database_name,
+                    block=block,
+                    timestamp=timestamp,
                 )
                 if not cached
                 else protocols.pancakeswap.pool.pool_bep20_cached(
-                    address=pool_address, network=chain.database_name, block=block
+                    address=pool_address,
+                    network=chain.database_name,
+                    block=block,
+                    timestamp=timestamp,
                 )
             )
         else:
             return (
                 protocols.pancakeswap.pool.pool(
-                    address=pool_address, network=chain.database_name, block=block
+                    address=pool_address,
+                    network=chain.database_name,
+                    block=block,
+                    timestamp=timestamp,
                 )
                 if not cached
                 else protocols.pancakeswap.pool.pool_cached(
-                    address=pool_address, network=chain.database_name, block=block
+                    address=pool_address,
+                    network=chain.database_name,
+                    block=block,
+                    timestamp=timestamp,
                 )
             )
     elif protocol == Protocol.BEAMSWAP:
         return (
             protocols.beamswap.pool.pool(
-                address=pool_address, network=chain.database_name, block=block
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
             )
             if not cached
             else protocols.beamswap.pool.pool_cached(
-                address=pool_address, network=chain.database_name, block=block
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
             )
         )
     elif protocol == Protocol.THENA:
         return (
             protocols.thena.pool.pool(
-                address=pool_address, network=chain.database_name, block=block
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
             )
             if not cached
             else protocols.thena.pool.pool_cached(
-                address=pool_address, network=chain.database_name, block=block
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
             )
         )
     elif protocol == Protocol.CAMELOT:
         return (
             protocols.camelot.pool.pool(
-                address=pool_address, network=chain.database_name, block=block
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
             )
             if not cached
             else protocols.camelot.pool.pool_cached(
-                address=pool_address, network=chain.database_name, block=block
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
             )
         )
     elif protocol == Protocol.RAMSES:
         return (
             protocols.ramses.pool.pool(
-                address=pool_address, network=chain.database_name, block=block
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
             )
             if not cached
             else protocols.ramses.pool.pool_cached(
-                address=pool_address, network=chain.database_name, block=block
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
             )
         )
     # elif protocol == Protocol.SYNTHSWAP:
     #     return (
     #         protocols.algebra.pool.poolv3(
-    #             address=pool_address, network=chain.database_name, block=block
+    #             address=pool_address, network=chain.database_name, block=block,timestamp=timestamp
     #         )
     #         if not cached
     #         else protocols.algebra.pool.poolv3_cached(
-    #             address=pool_address, network=chain.database_name, block=block
+    #             address=pool_address, network=chain.database_name, block=block,timestamp=timestamp
     #         )
     #     )
     # elif protocol == Protocol.GLACIER:
     #     return (
     #         protocols.algebra.pool.poolv3(
-    #             address=pool_address, network=chain.database_name, block=block
+    #             address=pool_address, network=chain.database_name, block=block,timestamp=timestamp
     #         )
     #         if not cached
     #         else protocols.algebra.pool.poolv3_cached(
-    #             address=pool_address, network=chain.database_name, block=block
+    #             address=pool_address, network=chain.database_name, block=block,timestamp=timestamp
     #         )
     #     )
     elif protocol == Protocol.SPIRITSWAP:
         return (
             protocols.spiritswap.pool.pool(
-                address=pool_address, network=chain.database_name, block=block
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
             )
             if not cached
             else protocols.spiritswap.pool.pool_cached(
-                address=pool_address, network=chain.database_name, block=block
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
             )
         )
     # elif protocol == Protocol.LYNEX:
@@ -1201,21 +1317,33 @@ def build_protocol_pool(
     elif protocol == Protocol.FUSIONX:
         return (
             protocols.fusionx.pool.pool(
-                address=pool_address, network=chain.database_name, block=block
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
             )
             if not cached
             else protocols.fusionx.pool.pool_cached(
-                address=pool_address, network=chain.database_name, block=block
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
             )
         )
     elif protocol == Protocol.ASCENT:
         return (
             protocols.ascent.pool.pool(
-                address=pool_address, network=chain.database_name, block=block
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
             )
             if not cached
             else protocols.ascent.pool.pool_cached(
-                address=pool_address, network=chain.database_name, block=block
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
             )
         )
     else:
