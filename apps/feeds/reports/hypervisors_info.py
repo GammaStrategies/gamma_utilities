@@ -113,9 +113,10 @@ def get_info_hypervisors(
             _pool_addresses_processed.add(_hype["pool"]["address"])
 
     # log qtty of calls to be executed
-    logging.getLogger(__name__).info(
-        f" {chain.fantasy_name}: {len(_calls)} fn calls will be executed for {len(static_hypervisors)} hypervisors, meaning {len(_calls)/len(static_hypervisors):.1f} fn calls per hype, that will be splited in {len(_calls)/max_calls_atOnce:,.0f} batches of {max_calls_atOnce} function calls, for each web3 call to RPC."
-    )
+    if static_hypervisors:
+        logging.getLogger(__name__).info(
+            f" {chain.fantasy_name}: {len(_calls)} fn calls will be executed for {len(static_hypervisors)} hypervisors, meaning {len(_calls)/len(static_hypervisors):.1f} fn calls per hype, that will be splited in {round(len(_calls)/max_calls_atOnce):,.0f} batches of {max_calls_atOnce} function calls, for each web3 call to RPC."
+        )
 
     # place all previously build calls
     hypervisors_info = []
