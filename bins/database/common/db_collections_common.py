@@ -2011,6 +2011,63 @@ class database_local(db_collections_common):
         ]
 
     @staticmethod
+    def query_last_status_all_static() -> list[dict]:
+        """Get all last hypervisor status for all hypervisors in static collection
+             ( does not return all fields, check project below, or returns...)
+        Returns:
+            list[dict]: {
+                        'address': '$address',
+                        'symbol': '$symbol',
+                        'basePosition': '$basePosition',
+                        'limitPosition': '$limitPosition',
+                        'pool': {
+                            'address': '$pool.address',
+                            'token0': '$pool.token0.address',
+                            'token1': '$pool.token1.address',
+                            'dex': '$pool.dex',
+                            'liquidity': '$pool.liquidity'
+                            'block': '$pool.block'
+                        },
+                        'dex': '$dex'
+            }
+        """
+
+        return [
+            {
+                "$lookup": {
+                    "from": "status",
+                    "let": {"op_address": "$address"},
+                    "pipeline": [
+                        {"$match": {"$expr": {"$eq": ["$address", "$$op_address"]}}},
+                        {"$sort": {"block": -1}},
+                        {"$limit": 1},
+                        {
+                            "$project": {
+                                "address": "$address",
+                                "symbol": "$symbol",
+                                "basePosition": "$basePosition",
+                                "limitPosition": "$limitPosition",
+                                "pool": {
+                                    "address": "$pool.address",
+                                    "token0": "$pool.token0.address",
+                                    "token1": "$pool.token1.address",
+                                    "dex": "$pool.dex",
+                                    "liquidity": "$pool.liquidity",
+                                },
+                                "dex": "$dex",
+                            }
+                        },
+                        {"$unset": ["_id"]},
+                    ],
+                    "as": "status",
+                }
+            },
+            {"$unwind": {"path": "$status", "preserveNullAndEmptyArrays": False}},
+            {"$addFields": {"status.pool.block": "$pool.block"}},
+            {"$replaceRoot": {"newRoot": "$status"}},
+        ]
+
+    @staticmethod
     def query_all_users(
         user_address: str, timestamp_ini: int = None, timestamp_end: int = None
     ) -> list[dict]:
