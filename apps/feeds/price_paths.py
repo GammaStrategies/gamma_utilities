@@ -9,7 +9,11 @@ from bins.configuration import CONFIGURATION, USDC_TOKEN_ADDRESSES  # DEX_POOLS
 from bins.config.price.pools_price_paths import DEX_POOLS
 
 from bins.database.common.db_collections_common import database_local
-from bins.database.helpers import get_default_globaldb, get_from_localdb
+from bins.database.helpers import (
+    get_default_globaldb,
+    get_from_localdb,
+    get_latest_prices_from_db,
+)
 from bins.general.enums import Chain
 from bins.general.file_utilities import save_json, load_json
 from bins.w3.builders import build_protocol_pool, convert_dex_protocol
@@ -502,17 +506,54 @@ def add_database_pools_to_paths(token_pools: dict, chain: Chain):
 
     batch_size = 10000
 
-    # 0) add all database pools available
+    # 0) get all prices from database
+    _prices = get_latest_prices_from_db(network=chain.database_name)
+
+    # 1) add all database pools available: LAST STATUS FOUND
+    # get the last available status for each hype --> pools qtty will be less than hype's
     for hype_pool in get_from_localdb(
         network=chain.database_name,
         collection="static",
-        find={},
+        aggregate=database_local.query_last_status_all_static(),
         batch_size=batch_size,
-        projection={"pool"},
     ):
-        token0_address = hype_pool["pool"]["token0"]["address"]
-        token1_address = hype_pool["pool"]["token1"]["address"]
+        # easy to acces vars
+        token0_address = hype_pool["pool"]["token0"]
+        token1_address = hype_pool["pool"]["token1"]
 
+        # Choose hypervisor position to calc liquidity usd value
+        if int(hype_pool["basePosition"]["liquidity"]):
+            # base position
+            base_usd = _prices[token0_address] * int(
+                hype_pool["basePosition"]["amount0"]
+            ) + _prices[token1_address] * int(hype_pool["basePosition"]["amount1"])
+            pool_tvl = (base_usd / int(hype_pool["basePosition"]["liquidity"])) * int(
+                hype_pool["pool"]["liquidity"]
+            )
+        elif int(hype_pool["limitPosition"]["liquidity"]):
+            # limit position
+            limit_usd = _prices[token0_address] * int(
+                hype_pool["limitPosition"]["amount0"]
+            ) + _prices[token1_address] * int(hype_pool["limitPosition"]["amount1"])
+            pool_tvl = (limit_usd / int(hype_pool["limitPosition"]["liquidity"])) * int(
+                hype_pool["pool"]["liquidity"]
+            )
+        else:
+            # no liquidity, skip pool
+            logging.getLogger(__name__).debug(
+                f" {chain.database_name} There is no liquidity in hype {hype_pool['symbol']} {hype_pool['address']}. Skipping it."
+            )
+            continue
+
+        # skip pools with less than X USD TVL
+        if pool_tvl < 5000:
+            # skip this pool
+            logging.getLogger(__name__).debug(
+                f" {chain.database_name} skipping pool {hype_pool['pool']['address']} because tvl= {pool_tvl:,.0f} USD "
+            )
+            continue
+
+        # check if tokens are in token_pools
         if not token0_address in token_pools.get(chain, []):
             token_pools[chain][token0_address] = {}
         if not token1_address in token_pools.get(chain, []):
