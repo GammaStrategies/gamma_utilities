@@ -268,7 +268,10 @@ class coingecko_price_helper:
 
     ## PUBLIC ##
     def get_price(
-        self, network: str, contract_address: str, vs_currency: str = "usd"
+        self,
+        network: str,
+        contract_address: str,
+        vs_currency: str = "usd",
     ) -> float:
         """Get current token price"""
 
