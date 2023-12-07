@@ -839,9 +839,16 @@ class database_local(db_collections_common):
                         "blockNumber": False,
                         "address": False,
                         "timestamp": False,
+                        "topic": False,
                     },
                     "multi_indexes": [
                         [("blockNumber", ASCENDING), ("logIndex", ASCENDING)],
+                        [
+                            ("dst", ASCENDING),
+                            ("src", ASCENDING),
+                            ("sender", ASCENDING),
+                            ("to", ASCENDING),
+                        ],
                     ],
                 },
                 "status": {
@@ -2758,6 +2765,117 @@ class database_local(db_collections_common):
                     "_id": "$rewarder_address",
                     "staked": {"$sum": "$staked_in_rewarder"},
                     "operations": {"$push": "$$ROOT"},
+                }
+            },
+        ]
+
+    @staticmethod
+    def query_user_shares_operations(user_address: str) -> list[dict]:
+        return [
+            {
+                "$match": {
+                    "$and": [
+                        {
+                            "$or": [
+                                {"src": user_address},
+                                {"dst": user_address},
+                                {"sender": user_address},
+                                {"to": user_address},
+                            ]
+                        },
+                        {"src": {"$ne": "0x0000000000000000000000000000000000000000"}},
+                        {"dst": {"$ne": "0x0000000000000000000000000000000000000000"}},
+                    ]
+                }
+            },
+            {"$sort": {"blockNumber": 1}},
+            {
+                "$project": {
+                    "_id": 0,
+                    "block": "$blockNumber",
+                    "timestamp": "$timestamp",
+                    "hypervisor": "$address",
+                    "decimals_contract": "$decimals_contract",
+                    "decimals_token0": "$decimals_token0",
+                    "decimals_token1": "$decimals_token1",
+                    "topic": "$topic",
+                    "shares": {
+                        "$ifNull": [
+                            {
+                                "$cond": [
+                                    {
+                                        "$or": [
+                                            {"$eq": ["$topic", "deposit"]},
+                                            {"$eq": ["$dst", user_address]},
+                                        ]
+                                    },
+                                    {"$toDecimal": {"$ifNull": ["$qtty", "$shares"]}},
+                                    {
+                                        "$multiply": [
+                                            {
+                                                "$toDecimal": {
+                                                    "$ifNull": ["$qtty", "$shares"]
+                                                }
+                                            },
+                                            -1,
+                                        ]
+                                    },
+                                ]
+                            },
+                            0,
+                        ]
+                    },
+                    "token0": {
+                        "$ifNull": [
+                            {
+                                "$cond": [
+                                    {"$eq": ["$topic", "deposit"]},
+                                    {"$toDecimal": "$qtty_token0"},
+                                    {"$multiply": [{"$toDecimal": "$qtty_token0"}, -1]},
+                                ]
+                            },
+                            0,
+                        ]
+                    },
+                    "token1": {
+                        "$ifNull": [
+                            {
+                                "$cond": [
+                                    {"$eq": ["$topic", "deposit"]},
+                                    {"$toDecimal": "$qtty_token1"},
+                                    {"$multiply": [{"$toDecimal": "$qtty_token1"}, -1]},
+                                ]
+                            },
+                            0,
+                        ]
+                    },
+                }
+            },
+            {
+                "$group": {
+                    "_id": {"hype": "$hypervisor"},
+                    "last_block": {"$last": "$block"},
+                    "last_timestamp": {"$last": "$timestamp"},
+                    "decimals": {
+                        "$first": {
+                            "hype": "$decimals_contract",
+                            "token0": "$decimals_token0",
+                            "token1": "$decimals_token1",
+                        }
+                    },
+                    "last_shares": {"$sum": "$shares"},
+                    "last_token0": {"$sum": "$token0"},
+                    "last_token1": {"$sum": "$token1"},
+                    "operations": {
+                        "$push": {
+                            "block": "$block",
+                            "timestamp": "$timestamp",
+                            "topic": "$topic",
+                            "shares": "$shares",
+                            "token0": "$token0",
+                            "token1": "$token1",
+                        }
+                    },
                 }
             },
         ]
