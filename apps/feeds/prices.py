@@ -6,10 +6,10 @@ import tqdm
 import concurrent.futures
 from bins.apis.coingecko_utilities import coingecko_price_helper
 
-from bins.configuration import CONFIGURATION
+from bins.configuration import CONFIGURATION, TOKEN_ADDRESS_EXCLUDE
 from bins.database.common.database_ids import create_id_price
 from bins.database.common.db_collections_common import database_global, database_local
-from bins.general.enums import Chain, databaseSource
+from bins.general.enums import Chain, databaseSource, text_to_chain
 from bins.general.file_utilities import load_json, save_json
 from bins.mixed.price_utilities import price_scraper
 
@@ -253,6 +253,10 @@ def create_tokenBlocks_allHypervisorTokens(
     db_name = f"{network}_gamma"
     local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
 
+    excluded_token_addresses = list(
+        TOKEN_ADDRESS_EXCLUDE.get(text_to_chain(network), {}).keys()
+    )
+
     result = set()
     try:
         if hypervisor_status := local_db_manager.get_items_from_database(
@@ -272,6 +276,8 @@ def create_tokenBlocks_allHypervisorTokens(
                     )
                     for status in hypervisor_status
                     for i in [0, 1]
+                    if status["pool"][f"token{i}"]["address"]
+                    not in excluded_token_addresses
                 ]
             )
     except Exception as e:
@@ -297,6 +303,10 @@ def create_tokenBlocks_allRewardsTokens(network: str, limit: int | None = None) 
     db_name = f"{network}_gamma"
     local_db_manager = database_local(mongo_url=mongo_url, db_name=db_name)
 
+    excluded_token_addresses = list(
+        TOKEN_ADDRESS_EXCLUDE.get(text_to_chain(network), {}).keys()
+    )
+
     batch_size = 50000
 
     return set(
@@ -312,5 +322,6 @@ def create_tokenBlocks_allRewardsTokens(network: str, limit: int | None = None) 
                 limit=limit,
                 batch_size=batch_size,
             )
+            if item["rewardToken"] not in excluded_token_addresses
         ]
     )
