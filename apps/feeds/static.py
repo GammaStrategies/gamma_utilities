@@ -22,6 +22,7 @@ from bins.general.enums import (
     text_to_chain,
 )
 from bins.w3.builders import (
+    build_db_hypervisor,
     build_db_hypervisor_multicall,
     build_erc20_helper,
     build_hypervisor,
@@ -396,16 +397,26 @@ def _create_hypervisor_static_databaseObject(
     """
 
     try:
-        hypervisor_database = build_db_hypervisor_multicall(
-            address=hypervisor["address"],
-            network=network,
-            block=0,
-            dex=dex,
-            pool_address=hypervisor["pool"]["address"],
-            token0_address=hypervisor["pool"]["token0"]["address"],
-            token1_address=hypervisor["pool"]["token1"]["address"],
-            static_mode=True,
-            convert_bint=True,
+        hypervisor_database = (
+            build_db_hypervisor_multicall(
+                address=hypervisor["address"],
+                network=network,
+                block=0,
+                dex=dex,
+                pool_address=hypervisor["pool"]["address"],
+                token0_address=hypervisor["pool"]["token0"]["address"],
+                token1_address=hypervisor["pool"]["token1"]["address"],
+                static_mode=True,
+                convert_bint=True,
+            )
+            if "pool" in hypervisor
+            else build_db_hypervisor(
+                address=hypervisor["address"],
+                network=network,
+                block=0,
+                dex=dex,
+                static_mode=True,
+            )
         )
 
         # # create hypervisor object
@@ -708,6 +719,7 @@ def create_rewards_static(
             already_processed=already_processed,
             rewrite=rewrite,
             block=block,
+            convert_bint=True,
         )
 
     # RAMSES
@@ -778,13 +790,16 @@ def add_rewards_static_to_database(network: str, rewards_static_lst: list[dict])
 
     # save all items to the database at once
     if rewards_static_lst:
-        db_result = get_default_localdb(network=network).replace_items_to_database(
+        if db_result := get_default_localdb(network=network).replace_items_to_database(
             data=rewards_static_lst, collection_name="rewards_static"
-        )
-
-        logging.getLogger(__name__).debug(
-            f"   database result-> ins: {db_result.inserted_count} mod: {db_result.modified_count} ups: {db_result.upserted_count} del: {db_result.deleted_count}"
-        )
+        ):
+            logging.getLogger(__name__).debug(
+                f"   database result-> ins: {db_result.inserted_count} mod: {db_result.modified_count} ups: {db_result.upserted_count} del: {db_result.deleted_count}"
+            )
+        else:
+            logging.getLogger(__name__).exception(
+                f" Could not save {len(rewards_static_lst)} rewards static items to database. No database response. data-> {rewards_static_lst}"
+            )
 
 
 def create_rewards_static_zyberswap(
@@ -1303,6 +1318,7 @@ def create_rewards_static_camelot(
     already_processed: list[str],
     rewrite: bool = False,
     block: int = 0,
+    convert_bint: bool = False,
 ) -> list[dict]:
     result = []
     # GET Active pools from camelot nft pool master
@@ -1353,6 +1369,19 @@ def create_rewards_static_camelot(
             # skip this rewarder
             continue
 
+        # skip if rewrite is False and it is already processed
+        if (
+            not rewrite
+            and create_id_rewards_static(
+                hypervisor_address=nft_pool_data["lpToken"].lower(),
+                rewarder_address=nft_pool_address.lower(),
+                rewardToken_address=nft_pool_data["grailToken"].lower(),
+            )
+            in already_processed
+        ):
+            # skip this rewarder
+            continue
+
         # 3. get data and save to database
         # get contract creation block
         if creation_data := _get_contract_creation_block(
@@ -1392,8 +1421,14 @@ def create_rewards_static_camelot(
                 "rewardToken": nft_pool_data["grailToken"],
                 "rewardToken_symbol": grailTokenHelper.symbol,
                 "rewardToken_decimals": grailTokenHelper.decimals,
-                "rewards_perSecond": nft_pool_data["poolEmissionRate"],
-                "total_hypervisorToken_qtty": nft_pool_data["lpSupplyWithMultiplier"],
+                "rewards_perSecond": str(nft_pool_data["poolEmissionRate"])
+                if convert_bint
+                else nft_pool_data["poolEmissionRate"],
+                "total_hypervisorToken_qtty": str(
+                    nft_pool_data["lpSupplyWithMultiplier"]
+                )
+                if convert_bint
+                else nft_pool_data["lpSupplyWithMultiplier"],
                 "start_rewards_timestamp": creation_timestamp,
                 "end_rewards_timestamp": 0,
             }
@@ -1414,8 +1449,14 @@ def create_rewards_static_camelot(
                 "rewardToken": nft_pool_data["xGrailToken"],
                 "rewardToken_symbol": xGrailTokenHelper.symbol,
                 "rewardToken_decimals": xGrailTokenHelper.decimals,
-                "rewards_perSecond": nft_pool_data["poolEmissionRate"],
-                "total_hypervisorToken_qtty": nft_pool_data["lpSupplyWithMultiplier"],
+                "rewards_perSecond": str(nft_pool_data["poolEmissionRate"])
+                if convert_bint
+                else nft_pool_data["poolEmissionRate"],
+                "total_hypervisorToken_qtty": str(
+                    nft_pool_data["lpSupplyWithMultiplier"]
+                )
+                if convert_bint
+                else nft_pool_data["lpSupplyWithMultiplier"],
                 "start_rewards_timestamp": creation_timestamp,
                 "end_rewards_timestamp": 0,
             }
