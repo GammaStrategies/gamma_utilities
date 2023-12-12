@@ -229,7 +229,7 @@ def csushi(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
 
 
 def xgrail(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
-    # xGrail is a buy option of RAM with 50% price penalty when selling back to RAM previous to 15 days, and from there it decreases linearly to 0% at 6 months
+    # xGrail is a buy option of GRAIL with 50% price penalty when selling back to GRAIL previous to 15 days, and from there it decreases linearly to 0% at 6 months
     #   Minimum duration - 15 days (50% GRAIL output)
     #   Maximum duration - 6 months (100% GRAIL output)
     #   Linearly decreasing from 50% to 0% over 6 months
