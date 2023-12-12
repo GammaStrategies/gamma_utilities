@@ -183,9 +183,11 @@ def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network
         # check if end rewards is > hypervisor timestamp
         if (
             "end_rewards_timestamp" in reward_static
+            and reward_static["end_rewards_timestamp"] > 0
             and reward_static["end_rewards_timestamp"] < hypervisor_status["timestamp"]
         ) or (
             "start_rewards_timestamp" in reward_static
+            and reward_static["start_rewards_timestamp"] > 0
             and reward_static["start_rewards_timestamp"]
             > hypervisor_status["timestamp"]
         ):
