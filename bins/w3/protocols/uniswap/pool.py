@@ -1078,6 +1078,10 @@ class poolv3_multicall(poolv3):
         custom_web3Url: str | None = None,
         processed_calls: list | None = None,
     ):
+        # set init vars ( this is needed to be able to use self.address in initialize_abi --> camelot... )
+        self._address = Web3.toChecksumAddress(address)
+        self._network = network
+
         self._initialize_abi(abi_filename=abi_filename, abi_path=abi_path)
         self._initialize_objects()
 

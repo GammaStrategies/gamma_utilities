@@ -67,6 +67,9 @@ class dataStorageOperator(web3wrap):
         custom_web3: Web3 | None = None,
         custom_web3Url: str | None = None,
     ):
+        # set init vars ( this is needed to be able to use self.address in initialize_abi --> camelot... )
+        self._address = Web3.toChecksumAddress(address)
+        self._network = network
         self._abi_filename = abi_filename or "dataStorageOperator"
         self._abi_path = abi_path or f"{self.abi_root_path}/algebra/v3"
 
@@ -1297,6 +1300,10 @@ class poolv3_multicall(poolv3):
         custom_web3Url: str | None = None,
         processed_calls: list = None,
     ):
+        # set init vars ( this is needed to be able to use self.address in initialize_abi --> camelot... )
+        self._address = Web3.toChecksumAddress(address)
+        self._network = network
+
         self._initialize_abi(abi_filename=abi_filename, abi_path=abi_path)
         self._initialize_objects()
 
