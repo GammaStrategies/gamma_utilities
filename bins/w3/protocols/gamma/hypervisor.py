@@ -596,7 +596,8 @@ class gamma_hypervisor(erc20):
 
         # TODO: deleteme:
         if (
-            not "basePosition_ticksLower" in result
+            not static_mode
+            and not "basePosition_ticksLower" in result
             or not "limitPosition_ticksLower" in result
             or not "basePosition_data" in result
         ):
