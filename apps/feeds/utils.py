@@ -1,10 +1,13 @@
 import logging
+import multiprocessing
 import sys
 import time
+import concurrent.futures
 from bins.database.helpers import (
     get_default_localdb,
     get_from_localdb,
     get_price_from_db,
+    get_price_from_db_extended,
 )
 from bins.errors.general import ProcessingError
 from bins.formulas.apr import calculate_rewards_apr
@@ -46,6 +49,35 @@ def get_reward_pool_prices(
     )
 
     return rewardToken_price, hype_token0_price, hype_token1_price
+
+
+def get_token_prices_db(
+    network: str,
+    block: int,
+    tokens: list[str],
+    within_timeframe: int | None = None,
+) -> list[float]:
+    """Get token prices from database
+
+    Args:
+        network (str):
+        block (int):
+        tokens (list[str]): addresses
+        within_timeframe (int, optional): in MINUTES
+                    When defined, it will return the price of the closest block found within this timeframe minutes.
+                    When not defined, it will return the price at the specified block+-2. Defaults to None.
+
+    Returns:
+        list[float]:  prices in same order as the supplied tokens...
+    """
+    # use multiple threads to get prices
+    result = []
+    args = [(network, block, token, within_timeframe) for token in tokens]
+    with multiprocessing.Pool() as p:
+        for _price in p.starmap(get_price_from_db_extended, args):
+            result.append(_price)
+
+    return result
 
 
 def get_hypervisor_price_per_share_from_status(
