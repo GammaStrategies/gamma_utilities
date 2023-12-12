@@ -3,6 +3,7 @@ import concurrent.futures
 import tqdm
 
 from apps.feeds.status.rewards.beamswap import create_rewards_status_beamswap
+from apps.feeds.status.rewards.camelot import create_rewards_status_camelot_spnft
 from apps.feeds.status.rewards.synthswap import create_rewards_status_synthswap
 from apps.feeds.status.rewards.thena import create_rewards_status_thena
 from apps.feeds.status.rewards.zyberswap import create_rewards_status_zyberswap
@@ -185,6 +186,7 @@ def create_reward_status_from_hype_status(
 
     # start process
     try:
+        # ZYBERSWAP
         if rewarder_static["rewarder_type"] in [
             rewarderType.ZYBERSWAP_masterchef_v1,
             rewarderType.ZYBERSWAP_masterchef_v1_rewarder,
@@ -248,6 +250,15 @@ def create_reward_status_from_hype_status(
             # get rewards status
             rewards_data = create_rewards_status_synthswap(
                 network=network,
+                rewarder_static=rewarder_static,
+                hypervisor_status=hypervisor_status,
+            )
+        elif rewarder_static["rewarder_type"] in [
+            rewarderType.CAMELOT_spNFT,
+        ]:
+            # get rewards status
+            rewards_data = create_rewards_status_camelot_spnft(
+                chain=text_to_chain(network),
                 rewarder_static=rewarder_static,
                 hypervisor_status=hypervisor_status,
             )
