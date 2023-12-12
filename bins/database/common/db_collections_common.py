@@ -18,7 +18,7 @@ from ...database.common.database_ids import (
     create_id_user_status,
 )
 from ...database.common.db_managers import MongoDbManager
-from ...general.enums import queueItemType
+from ...general.enums import Chain, queueItemType, rewarderType
 from pymongo.results import (
     BulkWriteResult,
     DeleteResult,
@@ -1462,7 +1462,10 @@ class database_local(db_collections_common):
         self.save_item_to_database(data=data, collection_name="rewards_static")
 
     def get_rewards_static(
-        self, rewarder_address: str | None = None, hypervisor_address: str | None = None
+        self,
+        rewarder_address: str | None = None,
+        hypervisor_address: str | None = None,
+        rewarder_type: rewarderType | None = None,
     ) -> list:
         """Get rewarders static data from db.
             Specify either address or hypervisor_address
@@ -1479,6 +1482,8 @@ class database_local(db_collections_common):
             find["rewarder_address"] = rewarder_address
         if hypervisor_address:
             find["hypervisor_address"] = hypervisor_address
+        if rewarder_type:
+            find["rewarder_type"] = rewarder_type
 
         return self.get_items_from_database(collection_name="rewards_static", find=find)
 
@@ -2770,7 +2775,7 @@ class database_local(db_collections_common):
         ]
 
     @staticmethod
-    def query_user_shares_operations(user_address: str) -> list[dict]:
+    def query_user_shares_operations(user_address: str, chain: Chain) -> list[dict]:
         return [
             {
                 "$match": {
@@ -2790,11 +2795,39 @@ class database_local(db_collections_common):
             },
             {"$sort": {"blockNumber": 1}},
             {
+                "$lookup": {
+                    "from": "static",
+                    "let": {"op_address": "$address"},
+                    "pipeline": [
+                        {"$match": {"$expr": {"$eq": ["$address", "$$op_address"]}}},
+                        {"$limit": 1},
+                        {
+                            "$project": {
+                                "address": "$address",
+                                "symbol": "$symbol",
+                                "pool": {
+                                    "address": "$pool.address",
+                                    "token0": "$pool.token0.address",
+                                    "token1": "$pool.token1.address",
+                                    "dex": "$pool.dex",
+                                },
+                                "dex": "$dex",
+                            }
+                        },
+                        {"$unset": ["_id"]},
+                    ],
+                    "as": "static",
+                }
+            },
+            {
                 "$project": {
                     "_id": 0,
                     "block": "$blockNumber",
                     "timestamp": "$timestamp",
                     "hypervisor": "$address",
+                    "hypervisor_symbol": {"$arrayElemAt": ["$static.symbol", 0]},
+                    "token0_address": {"$arrayElemAt": ["$static.pool.token0", 0]},
+                    "token1_address": {"$arrayElemAt": ["$static.pool.token1", 0]},
                     "decimals_contract": "$decimals_contract",
                     "decimals_token0": "$decimals_token0",
                     "decimals_token1": "$decimals_token1",
@@ -2856,11 +2889,14 @@ class database_local(db_collections_common):
                     "_id": {"hype": "$hypervisor"},
                     "last_block": {"$last": "$block"},
                     "last_timestamp": {"$last": "$timestamp"},
-                    "decimals": {
+                    "info": {
                         "$first": {
-                            "hype": "$decimals_contract",
-                            "token0": "$decimals_token0",
-                            "token1": "$decimals_token1",
+                            "hypervisor_symbol": "$hypervisor_symbol",
+                            "token0_address": "$token0_address",
+                            "token1_address": "$token1_address",
+                            "decimals_hype": "$decimals_contract",
+                            "decimals_token0": "$decimals_token0",
+                            "decimals_token1": "$decimals_token1",
                         }
                     },
                     "last_shares": {"$sum": "$shares"},
@@ -2876,8 +2912,32 @@ class database_local(db_collections_common):
                             "token1": "$token1",
                         }
                     },
+                    "price_id_token0": {
+                        "$push": {
+                            "$concat": [
+                                chain.database_name,
+                                "_",
+                                {"$toString": "$block"},
+                                "_",
+                                "$token0_address",
+                            ]
+                        }
+                    },
+                    "price_id_token1": {
+                        "$push": {
+                            "$concat": [
+                                chain.database_name,
+                                "_",
+                                {"$toString": "$block"},
+                                "_",
+                                "$token1_address",
+                            ]
+                        }
+                    },
                 }
             },
+            {"$addFields": {"hypervisor": "$_id.hype"}},
+            {"$unset": "_id"},
         ]
 
     @staticmethod
