@@ -5,6 +5,27 @@ from bins.general.enums import Chain
 ## load special abi for any specified chain/address here defined
 GAMMA_HYPERVISOR_ABIS = {
     Chain.ETHEREUM: {
+        "0xf0a9f5c64f80fa390a46b298791dab9e2bb29bca": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0xa9782a2c9c3fb83937f14cdfac9a6d23946c9255": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0xe065ff6a26f286ddb0e823920caaecd1fcd57ba1": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
         "0x93acb12ae1effb3426220c20c6d408eeaae59d72": {
             "file": "hypervisor_old",
             "folder": (
