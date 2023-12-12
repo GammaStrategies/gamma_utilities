@@ -658,10 +658,6 @@ def create_rewards_static(
         already_processed (list): already processed rewards static
         rewrite (bool):
     """
-    local_db = database_local(
-        mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
-        db_name=f"{network}_gamma",
-    )
 
     # get hypervisors addresses to process
     hypervisor_addresses = [x["address"] for x in hypervisors]
@@ -671,8 +667,11 @@ def create_rewards_static(
     # One DEX may have multiple rewarder types
 
     # select reward type to process
+
+    # UNIQUE REWARDERS
+    # ZYBERSWAP
     if dex == Protocol.ZYBERSWAP.database_name:
-        rewards_static_lst = create_rewards_static_zyberswap(
+        rewards_static_lst += create_rewards_static_zyberswap(
             network=network,
             hypervisor_addresses=hypervisor_addresses,
             already_processed=already_processed,
@@ -680,9 +679,10 @@ def create_rewards_static(
             block=block,
         )
 
-    elif dex == Protocol.THENA.database_name:
+    # THENA
+    if dex == Protocol.THENA.database_name:
         # thena gauges
-        rewards_static_lst = create_rewards_static_thena(
+        rewards_static_lst += create_rewards_static_thena(
             network=network,
             hypervisor_addresses=hypervisor_addresses,
             already_processed=already_processed,
@@ -690,8 +690,9 @@ def create_rewards_static(
             block=block,
         )
 
-    elif dex == Protocol.BEAMSWAP.database_name:
-        rewards_static_lst = create_rewards_static_beamswap(
+    # BEAMSWAP
+    if dex == Protocol.BEAMSWAP.database_name:
+        rewards_static_lst += create_rewards_static_beamswap(
             network=network,
             hypervisor_addresses=hypervisor_addresses,
             already_processed=already_processed,
@@ -699,13 +700,9 @@ def create_rewards_static(
             block=block,
         )
 
-    elif dex in [
-        Protocol.SUSHI.database_name,
-        Protocol.RETRO.database_name,
-        Protocol.UNISWAPv3.database_name,
-        Protocol.CAMELOT.database_name,
-    ]:
-        rewards_static_lst = create_rewards_static_merkl(
+    # CAMELOT
+    if dex == Protocol.CAMELOT.database_name:
+        rewards_static_lst += create_rewards_static_camelot(
             chain=text_to_chain(network),
             hypervisors=hypervisors,
             already_processed=already_processed,
@@ -713,8 +710,9 @@ def create_rewards_static(
             block=block,
         )
 
-    elif dex == Protocol.RAMSES.database_name:
-        rewards_static_lst = create_rewards_static_ramses(
+    # RAMSES
+    if dex == Protocol.RAMSES.database_name:
+        rewards_static_lst += create_rewards_static_ramses(
             chain=text_to_chain(network),
             hypervisors=hypervisors,
             already_processed=already_processed,
@@ -723,8 +721,9 @@ def create_rewards_static(
         )
         # Merkle also ?
 
-    elif dex == Protocol.SYNTHSWAP.database_name:
-        rewards_static_lst = create_rewards_static_synthswap(
+    # SYNTHSWAP
+    if dex == Protocol.SYNTHSWAP.database_name:
+        rewards_static_lst += create_rewards_static_synthswap(
             network=network,
             hypervisor_addresses=hypervisor_addresses,
             already_processed=already_processed,
@@ -732,9 +731,20 @@ def create_rewards_static(
             block=block,
         )
 
-    else:
-        # raise NotImplementedError(f"{network} {dex} not implemented")
-        return
+    # MERKL REWARDS
+    if dex in [
+        Protocol.SUSHI.database_name,
+        Protocol.RETRO.database_name,
+        Protocol.UNISWAPv3.database_name,
+        Protocol.CAMELOT.database_name,
+    ]:
+        rewards_static_lst += create_rewards_static_merkl(
+            chain=text_to_chain(network),
+            hypervisors=hypervisors,
+            already_processed=already_processed,
+            rewrite=rewrite,
+            block=block,
+        )
 
     return rewards_static_lst
 
@@ -1317,7 +1327,30 @@ def create_rewards_static_camelot(
             continue
         # 2. check if rewarder is active ( allocPoints > 0 )
         if nft_pool_data["allocPoint"] == 0:  #
-            # TODO: if this rewarder is in the database, set it to inactive "start_rewards_timestamp": ????, "end_rewards_timestamp": ????,
+            # if this rewarder is in the database, set it to inactive ->> "end_rewards_timestamp": current timestamp,
+            if db_return := get_default_localdb(
+                network=chain.database_name
+            ).find_one_and_update(
+                collection_name="rewards_static",
+                find={
+                    "id": create_id_rewards_static(
+                        hypervisor_address=nft_pool_data["lpToken"].lower(),
+                        rewarder_address=nft_pool_address.lower(),
+                        rewardToken_address=nft_pool_data["grailToken"].lower(),
+                    )
+                },
+                update={"$set": {"end_rewards_timestamp": timestamp}},
+            ):
+                # log updated end timestamp
+                logging.getLogger(__name__).debug(
+                    f" Updated {chain.database_name} {nft_pool_address} end timestamp to {timestamp}"
+                )
+            else:
+                # no rewarder found in database
+                logging.getLogger(__name__).debug(
+                    f" Cant find reward static to update end timestamp for {chain.database_name} {nft_pool_address}. Should exist and doesnt. Check!"
+                )
+            # skip this rewarder
             continue
 
         # 3. get data and save to database
@@ -1359,6 +1392,28 @@ def create_rewards_static_camelot(
                 "rewardToken": nft_pool_data["grailToken"],
                 "rewardToken_symbol": grailTokenHelper.symbol,
                 "rewardToken_decimals": grailTokenHelper.decimals,
+                "rewards_perSecond": nft_pool_data["poolEmissionRate"],
+                "total_hypervisorToken_qtty": nft_pool_data["lpSupplyWithMultiplier"],
+                "start_rewards_timestamp": creation_timestamp,
+                "end_rewards_timestamp": 0,
+            }
+        )
+        # append xGrail also
+        result.append(
+            {
+                "block": reward_static_block,
+                "timestamp": timestamp,
+                "hypervisor_address": nft_pool_data["lpToken"],
+                "rewarder_address": nft_pool_address,
+                "rewarder_type": rewarderType.CAMELOT_spNFT,
+                # TODO: id at the master pool level ?
+                "rewarder_refIds": [],
+                "rewarder_registry": STATIC_REGISTRY_ADDRESSES[chain.database_name][
+                    "camelot_nft"
+                ]["master"],
+                "rewardToken": nft_pool_data["xGrailToken"],
+                "rewardToken_symbol": xGrailTokenHelper.symbol,
+                "rewardToken_decimals": xGrailTokenHelper.decimals,
                 "rewards_perSecond": nft_pool_data["poolEmissionRate"],
                 "total_hypervisorToken_qtty": nft_pool_data["lpSupplyWithMultiplier"],
                 "start_rewards_timestamp": creation_timestamp,
