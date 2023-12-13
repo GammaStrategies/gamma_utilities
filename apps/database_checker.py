@@ -542,7 +542,7 @@ def shouldBe_price_ids_from_status_hypervisors(
     """
 
     logging.getLogger(__name__).debug(
-        f" Building a 'should be' price id list from hypervisor status for {network}"
+        f" Building a 'should be' price id list from hypervisor status for {network} (includes rewards)"
     )
 
     # create a result price ids
@@ -554,6 +554,14 @@ def shouldBe_price_ids_from_status_hypervisors(
         mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
         db_name=f"{network}_gamma",
     )
+
+    # get all static rewards
+    static_rewards = {
+        x["hypervisor_address"]: x
+        for x in get_from_localdb(
+            network=network, collection="rewards_static", find={}, batch_size=batch_size
+        )
+    }
 
     for hype_status in get_from_localdb(
         network=network,
@@ -580,6 +588,32 @@ def shouldBe_price_ids_from_status_hypervisors(
         )
         # add block to block_ids
         block_ids.add(hype_status["block"])
+
+        # add reward token to price ids
+        if hype_status["address"] in static_rewards:
+            _static_reward = static_rewards[hype_status["address"]]
+
+            _start_timestamp = _static_reward.get(
+                "start_rewards_timestamp", hype_status["timestamp"]
+            )
+            _end_timestamp = _static_reward.get(
+                "end_rewards_timestamp", hype_status["timestamp"]
+            )
+
+            # make sure static reward start/end timestamps are within hypervisor status timestamp
+            if _static_reward["block"] >= hype_status["block"]:
+                if (
+                    _start_timestamp >= hype_status["timestamp"]
+                    and _end_timestamp <= hype_status["timestamp"]
+                ):
+                    # add reward token
+                    price_ids.add(
+                        create_id_price(
+                            network,
+                            hype_status["block"],
+                            _static_reward["rewardToken"],
+                        )
+                    )
 
     return price_ids, block_ids
 
@@ -1447,7 +1481,7 @@ def repar_multiple_wrongs():
     for chain in chains:
         names = ["humongous values", "missing fields", "wrong types"]
         for idx, query in enumerate(
-            [query_humongous, query_missing_fields]#, wrong_types]
+            [query_humongous, query_missing_fields]  # , wrong_types]
         ):
             logging.getLogger(__name__).info(
                 f" {chain.database_name} repairing {names[idx]}"
