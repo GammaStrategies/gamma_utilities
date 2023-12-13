@@ -372,34 +372,6 @@ def create_rewards_status_camelot_nitro(
                     reward_data=reward_data_converted,
                 )
 
-                # modify extra field with apr
-                _base_rewards = (
-                    reward_data_converted["extra"]["baseRewards_per_second"]
-                    / 10 ** reward_data_converted["rewardToken_decimals"]
-                ) * reward_data_converted["rewardToken_price_usd"]
-                _boosted_rewards = (
-                    reward_data_converted["extra"]["boostedRewards_per_second"]
-                    / 10 ** reward_data_converted["rewardToken_decimals"]
-                ) * reward_data_converted["rewardToken_price_usd"]
-                _total_tvl = (
-                    reward_data_converted["total_hypervisorToken_qtty"] / 10**18
-                ) * reward_data_converted["hypervisor_share_price_usd"]
-
-                reward_data_converted["extra"]["boostedRewards_apr"] = (
-                    _boosted_rewards * 60 * 60 * 24 * 365
-                ) / _total_tvl
-                reward_data_converted["extra"]["baseRewards_apr"] = (
-                    _base_rewards * 60 * 60 * 24 * 365
-                ) / _total_tvl
-
-                # set apy to apr
-                reward_data_converted["extra"][
-                    "boostedRewards_apy"
-                ] = reward_data_converted["extra"]["boostedRewards_apr"]
-                reward_data_converted["extra"][
-                    "baseRewards_apy"
-                ] = reward_data_converted["extra"]["baseRewards_apr"]
-
                 result.append(reward_data_converted)
             except Exception as e:
                 logging.getLogger(__name__).error(
