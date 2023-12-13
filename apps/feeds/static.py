@@ -32,6 +32,7 @@ from bins.w3.helpers.multicaller import build_call_with_abi_part, execute_parse_
 from bins.w3.protocols.camelot.rewarder import (
     camelot_rewards_nft_pool,
     camelot_rewards_nft_pool_master,
+    camelot_rewards_nitro_pool_factory,
 )
 
 from bins.w3.protocols.general import erc20, bep20
@@ -1320,6 +1321,33 @@ def create_rewards_static_camelot(
     block: int = 0,
     convert_bint: bool = False,
 ) -> list[dict]:
+    
+    result =  create_rewards_static_camelot_spNFT(
+        chain=chain,
+        hypervisors=hypervisors,
+        already_processed=already_processed,
+        rewrite=rewrite,
+        block=block,
+        convert_bint=convert_bint,
+    )
+    result +=create_rewards_static_camelot_nitro( chain=chain,
+        hypervisors=hypervisors,
+        already_processed=already_processed,
+        rewrite=rewrite,
+        block=block,
+        convert_bint=convert_bint)
+    
+    return result
+
+
+def create_rewards_static_camelot_spNFT(
+    chain: Chain,
+    hypervisors: list[dict],
+    already_processed: list[str],
+    rewrite: bool = False,
+    block: int = 0,
+    convert_bint: bool = False,
+):
     result = []
     # GET Active pools from camelot nft pool master
     # using multicall
@@ -1459,6 +1487,162 @@ def create_rewards_static_camelot(
                 else nft_pool_data["lpSupplyWithMultiplier"],
                 "start_rewards_timestamp": creation_timestamp,
                 "end_rewards_timestamp": 0,
+            }
+        )
+
+    return result
+
+
+def create_rewards_static_camelot_nitro(
+    chain: Chain,
+    hypervisors: list[dict],
+    already_processed: list[str],
+    rewrite: bool = False,
+    block: int = 0,
+    convert_bint: bool = False,
+):
+    result = []
+
+    # ease access vars : create a address:hypervisor dict
+    ordered_hypervisors = {x["address"]: x for x in hypervisors}
+
+    # GET Active pools from camelot nft pool master
+    # using multicall
+
+    # create nitro factory
+    nitro_factory = camelot_rewards_nitro_pool_factory(
+        address=STATIC_REGISTRY_ADDRESSES[chain.database_name]["camelot_nft"][
+            "nitroPoolFactory"
+        ],
+        network=chain.database_name,
+        block=block,
+    )
+    timestamp = nitro_factory._timestamp
+
+    # get a distinct list of nftPool's ( unique addresses ) from database
+    unique_nftPools = {
+        item["rewarder_address"]: item
+        for item in get_from_localdb(
+            network=chain.database_name,
+            collection="rewards_static",
+            find={
+                "rewarder_type": rewarderType.CAMELOT_spNFT,
+                "hypervisor_address": {"$in": list(ordered_hypervisors.keys())},
+            },
+        )
+    }
+
+    # dicr <nitro pool address>:< data ( including spNFT pool address)...>
+    all_reward_pools_info = nitro_factory.get_all_rewards_info(
+        chain=chain, nft_pools=list(unique_nftPools.keys())
+    )
+
+    # process each nitro pool
+    for nitro_pool_address, _pool_data in all_reward_pools_info.items():
+        # 1. check if nftPool is in unique_nftPools
+        if _pool_data["nftPool"] not in unique_nftPools:
+            continue
+
+        # ease var access
+        _hypervisor_address = unique_nftPools[_pool_data["nftPool"]][
+            "hypervisor_address"
+        ]
+
+        # # skip if rewrite is False and it is already processed
+        if (
+            not rewrite
+            and create_id_rewards_static(
+                hypervisor_address=_hypervisor_address,
+                rewarder_address=nitro_pool_address,
+                rewardToken_address=_pool_data["rewardsToken1"]["token"].lower(),
+            )
+            in already_processed
+            and create_id_rewards_static(
+                hypervisor_address=_hypervisor_address,
+                rewarder_address=nitro_pool_address,
+                rewardToken_address=_pool_data["rewardsToken2"]["token"].lower(),
+            )
+            in already_processed
+        ):
+            # skip this rewarder
+            continue
+
+        # 3. get data and save to database
+        # get contract creation block
+        if creation_data := _get_contract_creation_block(
+            network=chain.database_name,
+            contract_address=nitro_pool_address,
+        ):
+            reward_static_block = creation_data["block"]
+            creation_timestamp = creation_data["timestamp"]
+        else:
+            # modify block number manually -> block num. is later used to update rewards_status from
+            reward_static_block = block
+            creation_timestamp = timestamp
+
+        # get tokens specs
+        # build erc20 helper
+        token0 = build_erc20_helper(
+            chain=chain,
+            address=_pool_data["rewardsToken1"]["token"].lower(),
+            cached=True,
+        )
+        token1 = build_erc20_helper(
+            chain=chain,
+            address=_pool_data["rewardsToken2"]["token"].lower(),
+            cached=True,
+        )
+
+        # process token1
+        if _pool_data["rewardsToken1"]["token"].lower() != "0x0000000000000000000000000000000000000000":
+            result.append(
+                {
+                    "block": reward_static_block,
+                    "timestamp": timestamp,
+                    "hypervisor_address": _hypervisor_address,
+                    "rewarder_address": nitro_pool_address,
+                    "rewarder_type": rewarderType.CAMELOT_nitro,
+                    "rewarder_refIds": [],
+                    "rewarder_registry": STATIC_REGISTRY_ADDRESSES[chain.database_name][
+                        "camelot_nft"
+                    ]["nitroPoolFactory"],
+                    "rewardToken": _pool_data["rewardsToken1"]["token"].lower(),
+                    "rewardToken_symbol": token0.symbol,
+                    "rewardToken_decimals": token0.decimals,
+                    "rewards_perSecond": str(_pool_data["rewardsToken1PerSecond"])
+                    if convert_bint
+                    else _pool_data["rewardsToken1PerSecond"],
+                    "total_hypervisorToken_qtty": str(_pool_data["totalDepositAmount"])
+                    if convert_bint
+                    else _pool_data["totalDepositAmount"],
+                    "start_rewards_timestamp": _pool_data["settings"]["startTime"],
+                    "end_rewards_timestamp": _pool_data["settings"]["endTime"],
+                }
+            )
+        # process token2
+        if _pool_data["rewardsToken2"]["token"].lower() != "0x0000000000000000000000000000000000000000":
+            result.append(
+            {
+                "block": reward_static_block,
+                "timestamp": timestamp,
+                "hypervisor_address": _hypervisor_address,
+                "rewarder_address": nitro_pool_address,
+                "rewarder_type": rewarderType.CAMELOT_nitro,
+                "rewarder_refIds": [],
+                "rewarder_registry": STATIC_REGISTRY_ADDRESSES[chain.database_name][
+                    "camelot_nft"
+                ]["nitroPoolFactory"],
+                "rewardToken": _pool_data["rewardsToken2"]["token"].lower(),
+                "rewardToken_symbol": token1.symbol,
+                "rewardToken_decimals": token1.decimals,
+                "rewards_perSecond": str(_pool_data["rewardsToken2PerSecond"])
+                if convert_bint
+                else _pool_data["rewardsToken2PerSecond"],
+                "total_hypervisorToken_qtty": str(_pool_data["totalDepositAmount"])
+                if convert_bint
+                else _pool_data["totalDepositAmount"],
+                "start_rewards_timestamp": _pool_data["settings"]["startTime"],
+                "end_rewards_timestamp": _pool_data["settings"]["endTime"],
             }
         )
 
