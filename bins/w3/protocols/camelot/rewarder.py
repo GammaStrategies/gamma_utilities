@@ -287,6 +287,252 @@ class camelot_rewards_nitro_pool_factory(web3wrap):
         """
         return self.call_function_autoRpc(fn_name, None, *args)
 
+    def get_all_rewards_info(self, chain: Chain, nft_pools: list[str]):
+        """Returns all active rewards found information, using multicall
+
+        Args:
+            chain (Chain): network
+            nft_pools (list[str]): list of nft pools addresses
+
+        Returns:
+            dict: {<nitro_pool_address>: data}
+
+        """
+        _max_calls_atOnce = 1000
+
+        # 1) nftPoolPublishedNitroPoolsLength ( nftpool address ) -> lenght of nitro pools
+        # 2) for index in range(0, lenght):
+        #    nitroPoolAddress = getNftPoolPublishedNitroPool( nftpool address, index )
+        # 3)
+        #    nftPool
+        #    creationTime
+        #    publishTime
+        #    lastRewardTime
+        #    rewardsToken1 ->   token: <address>, amount: <int>, remainingAmount: <int>, accRewardsPerShare: <int>
+        #    rewardsToken1PerSecond ->  int
+        #    rewardsToken2 ->   token: <address>, amount: <int>, remainingAmount: <int>, accRewardsPerShare: <int>
+        #    rewardsToken2PerSecond ->  int
+        #    settings ->   startTime, endTime, harvestStartTime, depositEndTime, lockDurationReq, lockEndReq, depositAmountReq, whitelist:bool, description:str
+        #    totalDepositAmount -> int
+
+        #
+
+        # call 1 ) nftPoolPublishedNitroPoolsLength ( nftpool address ) -> lenght of nitro pools
+        abi_part = self.get_abi_function("nftPoolPublishedNitroPoolsLength")
+        factory_calls = [
+            build_call_with_abi_part(
+                abi_part=abi_part,
+                inputs_values=[address],
+                address=self.address,
+                object="nitro_pool_length_addresses",
+            )
+            for address in nft_pools
+        ]
+        #   place call:  build spNFT <address>:<length> dictionary
+        spnft_pools_length = {}
+        for i in range(0, len(factory_calls), _max_calls_atOnce):
+            # execute calls
+            for _result in execute_parse_calls(
+                network=chain.database_name,
+                block=self.block,
+                calls=factory_calls[i : i + _max_calls_atOnce],
+                convert_bint=False,
+            ):
+                _spNFT_pool_address = _result["inputs"][0]["value"]
+                spnft_pools_length[_spNFT_pool_address] = _result["outputs"][0]["value"]
+
+        # call 2 ) get nitroPoolAddress = getNftPoolPublishedNitroPool( nftpool address, index )
+        abi_part = self.get_abi_function("getNftPoolPublishedNitroPool")
+        factory_calls = [
+            build_call_with_abi_part(
+                abi_part=abi_part,
+                inputs_values=[_address, i],
+                address=self.address,
+                object="nitro_pool_addresses",
+            )
+            for _address, _lenght in spnft_pools_length.items()
+            for i in range(_lenght)
+        ]
+        #   place call:  <spNFt address> : list[<nitro address>]
+        nitro_pools = {}  # <spNFt address> : list[<nitro address>]
+        for i in range(0, len(factory_calls), _max_calls_atOnce):
+            # execute calls
+            _mcall_result = execute_parse_calls(
+                network=chain.database_name,
+                block=self.block,
+                calls=factory_calls[i : i + _max_calls_atOnce],
+                convert_bint=False,
+            )
+            for _result in _mcall_result:
+                _spNFT_pool_address = _result["inputs"][0]["value"]
+                if not _spNFT_pool_address in nitro_pools:
+                    nitro_pools[_spNFT_pool_address] = []
+
+                nitro_pools[_spNFT_pool_address].append(_result["outputs"][0]["value"])
+
+        # call 3 )  get nitro pool info ( many calls depending on max defined)
+
+        nitro_pool_helper = camelot_rewards_nitro_pool(
+            address="0x0000000000000000000000000000000000000000",
+            network=chain.database_name,
+            block=self.block,
+            timestamp=self._timestamp,
+        )
+        # create nitro calls
+        nitro_pool_calls = []
+        for nftPool_address, nitro_pool_address_list in nitro_pools.items():
+            for nitro_pool_address in nitro_pool_address_list:
+                # nftPool
+                nitro_pool_calls.append(
+                    build_call_with_abi_part(
+                        abi_part=nitro_pool_helper.get_abi_function("nftPool"),
+                        inputs_values=[],
+                        address=nitro_pool_address,
+                        object="nitro_pool",
+                    )
+                )
+                # creationTime
+                nitro_pool_calls.append(
+                    build_call_with_abi_part(
+                        abi_part=nitro_pool_helper.get_abi_function("creationTime"),
+                        inputs_values=[],
+                        address=nitro_pool_address,
+                        object="nitro_pool",
+                    )
+                )
+                # publishTime
+                nitro_pool_calls.append(
+                    build_call_with_abi_part(
+                        abi_part=nitro_pool_helper.get_abi_function("publishTime"),
+                        inputs_values=[],
+                        address=nitro_pool_address,
+                        object="nitro_pool",
+                    )
+                )
+                # lastRewardTime
+                nitro_pool_calls.append(
+                    build_call_with_abi_part(
+                        abi_part=nitro_pool_helper.get_abi_function("lastRewardTime"),
+                        inputs_values=[],
+                        address=nitro_pool_address,
+                        object="nitro_pool",
+                    )
+                )
+                # rewardsToken1 ->   token: <address>, amount: <int>, remainingAmount: <int>, accRewardsPerShare: <int>
+                nitro_pool_calls.append(
+                    build_call_with_abi_part(
+                        abi_part=nitro_pool_helper.get_abi_function("rewardsToken1"),
+                        inputs_values=[],
+                        address=nitro_pool_address,
+                        object="nitro_pool",
+                    )
+                )
+                # rewardsToken1PerSecond ->  int
+                nitro_pool_calls.append(
+                    build_call_with_abi_part(
+                        abi_part=nitro_pool_helper.get_abi_function(
+                            "rewardsToken1PerSecond"
+                        ),
+                        inputs_values=[],
+                        address=nitro_pool_address,
+                        object="nitro_pool",
+                    )
+                )
+                # rewardsToken2 ->   token: <address>, amount: <int>, remainingAmount: <int>, accRewardsPerShare: <int>
+                nitro_pool_calls.append(
+                    build_call_with_abi_part(
+                        abi_part=nitro_pool_helper.get_abi_function("rewardsToken2"),
+                        inputs_values=[],
+                        address=nitro_pool_address,
+                        object="nitro_pool",
+                    )
+                )
+                # rewardsToken2PerSecond ->  int
+                nitro_pool_calls.append(
+                    build_call_with_abi_part(
+                        abi_part=nitro_pool_helper.get_abi_function(
+                            "rewardsToken2PerSecond"
+                        ),
+                        inputs_values=[],
+                        address=nitro_pool_address,
+                        object="nitro_pool",
+                    )
+                )
+                # settings ->   startTime, endTime, harvestStartTime, depositEndTime, lockDurationReq, lockEndReq, depositAmountReq, whitelist:bool, description:str
+                nitro_pool_calls.append(
+                    build_call_with_abi_part(
+                        abi_part=nitro_pool_helper.get_abi_function("settings"),
+                        inputs_values=[],
+                        address=nitro_pool_address,
+                        object="nitro_pool",
+                    )
+                )
+                # totalDepositAmount -> int
+                nitro_pool_calls.append(
+                    build_call_with_abi_part(
+                        abi_part=nitro_pool_helper.get_abi_function(
+                            "totalDepositAmount"
+                        ),
+                        inputs_values=[],
+                        address=nitro_pool_address,
+                        object="nitro_pool",
+                    )
+                )
+
+        # place calls
+        multicall_result = []
+        for i in range(0, len(nitro_pool_calls), _max_calls_atOnce):
+            # execute calls
+            multicall_result += execute_parse_calls(
+                network=chain.database_name,
+                block=self.block,
+                calls=nitro_pool_calls[i : i + _max_calls_atOnce],
+                convert_bint=False,
+            )
+
+        # Build result
+        result = {}
+        for _info in multicall_result:
+            nitro_pool_address = _info["address"].lower()
+            if not nitro_pool_address in result:
+                result[nitro_pool_address] = {}
+
+            if _info["name"] in [
+                "nftPool",
+                "creationTime",
+                "publishTime",
+                "lastRewardTime",
+                "rewardsToken1PerSecond",
+                "rewardsToken2PerSecond",
+                "totalDepositAmount",
+            ]:
+                result[nitro_pool_address][_info["name"]] = _info["outputs"][0]["value"]
+            elif _info["name"] in ["rewardsToken1", "rewardsToken2"]:
+                result[nitro_pool_address][_info["name"]] = {
+                    "token": _info["outputs"][0]["value"],
+                    "amount": _info["outputs"][1]["value"],
+                    "remainingAmount": _info["outputs"][2]["value"],
+                    "accRewardsPerShare": _info["outputs"][3]["value"],
+                }
+            elif _info["name"] == "settings":
+                #
+                result[nitro_pool_address][_info["name"]] = {
+                    "startTime": _info["outputs"][0]["value"],
+                    "endTime": _info["outputs"][1]["value"],
+                    "harvestStartTime": _info["outputs"][2]["value"],
+                    "depositEndTime": _info["outputs"][3]["value"],
+                    "lockDurationReq": _info["outputs"][4]["value"],
+                    "lockEndReq": _info["outputs"][5]["value"],
+                    "depositAmountReq": _info["outputs"][6]["value"],
+                    "whitelist": _info["outputs"][7]["value"],
+                    "description": _info["outputs"][8]["value"],
+                }
+            else:
+                raise ValueError(f" Function name not recognized {_info['name']}")
+
+        # when allocPoint,poolEmissionRate,reserve is 0, the pool is inactive
+        return result
+
 
 class camelot_rewards_nitro_pool(web3wrap):
     # https://vscode.blockscan.com/arbitrum-one/0x36B0139A88f7750E402747425EC8B78380db09A0
