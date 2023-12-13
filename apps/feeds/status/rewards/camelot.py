@@ -203,6 +203,7 @@ def get_camelot_rewards_spnftpool(
     multicall_result["timestamp"] = hypervisor_status["timestamp"]
     multicall_result["hypervisor_address"] = hypervisor_status["address"]
     multicall_result["rewarder_address"] = rewarder_static["rewarder_address"]
+    multicall_result["rewarder_registry"] = rewarder_static["rewarder_registry"]
     multicall_result["seconds_passed"] = seconds_passed
 
     # return result
@@ -316,6 +317,7 @@ def convert_parsed_rewards_nftpool_multicall_result_to_reward_standard(
             "timestamp": parsed_result["timestamp"],
             "hypervisor_address": parsed_result["hypervisor_address"],
             "rewarder_address": parsed_result["rewarder_address"],
+            "rewarder_registry": parsed_result["rewarder_registry"],
             "rewarder_type": rewarderType.CAMELOT_spNFT,
             "rewarder_refIds": [],
             "rewardToken": parsed_result["grailToken"],
@@ -343,6 +345,7 @@ def convert_parsed_rewards_nftpool_multicall_result_to_reward_standard(
             "timestamp": parsed_result["timestamp"],
             "hypervisor_address": parsed_result["hypervisor_address"],
             "rewarder_address": parsed_result["rewarder_address"],
+            "rewarder_registry": parsed_result["rewarder_registry"],
             "rewarder_type": rewarderType.CAMELOT_spNFT,
             "rewarder_refIds": [],
             "rewardToken": parsed_result["xGrailToken"],
@@ -541,6 +544,7 @@ def get_camelot_rewards_nitro_pool(
                 "timestamp": hypervisor_status["timestamp"],
                 "hypervisor_address": hypervisor_status["address"],
                 "rewarder_address": rewarder_static["rewarder_address"],
+                "rewarder_registry": rewarder_static["rewarder_registry"],
             }
 
         if _info["name"] in [
@@ -632,6 +636,7 @@ def convert_parsed_rewards_nitro_pool_multicall_result_to_reward_standard(
                     "timestamp": pool_info["timestamp"],
                     "hypervisor_address": pool_info["hypervisor_address"],
                     "rewarder_address": pool_info["rewarder_address"],
+                    "rewarder_registry": pool_info["rewarder_registry"],
                     "rewarder_type": rewarderType.CAMELOT_nitro,
                     "rewarder_refIds": [],
                     "rewardToken": pool_info["rewardsToken1"]["token"].lower(),
@@ -660,6 +665,7 @@ def convert_parsed_rewards_nitro_pool_multicall_result_to_reward_standard(
                     "timestamp": pool_info["timestamp"],
                     "hypervisor_address": pool_info["hypervisor_address"],
                     "rewarder_address": pool_info["rewarder_address"],
+                    "rewarder_registry": pool_info["rewarder_registry"],
                     "rewarder_type": rewarderType.CAMELOT_nitro,
                     "rewarder_refIds": [],
                     "rewardToken": pool_info["rewardsToken2"]["token"].lower(),
