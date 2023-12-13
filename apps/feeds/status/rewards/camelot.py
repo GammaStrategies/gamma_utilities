@@ -2,26 +2,32 @@ import logging
 from apps.feeds.utils import add_apr_process01
 
 from bins.general.enums import Chain, rewarderType, text_to_chain
+from bins.w3.builders import build_erc20_helper
 from bins.w3.protocols.camelot.rewarder import (
     camelot_rewards_nft_pool,
     camelot_rewards_nft_pool_master,
+    camelot_rewards_nitro_pool,
+    camelot_rewards_nitro_pool_factory,
 )
 from bins.w3.helpers.multicaller import build_call_with_abi_part, execute_parse_calls
 
 
+# SPNFT
 def create_rewards_status_camelot_spnft(
     chain: Chain, rewarder_static: dict, hypervisor_status: dict
 ) -> list:
     result = []
     # get rewards onchain status
-    if reward_data := get_camelot_rewards_nftpool(
+    if reward_data := get_camelot_rewards_spnftpool(
         chain=chain,
         rewarder_static=rewarder_static,
         hypervisor_status=hypervisor_status,
         # convert_bint=True,
     ):
         # standardize and split grail/xGrail
-        for reward_data_converted in convert_parsed_multicall_result_to_reward_standard(
+        for (
+            reward_data_converted
+        ) in convert_parsed_rewards_nftpool_multicall_result_to_reward_standard(
             reward_data
         ):
             try:
@@ -31,20 +37,49 @@ def create_rewards_status_camelot_spnft(
                     hypervisor_status=hypervisor_status,
                     reward_data=reward_data_converted,
                 )
+
+                # modify extra field with apr
+                _base_rewards = (
+                    reward_data_converted["extra"]["baseRewards_per_second"]
+                    / 10 ** reward_data_converted["rewardToken_decimals"]
+                ) * reward_data_converted["rewardToken_price_usd"]
+                _boosted_rewards = (
+                    reward_data_converted["extra"]["boostedRewards_per_second"]
+                    / 10 ** reward_data_converted["rewardToken_decimals"]
+                ) * reward_data_converted["rewardToken_price_usd"]
+                _total_tvl = (
+                    reward_data_converted["total_hypervisorToken_qtty"] / 10**18
+                ) * reward_data_converted["hypervisor_share_price_usd"]
+
+                reward_data_converted["extra"]["boostedRewards_apr"] = (
+                    _boosted_rewards * 60 * 60 * 24 * 365
+                ) / _total_tvl
+                reward_data_converted["extra"]["baseRewards_apr"] = (
+                    _base_rewards * 60 * 60 * 24 * 365
+                ) / _total_tvl
+
+                # set apy to apr
+                reward_data_converted["extra"][
+                    "boostedRewards_apy"
+                ] = reward_data_converted["extra"]["boostedRewards_apr"]
+                reward_data_converted["extra"][
+                    "baseRewards_apy"
+                ] = reward_data_converted["extra"]["baseRewards_apr"]
+
                 result.append(reward_data_converted)
             except Exception as e:
                 logging.getLogger(__name__).error(
-                    f" Camelot Rewards-> {chain.database_name}'s {rewarder_static['rewardToken']} price at block {hypervisor_status['block']} could not be calculated. Error: {e}"
+                    f" Camelot spNFT Rewards-> {chain.database_name}'s {rewarder_static['rewardToken']} price at block {hypervisor_status['block']} could not be calculated. Error: {e}"
                 )
                 logging.getLogger(__name__).debug(
-                    f" Synthswap Rewards last err debug data -> rewarder_static {rewarder_static}           hype status {hypervisor_status}"
+                    f" Camelot spNFT Rewards last err debug data -> rewarder_static {rewarder_static}           hype status {hypervisor_status}"
                 )
 
     return result
 
 
-# get camelot reward information
-def get_camelot_rewards_nftpool(
+# get camelot nftPool reward information
+def get_camelot_rewards_spnftpool(
     chain: Chain,
     rewarder_static: dict,
     hypervisor_status: dict,
@@ -59,6 +94,18 @@ def get_camelot_rewards_nftpool(
     Returns:
         dict: {<address>: lpToken, grailToken, xGrailToken, lastRewardTime,accRewardsPerShare, lpSupply, lpSupplyWithMultiplier, allocPoint, xGrailRewardsShare, reserve, poolEmissionRate}
     """
+
+    # MULTIPLIER will be savcet into boostedRewards: 1 week after start time
+    # calc time from start to now, to get multiplier
+    seconds_passed = (
+        hypervisor_status["timestamp"] - rewarder_static["start_rewards_timestamp"]
+    )
+    # subtract 1 week to seconds passed ( as if stakers waited 1 week to stake )
+    seconds_passed -= 604800
+    # if seconds passed is negative, set to 0
+    if seconds_passed < 0:
+        seconds_passed = 0
+
     # create a camelot nft pool master object
     _calls = []
     nft_pool_master = camelot_rewards_nft_pool_master(
@@ -100,9 +147,28 @@ def get_camelot_rewards_nftpool(
             object="nft_pool",
         )
     )
+    # add max multipliers and current multiplier calls
+    # getMultiplierSettings -> maxGlobalMultiplier uint256, maxLockDuration uint256, maxLockMultiplier uint256, maxBoostMultiplier uint256
+    _calls.append(
+        build_call_with_abi_part(
+            abi_part=nft_pool.get_abi_function("getMultiplierSettings"),
+            inputs_values=[],
+            address=rewarder_static["rewarder_address"],
+            object="nft_pool",
+        )
+    )
+    # getMultiplierByLockDuration -> uint256 in *1e4
+    _calls.append(
+        build_call_with_abi_part(
+            abi_part=nft_pool.get_abi_function("getMultiplierByLockDuration"),
+            inputs_values=[seconds_passed],
+            address=rewarder_static["rewarder_address"],
+            object="nft_pool",
+        )
+    )
 
     # execute multicalls for both blocks
-    multicall_result = parse_multicall_result(
+    multicall_result = parse_camelot_rewards_nftpool_multicall_result(
         execute_parse_calls(
             network=chain.database_name,
             block=hypervisor_status["block"],
@@ -117,12 +183,13 @@ def get_camelot_rewards_nftpool(
     multicall_result["timestamp"] = hypervisor_status["timestamp"]
     multicall_result["hypervisor_address"] = hypervisor_status["address"]
     multicall_result["rewarder_address"] = rewarder_static["rewarder_address"]
+    multicall_result["seconds_passed"] = seconds_passed
 
     # return result
     return multicall_result
 
 
-def parse_multicall_result(multicall_result) -> dict:
+def parse_camelot_rewards_nftpool_multicall_result(multicall_result) -> dict:
     """
 
     Args:
@@ -149,6 +216,15 @@ def parse_multicall_result(multicall_result) -> dict:
             elif pool_info["name"] == "xGrailRewardsShare":
                 # process xGrailRewardsShare
                 result["xGrailRewardsShare"] = pool_info["outputs"][0]["value"]
+            elif pool_info["name"] == "getMultiplierSettings":
+                # process getMultiplierSettings
+                result["maxGlobalMultiplier"] = pool_info["outputs"][0]["value"]
+                result["maxLockDuration"] = pool_info["outputs"][1]["value"]
+                result["maxLockMultiplier"] = pool_info["outputs"][2]["value"]
+                result["maxBoostMultiplier"] = pool_info["outputs"][3]["value"]
+            elif pool_info["name"] == "getMultiplierByLockDuration":
+                # process getMultiplierByLockDuration
+                result["currentMultiplier"] = pool_info["outputs"][0]["value"]
             else:
                 raise ValueError(f" Object not recognized {pool_info['object']}")
 
@@ -170,7 +246,7 @@ def parse_multicall_result(multicall_result) -> dict:
     return result
 
 
-def convert_parsed_multicall_result_to_reward_standard(
+def convert_parsed_rewards_nftpool_multicall_result_to_reward_standard(
     parsed_result: dict,
 ) -> list[dict]:
     """Convert parsed multicall result to reward standard
@@ -199,6 +275,20 @@ def convert_parsed_multicall_result_to_reward_standard(
     xgrail_percentage = parsed_result["xGrailRewardsShare"] / 10000
     grail_percentage = (10000 - parsed_result["xGrailRewardsShare"]) / 10000
 
+    seconds_passed = parsed_result["seconds_passed"]
+    multiplier = parsed_result["currentMultiplier"] / 1e4
+
+    grail_baseRewards_per_second = parsed_result["poolEmissionRate"] * grail_percentage
+    grail_boostedRewards_per_second = (
+        parsed_result["poolEmissionRate"] * grail_percentage
+    ) * multiplier
+    xgrail_baseRewards_per_second = (
+        parsed_result["poolEmissionRate"] * xgrail_percentage
+    )
+    xgrail_boostedRewards_per_second = (
+        parsed_result["poolEmissionRate"] * xgrail_percentage
+    ) * multiplier
+
     result.append(
         {
             "network": parsed_result["network"],
@@ -211,8 +301,19 @@ def convert_parsed_multicall_result_to_reward_standard(
             "rewardToken": parsed_result["grailToken"],
             "rewardToken_symbol": "GRAIL",
             "rewardToken_decimals": 18,
-            "rewards_perSecond": parsed_result["poolEmissionRate"] * grail_percentage,
+            "rewards_perSecond": grail_baseRewards_per_second
+            + grail_boostedRewards_per_second,
             "total_hypervisorToken_qtty": parsed_result["lpSupplyWithMultiplier"],
+            "extra": {
+                "baseRewards": seconds_passed * grail_baseRewards_per_second,
+                "boostedRewards": seconds_passed * grail_boostedRewards_per_second,
+                "baseRewards_apr": 0,
+                "baseRewards_apy": 0,
+                "boostedRewards_apr": 0,
+                "boostedRewards_apy": 0,
+                "baseRewards_per_second": grail_baseRewards_per_second,
+                "boostedRewards_per_second": grail_boostedRewards_per_second,
+            },
         }
     )
     result.append(
@@ -227,9 +328,359 @@ def convert_parsed_multicall_result_to_reward_standard(
             "rewardToken": parsed_result["xGrailToken"],
             "rewardToken_symbol": "xGRAIL",
             "rewardToken_decimals": 18,
-            "rewards_perSecond": parsed_result["poolEmissionRate"] * xgrail_percentage,
+            "rewards_perSecond": xgrail_baseRewards_per_second
+            + xgrail_boostedRewards_per_second,
             "total_hypervisorToken_qtty": parsed_result["lpSupplyWithMultiplier"],
+            "extra": {
+                "baseRewards": seconds_passed * xgrail_baseRewards_per_second,
+                "boostedRewards": seconds_passed * xgrail_boostedRewards_per_second,
+                "baseRewards_apr": 0,
+                "baseRewards_apy": 0,
+                "boostedRewards_apr": 0,
+                "boostedRewards_apy": 0,
+                "baseRewards_per_second": xgrail_baseRewards_per_second,
+                "boostedRewards_per_second": xgrail_boostedRewards_per_second,
+            },
         }
     )
+
+    return result
+
+
+# NITRO
+def create_rewards_status_camelot_nitro(
+    chain: Chain, rewarder_static: dict, hypervisor_status: dict
+) -> list:
+    result = []
+    # get rewards onchain status
+    if reward_data := get_camelot_rewards_nitro_pool(
+        chain=chain,
+        rewarder_static=rewarder_static,
+        hypervisor_status=hypervisor_status,
+    ):
+        # standardize and split grail/xGrail
+        for (
+            reward_data_converted
+        ) in convert_parsed_rewards_nitro_pool_multicall_result_to_reward_standard(
+            reward_data
+        ):
+            try:
+                # add prices and APR to onchain status
+                reward_data_converted = add_apr_process01(
+                    network=chain.database_name,
+                    hypervisor_status=hypervisor_status,
+                    reward_data=reward_data_converted,
+                )
+
+                # modify extra field with apr
+                _base_rewards = (
+                    reward_data_converted["extra"]["baseRewards_per_second"]
+                    / 10 ** reward_data_converted["rewardToken_decimals"]
+                ) * reward_data_converted["rewardToken_price_usd"]
+                _boosted_rewards = (
+                    reward_data_converted["extra"]["boostedRewards_per_second"]
+                    / 10 ** reward_data_converted["rewardToken_decimals"]
+                ) * reward_data_converted["rewardToken_price_usd"]
+                _total_tvl = (
+                    reward_data_converted["total_hypervisorToken_qtty"] / 10**18
+                ) * reward_data_converted["hypervisor_share_price_usd"]
+
+                reward_data_converted["extra"]["boostedRewards_apr"] = (
+                    _boosted_rewards * 60 * 60 * 24 * 365
+                ) / _total_tvl
+                reward_data_converted["extra"]["baseRewards_apr"] = (
+                    _base_rewards * 60 * 60 * 24 * 365
+                ) / _total_tvl
+
+                # set apy to apr
+                reward_data_converted["extra"][
+                    "boostedRewards_apy"
+                ] = reward_data_converted["extra"]["boostedRewards_apr"]
+                reward_data_converted["extra"][
+                    "baseRewards_apy"
+                ] = reward_data_converted["extra"]["baseRewards_apr"]
+
+                result.append(reward_data_converted)
+            except Exception as e:
+                logging.getLogger(__name__).error(
+                    f" Camelot nitro Rewards-> {chain.database_name}'s {rewarder_static['rewardToken']} price at block {hypervisor_status['block']} could not be calculated. Error: {e}"
+                )
+                logging.getLogger(__name__).debug(
+                    f" Camelot nitro Rewards last err debug data -> rewarder_static {rewarder_static}           hype status {hypervisor_status}"
+                )
+
+    return result
+
+
+def get_camelot_rewards_nitro_pool(
+    chain: Chain, rewarder_static: dict, hypervisor_status: dict
+) -> list:
+    _max_calls_atOnce = 1000
+    # From the Nitro Pool Factory:
+    #   using rewarder_static["rewarder_address"] as the nitro pool address
+    #   ...
+    nitro_pool_helper = camelot_rewards_nitro_pool(
+        address="0x0000000000000000000000000000000000000000",
+        network=chain.database_name,
+        block=hypervisor_status["block"],
+        timestamp=hypervisor_status["timestamp"],
+    )
+    # create nitro calls
+    nitro_pool_calls = []
+    # nftPool
+    nitro_pool_calls.append(
+        build_call_with_abi_part(
+            abi_part=nitro_pool_helper.get_abi_function("nftPool"),
+            inputs_values=[],
+            address=rewarder_static["rewarder_address"],
+            object="nitro_pool",
+        )
+    )
+    # creationTime
+    nitro_pool_calls.append(
+        build_call_with_abi_part(
+            abi_part=nitro_pool_helper.get_abi_function("creationTime"),
+            inputs_values=[],
+            address=rewarder_static["rewarder_address"],
+            object="nitro_pool",
+        )
+    )
+    # publishTime
+    nitro_pool_calls.append(
+        build_call_with_abi_part(
+            abi_part=nitro_pool_helper.get_abi_function("publishTime"),
+            inputs_values=[],
+            address=rewarder_static["rewarder_address"],
+            object="nitro_pool",
+        )
+    )
+    # lastRewardTime
+    nitro_pool_calls.append(
+        build_call_with_abi_part(
+            abi_part=nitro_pool_helper.get_abi_function("lastRewardTime"),
+            inputs_values=[],
+            address=rewarder_static["rewarder_address"],
+            object="nitro_pool",
+        )
+    )
+    # rewardsToken1 ->   token: <address>, amount: <int>, remainingAmount: <int>, accRewardsPerShare: <int>
+    nitro_pool_calls.append(
+        build_call_with_abi_part(
+            abi_part=nitro_pool_helper.get_abi_function("rewardsToken1"),
+            inputs_values=[],
+            address=rewarder_static["rewarder_address"],
+            object="nitro_pool",
+        )
+    )
+    # rewardsToken1PerSecond ->  int
+    nitro_pool_calls.append(
+        build_call_with_abi_part(
+            abi_part=nitro_pool_helper.get_abi_function("rewardsToken1PerSecond"),
+            inputs_values=[],
+            address=rewarder_static["rewarder_address"],
+            object="nitro_pool",
+        )
+    )
+    # rewardsToken2 ->   token: <address>, amount: <int>, remainingAmount: <int>, accRewardsPerShare: <int>
+    nitro_pool_calls.append(
+        build_call_with_abi_part(
+            abi_part=nitro_pool_helper.get_abi_function("rewardsToken2"),
+            inputs_values=[],
+            address=rewarder_static["rewarder_address"],
+            object="nitro_pool",
+        )
+    )
+    # rewardsToken2PerSecond ->  int
+    nitro_pool_calls.append(
+        build_call_with_abi_part(
+            abi_part=nitro_pool_helper.get_abi_function("rewardsToken2PerSecond"),
+            inputs_values=[],
+            address=rewarder_static["rewarder_address"],
+            object="nitro_pool",
+        )
+    )
+    # settings ->   startTime, endTime, harvestStartTime, depositEndTime, lockDurationReq, lockEndReq, depositAmountReq, whitelist:bool, description:str
+    nitro_pool_calls.append(
+        build_call_with_abi_part(
+            abi_part=nitro_pool_helper.get_abi_function("settings"),
+            inputs_values=[],
+            address=rewarder_static["rewarder_address"],
+            object="nitro_pool",
+        )
+    )
+    # totalDepositAmount -> int
+    nitro_pool_calls.append(
+        build_call_with_abi_part(
+            abi_part=nitro_pool_helper.get_abi_function("totalDepositAmount"),
+            inputs_values=[],
+            address=rewarder_static["rewarder_address"],
+            object="nitro_pool",
+        )
+    )
+
+    # place calls
+    multicall_result = []
+    for i in range(0, len(nitro_pool_calls), _max_calls_atOnce):
+        # execute calls
+        multicall_result += execute_parse_calls(
+            network=chain.database_name,
+            block=hypervisor_status["block"],
+            calls=nitro_pool_calls[i : i + _max_calls_atOnce],
+            convert_bint=False,
+        )
+
+    # Build result
+    result = {}
+    for _info in multicall_result:
+        nitro_pool_address = _info["address"].lower()
+        if not nitro_pool_address in result:
+            result[nitro_pool_address] = {
+                "block": hypervisor_status["block"],
+                "timestamp": hypervisor_status["timestamp"],
+            }
+
+        if _info["name"] in [
+            "nftPool",
+            "creationTime",
+            "publishTime",
+            "lastRewardTime",
+            "rewardsToken1PerSecond",
+            "rewardsToken2PerSecond",
+            "totalDepositAmount",
+        ]:
+            result[nitro_pool_address][_info["name"]] = _info["outputs"][0]["value"]
+        elif _info["name"] in ["rewardsToken1", "rewardsToken2"]:
+            result[nitro_pool_address][_info["name"]] = {
+                "token": _info["outputs"][0]["value"],
+                "amount": _info["outputs"][1]["value"],
+                "remainingAmount": _info["outputs"][2]["value"],
+                "accRewardsPerShare": _info["outputs"][3]["value"],
+            }
+        elif _info["name"] == "settings":
+            #
+            result[nitro_pool_address][_info["name"]] = {
+                "startTime": _info["outputs"][0]["value"],
+                "endTime": _info["outputs"][1]["value"],
+                "harvestStartTime": _info["outputs"][2]["value"],
+                "depositEndTime": _info["outputs"][3]["value"],
+                "lockDurationReq": _info["outputs"][4]["value"],
+                "lockEndReq": _info["outputs"][5]["value"],
+                "depositAmountReq": _info["outputs"][6]["value"],
+                "whitelist": _info["outputs"][7]["value"],
+                "description": _info["outputs"][8]["value"],
+            }
+        else:
+            raise ValueError(f" Function name not recognized {_info['name']}")
+
+    # add general data
+    result["network"] = chain.database_name
+    result["block"] = hypervisor_status["block"]
+    result["timestamp"] = hypervisor_status["timestamp"]
+    result["hypervisor_address"] = hypervisor_status["address"]
+    result["rewarder_address"] = rewarder_static["rewarder_address"]
+
+    return result
+
+
+def convert_parsed_rewards_nitro_pool_multicall_result_to_reward_standard(
+    parsed_result: dict,
+) -> list[dict]:
+    """Convert parsed multicall result to reward standard
+
+    Args:
+        parsed_result (dict): result from parse_multicall_result() function
+
+    Returns:
+        dict:        {
+            network: str
+            block: int
+            timestamp: int
+            hypervisor_address: str
+            rewarder_address: str
+            rewarder_type: str
+            rewarder_refIds: list[str]
+            rewardToken: str
+            rewardToken_symbol: str
+            rewardToken_decimals: int
+            rewards_perSecond: int
+            total_hypervisorToken_qtty: int
+            extra: {
+                baseRewards: int
+                boostedRewards: int
+                baseRewards_apr: int
+                baseRewards_apy: int
+                boostedRewards_apr: int
+                boostedRewards_apy: int
+                baseRewards_per_second: int
+                boostedRewards_per_second: int
+            }
+    """
+    result = []
+
+    for nitro_pool_address, pool_info in parsed_result.items():
+        seconds_passed = pool_info["timestamp"] - pool_info["startTime"]
+        # check seconds passed is positive
+        if seconds_passed < 0:
+            logging.getLogger(__name__).error(
+                f" Nitro Pool {nitro_pool_address} has negative seconds passed at block {pool_info['block']}. Setting to 0"
+            )
+            seconds_passed = 0
+
+        # TOKEN 1
+        if (
+            pool_info["rewardsToken1"]["token"].lower()
+            != "0x0000000000000000000000000000000000000000"
+        ):
+            # build erc20 token helper
+            token1_helper = build_erc20_helper(
+                chain=text_to_chain(pool_info["network"]),
+                address=pool_info["rewardsToken1"]["token"].lower(),
+                block=pool_info["block"],
+                timestamp=pool_info["timestamp"],
+            )
+            result.append(
+                {
+                    "network": pool_info["network"],
+                    "block": pool_info["block"],
+                    "timestamp": pool_info["timestamp"],
+                    "hypervisor_address": pool_info["hypervisor_address"],
+                    "rewarder_address": pool_info["rewarder_address"],
+                    "rewarder_type": rewarderType.CAMELOT_nitro,
+                    "rewarder_refIds": [],
+                    "rewardToken": pool_info["rewardsToken1"]["token"].lower(),
+                    "rewardToken_symbol": token1_helper.symbol,
+                    "rewardToken_decimals": token1_helper.decimals,
+                    "rewards_perSecond": pool_info["rewardsToken1PerSecond"],
+                    "total_hypervisorToken_qtty": parsed_result["totalDepositAmount"],
+                }
+            )
+        # TOKEN 2
+        if (
+            pool_info["rewardsToken2"]["token"].lower()
+            != "0x0000000000000000000000000000000000000000"
+        ):
+            # build erc20 token helper
+            token2_helper = build_erc20_helper(
+                chain=text_to_chain(pool_info["network"]),
+                address=pool_info["rewardsToken2"]["token"].lower(),
+                block=pool_info["block"],
+                timestamp=pool_info["timestamp"],
+            )
+            result.append(
+                {
+                    "network": pool_info["network"],
+                    "block": pool_info["block"],
+                    "timestamp": pool_info["timestamp"],
+                    "hypervisor_address": pool_info["hypervisor_address"],
+                    "rewarder_address": pool_info["rewarder_address"],
+                    "rewarder_type": rewarderType.CAMELOT_nitro,
+                    "rewarder_refIds": [],
+                    "rewardToken": pool_info["rewardsToken2"]["token"].lower(),
+                    "rewardToken_symbol": token2_helper.symbol,
+                    "rewardToken_decimals": token2_helper.decimals,
+                    "rewards_perSecond": pool_info["rewardsToken2PerSecond"],
+                    "total_hypervisorToken_qtty": parsed_result["totalDepositAmount"],
+                }
+            )
 
     return result
