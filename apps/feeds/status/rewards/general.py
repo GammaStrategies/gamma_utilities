@@ -3,7 +3,10 @@ import concurrent.futures
 import tqdm
 
 from apps.feeds.status.rewards.beamswap import create_rewards_status_beamswap
-from apps.feeds.status.rewards.camelot import create_rewards_status_camelot_spnft
+from apps.feeds.status.rewards.camelot import (
+    create_rewards_status_camelot_nitro,
+    create_rewards_status_camelot_spnft,
+)
 from apps.feeds.status.rewards.synthswap import create_rewards_status_synthswap
 from apps.feeds.status.rewards.thena import create_rewards_status_thena
 from apps.feeds.status.rewards.zyberswap import create_rewards_status_zyberswap
@@ -262,6 +265,17 @@ def create_reward_status_from_hype_status(
                 rewarder_static=rewarder_static,
                 hypervisor_status=hypervisor_status,
             )
+
+        elif rewarder_static["rewarder_type"] in [
+            rewarderType.CAMELOT_nitro,
+        ]:
+            # get rewards status
+            rewards_data = create_rewards_status_camelot_nitro(
+                chain=text_to_chain(network),
+                rewarder_static=rewarder_static,
+                hypervisor_status=hypervisor_status,
+            )
+
         else:
             raise ValueError(
                 f" Unknown rewarder type {rewarder_static['rewarder_type']} for {network}'s rewarder: {rewarder_static['rewarder_address']}  hype: {hypervisor_status['address']} at block {hypervisor_status['block']}"
