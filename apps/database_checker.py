@@ -553,7 +553,18 @@ def shouldBe_price_ids_from_status_hypervisors(
     static_rewards = {
         x["hypervisor_address"]: x
         for x in get_from_localdb(
-            network=network, collection="rewards_static", find={}, batch_size=batch_size
+            network=network,
+            collection="rewards_static",
+            find={},
+            batch_size=batch_size,
+            projection={
+                "block": 1,
+                "timestamp": 1,
+                "hypervisor_address": 1,
+                "rewardToken": 1,
+                "start_rewards_timestamp": 1,
+                "end_rewards_timestamp": 1,
+            },
         )
     }
 
@@ -585,15 +596,17 @@ def shouldBe_price_ids_from_status_hypervisors(
         block_ids.add(hype_status["block"])
 
         # add reward token to price ids
-        if hype_status["address"] in static_rewards:
-            _static_reward = static_rewards[hype_status["address"]]
-
+        if _static_reward := static_rewards.get(hype_status["address"], None):
             _start_timestamp = _static_reward.get(
                 "start_rewards_timestamp", hype_status["timestamp"]
             )
+            if _start_timestamp == 0:
+                _start_timestamp = hype_status["timestamp"]
             _end_timestamp = _static_reward.get(
                 "end_rewards_timestamp", hype_status["timestamp"]
             )
+            if _end_timestamp == 0:
+                _end_timestamp = hype_status["timestamp"]
 
             # make sure static reward start/end timestamps are within hypervisor status timestamp
             if _static_reward["block"] <= hype_status["block"]:
