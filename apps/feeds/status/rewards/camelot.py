@@ -534,9 +534,13 @@ def get_camelot_rewards_nitro_pool(
     for _info in multicall_result:
         nitro_pool_address = _info["address"].lower()
         if not nitro_pool_address in result:
+            # add general data
             result[nitro_pool_address] = {
+                "network": chain.database_name,
                 "block": hypervisor_status["block"],
                 "timestamp": hypervisor_status["timestamp"],
+                "hypervisor_address": hypervisor_status["address"],
+                "rewarder_address": rewarder_static["rewarder_address"],
             }
 
         if _info["name"] in [
@@ -571,13 +575,6 @@ def get_camelot_rewards_nitro_pool(
             }
         else:
             raise ValueError(f" Function name not recognized {_info['name']}")
-
-    # add general data
-    result["network"] = chain.database_name
-    result["block"] = hypervisor_status["block"]
-    result["timestamp"] = hypervisor_status["timestamp"]
-    result["hypervisor_address"] = hypervisor_status["address"]
-    result["rewarder_address"] = rewarder_static["rewarder_address"]
 
     return result
 
@@ -618,7 +615,7 @@ def convert_parsed_rewards_nitro_pool_multicall_result_to_reward_standard(
     result = []
 
     for nitro_pool_address, pool_info in parsed_result.items():
-        seconds_passed = pool_info["timestamp"] - pool_info["startTime"]
+        seconds_passed = pool_info["timestamp"] - pool_info["settings"]["startTime"]
         # check seconds passed is positive
         if seconds_passed < 0:
             logging.getLogger(__name__).error(
@@ -651,7 +648,7 @@ def convert_parsed_rewards_nitro_pool_multicall_result_to_reward_standard(
                     "rewardToken_symbol": token1_helper.symbol,
                     "rewardToken_decimals": token1_helper.decimals,
                     "rewards_perSecond": pool_info["rewardsToken1PerSecond"],
-                    "total_hypervisorToken_qtty": parsed_result["totalDepositAmount"],
+                    "total_hypervisorToken_qtty": pool_info["totalDepositAmount"],
                 }
             )
         # TOKEN 2
@@ -679,7 +676,7 @@ def convert_parsed_rewards_nitro_pool_multicall_result_to_reward_standard(
                     "rewardToken_symbol": token2_helper.symbol,
                     "rewardToken_decimals": token2_helper.decimals,
                     "rewards_perSecond": pool_info["rewardsToken2PerSecond"],
-                    "total_hypervisorToken_qtty": parsed_result["totalDepositAmount"],
+                    "total_hypervisorToken_qtty": pool_info["totalDepositAmount"],
                 }
             )
 
