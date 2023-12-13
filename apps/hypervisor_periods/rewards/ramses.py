@@ -301,8 +301,8 @@ class hypervisor_periods_ramses(hypervisor_periods_base):
         # self.totalStaked = hypervisor_status_w3.receiver.totalStakes
         # period timeframe
         self.current_period = hypervisor_status_w3.current_period
-        self.rewarder_address = (hypervisor_status_w3.gauge.address.lower(),)
-        self.rewarder_registry = (hypervisor_status_w3.receiver.address.lower(),)
+        self.rewarder_address = hypervisor_status_w3.gauge.address.lower()
+        self.rewarder_registry = hypervisor_status_w3.receiver.address.lower()
 
     def _calculations(
         self,
