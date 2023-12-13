@@ -1321,8 +1321,7 @@ def create_rewards_static_camelot(
     block: int = 0,
     convert_bint: bool = False,
 ) -> list[dict]:
-    
-    result =  create_rewards_static_camelot_spNFT(
+    result = create_rewards_static_camelot_spNFT(
         chain=chain,
         hypervisors=hypervisors,
         already_processed=already_processed,
@@ -1330,13 +1329,15 @@ def create_rewards_static_camelot(
         block=block,
         convert_bint=convert_bint,
     )
-    result +=create_rewards_static_camelot_nitro( chain=chain,
+    result += create_rewards_static_camelot_nitro(
+        chain=chain,
         hypervisors=hypervisors,
         already_processed=already_processed,
         rewrite=rewrite,
         block=block,
-        convert_bint=convert_bint)
-    
+        convert_bint=convert_bint,
+    )
+
     return result
 
 
@@ -1550,19 +1551,27 @@ def create_rewards_static_camelot_nitro(
 
         # # skip if rewrite is False and it is already processed
         if (
-            not rewrite
-            and create_id_rewards_static(
-                hypervisor_address=_hypervisor_address,
-                rewarder_address=nitro_pool_address,
-                rewardToken_address=_pool_data["rewardsToken1"]["token"].lower(),
+            rewrite == False
+            and (
+                create_id_rewards_static(
+                    hypervisor_address=_hypervisor_address,
+                    rewarder_address=nitro_pool_address,
+                    rewardToken_address=_pool_data["rewardsToken1"]["token"].lower(),
+                )
+                in already_processed
+                or _pool_data["rewardsToken1"]["token"].lower()
+                == "0x0000000000000000000000000000000000000000"
             )
-            in already_processed
-            and create_id_rewards_static(
-                hypervisor_address=_hypervisor_address,
-                rewarder_address=nitro_pool_address,
-                rewardToken_address=_pool_data["rewardsToken2"]["token"].lower(),
+            and (
+                create_id_rewards_static(
+                    hypervisor_address=_hypervisor_address,
+                    rewarder_address=nitro_pool_address,
+                    rewardToken_address=_pool_data["rewardsToken2"]["token"].lower(),
+                )
+                in already_processed
+                or _pool_data["rewardsToken2"]["token"].lower()
+                == "0x0000000000000000000000000000000000000000"
             )
-            in already_processed
         ):
             # skip this rewarder
             continue
@@ -1594,7 +1603,10 @@ def create_rewards_static_camelot_nitro(
         )
 
         # process token1
-        if _pool_data["rewardsToken1"]["token"].lower() != "0x0000000000000000000000000000000000000000":
+        if (
+            _pool_data["rewardsToken1"]["token"].lower()
+            != "0x0000000000000000000000000000000000000000"
+        ):
             result.append(
                 {
                     "block": reward_static_block,
@@ -1620,31 +1632,34 @@ def create_rewards_static_camelot_nitro(
                 }
             )
         # process token2
-        if _pool_data["rewardsToken2"]["token"].lower() != "0x0000000000000000000000000000000000000000":
+        if (
+            _pool_data["rewardsToken2"]["token"].lower()
+            != "0x0000000000000000000000000000000000000000"
+        ):
             result.append(
-            {
-                "block": reward_static_block,
-                "timestamp": timestamp,
-                "hypervisor_address": _hypervisor_address,
-                "rewarder_address": nitro_pool_address,
-                "rewarder_type": rewarderType.CAMELOT_nitro,
-                "rewarder_refIds": [],
-                "rewarder_registry": STATIC_REGISTRY_ADDRESSES[chain.database_name][
-                    "camelot_nft"
-                ]["nitroPoolFactory"],
-                "rewardToken": _pool_data["rewardsToken2"]["token"].lower(),
-                "rewardToken_symbol": token1.symbol,
-                "rewardToken_decimals": token1.decimals,
-                "rewards_perSecond": str(_pool_data["rewardsToken2PerSecond"])
-                if convert_bint
-                else _pool_data["rewardsToken2PerSecond"],
-                "total_hypervisorToken_qtty": str(_pool_data["totalDepositAmount"])
-                if convert_bint
-                else _pool_data["totalDepositAmount"],
-                "start_rewards_timestamp": _pool_data["settings"]["startTime"],
-                "end_rewards_timestamp": _pool_data["settings"]["endTime"],
-            }
-        )
+                {
+                    "block": reward_static_block,
+                    "timestamp": timestamp,
+                    "hypervisor_address": _hypervisor_address,
+                    "rewarder_address": nitro_pool_address,
+                    "rewarder_type": rewarderType.CAMELOT_nitro,
+                    "rewarder_refIds": [],
+                    "rewarder_registry": STATIC_REGISTRY_ADDRESSES[chain.database_name][
+                        "camelot_nft"
+                    ]["nitroPoolFactory"],
+                    "rewardToken": _pool_data["rewardsToken2"]["token"].lower(),
+                    "rewardToken_symbol": token1.symbol,
+                    "rewardToken_decimals": token1.decimals,
+                    "rewards_perSecond": str(_pool_data["rewardsToken2PerSecond"])
+                    if convert_bint
+                    else _pool_data["rewardsToken2PerSecond"],
+                    "total_hypervisorToken_qtty": str(_pool_data["totalDepositAmount"])
+                    if convert_bint
+                    else _pool_data["totalDepositAmount"],
+                    "start_rewards_timestamp": _pool_data["settings"]["startTime"],
+                    "end_rewards_timestamp": _pool_data["settings"]["endTime"],
+                }
+            )
 
     return result
 
