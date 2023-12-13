@@ -66,6 +66,26 @@ def create_rewards_status_camelot_spnft(
                     "baseRewards_apy"
                 ] = reward_data_converted["extra"]["baseRewards_apr"]
 
+                # convert all >8bit int to str
+                reward_data_converted["rewards_perSecond"] = str(
+                    reward_data_converted["rewards_perSecond"]
+                )
+                reward_data_converted["total_hypervisorToken_qtty"] = str(
+                    reward_data_converted["total_hypervisorToken_qtty"]
+                )
+                reward_data_converted["extra"]["baseRewards_per_second"] = str(
+                    reward_data_converted["extra"]["baseRewards_per_second"]
+                )
+                reward_data_converted["extra"]["boostedRewards_per_second"] = str(
+                    reward_data_converted["extra"]["boostedRewards_per_second"]
+                )
+                reward_data_converted["extra"]["baseRewards"] = str(
+                    reward_data_converted["extra"]["baseRewards"]
+                )
+                reward_data_converted["extra"]["boostedRewards"] = str(
+                    reward_data_converted["extra"]["boostedRewards"]
+                )
+
                 result.append(reward_data_converted)
             except Exception as e:
                 logging.getLogger(__name__).error(
@@ -372,6 +392,14 @@ def create_rewards_status_camelot_nitro(
                     reward_data=reward_data_converted,
                 )
 
+                # convert all >8bit int to str
+                reward_data_converted["rewards_perSecond"] = str(
+                    reward_data_converted["rewards_perSecond"]
+                )
+                reward_data_converted["total_hypervisorToken_qtty"] = str(
+                    reward_data_converted["total_hypervisorToken_qtty"]
+                )
+
                 result.append(reward_data_converted)
             except Exception as e:
                 logging.getLogger(__name__).error(
@@ -573,16 +601,6 @@ def convert_parsed_rewards_nitro_pool_multicall_result_to_reward_standard(
             rewardToken_decimals: int
             rewards_perSecond: int
             total_hypervisorToken_qtty: int
-            extra: {
-                baseRewards: int
-                boostedRewards: int
-                baseRewards_apr: int
-                baseRewards_apy: int
-                boostedRewards_apr: int
-                boostedRewards_apy: int
-                baseRewards_per_second: int
-                boostedRewards_per_second: int
-            }
     """
     result = []
 
