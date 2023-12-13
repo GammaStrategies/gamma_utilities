@@ -549,12 +549,6 @@ def shouldBe_price_ids_from_status_hypervisors(
     price_ids = set()
     block_ids = set()
 
-    # database helper
-    local_db = database_local(
-        mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
-        db_name=f"{network}_gamma",
-    )
-
     # get all static rewards
     static_rewards = {
         x["hypervisor_address"]: x
@@ -570,6 +564,7 @@ def shouldBe_price_ids_from_status_hypervisors(
         batch_size=batch_size,
         projection={
             "block": 1,
+            "timestamp": 1,
             "pool.token0.address": 1,
             "pool.token1.address": 1,
             "address": 1,
@@ -601,10 +596,10 @@ def shouldBe_price_ids_from_status_hypervisors(
             )
 
             # make sure static reward start/end timestamps are within hypervisor status timestamp
-            if _static_reward["block"] >= hype_status["block"]:
+            if _static_reward["block"] <= hype_status["block"]:
                 if (
-                    _start_timestamp >= hype_status["timestamp"]
-                    and _end_timestamp <= hype_status["timestamp"]
+                    _start_timestamp <= hype_status["timestamp"]
+                    and _end_timestamp >= hype_status["timestamp"]
                 ):
                     # add reward token
                     price_ids.add(
