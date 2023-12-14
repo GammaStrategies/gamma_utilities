@@ -2,6 +2,9 @@ import contextlib
 import logging
 
 from web3 import Web3
+from bins.general.enums import Chain, text_to_chain
+
+from bins.w3.helpers.multicaller import build_call_with_abi_part, execute_parse_calls
 from ..base_wrapper import web3wrap
 from ..general import erc20_cached
 
@@ -528,6 +531,48 @@ class gamma_masterchef_v2(gamma_rewarder):
                 )
 
         return result
+
+    # multicall version
+    def get_all_multicall(self):
+        chain = text_to_chain(self._network)
+        _max_calls_atOnce = 1000
+        # poolInfo(pool idx) :  call to get pool info for index in range(1000)
+        #                    accSushiPerShare uint128, lastRewardTime uint64, allocPoint uint64
+        # lpToken(pool idx) :  call to get hypervisor address for index in range(poolLength)
+        # getRewarder(pool idx, rewarder idx) :  call to get rewarder address for index in range(poolLength)
+
+        # call 2  get all addresses
+        abi_part = self.get_abi_function("hypeByIndex")
+        factory_calls = [
+            build_call_with_abi_part(
+                abi_part=abi_part,
+                inputs_values=[idx],
+                address=self.address,
+                object="registry",
+            )
+            for idx in range(1000)
+        ]
+        #   place call:  build address list if ...[1] != 0
+        result = []
+        for i in range(0, len(factory_calls), _max_calls_atOnce):
+            # execute calls
+            for _item in execute_parse_calls(
+                network=chain.database_name,
+                block=self.block,
+                calls=factory_calls[i : i + _max_calls_atOnce],
+                convert_bint=False,
+                requireSuccess=False,
+            ):
+                # when 0, hype is disabled ( if no value, treat as potential end)
+                if _item["outputs"][1].get("value", 0) != 0:
+                    result.append(_item["outputs"][0]["value"].lower())
+
+        # return non blacklisted addresses
+        return [
+            x
+            for x in result
+            if x not in self.__blacklist_addresses.get(self._network, [])
+        ]
 
 
 # masterchef registry ( registry of the "rewarders registry")
