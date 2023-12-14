@@ -420,18 +420,6 @@ def _create_hypervisor_static_databaseObject(
             )
         )
 
-        # # create hypervisor object
-        # hypervisor_w3 = build_hypervisor(
-        #     network=network,
-        #     protocol=convert_dex_protocol(dex),
-        #     block=0,
-        #     hypervisor_address=hypervisor["address"],
-        #     check=True,
-        # )
-
-        # # convert hypervisor to dictionary static mode on
-        # hypervisor_database = hypervisor_w3.as_dict(convert_bint=True, static_mode=True)
-
     except HTTPError as e:
         logging.getLogger(__name__).error(
             f" Cant convert {network}'s hypervisor {hypervisor['address']} to dictionary because of a network error. -> err: {e}"
@@ -441,6 +429,12 @@ def _create_hypervisor_static_databaseObject(
         # could be that this is not a hypervisor?
         logging.getLogger(__name__).error(
             f" Cant convert {network}'s hypervisor {hypervisor['address']} to dictionary because it seems this address is not a hypervisor. -> err: {e}"
+        )
+        return None
+
+    if hypervisor_database is None:
+        logging.getLogger(__name__).error(
+            f" Cant convert {network}'s hypervisor {hypervisor['address']} to dictionary."
         )
         return None
 
