@@ -597,15 +597,6 @@ class gamma_hypervisor(erc20):
                 # this hype version may not have feeRecipient func
                 pass
 
-        # TODO: deleteme:
-        if (
-            static_mode == False
-            and not "basePosition_ticksLower" in result
-            or not "limitPosition_ticksLower" in result
-            or not "basePosition_data" in result
-        ):
-            po = "STOP"
-
         return result
 
     def _as_dict_not_static_items(self, convert_bint, result, minimal: bool = False):
@@ -1296,7 +1287,7 @@ class gamma_hypervisor_multicall(gamma_hypervisor):
         # set init vars ( this is needed to be able to use self.address in initialize_abi --> camelot... )
         self._address = Web3.toChecksumAddress(address)
         self._network = network
-        
+
         super().__init__(
             address=address,
             network=network,
