@@ -236,6 +236,9 @@ def create_latest_usd_prices_address_json():
         # Chain.CELO.database_name: {
         #     "0xc16b81af351ba9e64c1a069e3ab18c244a1e3049".lower(): {"symbol": "ageur"},
         # },
+        Chain.POLYGON.database_name: {
+            "0xd838290e877e0188a4a44700463419ed96c16107".lower(): {"symbol": "nct"},
+        }
     }
 
     # add tokens from static collections
