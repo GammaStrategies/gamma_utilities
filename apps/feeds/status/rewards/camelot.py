@@ -297,7 +297,8 @@ def convert_parsed_rewards_nftpool_multicall_result_to_reward_standard(
     grail_percentage = (10000 - parsed_result["xGrailRewardsShare"]) / 10000
 
     seconds_passed = parsed_result["seconds_passed"]
-    multiplier = parsed_result["currentMultiplier"] / 1e4
+    # choosen fixed multiplier = 50% of maxGlobalMultiplier
+    multiplier = (parsed_result["maxGlobalMultiplier"] * 0.5) / 1e4
 
     grail_baseRewards_per_second = parsed_result["poolEmissionRate"] * grail_percentage
     grail_boostedRewards_per_second = (
