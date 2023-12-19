@@ -228,6 +228,33 @@ def create_chunks(
     return result
 
 
+def convert_keys_to_str(iterable):
+    """
+    dict_rename_key method
+
+    Args:
+        iterable (dict):
+        old_key (string):
+        new_key (string):
+
+    Returns:
+        dict:
+
+    """
+    if isinstance(iterable, dict):
+        for key in list(iterable.keys()):
+            if not isinstance(key, str):
+                iterable[str(key)] = iterable.pop(key)
+
+            if isinstance(iterable[str(key)], (dict, list)):
+                iterable[str(key)] = convert_keys_to_str(iterable[str(key)])
+    elif isinstance(iterable, list):
+        for i in range(len(iterable)):
+            iterable[i] = convert_keys_to_str(iterable[i])
+
+    return iterable
+
+
 # DATETIME
 def convert_string_datetime(string: str) -> dt.datetime:
     """Convert to UTC
