@@ -3,7 +3,7 @@ import logging
 from web3 import Web3
 from bins.checkers.hypervisor import check_hypervisor_is_valid
 from bins.config.current import MULTICALL3_ADDRESSES
-from bins.config.hardcodes import GAMMA_HYPERVISOR_ABIS
+from bins.config.hardcodes import SPECIAL_HYPERVISOR_ABIS
 
 from bins.errors.general import CheckingError, ProcessingError
 
@@ -358,12 +358,12 @@ def build_hypervisor(
 
     # set hardcoded abis, if any
     abi_filename = (
-        GAMMA_HYPERVISOR_ABIS.get(_chain, {})
+        SPECIAL_HYPERVISOR_ABIS.get(_chain, {})
         .get(hypervisor_address, {})
         .get("file", "")
     )
     abi_path = (
-        GAMMA_HYPERVISOR_ABIS.get(_chain, {})
+        SPECIAL_HYPERVISOR_ABIS.get(_chain, {})
         .get(hypervisor_address, {})
         .get("folder", "")
     )
