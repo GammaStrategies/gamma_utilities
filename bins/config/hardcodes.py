@@ -368,6 +368,7 @@ SPECIAL_HYPERVISOR_ABIS = {
 
 
 ## Special Algebra contract ABIs ( duplicate entry key for pool address and hype address in order to work with multicall classes)
+# ADD also all hypervisor addresses with the same pool, so that multicall classes can work as xpected.
 SPECIAL_POOL_ABIS = {
     Chain.ARBITRUM: {
         # camelot pool different from standard
@@ -378,8 +379,16 @@ SPECIAL_POOL_ABIS = {
             )
             + "/camelot",
         },
-        # add hypervisor address also so that works with hype multicall classes
+        # add HYPERVISOR for 0xb7Dd20F3FBF4dB42Fd85C839ac0241D09F72955f (so that works with hype multicall classes)
         "0xe8494636e8424c79d8d79dd4bbcd7b56454d1b3d".lower(): {
+            "file": "camelot_pool_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/camelot",
+        },
+        # add HYPERVISOR for 0xb7Dd20F3FBF4dB42Fd85C839ac0241D09F72955f (so that works with hype multicall classes)
+        "0x7ccc26A514FCd52A48e17996f6c56de205803159".lower(): {
             "file": "camelot_pool_old",
             "folder": (
                 CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
