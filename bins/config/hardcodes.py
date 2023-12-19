@@ -1,9 +1,13 @@
 from bins.configuration import CONFIGURATION
 from bins.general.enums import Chain
 
+
+## Special abis filename/path reference for the specified chain/address here defined
+# Often, a few ABIs used at any protocol, for any reason, are different from the standard ones. This is a list of those ABIs.
+
+
 ## Some Gamma contracts have unit24 fee function outputs (old univ3 contracts)
-## load special abi for any specified chain/address here defined
-GAMMA_HYPERVISOR_ABIS = {
+SPECIAL_HYPERVISOR_ABIS = {
     Chain.ETHEREUM: {
         "0xf0a9f5c64f80fa390a46b298791dab9e2bb29bca": {
             "file": "hypervisor_old",
@@ -360,4 +364,27 @@ GAMMA_HYPERVISOR_ABIS = {
             + "/gamma",
         },
     },
+}
+
+
+## Special Algebra contract ABIs ( duplicate entry key for pool address and hype address in order to work with multicall classes)
+SPECIAL_POOL_ABIS = {
+    Chain.ARBITRUM: {
+        # camelot pool different from standard
+        "0xb7Dd20F3FBF4dB42Fd85C839ac0241D09F72955f".lower(): {
+            "file": "camelot_pool_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/camelot",
+        },
+        # add hypervisor address also so that works with hype multicall classes
+        "0xe8494636e8424c79d8d79dd4bbcd7b56454d1b3d".lower(): {
+            "file": "camelot_pool_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/camelot",
+        },
+    }
 }
