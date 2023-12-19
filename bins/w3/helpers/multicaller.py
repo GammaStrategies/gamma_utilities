@@ -107,7 +107,7 @@ def parse_multicall_readfunctions_result(
                 )
             except Exception as e:
                 logging.getLogger(__name__).exception(
-                    f" Error decoding data {call_result} -> {e}"
+                    f" Error decoding data {call_result}  fname={calls[idx]['name']} address={calls[idx]['address']} object={calls[idx]['object']}-> {e}"
                 )
                 raise
             for _data_index, data_item in enumerate(_data_decoded):
