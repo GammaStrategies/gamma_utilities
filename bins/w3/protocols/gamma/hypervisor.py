@@ -32,6 +32,8 @@ from ..uniswap.pool import (
     poolv3_multicall,
 )
 from ....formulas.fees import calculate_gamma_fee
+from bins.config.hardcodes import SPECIAL_HYPERVISOR_ABIS, SPECIAL_POOL_ABIS
+
 
 ABI_FILENAME = "hypervisor_v2"
 ABI_FOLDERNAME = "gamma"
@@ -86,8 +88,21 @@ class gamma_hypervisor(erc20):
         )
 
     def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
-        self._abi_filename = abi_filename or ABI_FILENAME
-        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        # check if this is a special hypervisor and abi_filename is not set
+        self._abi_filename = (
+            abi_filename
+            or SPECIAL_HYPERVISOR_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("file", None)
+            or ABI_FILENAME
+        )
+        self._abi_path = (
+            abi_path
+            or SPECIAL_HYPERVISOR_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("folder", None)
+            or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        )
 
     def _initialize_objects(self):
         self._pool: poolv3 = None
@@ -1308,8 +1323,20 @@ class gamma_hypervisor_multicall(gamma_hypervisor):
             self._fill_from_processed_calls(processed_calls=processed_calls)
 
     def _initialize_abi_pool(self, abi_filename: str = "", abi_path: str = ""):
-        self._pool_abi_filename = abi_filename or POOL_ABI_FILENAME
-        self._pool_abi_path = abi_path or f"{self.abi_root_path}/{POOL_ABI_FOLDERNAME}"
+        self._pool_abi_filename = (
+            abi_filename
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("file", None)
+            or POOL_ABI_FILENAME
+        )
+        self._pool_abi_path = (
+            abi_path
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("folder", None)
+            or f"{self.abi_root_path}/{POOL_ABI_FOLDERNAME}"
+        )
 
     def _initialize_objects(self):
         self._pool: poolv3_multicall = None

@@ -6,6 +6,7 @@ from decimal import Decimal
 from hexbytes import HexBytes
 from web3 import Web3
 from eth_abi import abi
+from bins.config.hardcodes import SPECIAL_POOL_ABIS
 
 from bins.general import file_utilities
 from bins.w3.helpers.multicaller import (
@@ -169,8 +170,20 @@ class poolv3(web3wrap):
         )
 
     def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
-        self._abi_filename = abi_filename or ABI_FILENAME
-        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        self._pool_abi_filename = (
+            abi_filename
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("file", None)
+            or ABI_FILENAME
+        )
+        self._pool_abi_path = (
+            abi_path
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("folder", None)
+            or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        )
 
     def _initialize_objects(self):
         self._token0: erc20 = None

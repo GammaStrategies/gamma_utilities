@@ -1,3 +1,4 @@
+from bins.config.hardcodes import SPECIAL_POOL_ABIS
 from .. import gamma
 from bins.general.enums import Protocol
 from .pool import (
@@ -66,8 +67,20 @@ class gamma_hypervisor_cached(gamma.hypervisor.gamma_hypervisor_cached):
 
 class gamma_hypervisor_multicall(gamma.hypervisor.gamma_hypervisor_multicall):
     def _initialize_abi_pool(self, abi_filename: str = "", abi_path: str = ""):
-        self._pool_abi_filename = abi_filename or POOL_ABI_FILENAME
-        self._pool_abi_path = abi_path or f"{self.abi_root_path}/{POOL_ABI_FOLDERNAME}"
+        self._pool_abi_filename = (
+            abi_filename
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("file", None)
+            or POOL_ABI_FILENAME
+        )
+        self._pool_abi_path = (
+            abi_path
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("folder", None)
+            or f"{self.abi_root_path}/{POOL_ABI_FOLDERNAME}"
+        )
 
     def _initialize_objects(self):
         super()._initialize_objects()
@@ -149,8 +162,20 @@ class gamma_hypervisor_bep20_multicall(
     gamma.hypervisor.gamma_hypervisor_bep20_multicall
 ):
     def _initialize_abi_pool(self, abi_filename: str = "", abi_path: str = ""):
-        self._pool_abi_filename = abi_filename or POOL_ABI_FILENAME
-        self._pool_abi_path = abi_path or f"{self.abi_root_path}/{POOL_ABI_FOLDERNAME}"
+        self._pool_abi_filename = (
+            abi_filename
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("file", None)
+            or POOL_ABI_FILENAME
+        )
+        self._pool_abi_path = (
+            abi_path
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("folder", None)
+            or f"{self.abi_root_path}/{POOL_ABI_FOLDERNAME}"
+        )
 
     def _initialize_objects(self):
         super()._initialize_objects()

@@ -1,6 +1,7 @@
 import logging
 from hexbytes import HexBytes
 from web3 import Web3
+from bins.config.hardcodes import SPECIAL_POOL_ABIS
 
 from bins.errors.general import ProcessingError
 from bins.formulas.position import get_positionKey_algebra
@@ -17,8 +18,20 @@ DEX_NAME = Protocol.SPIRITSWAP.database_name
 
 class pool(algebra.pool.poolv3):
     def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
-        self._abi_filename = abi_filename or ABI_FILENAME
-        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        self._abi_filename = (
+            abi_filename
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("file", None)
+            or ABI_FILENAME
+        )
+        self._abi_path = (
+            abi_path
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("folder", None)
+            or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        )
 
     def identify_dex_name(self) -> str:
         return DEX_NAME
@@ -234,8 +247,20 @@ class pool(algebra.pool.poolv3):
 
 class pool_cached(algebra.pool.poolv3_cached, pool):
     def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
-        self._abi_filename = abi_filename or ABI_FILENAME
-        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        self._abi_filename = (
+            abi_filename
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("file", None)
+            or ABI_FILENAME
+        )
+        self._abi_path = (
+            abi_path
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("folder", None)
+            or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        )
 
     def identify_dex_name(self) -> str:
         return DEX_NAME
@@ -444,8 +469,20 @@ class pool_cached(algebra.pool.poolv3_cached, pool):
 
 class pool_multicall(algebra.pool.poolv3_multicall, pool):
     def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
-        self._abi_filename = abi_filename or ABI_FILENAME
-        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        self._abi_filename = (
+            abi_filename
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("file", None)
+            or ABI_FILENAME
+        )
+        self._abi_path = (
+            abi_path
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("folder", None)
+            or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        )
 
     def identify_dex_name(self) -> str:
         return DEX_NAME

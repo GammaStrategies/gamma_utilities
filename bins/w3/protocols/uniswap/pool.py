@@ -3,6 +3,7 @@ from decimal import Decimal
 import logging
 from web3 import Web3
 from hexbytes import HexBytes
+from bins.config.hardcodes import SPECIAL_POOL_ABIS
 
 from bins.w3.helpers.multicaller import execute_multicall, execute_parse_calls
 
@@ -75,8 +76,20 @@ class poolv3(web3wrap):
         )
 
     def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
-        self._abi_filename = abi_filename or ABI_FILENAME
-        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        self._abi_filename = (
+            abi_filename
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("file", None)
+            or ABI_FILENAME
+        )
+        self._abi_path = (
+            abi_path
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("folder", None)
+            or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        )
 
     def _initialize_objects(self):
         self._token0 = None

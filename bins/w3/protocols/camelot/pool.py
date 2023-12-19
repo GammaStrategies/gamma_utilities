@@ -1,6 +1,7 @@
 from copy import deepcopy
 import logging
 from web3 import Web3
+from bins.config.hardcodes import SPECIAL_POOL_ABIS
 
 from bins.errors.general import ProcessingError
 from bins.w3.protocols.algebra.pool import dataStorageOperator
@@ -13,20 +14,35 @@ ABI_FILENAME = "camelot_pool"
 ABI_FOLDERNAME = "camelot"
 DEX_NAME = Protocol.CAMELOT.database_name
 
-ABI_FILENAMES = {
-    "0xb7Dd20F3FBF4dB42Fd85C839ac0241D09F72955f".lower(): "camelot_pool_old"
-}
+# ABI_FILENAMES = {
+#     "0xb7Dd20F3FBF4dB42Fd85C839ac0241D09F72955f".lower(): "camelot_pool_old"
+# }
 
 
 class pool(algebra.pool.poolv3):
     def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
         # Camelot has two pool ABIs
-        if self.address.lower() in ABI_FILENAMES:
-            # one address has a different ABI
-            self._abi_filename = abi_filename or ABI_FILENAMES[self.address.lower()]
-        else:
-            self._abi_filename = abi_filename or ABI_FILENAME
-        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        # if self.address.lower() in ABI_FILENAMES:
+        #     # one address has a different ABI
+        #     self._abi_filename = abi_filename or ABI_FILENAMES[self.address.lower()]
+        # else:
+        #     self._abi_filename = abi_filename or ABI_FILENAME
+        # self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+
+        self._abi_filename = (
+            abi_filename
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("file", None)
+            or ABI_FILENAME
+        )
+        self._abi_path = (
+            abi_path
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("folder", None)
+            or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        )
 
     def identify_dex_name(self) -> str:
         return DEX_NAME
@@ -411,12 +427,27 @@ class pool_cached(pool):
 class pool_multicall(algebra.pool.poolv3_multicall):
     def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
         # Camelot has two pool ABIs
-        if self.address.lower() in ABI_FILENAMES:
-            # one address has a different ABI
-            self._abi_filename = abi_filename or ABI_FILENAMES[self.address.lower()]
-        else:
-            self._abi_filename = abi_filename or ABI_FILENAME
-        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        # if self.address.lower() in ABI_FILENAMES:
+        #     # one address has a different ABI
+        #     self._abi_filename = abi_filename or ABI_FILENAMES[self.address.lower()]
+        # else:
+        #     self._abi_filename = abi_filename or ABI_FILENAME
+        # self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+
+        self._abi_filename = (
+            abi_filename
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("file", None)
+            or ABI_FILENAME
+        )
+        self._abi_path = (
+            abi_path
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("folder", None)
+            or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        )
 
     def _initialize_objects(self):
         self._token0: erc20_multicall = None

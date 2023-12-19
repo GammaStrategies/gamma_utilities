@@ -1,4 +1,5 @@
 from web3 import Web3
+from bins.config.hardcodes import SPECIAL_HYPERVISOR_ABIS, SPECIAL_POOL_ABIS
 
 from bins.general.enums import Protocol
 from bins.w3.helpers.multicaller import execute_multicall
@@ -31,8 +32,21 @@ DEX_NAME = Protocol.ALGEBRAv3.database_name
 
 class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
     def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
-        self._abi_filename = abi_filename or ABI_FILENAME
-        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        # check if this is a special hypervisor and abi_filename is not set
+        self._abi_filename = (
+            abi_filename
+            or SPECIAL_HYPERVISOR_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("file", None)
+            or ABI_FILENAME
+        )
+        self._abi_path = (
+            abi_path
+            or SPECIAL_HYPERVISOR_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("folder", None)
+            or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        )
 
     def _initialize_objects(self):
         super()._initialize_objects()
@@ -60,8 +74,21 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
 
 class gamma_hypervisor_cached(gamma.hypervisor.gamma_hypervisor_cached):
     def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
-        self._abi_filename = abi_filename or ABI_FILENAME
-        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        # check if this is a special hypervisor and abi_filename is not set
+        self._abi_filename = (
+            abi_filename
+            or SPECIAL_HYPERVISOR_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("file", None)
+            or ABI_FILENAME
+        )
+        self._abi_path = (
+            abi_path
+            or SPECIAL_HYPERVISOR_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("folder", None)
+            or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        )
 
     def _initialize_objects(self):
         super()._initialize_objects()
@@ -89,12 +116,37 @@ class gamma_hypervisor_cached(gamma.hypervisor.gamma_hypervisor_cached):
 
 class gamma_hypervisor_multicall(gamma.hypervisor.gamma_hypervisor_multicall):
     def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
-        self._abi_filename = abi_filename or ABI_FILENAME
-        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        # check if this is a special hypervisor and abi_filename is not set
+        self._abi_filename = (
+            abi_filename
+            or SPECIAL_HYPERVISOR_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("file", None)
+            or ABI_FILENAME
+        )
+        self._abi_path = (
+            abi_path
+            or SPECIAL_HYPERVISOR_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("folder", None)
+            or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        )
 
     def _initialize_abi_pool(self, abi_filename: str = "", abi_path: str = ""):
-        self._pool_abi_filename = abi_filename or POOL_ABI_FILENAME
-        self._pool_abi_path = abi_path or f"{self.abi_root_path}/{POOL_ABI_FOLDERNAME}"
+        self._pool_abi_filename = (
+            abi_filename
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("file", None)
+            or POOL_ABI_FILENAME
+        )
+        self._pool_abi_path = (
+            abi_path
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("folder", None)
+            or f"{self.abi_root_path}/{POOL_ABI_FOLDERNAME}"
+        )
 
     def _initialize_objects(self):
         super()._initialize_objects()
@@ -124,8 +176,20 @@ class gamma_hypervisor_multicall(gamma.hypervisor.gamma_hypervisor_multicall):
 
 class gamma_hypervisor_bep20(gamma.hypervisor.gamma_hypervisor_bep20):
     def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
-        self._abi_filename = abi_filename or ABI_FILENAME
-        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        self._abi_filename = (
+            abi_filename
+            or SPECIAL_HYPERVISOR_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("file", None)
+            or ABI_FILENAME
+        )
+        self._abi_path = (
+            abi_path
+            or SPECIAL_HYPERVISOR_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("folder", None)
+            or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        )
 
     def _initialize_objects(self):
         super()._initialize_objects()
@@ -153,8 +217,20 @@ class gamma_hypervisor_bep20(gamma.hypervisor.gamma_hypervisor_bep20):
 
 class gamma_hypervisor_bep20_cached(gamma.hypervisor.gamma_hypervisor_bep20_cached):
     def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
-        self._abi_filename = abi_filename or ABI_FILENAME
-        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        self._abi_filename = (
+            abi_filename
+            or SPECIAL_HYPERVISOR_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("file", None)
+            or ABI_FILENAME
+        )
+        self._abi_path = (
+            abi_path
+            or SPECIAL_HYPERVISOR_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("folder", None)
+            or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        )
 
     def _initialize_objects(self):
         super()._initialize_objects()
@@ -184,12 +260,36 @@ class gamma_hypervisor_bep20_multicall(
     gamma.hypervisor.gamma_hypervisor_bep20_multicall
 ):
     def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
-        self._abi_filename = abi_filename or ABI_FILENAME
-        self._abi_path = abi_path or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        self._abi_filename = (
+            abi_filename
+            or SPECIAL_HYPERVISOR_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("file", None)
+            or ABI_FILENAME
+        )
+        self._abi_path = (
+            abi_path
+            or SPECIAL_HYPERVISOR_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("folder", None)
+            or f"{self.abi_root_path}/{ABI_FOLDERNAME}"
+        )
 
     def _initialize_abi_pool(self, abi_filename: str = "", abi_path: str = ""):
-        self._pool_abi_filename = abi_filename or POOL_ABI_FILENAME
-        self._pool_abi_path = abi_path or f"{self.abi_root_path}/{POOL_ABI_FOLDERNAME}"
+        self._pool_abi_filename = (
+            abi_filename
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("file", None)
+            or POOL_ABI_FILENAME
+        )
+        self._pool_abi_path = (
+            abi_path
+            or SPECIAL_POOL_ABIS.get(self._network, {})
+            .get(self._address.lower(), {})
+            .get("folder", None)
+            or f"{self.abi_root_path}/{POOL_ABI_FOLDERNAME}"
+        )
 
     def _initialize_objects(self):
         super()._initialize_objects()
