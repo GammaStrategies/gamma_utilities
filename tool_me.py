@@ -15,8 +15,8 @@ from apps import (
     database_feeder,
     database_feeder_service,
     database_checker,
-    database_analysis,
     database_reScrape,
+    database_reports,
     save_config,
 )
 from tests import test
@@ -110,7 +110,7 @@ if __name__ == "__main__":
 
     elif CONFIGURATION["_custom_"]["cml_parameters"].analysis:
         # analysis   --analysis
-        database_analysis.main(
+        database_reports.main(
             option=CONFIGURATION["_custom_"]["cml_parameters"].analysis
         )
 

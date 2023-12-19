@@ -7,7 +7,7 @@ from bins.general.enums import Chain
 from bins.general.net_utilities import get_request
 
 
-def build_revenue_report(chains: list[Chain] | None = None) -> list[dict]:
+def build_global_revenue_report(chains: list[Chain] | None = None) -> list[dict]:
     # result var
     result = {}
     # xtrapolation vars
@@ -17,6 +17,7 @@ def build_revenue_report(chains: list[Chain] | None = None) -> list[dict]:
     total_days_current_month = calendar.monthrange(
         datetime.now(timezone.utc).year, datetime.now(timezone.utc).month
     )[1]
+    days_left_current_month = total_days_current_month - days_passed_current_month
 
     for chain in tqdm.tqdm(chains or Chain):
         # get revenue data from endpoint
@@ -130,11 +131,17 @@ def build_revenue_report(chains: list[Chain] | None = None) -> list[dict]:
             )
 
         for month, month_data in year_data["by_month"].items():
-            # if month is current, lets xtrapolate linearly
-            if int(month) == current_month and year == current_year:
+            # if month is current, lets xtrapolate linearly with a 50% decay on days left -> ( total_usd/days passed * 0.5 * days left + total_usd)
+            if (
+                int(month) == current_month
+                and year == current_year
+                and days_left_current_month > 0
+            ):
                 month_data["potential_total_usd"] = (
-                    month_data["total_usd"] / days_passed_current_month
-                ) * total_days_current_month
+                    (month_data["total_usd"] / days_passed_current_month)
+                    * 0.5
+                    * days_left_current_month
+                ) + month_data["total_usd"]
 
             month_data["yearly_percentage"] = (
                 (month_data["total_usd"] / year_data["total_usd"])
@@ -154,11 +161,17 @@ def build_revenue_report(chains: list[Chain] | None = None) -> list[dict]:
                     else 0
                 )
 
-                # if month is current, lets xtrapolate linearly
-                if int(month) == current_month and year == current_year:
+                # if month is current, lets xtrapolate linearly with 50% decay
+                if (
+                    int(month) == current_month
+                    and year == current_year
+                    and days_left_current_month > 0
+                ):
                     chain_data["potential_total_usd"] = (
-                        chain_data["total_usd"] / days_passed_current_month
-                    ) * total_days_current_month
+                        (chain_data["total_usd"] / days_passed_current_month)
+                        * 0.5
+                        * days_left_current_month
+                    ) + chain_data["total_usd"]
 
     # return
     return result

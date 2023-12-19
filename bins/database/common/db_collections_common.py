@@ -513,6 +513,10 @@ class database_global(db_collections_common):
                         ],
                     ],
                 },
+                "reports": {
+                    "mono_indexes": {"id": True},
+                    "multi_indexes": [],
+                },
             }
         else:
             logging.getLogger(__name__).warning(
@@ -1651,7 +1655,7 @@ class database_local(db_collections_common):
         block_end: datetime.timestamp,
     ) -> list[dict]:
         """get status between blocks"""
-        return [
+        query = [
             {
                 "$match": {
                     "address": hypervisor_address,
@@ -1660,6 +1664,7 @@ class database_local(db_collections_common):
             },
             {"$sort": {"block": -1}},
         ]
+        return query
 
     @staticmethod
     def query_status_mostUsed_token1(limit: int = 5) -> list[dict]:
