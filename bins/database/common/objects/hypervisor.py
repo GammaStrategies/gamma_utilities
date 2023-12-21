@@ -162,6 +162,9 @@ class hypervisor_status_object(dict_to_object):
         _lp_underlyingValue = self.get_underlying_value(inDecimal=True)
         _totalSupply = self.get_totalSupply_inDecimal()
 
+        if not _totalSupply:
+            return 0
+
         _share_price = (
             (_lp_underlyingValue.token0 * token0_price)
             + (_lp_underlyingValue.token1 * token1_price)
