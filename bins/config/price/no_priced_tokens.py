@@ -56,26 +56,35 @@ def xgamma(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
 
 def xram(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
     # Only return when in ARBITRUM
-    if chain != Chain.ARBITRUM:
-        return None
+    # if chain != Chain.ARBITRUM:
+    #     return None
 
     # xRam is a buy option of RAM with 30% price penalty when selling back to RAM previous to 90 days
     ram_token = "0xaaa6c1e32c55a7bfa8066a6fae9b42650f262418".lower()
     xram_token = "0xaaa1ee8dc1864ae49185c368e8c64dd780a50fb7".lower()
 
     if address.lower() == xram_token:
-        # get the discount rate from the contract
-        erc20 = build_erc20_helper(
-            chain=chain,
-            address=xram_token,
-            abi_filename="xRam",
-            abi_path=(CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi")
-            + "/ramses",
-            block=block,
-        )
-        _precision = erc20.call_function_autoRpc("PRECISION")
-        _discount_rate = erc20.call_function_autoRpc("discount")
-        conversion_rate = _discount_rate / _precision
+        conversion_rate = None
+        try:
+            # get the discount rate from the contract
+            erc20 = build_erc20_helper(
+                chain=chain,
+                address=xram_token,
+                abi_filename="xRam",
+                abi_path=(
+                    CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+                )
+                + "/ramses",
+                block=block,
+            )
+            _precision = erc20.call_function_autoRpc("PRECISION")
+            _discount_rate = erc20.call_function_autoRpc("discount")
+            conversion_rate = _discount_rate / _precision
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f" Can't get xRam token price. Error: {e} . Fallback to 50%"
+            )
+            conversion_rate = 0.5
 
         #
         return NoPricedToken_conversion(
