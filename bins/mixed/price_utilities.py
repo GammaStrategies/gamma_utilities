@@ -256,8 +256,13 @@ class price_scraper:
             )
 
         if no_priced_token_config:
-            # apply conversion rate
-            _price = _price * no_priced_token_config.conversion_rate
+            if no_priced_token_config.conversion_rate == None:
+                logging.getLogger(__name__).error(
+                    f" No price conversion rate found but failed to get price of {network}'s token {token_id} at block {block} -> original:{no_priced_token_config.original.token_address} converted:{no_priced_token_config.converted.token_address}"
+                )
+            else:
+                # apply conversion rate
+                _price = _price * no_priced_token_config.conversion_rate
 
         return _price, _source
 
