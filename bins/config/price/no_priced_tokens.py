@@ -67,7 +67,7 @@ def xram(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
             converted=NoPricedToken_item(
                 token_address=ram_token, chain=chain, block=block
             ),
-            conversion_rate=0.7,
+            conversion_rate=0.5,
         )
 
 
