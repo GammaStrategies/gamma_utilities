@@ -281,6 +281,151 @@ class gamma_masterchef_v1(gamma_rewarder):
         """
         return self.call_function_autoRpc("poolLength")
 
+    # multicall version will only work if the lenght of getRewarder and lpToken are the same ( not always true https://polygonscan.com/address/0x5cA8b7EB3222E7CE6864E59807dDd1A3c3073826#readContract)
+    def get_rewarders_donotUSE(self, rid: int = 0) -> dict:
+        """Get all rewarder addresses and lpTokens from the masterchef
+
+        Returns:
+            dict: {<index>: {"rewarder_address": str, "lpToken": str}
+        """
+        chain = text_to_chain(self._network)
+        _max_calls_atOnce = 50
+
+        # 1) poolLength: qtty of rewarders n LPtokens to get
+        # 2) getRewarder(pool idx, rewarder idx) :  call to get rewarder address for index in range(poolLength)
+        #   lpToken(pool idx) :  call to get hypervisor address for index in range(poolLength)
+
+        # OPTIONAL 3) filter rewarder_addresses by checking lptoken is a valid hypervisor
+
+        # 4) get from each rewarer: rewardToken and rewardsPerSecond
+
+        pool_length = self.poolLength
+
+        # call 2  get rewarder addresses
+        abi_part_getRewarder = self.get_abi_function("getRewarder")
+        abi_part_lpToken = self.get_abi_function("lpToken")
+        factory_calls = [
+            build_call_with_abi_part(
+                abi_part=abi_part_getRewarder,
+                inputs_values=[idx, rid],
+                address=self.address,
+                object="masterchef",
+            )
+            for idx in range(pool_length)
+        ] + [
+            build_call_with_abi_part(
+                abi_part=abi_part_lpToken,
+                inputs_values=[idx],
+                address=self.address,
+                object="masterchef",
+            )
+            for idx in range(pool_length)
+        ]
+        #   place call:  build address list if ...[1] != 0
+        result = {}
+        discard_indexes = []
+        for i in range(0, len(factory_calls), _max_calls_atOnce):
+            # execute calls
+            for _item in execute_parse_calls(
+                network=chain.database_name,
+                block=self.block,
+                calls=factory_calls[i : i + _max_calls_atOnce],
+                convert_bint=False,
+            ):
+                if _item["name"] == "getRewarder":
+                    _input_index = _item["inputs"][0]["value"]
+                    # No value can happen... discard.
+                    if "value" not in _item["outputs"][0]:
+                        discard_indexes.append(_input_index)
+                        if _input_index in result:
+                            del result[_input_index]
+                        continue
+                    # discard if needed
+                    if _input_index in discard_indexes:
+                        continue
+
+                    # process rewarder address
+                    _rewarder_address = _item["outputs"][0]["value"].lower()
+
+                    if not _input_index in result:
+                        result[_input_index] = {"rewarder_address": _rewarder_address}
+                    else:
+                        result[_input_index]["rewarder_address"] = _rewarder_address
+
+                elif _item["name"] == "lpToken":
+                    _input_index = _item["inputs"][0]["value"]
+                    # discard if needed
+                    if _input_index in discard_indexes:
+                        continue
+                    # No value can happen... discard.
+                    if "value" not in _item["outputs"][0]:
+                        discard_indexes.append(_input_index)
+                        if _input_index in result:
+                            del result[_input_index]
+                        continue
+                    # process lp token address
+                    _lptoken_address = _item["outputs"][0]["value"].lower()
+                    if not _input_index in result:
+                        result[_input_index] = {"lpToken": _lptoken_address}
+                    else:
+                        result[_input_index]["lpToken"] = _lptoken_address
+
+                else:
+                    raise ValueError(f" not identifiable call: {_item} ")
+
+        # return non blacklisted addresses
+        return result
+
+    def get_rewarders(self, rid: int = 0) -> dict:
+        """Get a dict of rewarder addresses and lpTokens from the masterchef
+
+        Args:
+            rid (int, optional): _description_. Defaults to 0.
+
+        Returns:
+            dict: <rewarder address> : <lp token address>
+        """
+
+        ## if x: = get poolInfo(i) for i in range(1000)
+        #       try get rewarder address and lpToken address
+        ##      if both are valid, add to result
+
+        _max_loop = 1000
+        # not needed. delete
+        pool_length = self.poolLength
+        result = {}
+        _processed = 0
+        _looped = 0
+        # call getRewarder(pool idx, rid)
+        for i in range(_max_loop):
+            if _processed >= pool_length:
+                break
+
+            rewarder_address = None
+            lpToken_address = None
+            try:
+                rewarder_address = self.getRewarder(i, rid)
+            except Exception as e:
+                # this is actually a rewarder when no getRewarder function is found
+                pass
+            try:
+                lpToken_address = self.lpToken(i)
+                _processed += 1
+            except Exception as e:
+                pass
+
+            if rewarder_address and lpToken_address:
+                result[rewarder_address.lower()] = lpToken_address.lower()
+
+            _looped += 1
+
+        if _looped >= _max_loop:
+            logging.getLogger(__name__).warning(
+                f" masterchef get_rewarders: MAXED OUT the looped times {_looped}. Consider increasing the loop limit."
+            )
+
+        return result
+
 
 # Gamma's Quickswap masterchef v2 ( Farmv3 )
 class gamma_masterchef_v2(gamma_rewarder):
@@ -446,8 +591,7 @@ class gamma_masterchef_v2(gamma_rewarder):
         """
         return self.call_function_autoRpc("userInfo", None, pid, user)
 
-    # get all rewards
-    def get_rewards(
+    def get_rewards_donotUSE(
         self,
         hypervisor_addresses: list[str] | None = None,
         pids: list[int] | None = None,
@@ -533,27 +677,47 @@ class gamma_masterchef_v2(gamma_rewarder):
         return result
 
     # multicall version
-    def get_all_multicall(self):
+    def get_rewarders(self, rid: int = 0) -> dict:
+        """Get all rewarder addresses and lpTokens from the masterchef
+
+        Returns:
+            dict: {<index>: {"rewarder_address": str, "lpToken": str}
+        """
         chain = text_to_chain(self._network)
         _max_calls_atOnce = 1000
-        # poolInfo(pool idx) :  call to get pool info for index in range(1000)
-        #                    accSushiPerShare uint128, lastRewardTime uint64, allocPoint uint64
-        # lpToken(pool idx) :  call to get hypervisor address for index in range(poolLength)
-        # getRewarder(pool idx, rewarder idx) :  call to get rewarder address for index in range(poolLength)
 
-        # call 2  get all addresses
-        abi_part = self.get_abi_function("hypeByIndex")
+        # 1) poolLength: qtty of rewarders n LPtokens to get
+        # 2) getRewarder(pool idx, rewarder idx) :  call to get rewarder address for index in range(poolLength)
+        #   lpToken(pool idx) :  call to get hypervisor address for index in range(poolLength)
+
+        # OPTIONAL 3) filter rewarder_addresses by checking lptoken is a valid hypervisor
+
+        # 4) get from each rewarer: rewardToken and rewardsPerSecond
+
+        pool_length = self.poolLength
+
+        # call 2  get rewarder addresses
+        abi_part_getRewarder = self.get_abi_function("getRewarder")
+        abi_part_lpToken = self.get_abi_function("lpToken")
         factory_calls = [
             build_call_with_abi_part(
-                abi_part=abi_part,
+                abi_part=abi_part_getRewarder,
+                inputs_values=[idx, rid],
+                address=self.address,
+                object="masterchef",
+            )
+            for idx in range(pool_length)
+        ] + [
+            build_call_with_abi_part(
+                abi_part=abi_part_lpToken,
                 inputs_values=[idx],
                 address=self.address,
-                object="registry",
+                object="masterchef",
             )
-            for idx in range(1000)
+            for idx in range(pool_length)
         ]
         #   place call:  build address list if ...[1] != 0
-        result = []
+        result = {}
         for i in range(0, len(factory_calls), _max_calls_atOnce):
             # execute calls
             for _item in execute_parse_calls(
@@ -561,18 +725,28 @@ class gamma_masterchef_v2(gamma_rewarder):
                 block=self.block,
                 calls=factory_calls[i : i + _max_calls_atOnce],
                 convert_bint=False,
-                requireSuccess=False,
             ):
-                # when 0, hype is disabled ( if no value, treat as potential end)
-                if _item["outputs"][1].get("value", 0) != 0:
-                    result.append(_item["outputs"][0]["value"].lower())
+                if _item["name"] == "getRewarder":
+                    _rewarder_address = _item["outputs"][0]["value"].lower()
+                    _input_index = _item["inputs"][0]["value"]
+                    if not _input_index in result:
+                        result[_input_index] = {"rewarder_address": _rewarder_address}
+                    else:
+                        result[_input_index]["rewarder_address"] = _rewarder_address
+
+                elif _item["name"] == "lpToken":
+                    _lptoken_address = _item["outputs"][0]["value"].lower()
+                    _input_index = _item["inputs"][0]["value"]
+                    if not _input_index in result:
+                        result[_input_index] = {"lpToken": _rewarder_address}
+                    else:
+                        result[_input_index]["lpToken"] = _rewarder_address
+
+                else:
+                    raise ValueError(f" not identifiable call: {_item} ")
 
         # return non blacklisted addresses
-        return [
-            x
-            for x in result
-            if x not in self.__blacklist_addresses.get(self._network, [])
-        ]
+        return result
 
 
 # masterchef registry ( registry of the "rewarders registry")
@@ -616,7 +790,8 @@ class gamma_masterchef_registry(web3wrap):
         return self.call_function_autoRpc("counter")
 
     def hypeByIndex(self, index: int) -> tuple[str, int]:
-        """Retrieve hype address and index from registry
+        """SOME (at least one) DEPLOYED CONTRACTS DO NOT HAVE THIS FUNCTION ( fantom )
+            Retrieve hype address and index from registry
             When index is zero, hype address has been deleted so its no longer valid
 
         Args:
@@ -641,50 +816,23 @@ class gamma_masterchef_registry(web3wrap):
 
     # CUSTOM FUNCTIONS
 
-    # TODO: manage versions
-    def get_masterchef_generator(self) -> gamma_masterchef_v1:
-        """Retrieve masterchef contracts from registry
-
-        Returns:
-           masterchefV2 contract
-        """
-        total_qtty = self.counter + 1  # index positions ini=0 end=counter
-        for i in range(total_qtty):
-            try:
-                address, idx = self.hypeByIndex(index=i)
-
-                # filter blacklisted hypes
-                if idx == 0 or (
-                    self._network in self.__blacklist_addresses
-                    and address.lower() in self.__blacklist_addresses[self._network]
-                ):
-                    # hypervisor is blacklisted: loop
-                    continue
-
-                yield gamma_masterchef_v1(
-                    address=address,
-                    network=self._network,
-                    block=self.block,
-                    timestamp=self._timestamp,
-                )
-
-            except Exception:
-                logging.getLogger(__name__).warning(
-                    f" Masterchef registry returned the address {address} and may not be a masterchef contract ( at web3 chain id: {self._chain_id} )"
-                )
-
-    def get_masterchef_addresses(self) -> list[str]:
+    def get_masterchef_addresses_deprecated(self) -> list[str]:
         """Retrieve masterchef addresses from registry
 
         Returns:
            list of addresses
         """
 
-        total_qtty = self.counter + 1  # index positions ini=0 end=counter
+        total_masterchefs_qtty = self.counter
+        addresses_scraped = []
+        disabled = []
+        # retrieve all valid hypervisors addresses
+        # loop until all hypervisors have been retrieved ( no while loop to avoid infinite loop)
+        for i in range(10000):
+            # exit
+            if len(addresses_scraped) >= total_masterchefs_qtty:
+                break
 
-        result = []
-        for i in range(total_qtty):
-            # executiuon reverted:  arbitrum and mainnet have diff ways of indexing (+1 or 0)
             with contextlib.suppress(Exception):
                 address, idx = self.hypeByIndex(index=i)
 
@@ -694,8 +842,91 @@ class gamma_masterchef_registry(web3wrap):
                     and address.lower() in self.__blacklist_addresses[self._network]
                 ):
                     # hypervisor is blacklisted: loop
+                    disabled.append(address.lower())
                     continue
 
-                result.append(address)
+                addresses_scraped.append(address.lower())
+
+        return addresses_scraped
+
+    def get_masterchef_addresses(self) -> list[str]:
+        """Retrieve masterchef addresses from registry, using the REGISTRY function
+
+        Returns:
+           list of addresses
+        """
+
+        total_masterchefs_qtty = self.counter
+        qtty_addresses_scraped = 0
+        result = []
+        # retrieve all valid hypervisors addresses
+        # loop until all hypervisors have been retrieved ( no while loop to avoid infinite loop)
+        for i in range(10000):
+            # exit
+            if qtty_addresses_scraped >= total_masterchefs_qtty:
+                break
+
+            with contextlib.suppress(Exception):
+                if address := self.registry(index=i):
+                    qtty_addresses_scraped += 1
+                    # filter blacklisted hypes
+                    if (
+                        self._network in self.__blacklist_addresses
+                        and address.lower() in self.__blacklist_addresses[self._network]
+                    ):
+                        # hypervisor is blacklisted: loop
+                        continue
+
+                    result.append(address.lower())
 
         return result
+
+    def get_masterchef_addresses_multicall(self) -> list[str]:
+        """Retrieve masterchef addresses from registry
+
+        Returns:
+           list of addresses
+        """
+
+        addresses_scraped = []
+        disabled = []
+
+        chain = text_to_chain(self._network)
+        _max_calls_atOnce = 20
+
+        # call 2  get all addresses
+        abi_part = self.get_abi_function("hypeByIndex")
+        factory_calls = [
+            build_call_with_abi_part(
+                abi_part=abi_part,
+                inputs_values=[idx],
+                address=self.address,
+                object="registry",
+            )
+            for idx in range(300)
+        ]
+        #   place call:  build address list if ...[1] != 0
+        for i in range(0, len(factory_calls), _max_calls_atOnce):
+            # execute calls
+            for _item in execute_parse_calls(
+                network=chain.database_name,
+                block=self.block,
+                calls=factory_calls[i : i + _max_calls_atOnce],
+                convert_bint=False,
+                requireSuccess=False,
+            ):
+                if not _item["outputs"]:
+                    continue
+                # when 0, hype is disabled ( if no value, treat as potential end)
+                if _item["outputs"][1].get("value", 0) != 0:
+                    addresses_scraped.append(_item["outputs"][0]["value"].lower())
+                else:
+                    # disabled or failed
+                    disabled.append(_item["outputs"][0]["value"].lower())
+
+        # return non blacklisted addresses
+        return [
+            x
+            for x in addresses_scraped
+            if x not in self.__blacklist_addresses.get(self._network, [])
+        ]

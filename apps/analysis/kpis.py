@@ -68,8 +68,10 @@ from bins.database.helpers import (
     get_price_from_db_extended,
     get_prices_from_db_usingHypervisorStatus,
 )
+from bins.errors.general import ProcessingError
 from bins.general.enums import Chain, reportType, text_to_protocol
 from bins.general.general_utilities import get_last_timestamp_of_day
+from bins.mixed.price_utilities import price_scraper
 from bins.w3.builders import (
     build_db_hypervisor,
     build_erc20_helper,
@@ -111,7 +113,7 @@ def create_kpi_reports(
         if ini but no end timestamp is provided, ini will be replaced with  utc 00:00:00 and end will be calculated as ini + 1 day-1 second
     Args:
         chain (Chain):
-        ini_timestamp (int | None, optional):Initial timestamp. Defaults to today( utc ).
+        ini_timestamp (int | None, optional): Initial timestamp. Defaults to today( utc ).
         end_timestamp (int | None, optional): End timestamp . Defaults to ini_timestamp day last timestamp.
 
     Returns:
@@ -138,320 +140,377 @@ def create_kpi_reports(
     # result
     result: list[report_object] = []
 
-    for hypervisor_address, hypervisor_data in main_structure.items():
-        status_list_length = len(hypervisor_data["status_list"])
-        status_list_dataset_seconds = (
-            (
-                hypervisor_data["status_list"][-1]["timestamp"]
-                - hypervisor_data["status_list"][0]["timestamp"]
-            )
-            if status_list_length
-            else 0
-        )
-        _hypervisor_status_obj = None
-        # process status list to get multiple values later used
-        for idx in range(status_list_length):
-            # define ease to access vars
-            hypervisor_status_db = hypervisor_data["status_list"][idx]
-            last_hypervisor_status_db = (
-                hypervisor_data["status_list"][idx - 1] if idx > 0 else None
+    for hypervisor_address, hypervisor_data in tqdm.tqdm(main_structure.items()):
+        try:
+            status_list_length = len(
+                [x for x in hypervisor_data["status_list"] if x != None]
             )
 
-            # convert hypervisor dict to object
-            _hypervisor_status_obj = hypervisor_status_object(
-                transformer=transformer_hypervisor_status, **hypervisor_status_db
-            )
+            if not status_list_length:
+                continue
 
-            # get closest prices when not found
-            if (
-                not _hypervisor_status_obj.block
-                in hypervisor_data["pool"]["token0"]["prices"]
-            ):
-                if _tmpPrice := get_price_from_db_extended(
-                    network=chain.database_name,
-                    token_address=_hypervisor_status_obj.pool.token0.address,
-                    block=_hypervisor_status_obj.block,
-                    within_timeframe=60,
-                ):
-                    hypervisor_data["pool"]["token0"]["prices"][
-                        _hypervisor_status_obj.block
-                    ] = _tmpPrice
-
-            if (
-                not _hypervisor_status_obj.block
-                in hypervisor_data["pool"]["token1"]["prices"]
-            ):
-                if _tmpPrice := get_price_from_db_extended(
-                    network=chain.database_name,
-                    token_address=_hypervisor_status_obj.pool.token1.address,
-                    block=_hypervisor_status_obj.block,
-                    within_timeframe=60,
-                ):
-                    hypervisor_data["pool"]["token1"]["prices"][
-                        _hypervisor_status_obj.block
-                    ] = _tmpPrice
-
-            # ease price vars later access
-            _token0_current_price = hypervisor_data["pool"]["token0"]["prices"][
-                _hypervisor_status_obj.block
-            ]
-            _token1_current_price = hypervisor_data["pool"]["token1"]["prices"][
-                _hypervisor_status_obj.block
-            ]
-
-            # save start and end prices
-            if not "ini_price" in hypervisor_data["pool"]["token0"]:
-                hypervisor_data["pool"]["token0"]["ini_price"] = _token0_current_price
-            if not "ini_price" in hypervisor_data["pool"]["token1"]:
-                hypervisor_data["pool"]["token1"]["ini_price"] = _token1_current_price
-            hypervisor_data["pool"]["token0"]["end_price"] = _token0_current_price
-            hypervisor_data["pool"]["token1"]["end_price"] = _token1_current_price
-
-            # get underlying values ( TVL)
-            _underlying_value = _hypervisor_status_obj.get_underlying_value(
-                inDecimal=True, feeType="all"
-            )
-            _underlying_value_usd = (
-                float(_underlying_value.token0) * _token0_current_price
-                + float(_underlying_value.token1) * _token1_current_price
-            )
-
-            # liquidity in range %
-            _liquidity_in_range = _hypervisor_status_obj.get_inRange_liquidity()
-            _liquidity_base = _hypervisor_status_obj.basePosition.liquidity
-            _liquidity_total = _hypervisor_status_obj.get_total_liquidity()
-            # define seconds_in_range
-            _seconds_in_range = (
-                (
-                    _hypervisor_status_obj.timestamp
-                    - last_hypervisor_status_db["timestamp"]
-                )
-                if _liquidity_in_range and last_hypervisor_status_db
-                else 0
-            )
-
-            _hypervisor_sharePrice = float(
-                _hypervisor_status_obj.get_share_price(
-                    token0_price=_token0_current_price,
-                    token1_price=_token1_current_price,
-                )
-            )
-
-            hypervisor_data["raw_kpi_data"]["underlying_values_usd"].append(
-                _underlying_value_usd
-            )
-            hypervisor_data["raw_kpi_data"]["underlying_0"].append(
-                float(_underlying_value.token0)
-            )
-            hypervisor_data["raw_kpi_data"]["underlying_1"].append(
-                float(_underlying_value.token1)
-            )
-            hypervisor_data["raw_kpi_data"]["liquidity_inrange"].append(
-                _liquidity_in_range
-            )
-            hypervisor_data["raw_kpi_data"]["liquidity_base"].append(_liquidity_base)
-            hypervisor_data["raw_kpi_data"]["liquidity_total"].append(_liquidity_total)
-            hypervisor_data["raw_kpi_data"]["seconds_inrange"].append(_seconds_in_range)
-            hypervisor_data["raw_kpi_data"]["share_prices"].append(
-                _hypervisor_sharePrice
-            )
-
-        # create data for report
-        token0_ini_price = (
-            hypervisor_data["pool"]["token0"]["ini_price"]
-            if "ini_price" in hypervisor_data["pool"]["token0"]
-            else 0
-        )
-        token1_ini_price = (
-            hypervisor_data["pool"]["token1"]["ini_price"]
-            if "ini_price" in hypervisor_data["pool"]["token1"]
-            else 0
-        )
-        token0_end_price = (
-            hypervisor_data["pool"]["token0"]["end_price"]
-            if "end_price" in hypervisor_data["pool"]["token0"]
-            else 0
-        )
-        token1_end_price = (
-            hypervisor_data["pool"]["token1"]["end_price"]
-            if "end_price" in hypervisor_data["pool"]["token1"]
-            else 0
-        )
-
-        # get collected fees from operations summary
-        _collected_fees0 = (
-            (
-                hypervisor_data["operations_summary"]["collectedFees_token0"]
-                + hypervisor_data["operations_summary"]["zeroBurnFees_token0"]
-            )
-            if hypervisor_data["operations_summary"]
-            else 0
-        )
-        _collected_fees1 = (
-            (
-                hypervisor_data["operations_summary"]["collectedFees_token1"]
-                + hypervisor_data["operations_summary"]["zeroBurnFees_token1"]
-            )
-            if hypervisor_data["operations_summary"]
-            else 0
-        )
-        _collected_fees_usd = (
-            float(_collected_fees0) * token0_end_price
-            + float(_collected_fees1) * token1_end_price
-        )
-        # calculate gross fees
-        (
-            _gross_fees_0,
-            _gross_fees_1,
-        ) = (
-            _hypervisor_status_obj.calculate_gross_fees(
-                collected_fees0=_collected_fees0, collected_fees1=_collected_fees1
-            )
-            if _hypervisor_status_obj
-            else (0, 0)
-        )
-        _gross_fees_usd = (
-            float(_gross_fees_0) * token0_end_price
-            + float(_gross_fees_1) * token1_end_price
-        )
-        # calculate volume
-        _volume_0, _volume_1 = (
-            _hypervisor_status_obj.calculate_gross_volume(
-                gross_fees0=_gross_fees_0, gross_fees1=_gross_fees_1
-            )
-            if _hypervisor_status_obj
-            else (0, 0)
-        )
-        _volume_usd = (
-            float(_volume_0) * token0_end_price + float(_volume_1) * token1_end_price
-        )
-
-        hold_pnl = (
-            (
-                (
-                    (
-                        token0_end_price
-                        * hypervisor_data["raw_kpi_data"]["underlying_0"][0]
-                        + token1_end_price
-                        * hypervisor_data["raw_kpi_data"]["underlying_1"][0]
-                    )
-                    - (
-                        token0_ini_price
-                        * hypervisor_data["raw_kpi_data"]["underlying_0"][0]
-                        + token1_ini_price
-                        * hypervisor_data["raw_kpi_data"]["underlying_1"][0]
-                    )
-                )
-                / (
-                    token0_ini_price
-                    * hypervisor_data["raw_kpi_data"]["underlying_0"][0]
-                    + token1_ini_price
-                    * hypervisor_data["raw_kpi_data"]["underlying_1"][0]
-                )
-            )
-            if token0_ini_price
-            and token1_ini_price
-            and len(hypervisor_data["raw_kpi_data"]["underlying_0"])
-            else 0
-        )
-        lp_pnl = (
-            (
-                (
-                    hypervisor_data["raw_kpi_data"]["share_prices"][-1]
-                    - hypervisor_data["raw_kpi_data"]["share_prices"][0]
-                )
-                / hypervisor_data["raw_kpi_data"]["share_prices"][0]
-            )
-            if hypervisor_data["raw_kpi_data"].get("share_prices", None)
-            else 0
-        )
-
-        liquidity_inrange = sum(
-            hypervisor_data["raw_kpi_data"].get("liquidity_inrange", [0])
-        )
-        total_liquidity = sum(
-            hypervisor_data["raw_kpi_data"].get("liquidity_total", [0])
-        )
-
-        data_report = {
-            # "seconds": end_timestamp - ini_timestamp,
-            "dataset_seconds": (
+            status_list_dataset_seconds = (
                 (
                     hypervisor_data["status_list"][-1]["timestamp"]
                     - hypervisor_data["status_list"][0]["timestamp"]
                 )
                 if status_list_length
                 else 0
-            ),
-            "address": hypervisor_address,
-            "symbol": hypervisor_data["symbol"],
-            "mean_tvl": sum(hypervisor_data["raw_kpi_data"]["underlying_values_usd"])
-            / len(hypervisor_data["raw_kpi_data"]["underlying_values_usd"])
-            if len(hypervisor_data["raw_kpi_data"].get("underlying_values_usd", []))
-            else 0,
-            "liquidity_inrange": liquidity_inrange / total_liquidity
-            if total_liquidity
-            else 0,
-            "seconds_in_range": sum(
-                hypervisor_data["raw_kpi_data"].get("seconds_inrange", [0])
-            ),
-            "tokens": {
-                "token0": {
-                    "symbol": hypervisor_data["pool"]["token0"]["symbol"],
-                    "address": hypervisor_data["pool"]["token0"]["address"],
-                    "decimals": hypervisor_data["pool"]["token0"]["decimals"],
-                    "price_std": statistics.stdev(
-                        hypervisor_data["pool"]["token0"]["prices"].values()
-                    )
-                    if len(hypervisor_data["pool"]["token0"]["prices"]) > 1
-                    else 0,
-                    "price_ini": token0_ini_price,
-                    "price_end": token0_end_price,
-                },
-                "token1": {
-                    "symbol": hypervisor_data["pool"]["token1"]["symbol"],
-                    "address": hypervisor_data["pool"]["token1"]["address"],
-                    "decimals": hypervisor_data["pool"]["token1"]["decimals"],
-                    "price_std": statistics.stdev(
-                        hypervisor_data["pool"]["token1"]["prices"].values()
-                    )
-                    if len(hypervisor_data["pool"]["token1"]["prices"]) > 1
-                    else 0,
-                    "price_ini": token1_ini_price,
-                    "price_end": token1_end_price,
-                },
-            },
-            "share_price_std": statistics.stdev(
-                hypervisor_data["raw_kpi_data"]["share_prices"]
             )
-            if len(hypervisor_data["raw_kpi_data"].get("share_prices", [])) > 1
-            else 0,
-            "share_price_ini": hypervisor_data["raw_kpi_data"]["share_prices"][0]
-            if len(hypervisor_data["raw_kpi_data"].get("share_prices", [])) > 1
-            else 0,
-            "share_price_end": hypervisor_data["raw_kpi_data"]["share_prices"][-1]
-            if len(hypervisor_data["raw_kpi_data"].get("share_prices", [])) > 1
-            else 0,
-            "volume": _volume_usd,
-            "gross_fees": _gross_fees_usd,
-            "collected_fees": _collected_fees_usd,
-            "lp_pnl": lp_pnl,
-            "hold_pnl": hold_pnl,
-            "lpvshold": ((lp_pnl + 1) / (hold_pnl + 1)) - 1,
-            "rebalances": hypervisor_data["rebalances_qtty"],
-        }
-        # create report
-        result.append(
-            report_object(
-                type=reportType.KPI,
-                protocol=text_to_protocol(hypervisor_data["dex"]),
-                timeframe=timeframe_object(
-                    ini=time_object(block=ini_block, timestamp=ini_timestamp),
-                    end=time_object(block=end_block, timestamp=end_timestamp),
+            _hypervisor_status_obj = None
+            # process status list to get multiple values later used
+            for idx in range(status_list_length):
+                # define ease to access vars
+                hypervisor_status_db = hypervisor_data["status_list"][idx]
+                last_hypervisor_status_db = (
+                    hypervisor_data["status_list"][idx - 1] if idx > 0 else None
+                )
+
+                # convert hypervisor dict to object
+                _hypervisor_status_obj = hypervisor_status_object(
+                    transformer=transformer_hypervisor_status, **hypervisor_status_db
+                )
+
+                # get closest prices when not found
+                if (
+                    not _hypervisor_status_obj.block
+                    in hypervisor_data["pool"]["token0"]["prices"]
+                ):
+                    try:
+                        if _tmpPrice := get_price_from_db_extended(
+                            network=chain.database_name,
+                            token_address=_hypervisor_status_obj.pool.token0.address,
+                            block=_hypervisor_status_obj.block,
+                            within_timeframe=15,
+                        ):
+                            hypervisor_data["pool"]["token0"]["prices"][
+                                _hypervisor_status_obj.block
+                            ] = _tmpPrice
+                    except ProcessingError as e:
+                        # try force get price
+                        price_helper = price_scraper(thegraph=False)
+                        _tmpPrice, _tmpSource = price_helper.get_price(
+                            network=chain.database_name,
+                            token_id=_hypervisor_status_obj.pool.token0.address,
+                            block=_hypervisor_status_obj.block,
+                        )
+                        if not _tmpPrice:
+                            raise Exception(
+                                f" Can't get price for token0 {_hypervisor_status_obj.pool.token0.symbol} at block {_hypervisor_status_obj.block} on {chain.database_name}"
+                            )
+                        else:
+                            hypervisor_data["pool"]["token0"]["prices"][
+                                _hypervisor_status_obj.block
+                            ] = _tmpPrice
+
+                if (
+                    not _hypervisor_status_obj.block
+                    in hypervisor_data["pool"]["token1"]["prices"]
+                ):
+                    # try get price from db, but within 60 min timeframe
+                    try:
+                        if _tmpPrice := get_price_from_db_extended(
+                            network=chain.database_name,
+                            token_address=_hypervisor_status_obj.pool.token1.address,
+                            block=_hypervisor_status_obj.block,
+                            within_timeframe=15,
+                        ):
+                            hypervisor_data["pool"]["token1"]["prices"][
+                                _hypervisor_status_obj.block
+                            ] = _tmpPrice
+                    except ProcessingError as e:
+                        # try force get price
+                        price_helper = price_scraper(thegraph=False)
+                        _tmpPrice, _tmpSource = price_helper.get_price(
+                            network=chain.database_name,
+                            token_id=_hypervisor_status_obj.pool.token1.address,
+                            block=_hypervisor_status_obj.block,
+                        )
+                        if not _tmpPrice:
+                            raise Exception(
+                                f" Can't get price for token0 {_hypervisor_status_obj.pool.token0.symbol} at block {_hypervisor_status_obj.block} on {chain.database_name}"
+                            )
+                        else:
+                            hypervisor_data["pool"]["token1"]["prices"][
+                                _hypervisor_status_obj.block
+                            ] = _tmpPrice
+
+                # ease price vars later access
+                _token0_current_price = hypervisor_data["pool"]["token0"]["prices"][
+                    _hypervisor_status_obj.block
+                ]
+                _token1_current_price = hypervisor_data["pool"]["token1"]["prices"][
+                    _hypervisor_status_obj.block
+                ]
+
+                # save start and end prices
+                if not "ini_price" in hypervisor_data["pool"]["token0"]:
+                    hypervisor_data["pool"]["token0"][
+                        "ini_price"
+                    ] = _token0_current_price
+                if not "ini_price" in hypervisor_data["pool"]["token1"]:
+                    hypervisor_data["pool"]["token1"][
+                        "ini_price"
+                    ] = _token1_current_price
+                hypervisor_data["pool"]["token0"]["end_price"] = _token0_current_price
+                hypervisor_data["pool"]["token1"]["end_price"] = _token1_current_price
+
+                # get underlying values ( TVL)
+                _underlying_value = _hypervisor_status_obj.get_underlying_value(
+                    inDecimal=True, feeType="all"
+                )
+                _underlying_value_usd = (
+                    float(_underlying_value.token0) * _token0_current_price
+                    + float(_underlying_value.token1) * _token1_current_price
+                )
+
+                # liquidity in range %
+                _liquidity_in_range = _hypervisor_status_obj.get_inRange_liquidity()
+                _liquidity_base = _hypervisor_status_obj.basePosition.liquidity
+                _liquidity_total = _hypervisor_status_obj.get_total_liquidity()
+                # define seconds_in_range
+                _seconds_in_range = (
+                    (
+                        _hypervisor_status_obj.timestamp
+                        - last_hypervisor_status_db["timestamp"]
+                    )
+                    if _liquidity_in_range and last_hypervisor_status_db
+                    else 0
+                )
+
+                _hypervisor_sharePrice = float(
+                    _hypervisor_status_obj.get_share_price(
+                        token0_price=_token0_current_price,
+                        token1_price=_token1_current_price,
+                    )
+                )
+
+                hypervisor_data["raw_kpi_data"]["underlying_values_usd"].append(
+                    _underlying_value_usd
+                )
+                hypervisor_data["raw_kpi_data"]["underlying_0"].append(
+                    float(_underlying_value.token0)
+                )
+                hypervisor_data["raw_kpi_data"]["underlying_1"].append(
+                    float(_underlying_value.token1)
+                )
+                hypervisor_data["raw_kpi_data"]["liquidity_inrange"].append(
+                    _liquidity_in_range
+                )
+                hypervisor_data["raw_kpi_data"]["liquidity_base"].append(
+                    _liquidity_base
+                )
+                hypervisor_data["raw_kpi_data"]["liquidity_total"].append(
+                    _liquidity_total
+                )
+                hypervisor_data["raw_kpi_data"]["seconds_inrange"].append(
+                    _seconds_in_range
+                )
+                hypervisor_data["raw_kpi_data"]["share_prices"].append(
+                    _hypervisor_sharePrice
+                )
+
+            # create data for report
+            token0_ini_price = (
+                hypervisor_data["pool"]["token0"]["ini_price"]
+                if "ini_price" in hypervisor_data["pool"]["token0"]
+                else 0
+            )
+            token1_ini_price = (
+                hypervisor_data["pool"]["token1"]["ini_price"]
+                if "ini_price" in hypervisor_data["pool"]["token1"]
+                else 0
+            )
+            token0_end_price = (
+                hypervisor_data["pool"]["token0"]["end_price"]
+                if "end_price" in hypervisor_data["pool"]["token0"]
+                else 0
+            )
+            token1_end_price = (
+                hypervisor_data["pool"]["token1"]["end_price"]
+                if "end_price" in hypervisor_data["pool"]["token1"]
+                else 0
+            )
+
+            # get collected fees from operations summary
+            _collected_fees0 = (
+                (
+                    hypervisor_data["operations_summary"]["collectedFees_token0"]
+                    + hypervisor_data["operations_summary"]["zeroBurnFees_token0"]
+                )
+                if hypervisor_data["operations_summary"]
+                else 0
+            )
+            _collected_fees1 = (
+                (
+                    hypervisor_data["operations_summary"]["collectedFees_token1"]
+                    + hypervisor_data["operations_summary"]["zeroBurnFees_token1"]
+                )
+                if hypervisor_data["operations_summary"]
+                else 0
+            )
+            _collected_fees_usd = (
+                float(_collected_fees0) * token0_end_price
+                + float(_collected_fees1) * token1_end_price
+            )
+            # calculate gross fees
+            (
+                _gross_fees_0,
+                _gross_fees_1,
+            ) = (
+                _hypervisor_status_obj.calculate_gross_fees(
+                    collected_fees0=_collected_fees0, collected_fees1=_collected_fees1
+                )
+                if _hypervisor_status_obj
+                else (0, 0)
+            )
+            _gross_fees_usd = (
+                float(_gross_fees_0) * token0_end_price
+                + float(_gross_fees_1) * token1_end_price
+            )
+            # calculate volume
+            _volume_0, _volume_1 = (
+                _hypervisor_status_obj.calculate_gross_volume(
+                    gross_fees0=_gross_fees_0, gross_fees1=_gross_fees_1
+                )
+                if _hypervisor_status_obj
+                else (0, 0)
+            )
+            _volume_usd = (
+                float(_volume_0) * token0_end_price
+                + float(_volume_1) * token1_end_price
+            )
+
+            _hold_pnl_denominator = (
+                token0_ini_price * hypervisor_data["raw_kpi_data"]["underlying_0"][0]
+                + token1_ini_price * hypervisor_data["raw_kpi_data"]["underlying_1"][0]
+            )
+            hold_pnl = (
+                (
+                    (
+                        (
+                            token0_end_price
+                            * hypervisor_data["raw_kpi_data"]["underlying_0"][0]
+                            + token1_end_price
+                            * hypervisor_data["raw_kpi_data"]["underlying_1"][0]
+                        )
+                        - (
+                            token0_ini_price
+                            * hypervisor_data["raw_kpi_data"]["underlying_0"][0]
+                            + token1_ini_price
+                            * hypervisor_data["raw_kpi_data"]["underlying_1"][0]
+                        )
+                    )
+                    / _hold_pnl_denominator
+                )
+                if _hold_pnl_denominator
+                else 0
+            )
+            lp_pnl = (
+                (
+                    (
+                        hypervisor_data["raw_kpi_data"]["share_prices"][-1]
+                        - hypervisor_data["raw_kpi_data"]["share_prices"][0]
+                    )
+                    / hypervisor_data["raw_kpi_data"]["share_prices"][0]
+                )
+                if hypervisor_data["raw_kpi_data"].get("share_prices", None)
+                and hypervisor_data["raw_kpi_data"]["share_prices"][0]
+                else 0
+            )
+
+            liquidity_inrange = sum(
+                hypervisor_data["raw_kpi_data"].get("liquidity_inrange", [0])
+            )
+            total_liquidity = sum(
+                hypervisor_data["raw_kpi_data"].get("liquidity_total", [0])
+            )
+
+            data_report = {
+                # "seconds": end_timestamp - ini_timestamp,
+                "dataset_seconds": (
+                    (
+                        hypervisor_data["status_list"][-1]["timestamp"]
+                        - hypervisor_data["status_list"][0]["timestamp"]
+                    )
+                    if status_list_length
+                    else 0
                 ),
-                data=data_report,
+                "address": hypervisor_address,
+                "symbol": hypervisor_data["symbol"],
+                "mean_tvl": sum(
+                    hypervisor_data["raw_kpi_data"]["underlying_values_usd"]
+                )
+                / len(hypervisor_data["raw_kpi_data"]["underlying_values_usd"])
+                if len(hypervisor_data["raw_kpi_data"].get("underlying_values_usd", []))
+                else 0,
+                "liquidity_inrange": liquidity_inrange / total_liquidity
+                if total_liquidity
+                else 0,
+                "seconds_in_range": sum(
+                    hypervisor_data["raw_kpi_data"].get("seconds_inrange", [0])
+                ),
+                "tokens": {
+                    "token0": {
+                        "symbol": hypervisor_data["pool"]["token0"]["symbol"],
+                        "address": hypervisor_data["pool"]["token0"]["address"],
+                        "decimals": hypervisor_data["pool"]["token0"]["decimals"],
+                        "price_std": statistics.stdev(
+                            hypervisor_data["pool"]["token0"]["prices"].values()
+                        )
+                        if len(hypervisor_data["pool"]["token0"]["prices"]) > 1
+                        else 0,
+                        "price_ini": token0_ini_price,
+                        "price_end": token0_end_price,
+                    },
+                    "token1": {
+                        "symbol": hypervisor_data["pool"]["token1"]["symbol"],
+                        "address": hypervisor_data["pool"]["token1"]["address"],
+                        "decimals": hypervisor_data["pool"]["token1"]["decimals"],
+                        "price_std": statistics.stdev(
+                            hypervisor_data["pool"]["token1"]["prices"].values()
+                        )
+                        if len(hypervisor_data["pool"]["token1"]["prices"]) > 1
+                        else 0,
+                        "price_ini": token1_ini_price,
+                        "price_end": token1_end_price,
+                    },
+                },
+                "share_price_std": statistics.stdev(
+                    hypervisor_data["raw_kpi_data"]["share_prices"]
+                )
+                if len(hypervisor_data["raw_kpi_data"].get("share_prices", [])) > 1
+                else 0,
+                "share_price_ini": hypervisor_data["raw_kpi_data"]["share_prices"][0]
+                if len(hypervisor_data["raw_kpi_data"].get("share_prices", [])) > 1
+                else 0,
+                "share_price_end": hypervisor_data["raw_kpi_data"]["share_prices"][-1]
+                if len(hypervisor_data["raw_kpi_data"].get("share_prices", [])) > 1
+                else 0,
+                "volume": _volume_usd,
+                "gross_fees": _gross_fees_usd,
+                "collected_fees": _collected_fees_usd,
+                "lp_pnl": lp_pnl,
+                "hold_pnl": hold_pnl,
+                "lpvshold": (((lp_pnl + 1) / (hold_pnl + 1)) - 1) if hold_pnl else 0,
+                "rebalances": hypervisor_data["rebalances_qtty"],
+            }
+            # create report
+            result.append(
+                report_object(
+                    type=reportType.KPI,
+                    protocol=text_to_protocol(hypervisor_data["dex"]),
+                    timeframe=timeframe_object(
+                        ini=time_object(block=ini_block, timestamp=ini_timestamp),
+                        end=time_object(block=end_block, timestamp=end_timestamp),
+                    ),
+                    data=data_report,
+                )
             )
-        )
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f" Error processing kpis for {hypervisor_address} on {chain.database_name}"
+            )
 
     return result
 

@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from apps.feeds.frontend.revenue_stats import feed_revenue_stats
 
 from apps.feeds.queue.pull import pull_from_queue
+from apps.feeds.reports.execution import feed_global_reports
 from apps.feeds.returns.builds import feed_hypervisor_returns
 from bins.general.enums import Chain, text_to_chain
 from .feeds.operations import feed_operations
@@ -282,175 +283,204 @@ def feed_timestamp_blocks(network: str, protocol: str, threaded: bool = True):
 
 
 def main(option="operations"):
-    for protocol in CONFIGURATION["script"]["protocols"]:
-        # override networks if specified in cml
-        networks = (
-            CONFIGURATION["_custom_"]["cml_parameters"].networks
-            or CONFIGURATION["script"]["protocols"][protocol]["networks"]
-        )
+    # NON CHAIN/PROTOCOL FEEDS
+    if option == "global_reports":
+        feed_global_reports()
+    else:
+        # CHAIN/PROTOCOL FEEDS
+        for protocol in CONFIGURATION["script"]["protocols"]:
+            # override networks if specified in cml
+            networks = (
+                CONFIGURATION["_custom_"]["cml_parameters"].networks
+                or CONFIGURATION["script"]["protocols"][protocol]["networks"]
+            )
 
-        for network in networks:
-            if option == "static":
-                for dex in CONFIGURATION["script"]["protocols"][protocol][
-                    "networks"
-                ].get(network, []):
-                    # filter if dex not in cml ( when cml is used )
-                    if CONFIGURATION["_custom_"]["cml_parameters"].protocols:
-                        if (
-                            dex
-                            not in CONFIGURATION["_custom_"]["cml_parameters"].protocols
-                        ):
-                            continue
+            for network in networks:
+                if option == "static":
+                    for dex in CONFIGURATION["script"]["protocols"][protocol][
+                        "networks"
+                    ].get(network, []):
+                        # filter if dex not in cml ( when cml is used )
+                        if CONFIGURATION["_custom_"]["cml_parameters"].protocols:
+                            if (
+                                dex
+                                not in CONFIGURATION["_custom_"][
+                                    "cml_parameters"
+                                ].protocols
+                            ):
+                                continue
 
-                    try:
-                        # feed database with static hypervisor info
+                        try:
+                            # feed database with static hypervisor info
+                            feed_hypervisor_static(
+                                protocol=protocol,
+                                network=network,
+                                dex=dex,
+                                rewrite=CONFIGURATION["_custom_"][
+                                    "cml_parameters"
+                                ].rewrite,
+                            )
+
+                            # feed rewarders static
+                            feed_rewards_static(
+                                network=network,
+                                dex=dex,
+                                protocol=protocol,
+                                rewrite=CONFIGURATION["_custom_"][
+                                    "cml_parameters"
+                                ].rewrite,
+                            )
+                        except Exception as e:
+                            logging.getLogger(__name__).exception(
+                                f" Error processing {option} data from {network} {dex}  )-:  {e} "
+                            )
+
+                elif option == "operations":
+                    for dex in CONFIGURATION["script"]["protocols"][protocol][
+                        "networks"
+                    ][network]:
+                        # filter if dex not in cml ( when cml is used )
+                        if CONFIGURATION["_custom_"]["cml_parameters"].protocols:
+                            if (
+                                dex
+                                not in CONFIGURATION["_custom_"][
+                                    "cml_parameters"
+                                ].protocols
+                            ):
+                                continue
+
+                        # first feed static information
                         feed_hypervisor_static(
-                            protocol=protocol,
-                            network=network,
-                            dex=dex,
-                            rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
+                            protocol=protocol, network=network, dex=dex
                         )
 
-                        # feed rewarders static
-                        feed_rewards_static(
-                            network=network,
-                            dex=dex,
-                            protocol=protocol,
-                            rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
-                        )
-                    except Exception as e:
-                        logging.getLogger(__name__).exception(
-                            f" Error processing {option} data from {network} {dex}  )-:  {e} "
-                        )
+                    # feed database with all operations from static hyprervisor addresses
+                    feed_operations(
+                        protocol=protocol,
+                        network=network,
+                        date_ini=CONFIGURATION["_custom_"][
+                            "cml_parameters"
+                        ].ini_datetime,
+                        date_end=CONFIGURATION["_custom_"][
+                            "cml_parameters"
+                        ].end_datetime,
+                        block_ini=CONFIGURATION["_custom_"]["cml_parameters"].ini_block,
+                        block_end=CONFIGURATION["_custom_"]["cml_parameters"].end_block,
+                        force_back_time=False,
+                    )
 
-            elif option == "operations":
-                for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][
-                    network
-                ]:
-                    # filter if dex not in cml ( when cml is used )
-                    if CONFIGURATION["_custom_"]["cml_parameters"].protocols:
-                        if (
-                            dex
-                            not in CONFIGURATION["_custom_"]["cml_parameters"].protocols
-                        ):
-                            continue
+                elif option == "status":
+                    # feed status
+                    feed_hypervisor_status(
+                        protocol=protocol, network=network, threaded=True
+                    )
 
-                    # first feed static information
-                    feed_hypervisor_static(protocol=protocol, network=network, dex=dex)
+                    # feed rewards status
+                    feed_rewards_status(protocol=protocol, network=network)
 
-                # feed database with all operations from static hyprervisor addresses
-                feed_operations(
-                    protocol=protocol,
-                    network=network,
-                    date_ini=CONFIGURATION["_custom_"]["cml_parameters"].ini_datetime,
-                    date_end=CONFIGURATION["_custom_"]["cml_parameters"].end_datetime,
-                    block_ini=CONFIGURATION["_custom_"]["cml_parameters"].ini_block,
-                    block_end=CONFIGURATION["_custom_"]["cml_parameters"].end_block,
-                    force_back_time=False,
-                )
+                elif option == "user_status":
+                    # feed database with user status
+                    feed_user_operations(
+                        protocol=protocol,
+                        network=network,
+                        rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
+                    )
 
-            elif option == "status":
-                # feed status
-                feed_hypervisor_status(
-                    protocol=protocol, network=network, threaded=True
-                )
+                elif option == "prices":
+                    # feed database with prices from all status
+                    feed_all_prices(network=network)
 
-                # feed rewards status
-                feed_rewards_status(protocol=protocol, network=network)
+                elif option == "rewards":
+                    for dex in CONFIGURATION["script"]["protocols"][protocol][
+                        "networks"
+                    ][network]:
+                        # filter if dex not in cml ( when cml is used )
+                        if CONFIGURATION["_custom_"]["cml_parameters"].protocols:
+                            if (
+                                dex
+                                not in CONFIGURATION["_custom_"][
+                                    "cml_parameters"
+                                ].protocols
+                            ):
+                                continue
 
-            elif option == "user_status":
-                # feed database with user status
-                feed_user_operations(
-                    protocol=protocol,
-                    network=network,
-                    rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
-                )
+                        feed_rewards_static(protocol=protocol, network=network, dex=dex)
 
-            elif option == "prices":
-                # feed database with prices from all status
-                feed_all_prices(network=network)
+                elif option == "queue":
+                    pull_from_queue(
+                        network=network,
+                        types=CONFIGURATION["_custom_"]["cml_parameters"].queue_types,
+                    )
 
-            elif option == "rewards":
-                for dex in CONFIGURATION["script"]["protocols"][protocol]["networks"][
-                    network
-                ]:
-                    # filter if dex not in cml ( when cml is used )
-                    if CONFIGURATION["_custom_"]["cml_parameters"].protocols:
-                        if (
-                            dex
-                            not in CONFIGURATION["_custom_"]["cml_parameters"].protocols
-                        ):
-                            continue
+                # elif option == "report_ramses":
+                #     feed_report_ramses_gross_fees(chain=Chain.ARBITRUM, periods_back=1)
 
-                    feed_rewards_static(protocol=protocol, network=network, dex=dex)
+                elif option == "static_hypervisors":
+                    for dex in CONFIGURATION["script"]["protocols"][protocol][
+                        "networks"
+                    ].get(network, []):
+                        # filter if dex not in cml ( when cml is used )
+                        if CONFIGURATION["_custom_"]["cml_parameters"].protocols:
+                            if (
+                                dex
+                                not in CONFIGURATION["_custom_"][
+                                    "cml_parameters"
+                                ].protocols
+                            ):
+                                continue
 
-            elif option == "queue":
-                pull_from_queue(
-                    network=network,
-                    types=CONFIGURATION["_custom_"]["cml_parameters"].queue_types,
-                )
+                        try:
+                            # feed database with static hypervisor info
+                            feed_hypervisor_static(
+                                protocol=protocol,
+                                network=network,
+                                dex=dex,
+                                rewrite=CONFIGURATION["_custom_"][
+                                    "cml_parameters"
+                                ].rewrite,
+                            )
+                        except Exception as e:
+                            logging.getLogger(__name__).exception(
+                                f" Error processing {option} data from {network} {dex}  )-:  {e} "
+                            )
+                elif option == "static_rewards":
+                    for dex in CONFIGURATION["script"]["protocols"][protocol][
+                        "networks"
+                    ].get(network, []):
+                        # filter if dex not in cml ( when cml is used )
+                        if CONFIGURATION["_custom_"]["cml_parameters"].protocols:
+                            if (
+                                dex
+                                not in CONFIGURATION["_custom_"][
+                                    "cml_parameters"
+                                ].protocols
+                            ):
+                                continue
+                        try:
+                            # feed rewarders static
+                            feed_rewards_static(
+                                network=network,
+                                dex=dex,
+                                protocol=protocol,
+                                rewrite=CONFIGURATION["_custom_"][
+                                    "cml_parameters"
+                                ].rewrite,
+                            )
+                        except Exception as e:
+                            logging.getLogger(__name__).exception(
+                                f" Error processing {option} data from {network} {dex}  )-:  {e} "
+                            )
 
-            # elif option == "report_ramses":
-            #     feed_report_ramses_gross_fees(chain=Chain.ARBITRUM, periods_back=1)
+                elif option == "frontend_revenue_stats":
+                    feed_revenue_stats(
+                        chains=[text_to_chain(network)],
+                        rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
+                    )
 
-            elif option == "static_hypervisors":
-                for dex in CONFIGURATION["script"]["protocols"][protocol][
-                    "networks"
-                ].get(network, []):
-                    # filter if dex not in cml ( when cml is used )
-                    if CONFIGURATION["_custom_"]["cml_parameters"].protocols:
-                        if (
-                            dex
-                            not in CONFIGURATION["_custom_"]["cml_parameters"].protocols
-                        ):
-                            continue
+                elif option == "returns":
+                    feed_hypervisor_returns(chain=text_to_chain(network))
 
-                    try:
-                        # feed database with static hypervisor info
-                        feed_hypervisor_static(
-                            protocol=protocol,
-                            network=network,
-                            dex=dex,
-                            rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
-                        )
-                    except Exception as e:
-                        logging.getLogger(__name__).exception(
-                            f" Error processing {option} data from {network} {dex}  )-:  {e} "
-                        )
-            elif option == "static_rewards":
-                for dex in CONFIGURATION["script"]["protocols"][protocol][
-                    "networks"
-                ].get(network, []):
-                    # filter if dex not in cml ( when cml is used )
-                    if CONFIGURATION["_custom_"]["cml_parameters"].protocols:
-                        if (
-                            dex
-                            not in CONFIGURATION["_custom_"]["cml_parameters"].protocols
-                        ):
-                            continue
-                    try:
-                        # feed rewarders static
-                        feed_rewards_static(
-                            network=network,
-                            dex=dex,
-                            protocol=protocol,
-                            rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
-                        )
-                    except Exception as e:
-                        logging.getLogger(__name__).exception(
-                            f" Error processing {option} data from {network} {dex}  )-:  {e} "
-                        )
-
-            elif option == "frontend_revenue_stats":
-                feed_revenue_stats(
-                    chains=[text_to_chain(network)],
-                    rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
-                )
-
-            elif option == "returns":
-                feed_hypervisor_returns(chain=text_to_chain(network))
-
-            else:
-                raise NotImplementedError(
-                    f" Can't find an operation match for {option} "
-                )
+                else:
+                    raise NotImplementedError(
+                        f" Can't find an operation match for {option} "
+                    )

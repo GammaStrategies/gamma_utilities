@@ -809,20 +809,32 @@ class period_yield_data:
             else 0
         )
 
-    def fill_from_rewards_data(self, ini_rewards: list[dict], end_rewards: list[dict]):
+    def fill_from_rewards_data_ORIGINAL(
+        self, ini_rewards: list[dict], end_rewards: list[dict]
+    ):
         """fill period rewards data from rewards data
 
         Args:
             ini_rewards (list[dict]): Should have same block and timestamp
             end_rewards (list[dict]): Should have same block and timestamp
         """
+
         # check for empty rewards
         if not ini_rewards:
-            logging.getLogger(__name__).debug(f" No initial rewards to process.")
+            logging.getLogger(__name__).debug(
+                f" No initial rewards to process."
+            ) if end_rewards else logging.getLogger(__name__).debug(
+                f" No initial nor end rewards to process."
+            )
             return
         if not end_rewards:
             logging.getLogger(__name__).debug(f" No end rewards to process.")
             return
+
+        if len(ini_rewards) != len(end_rewards):
+            logging.getLogger(__name__).debug(
+                f" Rewards length mismatch. Ini tokens: {', '.join([x['rewardToken_symbol'] for x in ini_rewards])} End tokens: {', '.join([x['rewardToken_symbol'] for x in end_rewards])}"
+            )
 
         # group ini and end rewards by rewardToken + rewarder_address
         # can happen that no ini rewards are found but end only...
@@ -852,10 +864,25 @@ class period_yield_data:
         for item in grouped_rewards.values():
             if not item["ini"]:
                 # no ini rewards found for this item
+                # logging.getLogger(__name__).error(
+                #     f" No initial rewards found for {item}. Skiping"
+                # )
+                #  create a dummy ini reward with end characteristics
                 logging.getLogger(__name__).error(
-                    f" No initial rewards found for {item}. Skiping"
+                    f" No initial rewards found for {item}. Using a dummy ini reward instead with the same end characteristics."
                 )
-                continue
+                item["ini"] = {}
+                item["ini"]["timestamp"] = (
+                    item["end"]["timestamp"] - self.period_seconds
+                )
+                item["ini"]["rewards_perSecond"] = item["end"]["rewards_perSecond"]
+                item["ini"]["total_hypervisorToken_qtty"] = item["end"][
+                    "total_hypervisorToken_qtty"
+                ]
+                item["ini"]["hypervisor_share_price_usd"] = item["end"][
+                    "hypervisor_share_price_usd"
+                ]
+                # continue
             if not item["end"]:
                 # no end rewards found for this item
                 raise ValueError(f" No end rewards found for {item}")
@@ -1010,6 +1037,260 @@ class period_yield_data:
 
         # xtrapolate rewards to the period underlying value to get usd value
         self.rewards.usd = self.ini_underlying_usd * self.rewards.period_yield
+
+        # TODO: remove next log line
+        logging.getLogger(__name__).debug(
+            f" --- Rewards period yield changed from  {yield_cumulative:,.2%}  ->  {self.rewards.period_yield:,.2%}"
+        )
+
+    def fill_from_rewards_data(self, ini_rewards: list[dict], end_rewards: list[dict]):
+        """fill period rewards data from rewards data
+
+        Args:
+            ini_rewards (list[dict]): Should have same block and timestamp
+            end_rewards (list[dict]): Should have same block and timestamp
+        """
+
+        # exit when no rewards to process
+        if not ini_rewards and not end_rewards:
+            logging.getLogger(__name__).debug(
+                f" No rewards to process for {self.address}."
+            )
+            return
+
+        # process rewards using rewardToken
+        # when no ini rewards but end, use end rewards at ini block (  self.timeframe.ini.block or timestamp  )
+        # when no end rewards but ini, use ini rewards at end block (  self.timeframe.end.block or timestamp  )
+
+        # group ini and end rewards by rewardToken + rewarder_address
+        # can happen that no ini rewards are found but end only...
+        grouped_rewards = {}  # {tokenAddress_rewarderAddress: { ini: } }
+        for end_reward in end_rewards:
+            # create key
+            _dictkey = f"{end_reward['rewardToken']}_{end_reward['rewarder_address']}"
+            # create basic struct
+            grouped_rewards[_dictkey] = {"ini": None, "end": end_reward}
+            for ini_reward in ini_rewards:
+                if (
+                    ini_reward["rewarder_address"] == end_reward["rewarder_address"]
+                    and ini_reward["rewardToken"] == end_reward["rewardToken"]
+                ):
+                    grouped_rewards[_dictkey]["ini"] = ini_reward
+                    break
+        for ini_reward in ini_rewards:
+            # create key
+            _dictkey = f"{ini_reward['rewardToken']}_{ini_reward['rewarder_address']}"
+            # create basic struct
+            if not _dictkey in grouped_rewards:
+                grouped_rewards[_dictkey] = {"ini": ini_reward, "end": None}
+            else:
+                grouped_rewards[_dictkey]["ini"] = ini_reward
+
+        # init rewards
+        self.rewards = rewards_group(
+            usd=Decimal("0"), period_yield=Decimal("0"), details=[]
+        )
+        # init cumulative rewards
+        yield_cumulative = Decimal("0")
+        total_period_seconds = 0
+
+        # process grouped rewards
+        for item in grouped_rewards.values():
+            if not item["ini"]:
+                # no ini rewards found for this item
+                # logging.getLogger(__name__).error(
+                #     f" No initial rewards found for {item}. Skiping"
+                # )
+                #  create a dummy ini reward with end characteristics
+                logging.getLogger(__name__).error(
+                    f" No initial rewards found for {item}. Using a dummy ini reward instead with the same end characteristics."
+                )
+                item["ini"] = {}
+                item["ini"]["timestamp"] = (
+                    item["end"]["timestamp"] - self.period_seconds
+                )
+                item["ini"]["rewards_perSecond"] = item["end"]["rewards_perSecond"]
+                item["ini"]["total_hypervisorToken_qtty"] = item["end"][
+                    "total_hypervisorToken_qtty"
+                ]
+                item["ini"]["hypervisor_share_price_usd"] = item["end"][
+                    "hypervisor_share_price_usd"
+                ]
+                # continue
+            if not item["end"]:
+                #  create a dummy end reward with ini characteristics
+                logging.getLogger(__name__).error(
+                    f" No end rewards found for {item}. Using a dummy end reward instead with the same ini characteristics."
+                )
+                item["end"] = {}
+                item["end"]["timestamp"] = (
+                    self.period_seconds - item["ini"]["timestamp"]
+                )
+                item["end"]["rewards_perSecond"] = item["ini"]["rewards_perSecond"]
+                item["end"]["total_hypervisorToken_qtty"] = item["ini"][
+                    "total_hypervisorToken_qtty"
+                ]
+                item["end"]["hypervisor_share_price_usd"] = item["ini"][
+                    "hypervisor_share_price_usd"
+                ]
+                # continue
+
+            # seconds passed
+            period_seconds = item["end"]["timestamp"] - item["ini"]["timestamp"]
+            # check if period differs from expected
+            if abs(period_seconds - self.period_seconds):
+                raise ValueError(
+                    f" Rewards period differs from expected. Expected: {self.period_seconds} seconds. Found: {period_seconds} seconds."
+                )
+            # add seconds to total
+            total_period_seconds += period_seconds
+
+            # calculate rewards qtty
+            _period_rewards_qtty = 0
+            _ini_rewards_qtty = 0
+            _end_rewards_qtty = 0
+
+            ##########################################################
+            # rewards can't be xpresses in absolut terms without looking into claims ( per user ).
+            # But we can get a MAX/MIN rewards qtty for the period looking at the rewardsPerSecond
+            # so that:
+            #   MAX REWARDS QTTY = (end_rewards_perSecond * period_seconds - 1) + ini_end_rewards_perSecond
+            #   MIN REWARDS QTTY = (ini_end_rewards_perSecond * period_seconds - 1) + end_end_rewards_perSecond
+            #  AVERAGE REWARDS QTTY = (ini_end_rewards_perSecond + end_end_rewards_perSecond) / 2
+            #
+            #  rationale behind:
+            #  MAX_REWARDS_QTTY = One second after initial snapshot, the reward rate changed to end_rewards_perSecond
+            #  MIN_REWARDS_QTTY = One second before end snapshot, the reward rate changed to end_rewards_perSecond
+            ##########################################################
+            _maximum_rewards_qtty = (
+                (float(item["end"]["rewards_perSecond"]) * (period_seconds - 1))
+                + float(item["ini"]["rewards_perSecond"])
+            ) / (10 ** item["end"]["rewardToken_decimals"])
+            _minimum_rewards_qtty = (
+                (float(item["ini"]["rewards_perSecond"]) * (period_seconds - 1))
+                + float(item["end"]["rewards_perSecond"])
+            ) / (10 ** item["end"]["rewardToken_decimals"])
+            _period_rewards_qtty = (_maximum_rewards_qtty + _minimum_rewards_qtty) / 2
+
+            # calculate usd value
+            _period_rewards_usd = (
+                _period_rewards_qtty * item["end"]["rewardToken_price_usd"]
+            )
+
+            # add usd value to self
+            self.rewards.usd += Decimal(str(_period_rewards_usd))
+
+            total_staked_usd = (
+                int(ini_reward["total_hypervisorToken_qtty"]) / (10**18)
+            ) * ini_reward["hypervisor_share_price_usd"]
+            # when there is no staked value, use total supply
+            if not total_staked_usd:
+                logging.getLogger(__name__).debug(
+                    f" No staked value found processing return rewards for {self.address}. Using total supply."
+                )
+                total_staked_usd = (
+                    float(self.status.ini.supply)
+                    * ini_reward["hypervisor_share_price_usd"]
+                )
+
+            # add reward detail to self
+            self.rewards.details.append(
+                {
+                    "symbol": item["end"]["rewardToken_symbol"],
+                    "address": item["end"]["rewardToken"],
+                    "qtty": _period_rewards_qtty,
+                    "usd": _period_rewards_usd,
+                    "seconds": period_seconds,
+                    "period yield": _period_rewards_usd / total_staked_usd,
+                }
+            )
+
+            # add details to status when possible
+            if _ini_rewards_qtty or _end_rewards_qtty:
+                # initialize vars
+
+                if self.status and self.status.ini and self.status.end:
+                    if not self.status.ini.underlying:
+                        self.status.ini.underlying = underlying_value(
+                            qtty=token_group()
+                        )
+                    if not self.status.end.underlying:
+                        self.status.end.underlying = underlying_value(
+                            qtty=token_group()
+                        )
+
+                    if not self.status.ini.underlying.details:
+                        self.status.ini.underlying.details = {}
+                    if not "rewards" in self.status.ini.underlying.details:
+                        self.status.ini.underlying.details["rewards"] = {}
+                    if not self.status.end.underlying.details:
+                        self.status.end.underlying.details = {}
+                    if not "rewards" in self.status.end.underlying.details:
+                        self.status.end.underlying.details["rewards"] = {}
+                    # add to details
+                    for i, qtty in [
+                        ("ini", _ini_rewards_qtty),
+                        ("end", _end_rewards_qtty),
+                    ]:
+                        if (
+                            not item[i]["rewardToken"]
+                            in getattr(self.status, i).underlying.details["rewards"]
+                        ):
+                            getattr(self.status, i).underlying.details["rewards"][
+                                item[i]["rewardToken"]
+                            ] = {
+                                "qtty": qtty,
+                                "usd": qtty * item[i]["rewardToken_price_usd"],
+                                "counter": 1,
+                            }
+                        else:
+                            # sum reward qtty and usd and add count
+                            getattr(self.status, i).underlying.details["rewards"][
+                                item[i]["rewardToken"]
+                            ]["qtty"] += qtty
+                            getattr(self.status, i).underlying.details["rewards"][
+                                item[i]["rewardToken"]
+                            ]["usd"] += (qtty * item[i]["rewardToken_price_usd"])
+                            getattr(self.status, i).underlying.details["rewards"][
+                                item[i]["rewardToken"]
+                            ]["counter"] += 1
+
+            # add apr and apy to cumulative
+            # add to cumulative yield
+            if yield_cumulative:
+                yield_cumulative *= 1 + Decimal(
+                    str(_period_rewards_usd / total_staked_usd)
+                )
+            else:
+                yield_cumulative = 1 + Decimal(
+                    str(_period_rewards_usd / total_staked_usd)
+                )
+
+        # Yield percentage: percentage of total value staked at ini
+
+        if yield_cumulative:
+            yield_cumulative -= 1
+
+        if self.rewards.usd < 0:
+            raise ValueError(f" Rewards usd can't be negative {self.rewards.usd}")
+
+        # CONVERT results to self period
+        # We want to xtrapolate to the self.period_seconds
+        # xtrapolate rewards for the period
+        self.rewards.period_yield = (
+            ((yield_cumulative / total_period_seconds) * self.period_seconds)
+            if total_period_seconds
+            else 0
+        )
+
+        # TODO: solve somehow --> current self.rewards.usd is the absolute value of the rewards for the period
+        # but we shall overwrite it to be at same denominator ( shares value )
+        _test_original_rewards_usd = self.rewards.usd
+        _test_rewards_inishare_usd = (
+            _test_original_rewards_usd / self.ini_underlying_usd
+        )
+        # OVERWRITE: xtrapolate rewards to the period underlying value to get usd value
+        # self.rewards.usd = self.ini_underlying_usd * self.rewards.period_yield
 
         # TODO: remove next log line
         logging.getLogger(__name__).debug(

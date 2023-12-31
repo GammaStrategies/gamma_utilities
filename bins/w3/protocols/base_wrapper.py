@@ -579,6 +579,8 @@ class web3wrap:
                 elif len(fn["outputs"]) == outputs_qtty:
                     return fn
 
+        return None
+
     def get_abi_functions(
         self,
         names: list[str] | None = None,

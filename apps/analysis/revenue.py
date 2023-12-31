@@ -122,7 +122,37 @@ def build_global_revenue_report(chains: list[Chain] | None = None) -> list[dict]
             }
 
     # ADD PERCENTAGES ( yearly, monthly, chain )
-    for year, year_data in result.items():
+    result = add_analytic_data_to_global_revenue_report(
+        report=result,
+        current_year=current_year,
+        current_month=current_month,
+        days_left_current_month=days_left_current_month,
+        days_passed_current_month=days_passed_current_month,
+    )
+
+    # return
+    return result
+
+
+def add_analytic_data_to_global_revenue_report(
+    report: list[dict],
+    current_year,
+    current_month,
+    days_left_current_month,
+    days_passed_current_month,
+) -> list[dict]:
+    # ADD PERCENTAGES ( yearly, monthly, chain )
+    # ADD POTENTIAL TOTAL USD ( monthly, chain )
+    # ADD TOTAL USD PER HYPERVISOR ( TOTAL_USD/HYPERVISOR_COUNT )
+
+    for year, year_data in report.items():
+        # create a control var to get track of a unique list of hypes n pools
+        _unique_hypervisor_list: set[str] = set()
+        _unique_pool_list: set[str] = set()
+        # because spNFT will not count as hypervisor, we setup a variable divisible by count
+        _unique_hypervisor_total_usd: float = 0
+        _unique_pool_total_usd: float = 0
+
         for chain, chain_data in year_data["by_chain"].items():
             chain_data["yearly_percentage"] = (
                 (chain_data["total_usd"] / year_data["total_usd"])
@@ -148,6 +178,8 @@ def build_global_revenue_report(chains: list[Chain] | None = None) -> list[dict]
                 if year_data["total_usd"]
                 else 0
             )
+            # control var ( to be divided by total hypes count ( not being SPNFT like)
+            _current_month_total_usd = 0
 
             for chain, chain_data in month_data["by_chain"].items():
                 chain_data["yearly_percentage"] = (
@@ -173,8 +205,79 @@ def build_global_revenue_report(chains: list[Chain] | None = None) -> list[dict]
                         * days_left_current_month
                     ) + chain_data["total_usd"]
 
+                # ADD TOTAL USD PER HYPERVISOR ( TOTAL_USD/HYPERVISOR_COUNT )
+                for dex_item in chain_data["items"]:
+                    # control var
+                    _current_dex_hypervisor_count = 0
+                    _current_dex_total_usd = 0
+
+                    # define current dex hypervisor count (we are in the month)
+                    for hype_data_item in dex_item["items"]:
+                        for hype_item in hype_data_item["items"]:
+                            # hypervisor=0 means spNFT related data and does not have "pool" key.
+                            if not hype_item["hypervisor"] == 0:
+                                _unique_hypervisor_list.add(hype_item["hypervisor"])
+                                _unique_hypervisor_total_usd += hype_item["total_usd"]
+                                _current_month_total_usd += hype_item["total_usd"]
+                                _current_dex_hypervisor_count += 1
+                                _current_dex_total_usd += hype_item["total_usd"]
+                            else:
+                                # TODO: get a static list of the "dex" hypes to add to hype list
+                                pass
+
+                            # add pool to unique pool list
+                            if "pool" in hype_item:
+                                _unique_pool_list.add(hype_item["pool"])
+                                _unique_pool_total_usd += hype_item["total_usd"]
+                    # create dex on month data structure
+                    if not "by_dex" in month_data:
+                        month_data["by_dex"] = {}
+
+                    # create dex on by_dex data structure
+                    if not dex_item["dex"] in month_data["by_dex"]:
+                        month_data["by_dex"][dex_item["dex"]] = {
+                            "total_usd": 0,
+                            "total_hypervisor_count": 0,
+                            "total_usd_per_hypervisor": 0,
+                        }
+
+                    # add to dex total usd
+                    month_data["by_dex"][dex_item["dex"]]["total_usd"] += dex_item[
+                        "total_usd"
+                    ]
+
+                    # add to dex total hypervisor count
+                    month_data["by_dex"][dex_item["dex"]][
+                        "total_hypervisor_count"
+                    ] += _current_dex_hypervisor_count
+
+                    # set dex total usd per hypervisor
+                    month_data["by_dex"][dex_item["dex"]][
+                        "total_usd_per_hypervisor"
+                    ] = (
+                        (
+                            _current_dex_total_usd
+                            / month_data["by_dex"][dex_item["dex"]][
+                                "total_hypervisor_count"
+                            ]
+                        )
+                        if month_data["by_dex"][dex_item["dex"]][
+                            "total_hypervisor_count"
+                        ]
+                        else 0
+                    )
+
+        # ADD TOTAL USD PER HYPERVISOR ( TOTAL_USD/HYPERVISOR_COUNT )
+        year_data["total_hypervisor_count"] = len(_unique_hypervisor_list)
+        year_data["total_usd_per_hypervisor"] = (
+            (year_data["total_usd"] / year_data["total_hypervisor_count"])
+            if year_data["total_hypervisor_count"]
+            else 0
+        )
+        year_data["total_pool_count"] = len(_unique_pool_list)
+
     # return
-    return result
+    return report
 
 
 def get_revenue_data_from_endpoint(chain: Chain, yearly: bool = True) -> list[dict]:

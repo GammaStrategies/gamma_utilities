@@ -2271,6 +2271,21 @@ class period_yield_analyzer:
             f"     gamma vs hold: {((self._net_roi_yield + 1) / (self._period_hodl_deposited_yield + 1)) - 1:,.2%}"
         )
 
+        ## RESULTS SUMMARY
+
+    def print_rewards_summary(self):
+        rewards = self.get_rewards_detail()
+        logging.getLogger("analysis").info(f"    ")
+        logging.getLogger("analysis").info(f"     rewards summary: ")
+        logging.getLogger("analysis").info(
+            f"     symbol       qtty             usd         days      period yield"
+        )
+        for symbol, data in rewards.items():
+            logging.getLogger("analysis").info(
+                f"     {symbol:>5} {data['qtty']:>15,.2f} {data['usd']:>15,.2f} {data['seconds']/(60*60*24):>8,.2f} {data['period yield']:>10,.2%}"
+            )
+        logging.getLogger("analysis").info(f"    ")
+
     # HELPERS
     def _find_initial_values(self):
         for yield_item in self.yield_data_list:
@@ -2316,7 +2331,28 @@ class period_yield_analyzer:
         )
         return _token0_percentage, _token1_percentage
 
-    def debug_line(self,yield_item: period_yield_data):
+    def debug_line(self, yield_item: period_yield_data):
         logging.getLogger("benchmark").info(
             f" {self._fees_per_share:,.2f}  {self._rewards_per_share:,.2f}  {self._impermanent_per_share:,.2f}  {yield_item.price_per_share:,.2f} [roi net:{self._net_roi_per_share:,.2f}] [roi hype:{self._hype_roi_per_share:,.2f}] [initial:{self._ini_price_per_share:,.2f} ]"
         )
+
+    def get_rewards_detail(self):
+        result = {}
+
+        for item in self.yield_data_list:
+            for detail in item.rewards.details:
+                # add to result if not exists already
+                if not detail["symbol"] in result:
+                    result[detail["symbol"]] = {
+                        "qtty": 0,
+                        "usd": 0,
+                        "seconds": 0,
+                        "period yield": 0,
+                    }
+                # add to result
+                result[detail["symbol"]]["qtty"] += detail["qtty"]
+                result[detail["symbol"]]["usd"] += detail["usd"]
+                result[detail["symbol"]]["seconds"] += detail["seconds"]
+                result[detail["symbol"]]["period yield"] += detail["period yield"]
+
+        return result
