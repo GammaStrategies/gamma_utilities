@@ -197,6 +197,9 @@ class period_yield_data:
     fees: qtty_usd_yield = None
     fees_gamma: qtty_usd_yield = None
 
+    # fees collected by the pool during the period ( calculated using fees+fees_gamma and pool.fee).
+    # gross_fees: qtty_usd_yield = None
+
     # rewards collected during the period ( LPing ) using uncollected fees. This is not accurate when rewards do not include the "extra" info ( absolute qtty of rewards)
     rewards: rewards_group = None
 
@@ -252,6 +255,7 @@ class period_yield_data:
             pass
         return t0 + t1
 
+    # LP FEES
     @property
     def period_fees_usd(self) -> float:
         """fees aquired during the period ( LPing ) using uncollected fees
@@ -1124,7 +1128,7 @@ class period_yield_data:
                 )
                 item["end"] = {}
                 item["end"]["timestamp"] = (
-                    self.period_seconds - item["ini"]["timestamp"]
+                    item["ini"]["timestamp"] + self.period_seconds
                 )
                 item["end"]["rewards_perSecond"] = item["ini"]["rewards_perSecond"]
                 item["end"]["total_hypervisorToken_qtty"] = item["ini"][
