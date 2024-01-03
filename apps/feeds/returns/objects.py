@@ -1102,9 +1102,6 @@ class period_yield_data:
         for item in grouped_rewards.values():
             if not item["ini"]:
                 # no ini rewards found for this item
-                # logging.getLogger(__name__).error(
-                #     f" No initial rewards found for {item}. Skiping"
-                # )
                 #  create a dummy ini reward with end characteristics
                 logging.getLogger(__name__).error(
                     f" No initial rewards found for {item}. Using a dummy ini reward instead with the same end characteristics."
@@ -1114,6 +1111,9 @@ class period_yield_data:
                     item["end"]["timestamp"] - self.period_seconds
                 )
                 item["ini"]["rewards_perSecond"] = item["end"]["rewards_perSecond"]
+                item["ini"]["rewardToken_decimals"] = item["end"][
+                    "rewardToken_decimals"
+                ]
                 item["ini"]["total_hypervisorToken_qtty"] = item["end"][
                     "total_hypervisorToken_qtty"
                 ]
@@ -1130,7 +1130,15 @@ class period_yield_data:
                 item["end"]["timestamp"] = (
                     item["ini"]["timestamp"] + self.period_seconds
                 )
+                item["end"]["rewardToken_symbol"] = item["ini"]["rewardToken_symbol"]
+                item["end"]["rewardToken"] = item["ini"]["rewardToken"]
                 item["end"]["rewards_perSecond"] = item["ini"]["rewards_perSecond"]
+                item["end"]["rewardToken_decimals"] = item["ini"][
+                    "rewardToken_decimals"
+                ]
+                item["end"]["rewardToken_price_usd"] = item["ini"][
+                    "rewardToken_price_usd"
+                ]
                 item["end"]["total_hypervisorToken_qtty"] = item["ini"][
                     "total_hypervisorToken_qtty"
                 ]
@@ -1185,8 +1193,8 @@ class period_yield_data:
             self.rewards.usd += Decimal(str(_period_rewards_usd))
 
             total_staked_usd = (
-                int(ini_reward["total_hypervisorToken_qtty"]) / (10**18)
-            ) * ini_reward["hypervisor_share_price_usd"]
+                int(item["ini"]["total_hypervisorToken_qtty"]) / (10**18)
+            ) * item["ini"]["hypervisor_share_price_usd"]
             # when there is no staked value, use total supply
             if not total_staked_usd:
                 logging.getLogger(__name__).debug(
@@ -1194,7 +1202,7 @@ class period_yield_data:
                 )
                 total_staked_usd = (
                     float(self.status.ini.supply)
-                    * ini_reward["hypervisor_share_price_usd"]
+                    * item["ini"]["hypervisor_share_price_usd"]
                 )
 
             # add reward detail to self
@@ -1286,15 +1294,6 @@ class period_yield_data:
             if total_period_seconds
             else 0
         )
-
-        # TODO: solve somehow --> current self.rewards.usd is the absolute value of the rewards for the period
-        # but we shall overwrite it to be at same denominator ( shares value )
-        _test_original_rewards_usd = self.rewards.usd
-        _test_rewards_inishare_usd = (
-            _test_original_rewards_usd / self.ini_underlying_usd
-        )
-        # OVERWRITE: xtrapolate rewards to the period underlying value to get usd value
-        # self.rewards.usd = self.ini_underlying_usd * self.rewards.period_yield
 
         # TODO: remove next log line
         logging.getLogger(__name__).debug(
