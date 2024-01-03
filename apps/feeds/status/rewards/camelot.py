@@ -16,6 +16,16 @@ from bins.w3.helpers.multicaller import build_call_with_abi_part, execute_parse_
 def create_rewards_status_camelot_spnft(
     chain: Chain, rewarder_static: dict, hypervisor_status: dict
 ) -> list:
+    """This creates the rewards status for GRAIL and xGRAIL for the rewarder_static supplied ( does not matter if its GRAIL or xGRAIL)
+
+    Args:
+        chain (Chain):
+        rewarder_static (dict):
+        hypervisor_status (dict):
+
+    Returns:
+        list: GRAIL and xGRAIL independently
+    """
     result = []
     # get rewards onchain status
     if reward_data := get_camelot_rewards_spnftpool(
