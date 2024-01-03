@@ -313,6 +313,19 @@ def create_revenue(chain: Chain, ini_timestamp: int, end_timestamp: int) -> list
                 ]
             }
         },
+        # CAMELOT dex revenue is multiplied by 0.623529 to match the fee split
+        # TODO: add dex chain specific fee multiplier to config
+        {
+            "$addFields": {
+                "usd_value": {
+                    "$cond": [
+                        {"$eq": ["$dex", "camelot"]},
+                        {"$multiply": ["$usd_value", 0.623529]},
+                        "$usd_value",
+                    ]
+                }
+            }
+        },
         {
             "$group": {
                 "_id": "$dex",
