@@ -338,6 +338,7 @@ class reportType(str, Enum):
     GROSSFEES = "grossFees"
     KPI = "kpi"
     USERS_ACTIVITY = "usersActivity"
+    CUSTOM = "custom"
 
 
 class frontendType(str, Enum):
