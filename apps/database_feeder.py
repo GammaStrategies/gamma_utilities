@@ -478,7 +478,10 @@ def main(option="operations"):
                     )
 
                 elif option == "returns":
-                    feed_hypervisor_returns(chain=text_to_chain(network))
+                    feed_hypervisor_returns(
+                        chain=text_to_chain(network),
+                        rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
+                    )
 
                 else:
                     raise NotImplementedError(

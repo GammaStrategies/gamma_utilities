@@ -24,6 +24,7 @@ def feed_hypervisor_returns(
     chain: Chain,
     hypervisor_addresses: list[str] | None = None,
     multiprocess: bool = True,
+    rewrite: bool = False,
 ):
     """Feed hypervisor returns from the specified chain and hypervisor addresses
 
@@ -39,7 +40,7 @@ def feed_hypervisor_returns(
     )
 
     if _last_returns_data_db := get_last_return_data_from_db(
-        chain=chain, hypervisor_addresses=hypervisor_addresses
+        chain=chain, hypervisor_addresses=hypervisor_addresses, rewrite=rewrite
     ):
         latest_block = get_latest_block(chain=chain)
 
@@ -218,7 +219,7 @@ def create_period_yields(
 
 
 def get_last_return_data_from_db(
-    chain: Chain, hypervisor_addresses: list[str] | None = None
+    chain: Chain, hypervisor_addresses: list[str] | None = None, rewrite: bool = False
 ) -> list[tuple[str, int]]:
     """Get the last end period found for this hypervisor in hypervisor returns
     using blocks
@@ -266,15 +267,21 @@ def get_last_return_data_from_db(
     query.append(
         {"$group": {"_id": "$address", "end_block": {"$max": "$timeframe.end.block"}}}
     )
-    hypervisors_in_returns = {
-        x["_id"]: x["end_block"]
-        for x in get_from_localdb(
-            network=chain.database_name,
-            collection="hypervisor_returns",
-            aggregate=query,
-            batch_size=batch_size,
-        )
-    }
+
+    # empty if rewrite
+    hypervisors_in_returns = (
+        {
+            x["_id"]: x["end_block"]
+            for x in get_from_localdb(
+                network=chain.database_name,
+                collection="hypervisor_returns",
+                aggregate=query,
+                batch_size=batch_size,
+            )
+        }
+        if not rewrite
+        else {}
+    )
 
     for address, block in hypervisors_static.items():
         if address in hypervisors_in_returns:
