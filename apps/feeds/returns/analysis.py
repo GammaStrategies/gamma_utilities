@@ -1712,6 +1712,7 @@ class period_yield_analyzer:
     def _initialize(self):
         # total period seconds
         self._total_seconds = 0
+
         # initial and end
         self._ini_price_per_share = self.yield_data_list[0].price_per_share
         self._end_price_per_share = self.yield_data_list[-1].price_per_share
@@ -1742,6 +1743,7 @@ class period_yield_analyzer:
         self._rewards_per_share = Decimal("0")
         self._rewards_per_share_yield = Decimal("0")
         self._rewards_qtty_usd = Decimal("0")
+        self._rewards_token_symbols = set()
         # impermanent
         self._impermanent_qtty_token0 = Decimal("0")
         self._impermanent_qtty_token1 = Decimal("0")
@@ -1774,12 +1776,13 @@ class period_yield_analyzer:
         self._graph_data = []
 
     def _create_year_vars(self):
+        # convert total seconds to decimal
         total_seconds = Decimal(str(self._total_seconds))
         day_in_seconds = 60 * 60 * 24
         year_in_seconds = Decimal(str(day_in_seconds * 365))
         # create vars
         self._year_fees_per_share_yield = (
-            self._fees_per_share_yield / self._total_seconds
+            self._fees_per_share_yield / total_seconds
         ) * year_in_seconds
 
         self._year_fees_qtty_usd = (
@@ -1819,10 +1822,10 @@ class period_yield_analyzer:
 
         # period net yield to yearly extrapolation
         self._year_net_yield_qtty_usd = (
-            self._net_roi_yield_qtty_usd / total_seconds
+            self._net_roi_yield_qtty_usd / self._total_seconds
         ) * year_in_seconds
         self._year_net_yield_per_share = (
-            self._net_roi_yield / total_seconds
+            self._net_roi_yield / self._total_seconds
         ) * year_in_seconds
         self._year_net_yield_per_share_yield = (
             self._year_net_yield_per_share / self._ini_price_per_share
@@ -1871,6 +1874,9 @@ class period_yield_analyzer:
     # LOOP
     def _fill_variables(self):
         for yield_item in self.yield_data_list:
+            # add to total seconds
+            self._total_seconds += yield_item.period_seconds
+
             # FEES ( does not need any previous data )
             self._fill_variables_fees(yield_item)
 
@@ -2022,6 +2028,20 @@ class period_yield_analyzer:
         )
 
     def _fill_graph(self, yield_item: period_yield_data):
+        # build rewards details
+        _rwds_details = {
+            x: {"qtty": 0, "usd": 0, "seconds": 0, "period yield": 0}
+            for x in self._rewards_token_symbols
+        }
+
+        if yield_item.rewards.details:
+            for reward_detail in yield_item.rewards.details:
+                _rwds_details[reward_detail["symbol"]] = {
+                    "qtty": reward_detail["qtty"],
+                    "usd": reward_detail["usd"],
+                    "seconds": reward_detail["seconds"],
+                    "period yield": reward_detail["period yield"],
+                }
         # add to graph data
         self._graph_data.append(
             {
@@ -2030,7 +2050,11 @@ class period_yield_analyzer:
                 "symbol": self.hypervisor_static["symbol"],
                 "block": yield_item.timeframe.end.block,
                 "timestamp": yield_item.timeframe.end.timestamp,
-                "period": None,
+                "period_seconds": self._total_seconds,
+                "status": {
+                    "ini": yield_item.status.ini.to_dict(),
+                    "end": yield_item.status.end.to_dict(),
+                },
                 "fees": {
                     "period": {
                         "yield": self._fees_per_share_yield,
@@ -2054,6 +2078,7 @@ class period_yield_analyzer:
                         "yield": self._year_rewards_per_share_yield,
                         "qtty_usd": self._year_rewards_qtty_usd,
                     },
+                    "details": _rwds_details,
                 },
                 "impermanent": {
                     "period": {
@@ -2178,10 +2203,33 @@ class period_yield_analyzer:
         ):
             raise Exception("USD qtty calculation error")
 
-    # MMMM
+    # GETTERS
     def get_graph(self) -> list[dict]:
         return self._graph_data
 
+    def get_rewards_detail(self):
+        result = {}
+
+        for item in self.yield_data_list:
+            if item.rewards.details:
+                for detail in item.rewards.details:
+                    # add to result if not exists already
+                    if not detail["symbol"] in result:
+                        result[detail["symbol"]] = {
+                            "qtty": 0,
+                            "usd": 0,
+                            "seconds": 0,
+                            "period yield": 0,
+                        }
+                    # add to result
+                    result[detail["symbol"]]["qtty"] += detail["qtty"]
+                    result[detail["symbol"]]["usd"] += detail["usd"]
+                    result[detail["symbol"]]["seconds"] += detail["seconds"]
+                    result[detail["symbol"]]["period yield"] += detail["period yield"]
+
+        return result
+
+    # PRINTs
     def print_result(self):
         feeType = "LPs"
         # Title
@@ -2286,11 +2334,58 @@ class period_yield_analyzer:
             )
         logging.getLogger("analysis").info(f"    ")
 
+    # def convert_to_data_table(self):
+    #     result = []
+    #     # flatten data to be used in data table
+    #     for item in self.yield_data_list:
+    #         result.append(
+    #             {
+    #                 "address": item.address,
+    #                 "ini_block": item.timeframe.ini.block,
+    #                 "end_block": item.timeframe.end.block,
+    #                 "ini_timestamp": item.timeframe.ini.timestamp,
+    #                 "end_timestamp": item.timeframe.end.timestamp,
+    #                 "period_seconds": item.period_days,
+    #                 "ini_price_token0": item.status.ini.prices.token0,
+    #                 "ini_price_token1": item.status.ini.prices.token1,
+    #                 "end_price_token0": item.status.end.prices.token0,
+    #                 "end_price_token1": item.status.end.prices.token1,
+    #                 "ini_supply": item.status.ini.supply,
+    #                 "end_supply": item.status.end.supply,
+    #                 "ini_underlying_token0": item.status.ini.underlying.qtty.token0,
+    #                 "ini_underlying_token1": item.status.ini.underlying.qtty.token1,
+    #                 "ini_underlying_usd": item.ini_underlying_usd,
+    #                 "end_underlying_token0": item.status.end.underlying.qtty.token0,
+    #                 "end_underlying_token1": item.status.end.underlying.qtty.token1,
+    #                 "end_underlying_usd": item.end_underlying_usd,
+    #                 "fees_lps_qtty_token0": item.fees.qtty.token0,
+    #                 "fees_lps_qtty_token1": item.fees.qtty.token1,
+    #                 "fees_lps_period_yield": item.fees.period_yield,
+    #                 "fees_gamma_qtty_token0": item.fees_gamma.qtty.token0,
+    #                 "fees_gamma_qtty_token1": item.fees_gamma.qtty.token1,
+    #                 "fees_gamma_period_yield": item.fees_gamma.period_yield,
+    #                 "rewards_qtty_usd": item.rewards.usd,
+    #                 "rewards_period_yield": item.rewards.period_yield,
+    #                 # "rewards_details": item.rewards.details,
+    #                 "fees_per_share": item.fees_per_share,
+    #                 "rewards_per_share": item.rewards_per_share,
+    #                 "impermanent_per_share": item.impermanent_per_share,
+    #                 "price_per_share": item.price_per_share,
+
+    #             }
+    #         )
+
     # HELPERS
     def _find_initial_values(self):
         for yield_item in self.yield_data_list:
+            # TODO: REMOVE FROM HERE bc its already done in the loop
             # add total seconds
-            self._total_seconds += yield_item.period_seconds
+            # self._total_seconds += yield_item.period_seconds
+
+            # define the different reward tokens symbols ( if any ) to be used in graphic exports
+            if yield_item.rewards.details:
+                for reward_detail in yield_item.rewards.details:
+                    self._rewards_token_symbols.add(reward_detail["symbol"])
 
             # modify initial and end values, if needed ( should not be needed bc its sorted by timestamp)
             if yield_item.timeframe.ini.timestamp < self._ini_timestamp:
@@ -2335,24 +2430,3 @@ class period_yield_analyzer:
         logging.getLogger("benchmark").info(
             f" {self._fees_per_share:,.2f}  {self._rewards_per_share:,.2f}  {self._impermanent_per_share:,.2f}  {yield_item.price_per_share:,.2f} [roi net:{self._net_roi_per_share:,.2f}] [roi hype:{self._hype_roi_per_share:,.2f}] [initial:{self._ini_price_per_share:,.2f} ]"
         )
-
-    def get_rewards_detail(self):
-        result = {}
-
-        for item in self.yield_data_list:
-            for detail in item.rewards.details:
-                # add to result if not exists already
-                if not detail["symbol"] in result:
-                    result[detail["symbol"]] = {
-                        "qtty": 0,
-                        "usd": 0,
-                        "seconds": 0,
-                        "period yield": 0,
-                    }
-                # add to result
-                result[detail["symbol"]]["qtty"] += detail["qtty"]
-                result[detail["symbol"]]["usd"] += detail["usd"]
-                result[detail["symbol"]]["seconds"] += detail["seconds"]
-                result[detail["symbol"]]["period yield"] += detail["period yield"]
-
-        return result
