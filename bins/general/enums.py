@@ -100,6 +100,12 @@ class Protocol(str, Enum):
 
     PEGASYS = ("pegasys", "pegasys", "Pegasys")
 
+    APERTURE = ("aperture", "aperture", "Aperture")
+    HERCULES = ("hercules", "hercules", "Hercules")
+    BASESWAP = ("baseswap", "baseswap", "BaseSwap")
+    SWAPBASED = ("swapbased", "swapbased", "SwapBased")
+    PHARAOH = ("pharaoh", "pharaoh", "Pharaoh")
+
     # extra properties
     database_name: str
     fantasy_name: str

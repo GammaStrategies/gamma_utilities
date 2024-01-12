@@ -20,7 +20,6 @@ from datetime import datetime, timezone
 import logging
 
 import tqdm
-from apps.feeds.frontend.static_config import DEX_NAMES
 from bins.configuration import CONFIGURATION
 from bins.database.common.database_ids import create_id_frontend_revenue_stats
 from bins.database.common.db_collections_common import database_local
@@ -342,7 +341,7 @@ def create_revenue(chain: Chain, ini_timestamp: int, end_timestamp: int) -> list
         for revenue in revenue_summary:
             # convert revenue to float
             protocol = text_to_protocol(revenue["_id"])
-            exchange = DEX_NAMES.get(protocol, protocol.fantasy_name)
+            exchange = protocol.fantasy_name
             # build result
             result.append(
                 {
@@ -639,7 +638,7 @@ def create_lpFees(chain: Chain, ini_timestamp: int, end_timestamp: int) -> list:
 
         # convert revenue to float
         protocol = text_to_protocol(hype_status["dex"])
-        exchange = DEX_NAMES.get(protocol, protocol.fantasy_name)
+        exchange = protocol.fantasy_name
         # build output
         result.append(
             {
