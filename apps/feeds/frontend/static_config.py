@@ -1,5 +1,6 @@
 from bins.general.enums import Protocol
 
+# TODO: remove bc not be needed. We use protocol fantasy name now.
 DEX_NAMES = {
     Protocol.UNISWAPv3: "Uniswap",
     Protocol.QUICKSWAP: "QuickSwap",
@@ -15,4 +16,7 @@ DEX_NAMES = {
     Protocol.BEAMSWAP: "Beamswap",
     Protocol.STELLASWAP: "StellaSwap",
     Protocol.PEGASYS: "Pegasys",
+    Protocol.PANCAKESWAP: "PancakeSwap",
+    Protocol.GLACIER: "Glacier",
+    Protocol.BASEX: "BaseX",
 }

@@ -68,9 +68,9 @@ class Protocol(str, Enum):
     GAMMA = ("gamma", "gamma", "Gamma Strategies")
 
     ALGEBRAv3 = ("algebrav3", "algebrav3", "AlgebraV3")
-    UNISWAPv3 = ("uniswapv3", "uniswapv3", "UniswapV3")
+    UNISWAPv3 = ("uniswapv3", "uniswapv3", "Uniswap")
 
-    PANCAKESWAP = ("pancakeswap", "pancakeswap", "Pancakeswap")  # univ3 mod
+    PANCAKESWAP = ("pancakeswap", "pancakeswap", "PancakeSwap")  # univ3 mod
 
     BEAMSWAP = ("beamswap", "beamswap", "Beamswap")  # univ3 mod
     CAMELOT = ("camelot", "camelot", "Camelot")  # algebra mods
@@ -81,7 +81,7 @@ class Protocol(str, Enum):
     SPIRITSWAP = ("spiritswap", "spiritswap", "SpiritSwap")
     SUSHI = ("sushi", "sushi", "Sushi")
     RETRO = ("retro", "retro", "Retro")
-    STELLASWAP = ("stellaswap", "stellaswap", "Stellaswap")
+    STELLASWAP = ("stellaswap", "stellaswap", "StellaSwap")
 
     RAMSES = ("ramses", "ramses", "Ramses")
     VEZARD = ("vezard", "vezard", "veZard")

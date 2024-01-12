@@ -342,7 +342,7 @@ def create_revenue(chain: Chain, ini_timestamp: int, end_timestamp: int) -> list
         for revenue in revenue_summary:
             # convert revenue to float
             protocol = text_to_protocol(revenue["_id"])
-            exchange = DEX_NAMES.get(protocol, revenue["_id"])
+            exchange = DEX_NAMES.get(protocol, protocol.fantasy_name)
             # build result
             result.append(
                 {
@@ -639,7 +639,7 @@ def create_lpFees(chain: Chain, ini_timestamp: int, end_timestamp: int) -> list:
 
         # convert revenue to float
         protocol = text_to_protocol(hype_status["dex"])
-        exchange = DEX_NAMES.get(protocol, hype_status["dex"])
+        exchange = DEX_NAMES.get(protocol, protocol.fantasy_name)
         # build output
         result.append(
             {
