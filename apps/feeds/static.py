@@ -726,7 +726,6 @@ def create_rewards_static(
             rewrite=rewrite,
             block=block,
         )
-        # Merkle also ?
 
     # SYNTHSWAP
     if dex == Protocol.SYNTHSWAP.database_name:
@@ -744,6 +743,7 @@ def create_rewards_static(
         Protocol.RETRO.database_name,
         Protocol.UNISWAPv3.database_name,
         Protocol.CAMELOT.database_name,
+        Protocol.QUICKSWAP.database_name,
     ]:
         rewards_static_lst += create_rewards_static_merkl(
             chain=text_to_chain(network),
