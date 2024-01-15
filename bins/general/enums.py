@@ -349,6 +349,8 @@ class reportType(str, Enum):
 
 class frontendType(str, Enum):
     REVENUE_STATS = "revenue_stats"
+    #
+    REVENUE_STATS_DAILY = "revenue_stats_daily"
 
 
 class cuType(str, Enum):
