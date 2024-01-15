@@ -1763,7 +1763,7 @@ class period_yield_analyzer:
         self._net_roi_per_share_yield = Decimal("0")
 
         # comparison
-        self._period_hodl_deposited = Decimal("0")
+        self._current_period_hodl_deposited = Decimal("0")
         self._period_hodl_deposited_yield = Decimal("0")
         self._period_hodl_fifty = Decimal("0")
         self._period_hodl_fifty_yield = Decimal("0")
@@ -1857,6 +1857,11 @@ class period_yield_analyzer:
 
     @property
     def period_hodl_deposited(self):
+        """Whole period hodl deposited
+
+        Returns:
+            _type_: _description_
+        """
         return (
             self._deposit_qtty_token0 * self._end_prices.token0
             + self._deposit_qtty_token1 * self._end_prices.token1
@@ -1896,7 +1901,7 @@ class period_yield_analyzer:
             self._fill_variables_price(yield_item)
 
             # COMPARISON
-            self._fill_variables_comparison()
+            self._fill_variables_comparison(yield_item)
 
             # YEAR variables
             self._create_year_vars()
@@ -1996,31 +2001,40 @@ class period_yield_analyzer:
             yield_item.status.end.prices.token1 - self._ini_prices.token1
         ) / self._ini_prices.token1
 
-    def _fill_variables_comparison(self):
+    def _fill_variables_comparison(self, yield_item: period_yield_data):
+        # calculate self.current_period_hodl_deposited  as deposit qtty * yield_item end prices
+        self._current_period_hodl_deposited = (
+            self._deposit_qtty_token0 * yield_item.status.end.prices.token0
+            + self._deposit_qtty_token1 * yield_item.status.end.prices.token1
+        )
         self._period_hodl_deposited_yield = (
             (
-                (self.period_hodl_deposited - self.deposit_qtty_usd)
+                (self._current_period_hodl_deposited - self.deposit_qtty_usd)
                 / self.deposit_qtty_usd
             )
             if self.deposit_qtty_usd
             else Decimal("0")
         )
         self._period_hodl_fifty = (
-            self.fifty_qtty_token0 * self._end_prices.token0
-            + self.fifty_qtty_token1 * self._end_prices.token1
+            self.fifty_qtty_token0 * yield_item.status.end.prices.token0
+            + self.fifty_qtty_token1 * yield_item.status.end.prices.token1
         )
         self._period_hodl_fifty_yield = (
             ((self._period_hodl_fifty - self.deposit_qtty_usd) / self.deposit_qtty_usd)
             if self.deposit_qtty_usd
             else Decimal("0")
         )
-        self._period_hodl_token0 = self.hold_token0_qtty * self._end_prices.token0
+        self._period_hodl_token0 = (
+            self.hold_token0_qtty * yield_item.status.end.prices.token0
+        )
         self._period_hodl_token0_yield = (
             ((self._period_hodl_token0 - self.deposit_qtty_usd) / self.deposit_qtty_usd)
             if self.deposit_qtty_usd
             else Decimal("0")
         )
-        self._period_hodl_token1 = self.hold_token1_qtty * self._end_prices.token1
+        self._period_hodl_token1 = (
+            self.hold_token1_qtty * yield_item.status.end.prices.token1
+        )
         self._period_hodl_token1_yield = (
             ((self._period_hodl_token1 - self.deposit_qtty_usd) / self.deposit_qtty_usd)
             if self.deposit_qtty_usd
