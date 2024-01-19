@@ -2,11 +2,15 @@ import contextlib
 import logging
 
 from web3 import Web3
-from bins.general.enums import Chain, text_to_chain
+from bins.general.enums import Chain, error_identity, rewarderType, text_to_chain
+
+# from bins.w3.builders import build_erc20_helper
 
 from bins.w3.helpers.multicaller import build_call_with_abi_part, execute_parse_calls
 from ..base_wrapper import web3wrap
 from ..general import erc20_cached
+
+from ....errors.general import ProcessingError
 
 
 class gamma_rewarder(web3wrap):
@@ -177,6 +181,154 @@ class gamma_masterchef_rewarder(gamma_rewarder):
         if not static_mode:
             pass
 
+        return result
+
+    # get all rewards
+    def get_rewards(
+        self,
+        hypervisors_and_pids: dict[str, int],
+        convert_bint: bool = False,
+    ) -> list[dict]:
+        """Search for rewards data
+
+        Args:
+            hypervisor_addresses (list[str] | None, optional): list of lower case hypervisor addresses. When defaults to None, all rewarded hypes ( gamma or non gamma) will be returned.
+            pids (list[int] | None, optional): pool ids linked to hypervisor. When defaults to None, all pools will be returned.
+            convert_bint (bool, optional): Convert big integers to string. Defaults to False.
+        Returns:
+            list[dict]: network: str
+                        block: int
+                        timestamp: int
+                        hypervisor_address: str
+                        rewarder_address: str
+                        rewarder_type: str
+                        rewarder_refIds: list[str]
+                        rewardToken: str
+                        rewardToken_symbol: str
+                        rewardToken_decimals: int
+                        rewards_perSecond: int
+                        total_hypervisorToken_qtty: int
+        """
+        result = []
+
+        # multicall
+        basic_info: dict = self.multicall_basic_info()
+
+        # only continue if there are rewards to calc.
+        if basic_info["rewardPerSecond"] <= 0:
+            logging.getLogger(__name__).debug(
+                f" no rewards active for {self._network} rewarder {self._address}. Skiping."
+            )
+            return result
+
+        # # get reward token data
+        # chain = text_to_chain(self._network)
+        # ercHelper = build_erc20_helper(
+        #     chain=chain, address=basic_info["rewardToken"], block=self.block
+        # )
+        # rewardToken_decimals = ercHelper.decimals
+        # rewardToken_symbol = ercHelper.symbol
+
+        for hypervisor_address, pid in hypervisors_and_pids.items():
+            (
+                accSushiPerShare,
+                lastRewardTimestamp,
+                allocPoint,
+            ) = self.poolInfo(pid)
+
+            # continue if rewards are allocated
+            if allocPoint > 0:
+                # get percentage allocated to this pool
+                hype_rewardsPerSec = (
+                    (
+                        basic_info["rewardPerSecond"]
+                        * (allocPoint / basic_info["totalAllocPoint"])
+                    )
+                    if basic_info["totalAllocPoint"]
+                    else 0
+                )
+
+                # # total staked lp tokens
+                # lptokenHelper = build_erc20_helper(
+                #     chain=chain, address=hypervisor_address, block=self.block
+                # )
+                # totalLp = lptokenHelper.balanceOf(address=self.address)
+
+                result.append(
+                    {
+                        # "network": self._network,
+                        "block": self.block,
+                        "timestamp": self._timestamp,
+                        "hypervisor_address": hypervisor_address.lower(),
+                        "rewarder_address": self.address.lower(),
+                        "rewarder_type": rewarderType.GAMMA_masterchef_rewarder,
+                        "rewarder_refIds": [pid],
+                        "rewarder_registry": basic_info["MASTERCHEF_V2"].lower(),
+                        "rewardToken": basic_info["rewardToken"].lower(),
+                        "rewardToken_symbol": "",
+                        "rewardToken_decimals": "",
+                        "rewards_perSecond": str(hype_rewardsPerSec)
+                        if convert_bint
+                        else hype_rewardsPerSec,
+                        "total_hypervisorToken_qtty": 0,
+                        "raw_data": {
+                            "allocPoint": allocPoint,
+                            "lastRewardTimestamp": lastRewardTimestamp,
+                            "accZyberPerShare": str(accSushiPerShare)
+                            if convert_bint
+                            else accSushiPerShare,
+                        },
+                    }
+                )
+
+        return result
+
+    def multicall_basic_info(self):
+        result = {}
+
+        chain = text_to_chain(self._network)
+        _max_calls_atOnce = 20
+
+        # call all read only functions: ACC_TOKEN_PRECISION, poolLength, rewardPerSecond, rewardToken, totalAllocPoint
+        fnames_to_call = [
+            "ACC_TOKEN_PRECISION",
+            "MASTERCHEF_V2",
+            "poolLength",
+            "rewardPerSecond",
+            "rewardToken",
+            "totalAllocPoint",
+        ]
+        factory_calls = [
+            build_call_with_abi_part(
+                abi_part=self.get_abi_function(fname),
+                inputs_values=[],
+                address=self.address,
+                object="rewarder",
+            )
+            for fname in fnames_to_call
+        ]
+
+        #   place call
+        for i in range(0, len(factory_calls), _max_calls_atOnce):
+            # execute calls
+            for _item in execute_parse_calls(
+                network=chain.database_name,
+                block=self.block,
+                calls=factory_calls[i : i + _max_calls_atOnce],
+                convert_bint=False,
+                requireSuccess=False,
+            ):
+                if not _item["outputs"]:
+                    continue
+
+                # set variable value
+                if _item["outputs"][0]["type"] == "address":
+                    # lower case if address
+                    result[_item["name"]] = _item["outputs"][0].get("value", 0).lower()
+                else:
+                    result[_item["name"]] = _item["outputs"][0].get("value", 0)
+
+        # return
         return result
 
 
@@ -376,27 +528,26 @@ class gamma_masterchef_v1(gamma_rewarder):
         # return non blacklisted addresses
         return result
 
-    def get_rewarders(self, rid: int = 0) -> dict:
+    def get_rewarders(self, rid: int = 0) -> dict[str, dict[str, int]]:
         """Get a dict of rewarder addresses and lpTokens from the masterchef
 
         Args:
             rid (int, optional): _description_. Defaults to 0.
 
         Returns:
-            dict: <rewarder address> : <lp token address>
+            dict: <rewarder address> : {<hypervisor address (lpToken)>:<pid>, ... ]
         """
-
-        ## if x: = get poolInfo(i) for i in range(1000)
-        #       try get rewarder address and lpToken address
-        ##      if both are valid, add to result
-
-        _max_loop = 1000
-        # not needed. delete
-        pool_length = self.poolLength
+        #
         result = {}
+
+        # init control vars
+        pool_length = self.poolLength
+        _max_loop = max(pool_length, 500)
         _processed = 0
         _looped = 0
-        # call getRewarder(pool idx, rid)
+        _invalids = 0
+
+        # loop over all available pids ( blindly... brute force)
         for i in range(_max_loop):
             if _processed >= pool_length:
                 break
@@ -405,23 +556,54 @@ class gamma_masterchef_v1(gamma_rewarder):
             lpToken_address = None
             try:
                 rewarder_address = self.getRewarder(i, rid)
+            except ProcessingError as e:
+                if e.identity == error_identity.NO_RPC_AVAILABLE:
+                    if _processed == 0:
+                        # this has no getReward function. LOG and return empty
+                        logging.getLogger(__name__).error(
+                            f" {self._network} masterchef {self.address} has no getRewarder function (its an old rewarder). Skiping."
+                        )
+                        return {}
+                    else:
+                        logging.getLogger(__name__).warning(
+                            f" Returning result gathered so far for {self._network} masterchef {self.address} after encountering a getRewarder function error."
+                        )
+                        return result
             except Exception as e:
                 # this is actually a rewarder when no getRewarder function is found
-                pass
+                _invalids += 1
             try:
                 lpToken_address = self.lpToken(i)
-                _processed += 1
+                # _processed += 1
+
             except Exception as e:
-                pass
+                _invalids += 1
 
             if rewarder_address and lpToken_address:
-                result[rewarder_address.lower()] = lpToken_address.lower()
+                if not rewarder_address.lower() in result:
+                    result[rewarder_address.lower()] = {}
+                # add hypervisor address and PID
+                if not lpToken_address.lower() in result[rewarder_address.lower()]:
+                    result[rewarder_address.lower()][lpToken_address.lower()] = i
+                else:
+                    logging.getLogger(__name__).error(
+                        f" {self._network} masterchef {self.address} get_rewarders: duplicate lpToken address {lpToken_address} for rewarder {rewarder_address}"
+                    )
+
+                # result[rewarder_address.lower()].append(lpToken_address.lower())
+                _processed += 1
 
             _looped += 1
 
+            # break on too much invalids
+            if _invalids >= 18 and _processed == 0:
+                logging.getLogger(__name__).error(
+                    f" {self._network} masterchef {self.address} get_rewarders: MAXED OUT the invalids times {_invalids}. Consider it broken."
+                )
+
         if _looped >= _max_loop:
-            logging.getLogger(__name__).warning(
-                f" masterchef get_rewarders: MAXED OUT the looped times {_looped}. Consider increasing the loop limit."
+            logging.getLogger(__name__).error(
+                f" {self._network} masterchef {self.address} get_rewarders: MAXED OUT the looped times {_looped}. Consider it broken."
             )
 
         return result

@@ -273,6 +273,7 @@ class queueItemType(str, Enum):
 class rewarderType(str, Enum):
     GAMMA_masterchef_v1 = "gamma_masterchef_v1"
     GAMMA_masterchef_v2 = "gamma_masterchef_v2"
+    GAMMA_masterchef_rewarder = "gamma_masterchef_rewarder"
 
     ZYBERSWAP_masterchef_v1 = "zyberswap_masterchef_v1"
     ZYBERSWAP_masterchef_v1_rewarder = "zyberswap_masterchef_v1_rewarder"

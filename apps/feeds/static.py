@@ -39,6 +39,7 @@ from bins.w3.protocols.general import erc20, bep20
 
 from bins.w3.protocols.gamma.registry import gamma_hypervisor_registry
 from bins.w3.protocols.gamma.rewarder import (
+    gamma_masterchef_rewarder,
     gamma_rewarder,
     gamma_masterchef_registry,
     gamma_masterchef_v1,
@@ -746,6 +747,20 @@ def create_rewards_static(
         Protocol.QUICKSWAP.database_name,
     ]:
         rewards_static_lst += create_rewards_static_merkl(
+            chain=text_to_chain(network),
+            hypervisors=hypervisors,
+            already_processed=already_processed,
+            rewrite=rewrite,
+            block=block,
+        )
+
+    # GAMMA
+    if dex in list(
+        STATIC_REGISTRY_ADDRESSES.get(network, {})
+        .get("MasterChefV2Registry", {})
+        .keys()
+    ):
+        rewards_static_lst += create_rewards_static_gamma(
             chain=text_to_chain(network),
             hypervisors=hypervisors,
             already_processed=already_processed,
@@ -1658,7 +1673,7 @@ def create_rewards_static_camelot_nitro(
     return result
 
 
-# TODO: complete gamma rewards
+# gamma rewards
 def create_rewards_static_gamma(
     chain: Chain,
     hypervisors: list[dict],
@@ -1668,9 +1683,7 @@ def create_rewards_static_gamma(
 ) -> list[dict]:
     result = []
     for dex in (
-        [dex]
-        if dex
-        else STATIC_REGISTRY_ADDRESSES.get(chain.database_name, {})
+        STATIC_REGISTRY_ADDRESSES.get(chain.database_name, {})
         .get("MasterChefV2Registry", {})
         .keys()
     ):
@@ -1684,118 +1697,139 @@ def create_rewards_static_gamma(
                 "MasterChefV2Registry"
             ][dex],
             network=chain.database_name,
+            block=block,
         )
 
         # get masterchef addresses from masterchef registry
-        for registry_address in masterchef_registry.get_masterchef_addresses():
-            # create reward registry
-            reward_registry = gamma_masterchef_v1(
-                address=registry_address, network=chain.database_name
+        for masterchef_address in masterchef_registry.get_masterchef_addresses():
+            # create masterchef helper
+            masterchef_helper = gamma_masterchef_v1(
+                address=masterchef_address, network=chain.database_name, block=block
             )
+            # get rewarders from masterchef
+            all_rewarders = masterchef_helper.get_rewarders(rid=0)
+            if not all_rewarders:
+                logging.getLogger(__name__).info(
+                    f"           No rewarders found for {chain} {masterchef_address}. Skipping."
+                )
+                continue
+            logging.getLogger(__name__).debug(
+                f"  {chain.database_name} - found {len(all_rewarders)} rewarders in masterchef {masterchef_address}"
+            )
+            # scrape masterchef creation block to be user as start block for rewarders
+            if creation_data := _get_contract_creation_block(
+                network=chain.database_name,
+                contract_address=masterchef_address,
+            ):
+                reward_static_block = creation_data["block"]
+                creation_timestamp = creation_data["timestamp"]
+            else:
+                # modify block number manually -> block num. is later used to update rewards_status from
+                reward_static_block = masterchef_helper.block
+                creation_timestamp = masterchef_helper._timestamp
+
+            # process each rewarder &+ to result
+            for rewarder_data in all_rewarders:
+                for (
+                    rewarder_address,
+                    hypervisors_and_pids,
+                ) in rewarder_data.items():
+                    # filter hypervisor addresses
+                    hypervisors_and_pids = {
+                        k: v
+                        for k, v in hypervisors_and_pids.items()
+                        if k.lower() in hypervisors
+                    }
+                    if not hypervisors_and_pids:
+                        logging.getLogger(__name__).debug(
+                            f"           No hypervisors found to be processed for {chain} {rewarder_address}"
+                        )
+                        continue
+
+                    # build rewarder & get info
+                    gamma_rewarder = gamma_masterchef_rewarder(
+                        address=rewarder_address,
+                        network=chain.database_name,
+                        block=block,
+                    )
+                    rewards = gamma_rewarder.get_rewards(
+                        hypervisors_and_pids=hypervisors_and_pids
+                    )
+                    if not rewards:
+                        logging.getLogger(__name__).info(
+                            f"           No active rewards found for {chain} {rewarder_address}"
+                        )
+                        return
+
+                    # complete each reward info and append to result
+                    for reward in rewards:
+                        # check if we should include this into result
+                        if rewrite == False and (
+                            create_id_rewards_static(
+                                hypervisor_address=reward["hypervisor_address"],
+                                rewarder_address=reward["rewarder_address"],
+                                rewardToken_address=reward["rewardToken"].lower(),
+                            )
+                            in already_processed
+                            or reward["rewardToken"].lower()
+                            == "0x0000000000000000000000000000000000000000"
+                        ):
+                            # skip this rewarder
+                            # logging.getLogger(__name__).debug(f"          Skipping {chain} {rewarder_address} pid {reward['rewarder_refIds']} as it is already processed")
+                            continue
+
+                        # set reward token symbol and decimals
+                        ercHelper = build_erc20_helper(
+                            chain=chain,
+                            address=reward["rewardToken"],
+                            block=reward["block"],
+                        )
+                        reward["rewardToken_symbol"] = ercHelper.symbol
+                        reward["rewardToken_decimals"] = ercHelper.decimals
+                        # set total lpToken qtty staked ( string to avoid mongo uint 8bit overflow)
+                        ercHelper = build_erc20_helper(
+                            chain=chain,
+                            address=reward["hypervisor_address"],
+                            block=reward["block"],
+                        )
+                        if totalLP := ercHelper.balanceOf(reward["rewarder_registry"]):
+                            reward["total_hypervisorToken_qtty"] = str(totalLP)
+                        else:
+                            logging.getLogger(__name__).debug(
+                                f"           No total LP found for {chain} hype {reward['hypervisor_address']} at rewarder {rewarder_address} pid {reward['rewarder_refIds']}"
+                            )
+
+                        # append to result
+                        result.append(
+                            {
+                                "block": reward_static_block or reward["block"],
+                                "timestamp": reward["timestamp"],
+                                "hypervisor_address": reward[
+                                    "hypervisor_address"
+                                ].lower(),
+                                "rewarder_address": reward["rewarder_address"].lower(),
+                                "rewarder_type": rewarderType.GAMMA_masterchef_rewarder,
+                                "rewarder_refIds": [],
+                                "rewarder_registry": reward[
+                                    "rewarder_registry"
+                                ].lower(),
+                                "rewardToken": reward["rewardToken"].lower(),
+                                "rewardToken_symbol": reward["rewardToken_symbol"],
+                                "rewardToken_decimals": reward["rewardToken_decimals"],
+                                "rewards_perSecond": str(reward["rewards_perSecond"]),
+                                "total_hypervisorToken_qtty": str(
+                                    reward["total_hypervisorToken_qtty"]
+                                ),
+                                "start_rewards_timestamp": creation_timestamp,
+                                "end_rewards_timestamp": 0,
+                            }
+                        )
+
+                    logging.getLogger(__name__).debug(
+                        f"           {len(rewards)} rewards found for {chain} {rewarder_address} pid {reward['rewarder_refIds']}"
+                    )
 
     return result
-
-
-# def feed_gamma_masterchef_static(
-#     network: str | None = None,
-#     dex: str | None = None,
-#     protocol: str = "gamma",
-#     rewrite: bool = False,
-# ):
-#     logging.getLogger(__name__).info(f">Feeding rewards static information")
-
-#     for network in [network] if network else STATIC_REGISTRY_ADDRESSES.keys():
-#         for dex in (
-#             [dex]
-#             if dex
-#             else STATIC_REGISTRY_ADDRESSES.get(network, {})
-#             .get("MasterChefV2Registry", {})
-#             .keys()
-#         ):
-#             logging.getLogger(__name__).info(
-#                 f"   feeding {protocol}'s {network} rewards for {dex}"
-#             )
-#             # set local database name and create manager
-#             local_db = database_local(
-#                 mongo_url=CONFIGURATION["sources"]["database"]["mongo_server_url"],
-#                 db_name=f"{network}_{protocol}",
-#             )
-
-#             # set already processed static rewards
-#             try:
-#                 already_processed = (
-#                     [x["id"] for x in local_db.get_rewards_static()]
-#                     if not rewrite
-#                     else []
-#                 )
-#             except Exception as e:
-#                 logging.getLogger(__name__).warning(
-#                     f" Could not get rewards static data : {e}"
-#                 )
-#                 already_processed = []
-
-
-#             # TODO: masterchef v1 registry
-
-#             # masterchef v2 registry
-#             address = STATIC_REGISTRY_ADDRESSES[network]["MasterChefV2Registry"][dex]
-
-#             # create masterchef registry
-#             registry = gamma_masterchef_registry(address, network)
-
-#             # get masterchef addresses from masterchef registry
-#             reward_registry_addresses = registry.get_masterchef_addresses()
-
-#             for registry_address in reward_registry_addresses:
-#                 # create reward registry
-#                 reward_registry = gamma_masterchef_v1(
-#                     address=registry_address, network=network
-#                 )
-
-#                 for i in range(reward_registry.poolLength):
-#                     # TODO: try catch exceptions and rise them for hypervisor_address
-#                     # get hypervisor address
-#                     hypervisor_address = reward_registry.lpToken(pid=i)
-
-#                     # TODO: how to scrape rid ?
-#                     for rid in range(100):
-#                         try:
-#                             # get reward address
-#                             rewarder_address = reward_registry.getRewarder(
-#                                 pid=i, rid=rid
-#                             )
-
-#                             # get rewarder
-#                             rewarder = gamma_masterchef_rewarder(
-#                                 address=rewarder_address, network=network
-#                             )
-
-#                             result = rewarder.as_dict(convert_bint=True)
-
-#                             # manually add hypervisor address to rewarder
-#                             result["hypervisor_address"] = hypervisor_address.lower()
-
-#                             # manually add dex
-#                             result["dex"] = dex
-#                             result["pid"] = i
-#                             result["rid"] = rid
-
-#                             # save to database
-#                             local_db.set_rewards_static(data=result)
-
-#                         except ValueError:
-#                             # no more rid's
-#                             break
-#                         except Exception as e:
-#                             if rewarder_address:
-#                                 logging.getLogger(__name__).exception(
-#                                     f"   Unexpected error while feeding db with rewarder {rewarder_address}. hype: {hypervisor_address}  . error:{e}"
-#                                 )
-#                             else:
-#                                 logging.getLogger(__name__).exception(
-#                                     f"   Unexpected error while feeding db with rewarders from {reward_registry_addresses} registry. hype: {hypervisor_address}  . error:{e}"
-#                                 )
-#                             break
 
 
 # helpers
