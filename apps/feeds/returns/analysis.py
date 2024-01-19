@@ -1702,9 +1702,13 @@ class period_yield_analyzer:
     ) -> None:
         # save base data
         self.chain = chain
-        self.yield_data_list = yield_data_list
         # filter yield_data_list outliers
-        self.discard_data_outliers()
+        self.yield_data_list = self.discard_data_outliers(
+            yield_data_list=yield_data_list
+        )
+        if not self.yield_data_list:
+            raise Exception("No data to analyze")
+
         self.hypervisor_static = hypervisor_static
         # init other vars
         self._initialize()
@@ -1851,41 +1855,56 @@ class period_yield_analyzer:
 
     def discard_data_outliers(
         self,
-        max_items: int = 10,
-        max_value: float = 0.5,
+        yield_data_list: list[period_yield_data],
+        max_items: int | None = None,
+        max_reward_yield: float = 2.0,
+        max_fees_yield: float = 2.0,
     ):
-        """self.yield_data_list often contain initial data with humongous yields ( due to the init of the hype, Gamma team may be testing rewards, or injecting liquidity directly without using deposit [to mod token weights])
-        This function will discard all APR >  <max_value>  in the first  <max_items>  hype periods of self.yield_data_list
-        """
+        """self.yield_data_list often contain initial data with humongous yields ( due to the init of the hype, Gamma team may be testing rewards, or injecting liquidity directly without using deposit [to mod token weights])"""
+        result_list = []
+        for idx, itm in enumerate(
+            yield_data_list[:max_items] if max_items else yield_data_list
+        ):
+            if itm.period_seconds == 0:
+                logging.getLogger(__name__).debug(
+                    f" - discarding idx {idx} yield item with 0 period seconds  hype: {itm.address}"
+                )
+                continue
 
-        max_value = Decimal(str(max_value))
-        _copy_list = self.yield_data_list.copy()
-        _original_length = len(_copy_list)
-        for idx, itm in enumerate(_copy_list[:max_items]):
-            if itm.rewards_per_share_percentage_yield > max_value:
-                logging.getLogger(__name__).debug(
-                    f" - discarding the {idx} yield item rewards outlier {itm.rewards_per_share_percentage_yield:,.2%} [{itm.timeframe.seconds/60*60*24:.0f} day item]"
-                )
-                # remove from original list
-                self.yield_data_list.pop(idx)
-            elif itm.fees_per_share_percentage_yield > max_value:
-                logging.getLogger(__name__).debug(
-                    f" - discarding the {idx} yield item fees outlier {itm.fees_per_share_percentage_yield:,.2%}  [{itm.timeframe.seconds/60*60*24:.0f} day item]"
-                )
-                # remove from original list
-                self.yield_data_list.pop(idx)
-            elif itm.impermanent_per_share_percentage_yield > max_value:
-                logging.getLogger(__name__).debug(
-                    f" - discarding the {idx} yield item impermanent outlier {itm.impermanent_per_share_percentage_yield:,.2%}  [{itm.timeframe.seconds/60*60*24:.0f} day item]"
-                )
-                # remove from original list
-                self.yield_data_list.pop(idx)
+            # elif itm.impermanent_per_share_percentage_yield > max_reward_yield:
+            #     logging.getLogger(__name__).debug(
+            #         f" - discarding idx {idx} yield item impermanent outlier {itm.impermanent_per_share_percentage_yield:,.2%}  [{itm.timeframe.seconds/(60*60*24):.0f} day item]"
+            #     )
+            #     continue
 
-        _current_length = len(self.yield_data_list)
-        if _current_length != _original_length:
-            logging.getLogger(__name__).debug(
-                f" -    A Total of {_original_length-_current_length} yield items have been identified as outliers and discarded"
+            # rewards vs tvl ratio
+            _reward_yield = (
+                (itm.rewards.usd or 0) / itm.ini_underlying_usd
+                if itm.ini_underlying_usd
+                else 0
             )
+            if _reward_yield > max_reward_yield:
+                logging.getLogger(__name__).debug(
+                    f" - discarding idx {idx} yield item rewards outlier1  {_reward_yield:,.2%}  [{itm.timeframe.seconds/(60*60*24):.0f} day item] hype: {itm.address}"
+                )
+                continue
+
+            if itm.fees_per_share_percentage_yield > max_fees_yield:
+                logging.getLogger(__name__).debug(
+                    f" - discarding idx {idx} yield item fees outlier {itm.fees_per_share_percentage_yield:,.2%}  [{itm.timeframe.seconds/(60*60*24):.0f} day item] hype: {itm.address}"
+                )
+                continue
+
+            # add to result
+            result_list.append(itm)
+
+        if len(result_list) != len(yield_data_list):
+            _removed = len(yield_data_list) - len(result_list)
+            logging.getLogger(__name__).debug(
+                f" -    A Total of {_removed} yield items have been identified as outliers and discarded [{_removed/len(yield_data_list):,.1%} of total]"
+            )
+
+        return result_list
 
     # COMPARISON PROPERTIES
     @property
@@ -2210,23 +2229,39 @@ class period_yield_analyzer:
                     },
                     "gamma_vs": {
                         "hodl_deposited": (
-                            (self._net_roi_yield + 1)
-                            / (self._period_hodl_deposited_yield + 1)
+                            (
+                                (self._net_roi_yield + 1)
+                                / (self._period_hodl_deposited_yield + 1)
+                            )
+                            if self._period_hodl_deposited_yield != -1
+                            else 0
                         )
                         - 1,
                         "hodl_fifty": (
-                            (self._net_roi_yield + 1)
-                            / (self._period_hodl_fifty_yield + 1)
+                            (
+                                (self._net_roi_yield + 1)
+                                / (self._period_hodl_fifty_yield + 1)
+                            )
+                            if self._period_hodl_fifty_yield != -1
+                            else 0
                         )
                         - 1,
                         "hodl_token0": (
-                            (self._net_roi_yield + 1)
-                            / (self._period_hodl_token0_yield + 1)
+                            (
+                                (self._net_roi_yield + 1)
+                                / (self._period_hodl_token0_yield + 1)
+                            )
+                            if self._period_hodl_token0_yield != -1
+                            else 0
                         )
                         - 1,
                         "hodl_token1": (
-                            (self._net_roi_yield + 1)
-                            / (self._period_hodl_token1_yield + 1)
+                            (
+                                (self._net_roi_yield + 1)
+                                / (self._period_hodl_token1_yield + 1)
+                            )
+                            if self._period_hodl_token1_yield != -1
+                            else 0
                         )
                         - 1,
                     },
