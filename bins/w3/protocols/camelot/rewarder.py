@@ -41,7 +41,7 @@ class camelot_rewards_nft_pool_master(web3wrap):
         """
         return self.call_function_autoRpc(fn_name, None, *args)
 
-    def get_all_nft_pools_addresses(self, chain: Chain) -> list[str]:
+    def get_all_active_nft_pools_addresses(self, chain: Chain) -> list[str]:
         """Get all nft pools addresses (using multicall)
            total calls: 1 + activePoolsLength/100 ( 1 + 2 = 3 calls for 200 pools)
 
@@ -78,6 +78,43 @@ class camelot_rewards_nft_pool_master(web3wrap):
             )
         return [x["outputs"][0]["value"].lower() for x in nft_pool_addresses]
 
+    def get_all_nft_pools_addresses(self, chain: Chain) -> list[str]:
+        """Get all nft pools addresses (using multicall) Active and inactive
+           total calls: 1 + PoolsLength/100 ( 1 + 2 = 3 calls for 200 pools)
+
+        Args:
+            chain (Chain):
+            master_address (str):
+            block (int, optional): . Defaults to 0.
+
+        Returns:
+            list[str]: _description_
+        """
+        # get total number of active nft pools
+        active_nft_pools = self.call_fn(fn_name="poolsLength")
+        # prepare calls for the multicall: for range i to pools lenght  call getPoolAddressByIndex(i)
+        abi_part = self.get_abi_function("getPoolAddressByIndex")
+        master_calls = [
+            build_call_with_abi_part(
+                abi_part=abi_part,
+                inputs_values=[i],
+                address=self.address,
+                object="nft_pool_master",
+            )
+            for i in range(active_nft_pools)
+        ]
+        # place xxx calls at a time
+        _max_calls_atOnce = 1000
+        nft_pool_addresses = []
+        for i in range(0, len(master_calls), _max_calls_atOnce):
+            nft_pool_addresses += execute_parse_calls(
+                network=chain.database_name,
+                block=self.block,
+                calls=master_calls[i : i + _max_calls_atOnce],
+                convert_bint=False,
+            )
+        return [x["outputs"][0]["value"].lower() for x in nft_pool_addresses]
+
     def get_all_rewards_info(self, chain: Chain):
         """Returns all active rewards found information, using multicall
             * when allocPoint,poolEmissionRate,reserve is 0, the pool is inactive
@@ -88,7 +125,7 @@ class camelot_rewards_nft_pool_master(web3wrap):
             dict: {<nft_pool_address>:  allocPoint,lastRewardTime,reserve,poolEmisionRate,lpToken,grailToken, xGrailToken, accRewardsPerShare,lpSupply,lpSupplyWithMultiplier }
         """
         # get total number of active nft pools
-        nft_pool_addresses = self.get_all_nft_pools_addresses(chain=chain)
+        nft_pool_addresses = self.get_all_active_nft_pools_addresses(chain=chain)
 
         # from master call getPoolInfo: get emissionRate
         # prepare calls for the multicall: for range i to active pools lenght  call getPoolInfo(i)
