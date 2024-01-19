@@ -1144,7 +1144,7 @@ def log_summary(summary: dict, hype_static: dict, chain: Chain, feeType: str) ->
     """
 
     # log results
-    logging.getLogger("analysis").info(
+    logging.getLogger(__name__).info(
         f" {chain.fantasy_name}'s {hype_static['dex']} {hype_static['symbol']} returns:  [{hype_static['address']}]  -> fee type: {feeType}"
     )
 
@@ -1185,17 +1185,17 @@ def log_summary(summary: dict, hype_static: dict, chain: Chain, feeType: str) ->
         if summary["aggregated"]["extra"]["comparison"]["prices"]["ini_token1"]
         else Decimal("0")
     )
-    logging.getLogger("analysis").info(
+    logging.getLogger(__name__).info(
         f"    denominator values:  {_denominator_qtty_token0:,.2f} {hype_static['pool']['token0']['symbol']}    {_denominator_qtty_token1:,.2f} {hype_static['pool']['token1']['symbol']}   [ {_denominator_qtty_usd:,.2f} USD]"
     )
 
-    logging.getLogger("analysis").info(
+    logging.getLogger(__name__).info(
         f"    {feeType} period fees : {summary['fees']['period']['percentage_yield']:,.2%}  [ {summary['fees']['period']['token0_qtty']:,.2f} {hype_static['pool']['token0']['symbol']}   {summary['fees']['period']['token1_qtty']:,.2f} {hype_static['pool']['token1']['symbol']} ] [ {summary['fees']['period']['usd_qtty']:,.2f} USD]  [total days: {summary['fees']['period']['seconds']/(60*60*24):,.1f} ]  [APR: {summary['fees']['year']['apr']:,.2%}  APY: {summary['fees']['year']['apy']:,.2%}]"
     )
-    logging.getLogger("analysis").info(
+    logging.getLogger(__name__).info(
         f"     period rewards : {summary['rewards']['period']['percentage_yield']:,.2%}  [ {summary['rewards']['period']['usd_qtty']:,.2f} USD]  [data total days: {summary['rewards']['period']['seconds']/(60*60*24):,.1f} ]"
     )
-    logging.getLogger("analysis").info(
+    logging.getLogger(__name__).info(
         f" period impermanent : {summary['impermanent']['period']['percentage_yield']:,.2%}  [ {summary['impermanent']['period']['token0_qtty']:,.2f} {hype_static['pool']['token0']['symbol']}   {summary['impermanent']['period']['token1_qtty']:,.2f} {hype_static['pool']['token1']['symbol']} ] [ {summary['impermanent']['period']['usd_qtty']:,.2f} USD]  [data total days: {summary['impermanent']['period']['seconds']/(60*60*24):,.1f} ]"
     )
 
@@ -1244,15 +1244,15 @@ def log_summary(summary: dict, hype_static: dict, chain: Chain, feeType: str) ->
                 f"       panacea ... no impermanent loss? "
             )
 
-    logging.getLogger("analysis").info(
+    logging.getLogger(__name__).info(
         f" --> period net yield: {summary['aggregated']['period']['percentage_yield']:,.2%}  [ {summary['aggregated']['period']['token0_qtty']:,.2f} {hype_static['pool']['token0']['symbol']}   {summary['aggregated']['period']['token1_qtty']:,.2f} {hype_static['pool']['token1']['symbol']} ] [ {summary['aggregated']['period']['usd_qtty']:,.2f} USD]"
     )
 
     # log roi
-    logging.getLogger("analysis").info(f" --> period ROI: {summary['roi']:,.2%}")
+    logging.getLogger(__name__).info(f" --> period ROI: {summary['roi']:,.2%}")
 
     # comparison data
-    logging.getLogger("analysis").info(f" --> other data for comparison purposes: ")
+    logging.getLogger(__name__).info(f" --> other data for comparison purposes: ")
 
     period_lping = summary["aggregated"]["period"]["percentage_yield"]
     period_hodl_deposited = (
@@ -1321,10 +1321,10 @@ def log_summary(summary: dict, hype_static: dict, chain: Chain, feeType: str) ->
     )
 
     # log results: lping vs holding vs 50/50 vs token0 vs token1
-    logging.getLogger("analysis").info(
+    logging.getLogger(__name__).info(
         f"     lping  \t  holding  \t  50/50  \t  token0  \t  token1 : "
     )
-    logging.getLogger("analysis").info(
+    logging.getLogger(__name__).info(
         f"     {period_lping:,.2%}  \t  {period_hodl_deposited_yield:,.2%}  \t  {period_hodl_fifty_yield:,.2%}  \t  {period_hodl_token0_yield:,.2%}  \t  {period_hodl_token1_yield:,.2%} "
     )
     _one_ = (
@@ -1367,7 +1367,7 @@ def log_summary(summary: dict, hype_static: dict, chain: Chain, feeType: str) ->
         and period_hodl_token1_yield > period_hodl_token0_yield
         else "     "
     )
-    logging.getLogger("analysis").info(
+    logging.getLogger(__name__).info(
         f"     {_one_}  \t    {_two_}  \t   {_three_}  \t   {_four_}  \t   {_five_} "
     )
     p = ""
@@ -1567,36 +1567,36 @@ def log_debug_data(
     ) * year_in_seconds
 
     # Title
-    logging.getLogger("analysis").info(
+    logging.getLogger(__name__).info(
         f" {chain.fantasy_name}'s {hype_static['dex']} {hype_static['symbol']} returns:  [{hype_static['address']}]  -> fee type: {feeType}"
     )
     # Summary
-    logging.getLogger("analysis").info(
+    logging.getLogger(__name__).info(
         f"    {feeType} period fees : {fees_per_share_yield:,.2%}  [ {fees_qtty_token0:,.2f} {hype_static['pool']['token0']['symbol']}   {fees_qtty_token1:,.2f} {hype_static['pool']['token1']['symbol']} ] [ {fees_qtty_usd:,.2f} USD]  [total days: {total_seconds/(60*60*24):,.1f} ]  [APR: {year_fees_per_share_yield:,.2%} ]"
     )
-    logging.getLogger("analysis").info(
+    logging.getLogger(__name__).info(
         f"     period rewards : {rewards_per_share_yield:,.2%}  [ {rewards_qtty_usd:,.2f} USD]  [data total days: {total_seconds/(60*60*24):,.1f} ]"
     )
-    # logging.getLogger("analysis").info(
+    # logging.getLogger(__name__).info(
     #     f" period impermanent : {impermanent_per_share_yield:,.2%}  [ {impermanent_qtty_token0:,.2f} {hype_static['pool']['token0']['symbol']}   {impermanent_qtty_token1:,.2f} {hype_static['pool']['token1']['symbol']} ] [ {impermanent_qtty_usd:,.2f} USD]  [data total days: {total_seconds/(60*60*24):,.1f} ]"
     # )
-    logging.getLogger("analysis").info(
+    logging.getLogger(__name__).info(
         f" period impermanent : {impermanent_per_share_yield:,.2%}  [ {impermanent_qtty_usd:,.2f} USD]  [data total days: {total_seconds/(60*60*24):,.1f} ]"
     )
-    logging.getLogger("analysis").info(
+    logging.getLogger(__name__).info(
         f" token usd price variation: {_price_variation_token0:,.2%} {hype_static['pool']['token0']['symbol']}         {_price_variation_token1:,.2%} {hype_static['pool']['token1']['symbol']}"
     )
 
     # NET YIELD SUMMARY
-    logging.getLogger("analysis").info(
+    logging.getLogger(__name__).info(
         f" --> period net yield: {period_net_yield:,.2%}  [ {period_net_yield_qtty_token0:,.2f} {hype_static['pool']['token0']['symbol']}   {period_net_yield_qtty_token1:,.2f} {hype_static['pool']['token1']['symbol']} ] [ {period_net_yield_qtty_usd:,.2f} USD]"
     )
 
     # log roi
-    logging.getLogger("analysis").info(f" --> period ROI: {roi_per_share_yield:,.2%}")
+    logging.getLogger(__name__).info(f" --> period ROI: {roi_per_share_yield:,.2%}")
 
     # comparison data
-    logging.getLogger("analysis").info(f" --> other data for comparison purposes: ")
+    logging.getLogger(__name__).info(f" --> other data for comparison purposes: ")
 
     # calculate deposited
     deposit_qtty_usd = (
@@ -1642,10 +1642,10 @@ def log_debug_data(
     )
 
     # log results: lping vs holding vs 50/50 vs token0 vs token1
-    logging.getLogger("analysis").info(
+    logging.getLogger(__name__).info(
         f"     lping  \t  holding  \t  50/50  \t  token0  \t  token1 : "
     )
-    logging.getLogger("analysis").info(
+    logging.getLogger(__name__).info(
         f"     {period_lping:,.2%}  \t  {period_hodl_deposited_yield:,.2%}  \t  {period_hodl_fifty_yield:,.2%}  \t  {period_hodl_token0_yield:,.2%}  \t  {period_hodl_token1_yield:,.2%} "
     )
     _one_ = (
@@ -1688,7 +1688,7 @@ def log_debug_data(
         and period_hodl_token1_yield > period_hodl_token0_yield
         else "     "
     )
-    logging.getLogger("analysis").info(
+    logging.getLogger(__name__).info(
         f"     {_one_}  \t    {_two_}  \t   {_three_}  \t   {_four_}  \t   {_five_} "
     )
 
@@ -1703,6 +1703,8 @@ class period_yield_analyzer:
         # save base data
         self.chain = chain
         self.yield_data_list = yield_data_list
+        # filter yield_data_list outliers
+        self.discard_data_outliers()
         self.hypervisor_static = hypervisor_static
         # init other vars
         self._initialize()
@@ -1783,53 +1785,107 @@ class period_yield_analyzer:
         # create vars
         self._year_fees_per_share_yield = (
             self._fees_per_share_yield / total_seconds
+            if total_seconds
+            else Decimal("0")
         ) * year_in_seconds
 
         self._year_fees_qtty_usd = (
-            self._fees_qtty_usd / total_seconds
+            self._fees_qtty_usd / total_seconds if total_seconds else Decimal("0")
         ) * year_in_seconds
         self._year_fees_per_share = (
-            self._fees_per_share / total_seconds
+            self._fees_per_share / total_seconds if total_seconds else Decimal("0")
         ) * year_in_seconds
         self._year_fees_qtty_token0 = (
-            self._fees_qtty_token0 / total_seconds
+            self._fees_qtty_token0 / total_seconds if total_seconds else Decimal("0")
         ) * year_in_seconds
         self._year_fees_qtty_token1 = (
-            self._fees_qtty_token1 / total_seconds
+            self._fees_qtty_token1 / total_seconds if total_seconds else Decimal("0")
         ) * year_in_seconds
 
         # period rewards to yearly extrapolation
         self._year_rewards_qtty_usd = (
-            self._rewards_qtty_usd / total_seconds
+            self._rewards_qtty_usd / total_seconds if total_seconds else Decimal("0")
         ) * year_in_seconds
         self._year_rewards_per_share = (
-            self._rewards_per_share / total_seconds
+            self._rewards_per_share / total_seconds if total_seconds else Decimal("0")
         ) * year_in_seconds
         self._year_rewards_per_share_yield = (
             self._year_rewards_per_share / self._ini_price_per_share
+            if self._ini_price_per_share
+            else Decimal("0")
         )
 
         # period impermanent to yearly extrapolation
         self._year_impermanent_qtty_usd = (
             self._impermanent_qtty_usd / total_seconds
+            if total_seconds
+            else Decimal("0")
         ) * year_in_seconds
         self._year_impermanent_per_share = (
             self._impermanent_per_share / total_seconds
+            if total_seconds
+            else Decimal("0")
         ) * year_in_seconds
         self._year_impermanent_per_share_yield = (
             self._year_impermanent_per_share / self._ini_price_per_share
+            if self._ini_price_per_share
+            else Decimal("0")
         )
 
         # period net yield to yearly extrapolation
         self._year_net_yield_qtty_usd = (
             self._net_roi_yield_qtty_usd / self._total_seconds
+            if self._total_seconds
+            else Decimal("0")
         ) * year_in_seconds
         self._year_net_yield_per_share = (
             self._net_roi_yield / self._total_seconds
+            if self._total_seconds
+            else Decimal("0")
         ) * year_in_seconds
         self._year_net_yield_per_share_yield = (
             self._year_net_yield_per_share / self._ini_price_per_share
+            if self._ini_price_per_share
+            else Decimal("0")
         )
+
+    def discard_data_outliers(
+        self,
+        max_items: int = 10,
+        max_value: float = 0.5,
+    ):
+        """self.yield_data_list often contain initial data with humongous yields ( due to the init of the hype, Gamma team may be testing rewards, or injecting liquidity directly without using deposit [to mod token weights])
+        This function will discard all APR >  <max_value>  in the first  <max_items>  hype periods of self.yield_data_list
+        """
+
+        max_value = Decimal(str(max_value))
+        _copy_list = self.yield_data_list.copy()
+        _original_length = len(_copy_list)
+        for idx, itm in enumerate(_copy_list[:max_items]):
+            if itm.rewards_per_share_percentage_yield > max_value:
+                logging.getLogger(__name__).debug(
+                    f" - discarding the {idx} yield item rewards outlier {itm.rewards_per_share_percentage_yield:,.2%} [{itm.timeframe.seconds/60*60*24:.0f} day item]"
+                )
+                # remove from original list
+                self.yield_data_list.pop(idx)
+            elif itm.fees_per_share_percentage_yield > max_value:
+                logging.getLogger(__name__).debug(
+                    f" - discarding the {idx} yield item fees outlier {itm.fees_per_share_percentage_yield:,.2%}  [{itm.timeframe.seconds/60*60*24:.0f} day item]"
+                )
+                # remove from original list
+                self.yield_data_list.pop(idx)
+            elif itm.impermanent_per_share_percentage_yield > max_value:
+                logging.getLogger(__name__).debug(
+                    f" - discarding the {idx} yield item impermanent outlier {itm.impermanent_per_share_percentage_yield:,.2%}  [{itm.timeframe.seconds/60*60*24:.0f} day item]"
+                )
+                # remove from original list
+                self.yield_data_list.pop(idx)
+
+        _current_length = len(self.yield_data_list)
+        if _current_length != _original_length:
+            logging.getLogger(__name__).debug(
+                f" -    A Total of {_original_length-_current_length} yield items have been identified as outliers and discarded"
+            )
 
     # COMPARISON PROPERTIES
     @property
@@ -1910,7 +1966,7 @@ class period_yield_analyzer:
             self._fill_graph(yield_item)
 
             # TODO: remove this
-            self.debug_line(yield_item)
+            # self.debug_line(yield_item)
 
     # FILL VARIABLES
     def _fill_variables_fees(self, yield_item: period_yield_data):
@@ -1919,7 +1975,11 @@ class period_yield_analyzer:
         self._fees_qtty_token1 += yield_item.fees.qtty.token1 or Decimal("0")
         self._fees_qtty_usd += yield_item.period_fees_usd or Decimal("0")
         self._fees_per_share += yield_item.fees_per_share or Decimal("0")
-        self._fees_per_share_yield = self._fees_per_share / self._ini_price_per_share
+        self._fees_per_share_yield = (
+            self._fees_per_share / self._ini_price_per_share
+            if self._ini_price_per_share
+            else Decimal("0")
+        )
 
     def _fill_variables_rewards(self, yield_item: period_yield_data):
         # rewards for the period
@@ -1929,6 +1989,8 @@ class period_yield_analyzer:
 
         self._rewards_per_share_yield = (
             self._rewards_per_share / self._ini_price_per_share
+            if self._ini_price_per_share
+            else Decimal("0")
         )
 
     def _fill_variables_impermanent(self, yield_item: period_yield_data):
@@ -1954,6 +2016,8 @@ class period_yield_analyzer:
         )
         self._impermanent_per_share_yield = (
             self._impermanent_per_share / self._ini_price_per_share
+            if self._ini_price_per_share
+            else Decimal("0")
         )
 
     def _fill_variables_hypervisor_return(self, yield_item: period_yield_data):
@@ -1970,6 +2034,8 @@ class period_yield_analyzer:
         )
         self._hype_roi_per_share_yield = (
             self._hype_roi_per_share / self._ini_price_per_share
+            if self._ini_price_per_share
+            else Decimal("0")
         )
 
         self._hype_roi_qtty_usd = self.deposit_qtty_usd * self._hype_roi_per_share_yield
@@ -1988,18 +2054,32 @@ class period_yield_analyzer:
         self._net_roi_per_share = (
             self._fees_per_share + self._rewards_per_share + self._impermanent_per_share
         )
-        self._net_roi_yield = self._net_roi_per_share / self._ini_price_per_share
+        self._net_roi_yield = (
+            (self._net_roi_per_share / self._ini_price_per_share)
+            if self._ini_price_per_share
+            else Decimal("0")
+        )
         self._net_roi_yield_qtty_usd = (
             self._fees_qtty_usd + self._rewards_qtty_usd + self._impermanent_qtty_usd
         )
 
     def _fill_variables_price(self, yield_item: period_yield_data):
         self._price_variation_token0 = (
-            yield_item.status.end.prices.token0 - self._ini_prices.token0
-        ) / self._ini_prices.token0
+            (
+                (yield_item.status.end.prices.token0 - self._ini_prices.token0)
+                / self._ini_prices.token0
+            )
+            if self._ini_prices.token0
+            else Decimal("0")
+        )
         self._price_variation_token1 = (
-            yield_item.status.end.prices.token1 - self._ini_prices.token1
-        ) / self._ini_prices.token1
+            (
+                (yield_item.status.end.prices.token1 - self._ini_prices.token1)
+                / self._ini_prices.token1
+            )
+            if self._ini_prices.token1
+            else Decimal("0")
+        )
 
     def _fill_variables_comparison(self, yield_item: period_yield_data):
         # calculate self.current_period_hodl_deposited  as deposit qtty * yield_item end prices
@@ -2247,42 +2327,42 @@ class period_yield_analyzer:
     def print_result(self):
         feeType = "LPs"
         # Title
-        logging.getLogger("analysis").info(
+        logging.getLogger(__name__).info(
             f" {self.chain.fantasy_name}'s {self.hypervisor_static['dex']} {self.hypervisor_static['symbol']} returns:  [{self.hypervisor_static['address']}]  -> fee type: {feeType}"
         )
         # Summary
-        logging.getLogger("analysis").info(
+        logging.getLogger(__name__).info(
             f"    {feeType} period fees : {self._fees_per_share_yield:,.2%}  [ {self._fees_qtty_token0:,.2f} {self.hypervisor_static['pool']['token0']['symbol']}   {self._fees_qtty_token1:,.2f} {self.hypervisor_static['pool']['token1']['symbol']} ] [ {self._fees_qtty_usd:,.2f} USD]  [total days: {self._total_seconds/(60*60*24):,.1f} ]  [APR: {self._year_fees_per_share_yield:,.2%} ]"
         )
-        logging.getLogger("analysis").info(
+        logging.getLogger(__name__).info(
             f"     period rewards : {self._rewards_per_share_yield:,.2%}  [ {self._rewards_qtty_usd:,.2f} USD]  [data total days: {self._total_seconds/(60*60*24):,.1f} ]"
         )
-        # logging.getLogger("analysis").info(
+        # logging.getLogger(__name__).info(
         #     f" period impermanent : {impermanent_per_share_yield:,.2%}  [ {impermanent_qtty_token0:,.2f} {self.hypervisor_static['pool']['token0']['symbol']}   {impermanent_qtty_token1:,.2f} {self.hypervisor_static['pool']['token1']['symbol']} ] [ {impermanent_qtty_usd:,.2f} USD]  [data total days: {total_seconds/(60*60*24):,.1f} ]"
         # )
-        logging.getLogger("analysis").info(
+        logging.getLogger(__name__).info(
             f" period impermanent : {self._impermanent_per_share_yield:,.2%}  [ {self._impermanent_qtty_usd:,.2f} USD]  [data total days: {self._total_seconds/(60*60*24):,.1f} ]"
         )
-        logging.getLogger("analysis").info(
+        logging.getLogger(__name__).info(
             f" token usd price variation: {self._price_variation_token0:,.2%} {self.hypervisor_static['pool']['token0']['symbol']}         {self._price_variation_token1:,.2%} {self.hypervisor_static['pool']['token1']['symbol']}"
         )
 
         # Hypervisor Return
-        logging.getLogger("analysis").info(
+        logging.getLogger(__name__).info(
             f"     period HYPE ROI (fees+impermanent): {self._hype_roi_per_share_yield:,.2%}  [ {self._hype_roi_qtty_token0:,.2f} {self.hypervisor_static['pool']['token0']['symbol']}   {self._hype_roi_qtty_token1:,.2f} {self.hypervisor_static['pool']['token1']['symbol']} ] [ {self._hype_roi_qtty_usd:,.2f} USD]"
         )
         # NET Return
-        logging.getLogger("analysis").info(
+        logging.getLogger(__name__).info(
             f" --> period NET ROI: {self._net_roi_yield:,.2%}  [ {self._net_roi_yield_qtty_usd:,.2f} USD]"
         )
 
         # comparison data: lping vs holding vs 50/50 vs token0 vs token1
-        logging.getLogger("analysis").info(f" --> other data for comparison purposes: ")
+        logging.getLogger(__name__).info(f" --> other data for comparison purposes: ")
 
-        logging.getLogger("analysis").info(
+        logging.getLogger(__name__).info(
             f"     gamma  \t  holding  \t  50/50  \t  token0  \t  token1 : "
         )
-        logging.getLogger("analysis").info(
+        logging.getLogger(__name__).info(
             f"     {self._net_roi_yield:,.2%}  \t  {self._period_hodl_deposited_yield:,.2%}  \t  {self._period_hodl_fifty_yield:,.2%}  \t  {self._period_hodl_token0_yield:,.2%}  \t  {self._period_hodl_token1_yield:,.2%} "
         )
         _one_ = (
@@ -2325,11 +2405,11 @@ class period_yield_analyzer:
             and self._period_hodl_token1_yield > self._period_hodl_token0_yield
             else "     "
         )
-        logging.getLogger("analysis").info(
+        logging.getLogger(__name__).info(
             f"     {_one_}  \t    {_two_}  \t   {_three_}  \t   {_four_}  \t   {_five_} "
         )
         # gamma vs hold
-        logging.getLogger("analysis").info(
+        logging.getLogger(__name__).info(
             f"     gamma vs hold: {((self._net_roi_yield + 1) / (self._period_hodl_deposited_yield + 1)) - 1:,.2%}"
         )
 
@@ -2337,16 +2417,16 @@ class period_yield_analyzer:
 
     def print_rewards_summary(self):
         rewards = self.get_rewards_detail()
-        logging.getLogger("analysis").info(f"    ")
-        logging.getLogger("analysis").info(f"     rewards summary: ")
-        logging.getLogger("analysis").info(
+        logging.getLogger(__name__).info(f"    ")
+        logging.getLogger(__name__).info(f"     rewards summary: ")
+        logging.getLogger(__name__).info(
             f"     symbol       qtty             usd         days      period yield"
         )
         for symbol, data in rewards.items():
-            logging.getLogger("analysis").info(
+            logging.getLogger(__name__).info(
                 f"     {symbol:>5} {data['qtty']:>15,.2f} {data['usd']:>15,.2f} {data['seconds']/(60*60*24):>8,.2f} {data['period yield']:>10,.2%}"
             )
-        logging.getLogger("analysis").info(f"    ")
+        logging.getLogger(__name__).info(f"    ")
 
     # def convert_to_data_table(self):
     #     result = []
@@ -2432,12 +2512,9 @@ class period_yield_analyzer:
             yield_item.status.end.prices.token1
             * yield_item.status.end.underlying.qtty.token1
         )
-        _token0_percentage = _token0_end_usd_value / (
-            _token0_end_usd_value + _token1_end_usd_value
-        )
-        _token1_percentage = _token1_end_usd_value / (
-            _token0_end_usd_value + _token1_end_usd_value
-        )
+        _temp = _token0_end_usd_value + _token1_end_usd_value
+        _token0_percentage = _token0_end_usd_value / _temp if _temp else Decimal("0")
+        _token1_percentage = _token1_end_usd_value / _temp if _temp else Decimal("0")
         return _token0_percentage, _token1_percentage
 
     def debug_line(self, yield_item: period_yield_data):
