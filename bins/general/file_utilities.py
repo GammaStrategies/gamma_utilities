@@ -158,6 +158,25 @@ def SaveCSV_row(filename, columns, row):
         writer.writerow(row)
 
 
+def LoadCSV(filename):
+    """Load CSV to dict
+
+    Arguments:
+       filename (str): filename
+
+    Returns:
+       list: list of dict
+    """
+    my_file = Path(filename)
+    if not my_file.is_file():
+        return []
+
+    with open(filename, "r") as csvfile:
+        reader = csv.DictReader(csvfile)
+        rows = list(reader)
+        return rows
+
+
 # YIELD FILES IN SPECIFIED PATH
 def get_files(path: str, subfolders: bool = False):
     for file in os.listdir(path):
