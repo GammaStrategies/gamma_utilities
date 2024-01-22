@@ -31,6 +31,9 @@ class Chain(str, Enum):
 
     KAVA = ("kava", 2222, "kava", "Kava")
 
+    MANTA = ("manta", 169, "manta", "Manta")
+    METIS = ("metis", 1088, "metis", "Metis")
+
     # extra properties
     id: int
     database_name: str
@@ -102,9 +105,13 @@ class Protocol(str, Enum):
 
     APERTURE = ("aperture", "aperture", "Aperture")
     HERCULES = ("hercules", "hercules", "Hercules")
+
     BASESWAP = ("baseswap", "baseswap", "BaseSwap")
     SWAPBASED = ("swapbased", "swapbased", "SwapBased")
+
     PHARAOH = ("pharaoh", "pharaoh", "Pharaoh")
+
+    KINETIX = ("kinetix", "kinetix", "Kinetix")
 
     # extra properties
     database_name: str
