@@ -1709,7 +1709,7 @@ def create_rewards_static_gamma(
             # get rewarders from masterchef
             all_rewarders = masterchef_helper.get_rewarders(rid=0)
             if not all_rewarders:
-                logging.getLogger(__name__).info(
+                logging.getLogger(__name__).debug(
                     f"           No rewarders found for {chain} {masterchef_address}. Skipping."
                 )
                 continue
@@ -1729,105 +1729,97 @@ def create_rewards_static_gamma(
                 creation_timestamp = masterchef_helper._timestamp
 
             # process each rewarder &+ to result
-            for rewarder_data in all_rewarders:
-                for (
-                    rewarder_address,
-                    hypervisors_and_pids,
-                ) in rewarder_data.items():
-                    # filter hypervisor addresses
-                    hypervisors_and_pids = {
-                        k: v
-                        for k, v in hypervisors_and_pids.items()
-                        if k.lower() in hypervisors
-                    }
-                    if not hypervisors_and_pids:
-                        logging.getLogger(__name__).debug(
-                            f"           No hypervisors found to be processed for {chain} {rewarder_address}"
+            for rewarder_address, hypervisors_and_pids in all_rewarders.items():
+                # filter hypervisor addresses
+                hypervisors_and_pids = {
+                    k: v
+                    for k, v in hypervisors_and_pids.items()
+                    if k.lower() in hypervisors
+                }
+                if not hypervisors_and_pids:
+                    logging.getLogger(__name__).debug(
+                        f"           No hypervisors found to be processed for {chain} {rewarder_address}"
+                    )
+                    continue
+
+                # build rewarder & get info
+                gamma_rewarder = gamma_masterchef_rewarder(
+                    address=rewarder_address,
+                    network=chain.database_name,
+                    block=block,
+                )
+                rewards = gamma_rewarder.get_rewards(
+                    hypervisors_and_pids=hypervisors_and_pids, filter=False
+                )
+                if not rewards:
+                    logging.getLogger(__name__).debug(
+                        f"           No active rewards found for {chain} {rewarder_address}"
+                    )
+                    continue
+
+                # complete each reward info and append to result
+                for reward in rewards:
+                    # check if we should include this into result
+                    if rewrite == False and (
+                        create_id_rewards_static(
+                            hypervisor_address=reward["hypervisor_address"],
+                            rewarder_address=reward["rewarder_address"],
+                            rewardToken_address=reward["rewardToken"].lower(),
                         )
+                        in already_processed
+                        or reward["rewardToken"].lower()
+                        == "0x0000000000000000000000000000000000000000"
+                    ):
+                        # skip this rewarder
+                        # logging.getLogger(__name__).debug(f"          Skipping {chain} {rewarder_address} pid {reward['rewarder_refIds']} as it is already processed")
                         continue
 
-                    # build rewarder & get info
-                    gamma_rewarder = gamma_masterchef_rewarder(
-                        address=rewarder_address,
-                        network=chain.database_name,
-                        block=block,
+                    # set reward token symbol and decimals
+                    ercHelper = build_erc20_helper(
+                        chain=chain,
+                        address=reward["rewardToken"],
+                        block=reward["block"],
                     )
-                    rewards = gamma_rewarder.get_rewards(
-                        hypervisors_and_pids=hypervisors_and_pids
+                    reward["rewardToken_symbol"] = ercHelper.symbol
+                    reward["rewardToken_decimals"] = ercHelper.decimals
+                    # set total lpToken qtty staked ( string to avoid mongo uint 8bit overflow)
+                    ercHelper = build_erc20_helper(
+                        chain=chain,
+                        address=reward["hypervisor_address"],
+                        block=reward["block"],
                     )
-                    if not rewards:
-                        logging.getLogger(__name__).info(
-                            f"           No active rewards found for {chain} {rewarder_address}"
-                        )
-                        return
-
-                    # complete each reward info and append to result
-                    for reward in rewards:
-                        # check if we should include this into result
-                        if rewrite == False and (
-                            create_id_rewards_static(
-                                hypervisor_address=reward["hypervisor_address"],
-                                rewarder_address=reward["rewarder_address"],
-                                rewardToken_address=reward["rewardToken"].lower(),
-                            )
-                            in already_processed
-                            or reward["rewardToken"].lower()
-                            == "0x0000000000000000000000000000000000000000"
-                        ):
-                            # skip this rewarder
-                            # logging.getLogger(__name__).debug(f"          Skipping {chain} {rewarder_address} pid {reward['rewarder_refIds']} as it is already processed")
-                            continue
-
-                        # set reward token symbol and decimals
-                        ercHelper = build_erc20_helper(
-                            chain=chain,
-                            address=reward["rewardToken"],
-                            block=reward["block"],
-                        )
-                        reward["rewardToken_symbol"] = ercHelper.symbol
-                        reward["rewardToken_decimals"] = ercHelper.decimals
-                        # set total lpToken qtty staked ( string to avoid mongo uint 8bit overflow)
-                        ercHelper = build_erc20_helper(
-                            chain=chain,
-                            address=reward["hypervisor_address"],
-                            block=reward["block"],
-                        )
-                        if totalLP := ercHelper.balanceOf(reward["rewarder_registry"]):
-                            reward["total_hypervisorToken_qtty"] = str(totalLP)
-                        else:
-                            logging.getLogger(__name__).debug(
-                                f"           No total LP found for {chain} hype {reward['hypervisor_address']} at rewarder {rewarder_address} pid {reward['rewarder_refIds']}"
-                            )
-
-                        # append to result
-                        result.append(
-                            {
-                                "block": reward_static_block or reward["block"],
-                                "timestamp": reward["timestamp"],
-                                "hypervisor_address": reward[
-                                    "hypervisor_address"
-                                ].lower(),
-                                "rewarder_address": reward["rewarder_address"].lower(),
-                                "rewarder_type": rewarderType.GAMMA_masterchef_rewarder,
-                                "rewarder_refIds": [],
-                                "rewarder_registry": reward[
-                                    "rewarder_registry"
-                                ].lower(),
-                                "rewardToken": reward["rewardToken"].lower(),
-                                "rewardToken_symbol": reward["rewardToken_symbol"],
-                                "rewardToken_decimals": reward["rewardToken_decimals"],
-                                "rewards_perSecond": str(reward["rewards_perSecond"]),
-                                "total_hypervisorToken_qtty": str(
-                                    reward["total_hypervisorToken_qtty"]
-                                ),
-                                "start_rewards_timestamp": creation_timestamp,
-                                "end_rewards_timestamp": 0,
-                            }
+                    if totalLP := ercHelper.balanceOf(reward["rewarder_registry"]):
+                        reward["total_hypervisorToken_qtty"] = str(totalLP)
+                    else:
+                        logging.getLogger(__name__).debug(
+                            f"           No total LP found for {chain} hype {reward['hypervisor_address']} at rewarder {rewarder_address} pid {reward['rewarder_refIds']}"
                         )
 
-                    logging.getLogger(__name__).debug(
-                        f"           {len(rewards)} rewards found for {chain} {rewarder_address} pid {reward['rewarder_refIds']}"
+                    # append to result
+                    result.append(
+                        {
+                            "block": reward_static_block or reward["block"],
+                            "timestamp": reward["timestamp"],
+                            "hypervisor_address": reward["hypervisor_address"].lower(),
+                            "rewarder_address": reward["rewarder_address"].lower(),
+                            "rewarder_type": rewarderType.GAMMA_masterchef_rewarder,
+                            "rewarder_refIds": reward["rewarder_refIds"],
+                            "rewarder_registry": reward["rewarder_registry"].lower(),
+                            "rewardToken": reward["rewardToken"].lower(),
+                            "rewardToken_symbol": reward["rewardToken_symbol"],
+                            "rewardToken_decimals": reward["rewardToken_decimals"],
+                            "rewards_perSecond": str(reward["rewards_perSecond"]),
+                            "total_hypervisorToken_qtty": str(
+                                reward["total_hypervisorToken_qtty"]
+                            ),
+                            "start_rewards_timestamp": creation_timestamp,
+                            "end_rewards_timestamp": 0,
+                        }
                     )
+
+                logging.getLogger(__name__).debug(
+                    f"           {len(rewards)} rewards found for {chain} {rewarder_address} pid {reward['rewarder_refIds']}"
+                )
 
     return result
 

@@ -18,7 +18,8 @@ def create_rewards_status_gamma(
     rewards = gamma_rewarder.get_rewards(
         hypervisors_and_pids={
             rewarder_static["hypervisor_address"]: rewarder_static["rewarder_refIds"]
-        }
+        },
+        filter=True,
     )
     if not rewards:
         logging.getLogger(__name__).info(

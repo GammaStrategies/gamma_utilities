@@ -188,6 +188,7 @@ class gamma_masterchef_rewarder(gamma_rewarder):
         self,
         hypervisors_and_pids: dict[str, int],
         convert_bint: bool = False,
+        filter: bool = True,
     ) -> list[dict]:
         """Search for rewards data
 
@@ -195,6 +196,7 @@ class gamma_masterchef_rewarder(gamma_rewarder):
             hypervisor_addresses (list[str] | None, optional): list of lower case hypervisor addresses. When defaults to None, all rewarded hypes ( gamma or non gamma) will be returned.
             pids (list[int] | None, optional): pool ids linked to hypervisor. When defaults to None, all pools will be returned.
             convert_bint (bool, optional): Convert big integers to string. Defaults to False.
+            filter (bool): filter out rewards with no rewardPerSecond
         Returns:
             list[dict]: network: str
                         block: int
@@ -215,7 +217,7 @@ class gamma_masterchef_rewarder(gamma_rewarder):
         basic_info: dict = self.multicall_basic_info()
 
         # only continue if there are rewards to calc.
-        if basic_info["rewardPerSecond"] <= 0:
+        if filter and basic_info["rewardPerSecond"] <= 0:
             logging.getLogger(__name__).debug(
                 f" no rewards active for {self._network} rewarder {self._address}. Skiping."
             )
@@ -230,13 +232,31 @@ class gamma_masterchef_rewarder(gamma_rewarder):
         # rewardToken_symbol = ercHelper.symbol
 
         for hypervisor_address, pid in hypervisors_and_pids.items():
-            (
-                accSushiPerShare,
-                lastRewardTimestamp,
-                allocPoint,
-            ) = self.poolInfo(pid)
+            # get pid
+            try:
+                # pid is list
+                pid = pid[0]
+            except Exception:
+                # pid is int
+                pid = pid
 
-            # continue if rewards are allocated
+            # if isinstance(pid, list):
+            #     if len(pid) > 1:
+            #         logging.getLogger(__name__).error(
+            #             f" {self._network} masterchef {self.address} get_rewards: multiple pids {pid} for hypervisor {hypervisor_address}"
+            #         )
+            #     pid = pid[0]
+            try:
+                (
+                    accSushiPerShare,
+                    lastRewardTimestamp,
+                    allocPoint,
+                ) = self.poolInfo(pid)
+            except Exception as e:
+                raise e
+                # continue if rewards are allocated
+
+            hype_rewardsPerSec = 0
             if allocPoint > 0:
                 # get percentage allocated to this pool
                 hype_rewardsPerSec = (
@@ -247,12 +267,6 @@ class gamma_masterchef_rewarder(gamma_rewarder):
                     if basic_info["totalAllocPoint"]
                     else 0
                 )
-
-                # # total staked lp tokens
-                # lptokenHelper = build_erc20_helper(
-                #     chain=chain, address=hypervisor_address, block=self.block
-                # )
-                # totalLp = lptokenHelper.balanceOf(address=self.address)
 
                 result.append(
                     {
@@ -324,7 +338,7 @@ class gamma_masterchef_rewarder(gamma_rewarder):
                 # set variable value
                 if _item["outputs"][0]["type"] == "address":
                     # lower case if address
-                    result[_item["name"]] = _item["outputs"][0].get("value", 0).lower()
+                    result[_item["name"]] = _item["outputs"][0].get("value", "").lower()
                 else:
                     result[_item["name"]] = _item["outputs"][0].get("value", 0)
 
@@ -561,7 +575,7 @@ class gamma_masterchef_v1(gamma_rewarder):
                     if _processed == 0:
                         # this has no getReward function. LOG and return empty
                         logging.getLogger(__name__).error(
-                            f" {self._network} masterchef {self.address} has no getRewarder function (its an old rewarder). Skiping."
+                            f" {self._network} masterchef {self.address} seems not to have a getRewarder function (its an old rewarder) or may have a problem at the fn. Skiping."
                         )
                         return {}
                     else:
