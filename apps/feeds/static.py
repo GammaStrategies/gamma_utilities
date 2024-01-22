@@ -20,6 +20,7 @@ from bins.general.enums import (
     error_identity,
     rewarderType,
     text_to_chain,
+    text_to_protocol,
 )
 from bins.w3.builders import (
     build_db_hypervisor,
@@ -762,8 +763,9 @@ def create_rewards_static(
     ):
         rewards_static_lst += create_rewards_static_gamma(
             chain=text_to_chain(network),
-            hypervisors=hypervisors,
+            hypervisor_addresses=hypervisor_addresses,
             already_processed=already_processed,
+            dexes=[text_to_protocol(dex)],
             rewrite=rewrite,
             block=block,
         )
@@ -1676,19 +1678,23 @@ def create_rewards_static_camelot_nitro(
 # gamma rewards
 def create_rewards_static_gamma(
     chain: Chain,
-    hypervisors: list[dict],
+    hypervisor_addresses: list[str],
     already_processed: list,
+    dexes: list[Protocol] = None,
     rewrite: bool = False,
     block: int = 0,
 ) -> list[dict]:
     result = []
-    for dex in (
+
+    # create hype addresses
+
+    for dex in dexes or (
         STATIC_REGISTRY_ADDRESSES.get(chain.database_name, {})
         .get("MasterChefV2Registry", {})
         .keys()
     ):
-        logging.getLogger(__name__).info(
-            f"   creating static {chain.database_name} rewards for {dex}"
+        logging.getLogger(__name__).debug(
+            f"   creating static {chain.database_name} GAMMA rewards for {dex}"
         )
 
         # create masterchef v2 registry helper
@@ -1734,7 +1740,7 @@ def create_rewards_static_gamma(
                 hypervisors_and_pids = {
                     k: v
                     for k, v in hypervisors_and_pids.items()
-                    if k.lower() in hypervisors
+                    if k.lower() in hypervisor_addresses
                 }
                 if not hypervisors_and_pids:
                     logging.getLogger(__name__).debug(
