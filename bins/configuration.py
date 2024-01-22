@@ -80,6 +80,9 @@ STATIC_REGISTRY_ADDRESSES = {
             "distributionCreator": "0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd".lower(),
             "coreMerkl": "0x9418D0aa02fCE40804aBF77bb81a1CcBeB91eaFC".lower(),
         },
+        "uniproxy": {
+            "retro": "0x923fe416408b1db7c72e5c8fd3a82bc06ff74621".lower(),
+        },
     },
     "optimism": {
         "hypervisors": {
@@ -106,6 +109,8 @@ STATIC_REGISTRY_ADDRESSES = {
         "MasterChefV2Registry": {
             "camelot": "0x26da8473AaA54e8c7835fA5fdd1599eB4c144d31".lower(),
             "pancakeswap": "0xde0a8b0b323e7c7fB7a11Dd727af6E33970728A9".lower(),
+            "sushi": "0x5f0589ae3ff36bcd1d7a5b1e5287b1ed65f1a934".lower(),
+            "ramses": "0x9dfdf32ae82c7e8ebc156ea28e6637b120e00d12".lower(),
         },
         "zyberswap_v1_masterchefs": [
             "0x9ba666165867e916ee7ed3a3ae6c19415c2fbddd".lower(),
@@ -119,6 +124,11 @@ STATIC_REGISTRY_ADDRESSES = {
             "master": "0x55401A4F396b3655f66bf6948A1A4DC61Dfc21f4".lower(),
             "nftPoolFactory": "0x6dB1EF0dF42e30acF139A70C1Ed0B7E6c51dBf6d".lower(),
             "nitroPoolFactory": "0xe0a6b372Ac6AF4B37c7F3a989Fe5d5b194c24569".lower(),
+        },
+        "uniproxy": {
+            "sushi": "0x530071b0373ab3029cad32e0c19b75253e231b69".lower(),
+            "ramses": "0xc6dd68b546d696d5a31837b05065a151d6b6f892".lower(),
+            "camelot": "0xdeF431652F824E04B678a49ce84267f560884470".lower(),
         },
     },
     "celo": {
@@ -147,6 +157,9 @@ STATIC_REGISTRY_ADDRESSES = {
             "distributionCreator": "0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd".lower(),
             "coreMerkl": "0xC16B81Af351BA9e64C1a069E3Ab18c244A1E3049".lower(),
         },
+        "uniproxy": {
+            "quickswap": "0x66CD859053c458688044d816117D5Bdf42A56813".lower(),
+        },
     },
     "fantom": {
         "hypervisors": {
@@ -155,15 +168,24 @@ STATIC_REGISTRY_ADDRESSES = {
         "MasterChefV2Registry": {
             "spiritswap": "0xf5bfa20f4a77933fee0c7bb7f39e7642a070d599".lower(),
         },
+        "uniProxy": {
+            "spiritswap": "0x6002d7714e8038f2058e8162b0b86c0b19c31908".lower(),
+        },
     },
     "moonbeam": {
         "hypervisors": {
             "stellaswap": "0x6002d7714e8038f2058e8162b0b86c0b19c31908".lower(),
             "beamswap": "0xb7dfc304d9cd88d98a262ce5b6a39bb9d6611063".lower(),
+            "uniswapv3": "0x688cb9492bd2C72016f1765d813B2D713aa1F4C7".lower(),
         },
         "MasterChefV2Registry": {
             "stellaswap": "0xd08b593eb3460b7aa5ce76ffb0a3c5c938fd89b8".lower(),
             "beamswap": "0x1cc4ee0cb063e9db36e51f5d67218ff1f8dbfa0f".lower(),
+            "uniswapv3": "0x562c87e31952ed591e3e12522e80850c7d504dc1".lower(),
+        },
+        "uniproxy": {
+            "beamswap": "0x1e2d8f84605d32a2cbf302e30bfd2387badf35dd".lower(),
+            "stellaswap": "0x34c14dCc974f827e0aa8E7a3EB0Db2431d09068E".lower(),
         },
     },
     "avalanche": {
@@ -173,35 +195,103 @@ STATIC_REGISTRY_ADDRESSES = {
         "MasterChefV2Registry": {
             "glacier": "0xF5BFA20F4A77933fEE0C7bB7F39E7642A070d599".lower(),
         },
+        "uniproxy": {
+            "glacier": "0xE64c62244c48F9d0AA70d411432b825e2F8B05B0".lower(),
+        },
     },
     "base": {
         "hypervisors": {
             "synthswap": "0x1e86a593e55215957c4755f1be19a229af3286f6".lower(),
             "sushi": "0x6d5c54F535b073B9C2206Baf721Af2856E5cD683".lower(),
             "basex": "0xB24DC81f8Be7284C76C7cF865b803807B3C2EF55".lower(),
+            "baseswap": "0x8118C33513feC13f8cf488CCb4509190650F0e92".lower(),
+            "swapbased": "0x39ce2eB762e7bFe19b6AD4D5bA384c67CE4051f0".lower(),
+            "pancakeswap": "0x339685503dD534D27ce4a064314c2E5c7144aa92".lower(),
         },
         "synthswap_v1_masterchefs": [
             "0xef153cb7bfc04c657cb7f582c7411556320098b9".lower(),
         ],
+        "MasterChefV2Registry": {
+            "pancakeswap": "0x0087cA4844cAE94B1c51dEc0f9434A6F92006Af9".lower(),
+        },
         "angle_merkl": {
             "distributor": "0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae".lower(),
             "distributionCreator": "0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd".lower(),
             "coreMerkl": "0xC16B81Af351BA9e64C1a069E3Ab18c244A1E3049".lower(),
+            "baseswap": "0x5981B43b74bb6DaA13a3cd97dddF4C52c9f0fC5F".lower(),
+            "swapbased": "0x1dE56231bE01e4d91A085e68E573e4aDaf78693A".lower(),
+        },
+        "uniproxy": {
+            "synthswap": "0x38f61169D8bcc08cE303401A13332259F557B35f".lower(),
+            "sushi": "0xc40F63879630dFF5b69dd6d287f7735E65e90702".lower(),
+            "basex": "0x77a9BB1de36f0c431aaD0b1D63496F6D94256e7c".lower(),
         },
     },
     "mantle": {
         "hypervisors": {
             "fusionx": "0x683292172E2175bd08e3927a5e72FC301b161300".lower(),
         },
+        "MasterChefV2Registry": {
+            "fusionx": "0xC27DDd78FC49875Fe6F844B72bbf31DFBB099881".lower(),
+        },
+        "uniproxy": {
+            "fusionx": "0xFc13Ebe7FEB9595D70195E9168aA7F3acE153621".lower(),
+        },
     },
     "linea": {
         "hypervisors": {
             "lynex": "0xC27DDd78FC49875Fe6F844B72bbf31DFBB099881".lower(),
         },
+        "uniproxy": {
+            "lynex": "0xFc13Ebe7FEB9595D70195E9168aA7F3acE153621".lower(),
+        },
     },
     "rollux": {
         "hypervisors": {
             "pegasys": "0x683292172E2175bd08e3927a5e72FC301b161300".lower(),
+        },
+        "MasterChefV2Registry": {
+            "pegasys": "0xC27DDd78FC49875Fe6F844B72bbf31DFBB099881".lower(),
+        },
+    },
+    "kava": {
+        "hypervisors": {
+            "kinetix": "0x683292172E2175bd08e3927a5e72FC301b161300".lower(),
+        },
+        "MasterChefV2Registry": {
+            "kinetix": "0xC27DDd78FC49875Fe6F844B72bbf31DFBB099881".lower(),
+        },
+    },
+    "opbnb": {
+        "hypervisors": {
+            "pancakeswap": "0x683292172E2175bd08e3927a5e72FC301b161300".lower(),
+            "thena": "0xf14Fb95d6E7E1ab5fCdFfF7Ab203a84b9361E6FC".lower(),
+        },
+        "MasterChefV2Registry": {
+            "pancakeswap": "0x38f61169D8bcc08cE303401A13332259F557B35f".lower(),
+        },
+        "uniproxy": {
+            "pancakeswap": "0x1E86A593E55215957C4755f1BE19a229AF3286f6".lower(),
+            "thena": "0xca8759814695516C34168BBedd86290964D37adA".lower(),
+        },
+    },
+    "manta": {
+        "hypervisors": {
+            "aperture": "0x683292172e2175bd08e3927a5e72fc301b161300".lower(),
+        },
+        "MasterChefV2Registry": {
+            "aperture": "0xc27ddd78fc49875fe6f844b72bbf31dfbb099881".lower(),
+        },
+    },
+    "metis": {
+        "hypervisors": {
+            "hercules": "0xFc13Ebe7FEB9595D70195E9168aA7F3acE153621".lower(),
+        },
+        "MasterChefV2Registry": {
+            "hercules": "0x38f61169D8bcc08cE303401A13332259F557B35f".lower(),
+        },
+        "uniproxy": {
+            "hercules": "0x5aCcDa2325CcfE8660522C7d5c3A885cDcF04501".lower(),
         },
     },
 }
