@@ -1871,11 +1871,12 @@ class period_yield_analyzer:
                 )
                 continue
 
-            # elif itm.impermanent_per_share_percentage_yield > max_reward_yield:
-            #     logging.getLogger(__name__).debug(
-            #         f" - discarding idx {idx} yield item impermanent outlier {itm.impermanent_per_share_percentage_yield:,.2%}  [{itm.timeframe.seconds/(60*60*24):.0f} day item]"
-            #     )
-            #     continue
+            # impermanent in absolute terms
+            if abs(itm.impermanent_per_share_percentage_yield) > max_reward_yield:
+                logging.getLogger(__name__).debug(
+                    f" - discarding idx {idx} yield item impermanent outlier {itm.impermanent_per_share_percentage_yield:,.2%}  [{itm.timeframe.seconds/(60*60*24):.0f} day item]"
+                )
+                continue
 
             # rewards vs tvl ratio
             _reward_yield = (
