@@ -223,6 +223,8 @@ DEX_POOLS = {
         "DAI_USDC": {
             "protocol": Protocol.UNISWAPv3,
             "address": "0xf0428617433652c9dc6d1093a42adfbf30d29f74".lower(),
+            "token0": "0xda10009cbd5d07dd0cecc66161fc93d7c9000da1".lower(),
+            "token1": "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8".lower(),
             "min_block": 65214341,
         },
         "USDT_USDC": {
@@ -273,6 +275,20 @@ DEX_POOLS = {
             "token0": "0xa1150db5105987cec5fd092273d1e3cbb22b378b".lower(),
             "token1": "0xa334884bf6b0a066d553d19e507315e839409e62".lower(),
             "min_block": 103382549,
+        },
+        "CAKE-WETH": {
+            "protocol": Protocol.PANCAKESWAP,
+            "address": "0xf5fac36c2429e1cf84d4abacdb18477ef32589c9".lower(),
+            "token0": "0x1b896893dfc86bb67cf57767298b9073d2c1ba2c".lower(),
+            "token1": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1".lower(),
+            "min_block": 122887421,
+        },
+        "WETH-USDC": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0xc31e54c7a869b9fcbecc14363cf510d1c41fa443".lower(),
+            "token0": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1".lower(),
+            "token1": "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8".lower(),
+            "min_block": 100909,
         },
     },
     Chain.MOONBEAM: {},
@@ -526,6 +542,11 @@ DEX_POOLS_PRICE_PATHS = {
         # ARB
         "0x912ce59144191c1204e64559fe8253a0e49e6548".lower(): [
             (DEX_POOLS[Chain.ARBITRUM]["ARB-USDC"], 1),
+        ],
+        # CAKE
+        "0x1b896893dfc86bb67cf57767298b9073d2c1ba2c".lower(): [
+            (DEX_POOLS[Chain.ARBITRUM]["CAKE-WETH"], 1),
+            (DEX_POOLS[Chain.ARBITRUM]["WETH-USDC"], 1),
         ],
     },
     Chain.MOONBEAM: {},
