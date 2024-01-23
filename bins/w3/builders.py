@@ -1070,6 +1070,41 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
         )
+    elif protocol == Protocol.PEGASYS:
+        hypervisor = (
+            protocols.pegasys.hypervisor.gamma_hypervisor(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                timestamp=timestamp,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not cached and not multicall
+            else protocols.pegasys.hypervisor.gamma_hypervisor_cached(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                timestamp=timestamp,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not multicall
+            else protocols.pegasys.hypervisor.gamma_hypervisor_multicall(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                timestamp=timestamp,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+        )
     else:
         raise NotImplementedError(f" {protocol} has not been implemented yet")
 
