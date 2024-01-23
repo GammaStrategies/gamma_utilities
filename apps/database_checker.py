@@ -1802,11 +1802,29 @@ def repair_missing_rewards_status(
             find={
                 "hypervisor_address": reward_static["hypervisor_address"],
                 "rewardToken": reward_static["rewardToken"],
+                "rewarder_type": reward_static["rewarder_type"],
+                "rewarder_address": reward_static["rewarder_address"],
             },
             projection={"id": 1, "_id": 0, "block": 1},
             batch_size=batch_size,
         ):
             rewards_status_ids.append(item["id"])
+            rewards_status_blocks.append(int(item["block"]))
+
+        # check for queue'd rewards_status with same hypervisor and rewardToken and block
+        for item in get_from_localdb(
+            network=chain.database_name,
+            collection="queue",
+            find={
+                "type": queueItemType.REWARD_STATUS,
+                "data.hypervisor_status.address": reward_static["hypervisor_address"],
+                "data.reward_static.rewarder_address": reward_static[
+                    "rewarder_address"
+                ],
+                "data.reward_static.rewarder_type": reward_static["rewarder_type"],
+                "data.reward_static.rewardToken": reward_static["rewardToken"],
+            },
+        ):
             rewards_status_blocks.append(int(item["block"]))
 
         # sort by block desc so that newer items can be seen first
