@@ -2,7 +2,7 @@ from bins.config.hardcodes import SPECIAL_POOL_ABIS
 from ....general.enums import Protocol
 from .. import uniswap
 
-ABI_FILENAME = "pegasys_pool"
+ABI_FILENAME = "pegasys_poolv3"
 ABI_FOLDERNAME = "pegasys"
 DEX_NAME = Protocol.PEGASYS.database_name
 
