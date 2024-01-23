@@ -325,7 +325,10 @@ USDC_TOKEN_ADDRESSES = {
         "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca".lower(),
     ],
     Chain.BSC: ["0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d".lower()],
-    Chain.CELO: ["0x765DE816845861e75A25fCA122bb6898B8B1282a".lower()],
+    Chain.CELO: [
+        "0x765DE816845861e75A25fCA122bb6898B8B1282a".lower(),
+        "0x37f750b7cc259a2f741af45294f6a16572cf5cad".lower(),
+    ],
     Chain.ETHEREUM: ["0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48".lower()],
     Chain.FANTOM: ["0x04068da6c83afcfa0e13ba15a6696662335d5b75".lower()],
     Chain.LINEA: ["0x176211869ca2b568f2a7d4ee941e073a821ee1ff".lower()],

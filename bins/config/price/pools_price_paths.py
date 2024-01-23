@@ -322,6 +322,41 @@ DEX_POOLS = {
             "token1": "0xd8763cba276a3738e6de85b4b3bf5fded6d6ca73".lower(),
             "min_block": 14030663,
         },
+        "WETH-CELO": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0xd88d5f9e6c10e6febc9296a454f6c2589b1e8fae".lower(),
+            "token0": "0x66803fb87abd4aac3cbb3fad7c3aa01f6f3fb207".lower(),
+            "token1": "0x471ece3750da237f93b8e339c536989b8978a438".lower(),
+            "min_block": 14001235,
+        },
+        "CELO-cUSD": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0x2d70cbabf4d8e61d5317b62cbe912935fd94e0fe".lower(),
+            "token0": "0x471ece3750da237f93b8e339c536989b8978a438".lower(),
+            "token1": "0x765de816845861e75a25fca122bb6898b8b1282a".lower(),
+            "min_block": 14172424,
+        },
+        "USDC-cUSD": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0xea3fb6e3313a2a90757e4ca3d6749efd0107b0b6".lower(),
+            "token0": "0x37f750b7cc259a2f741af45294f6a16572cf5cad".lower(),
+            "token1": "0x765de816845861e75a25fca122bb6898b8b1282a".lower(),
+            "min_block": 14002457,
+        },
+        "USDC-WETH": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0xb90fe7da36ac89448e6dfd7f2bb1e90a66659977".lower(),
+            "token0": "0x37f750b7cc259a2f741af45294f6a16572cf5cad".lower(),  # USDC
+            "token1": "0x66803fb87abd4aac3cbb3fad7c3aa01f6f3fb207".lower(),  # WETH
+            "min_block": 18491109,
+        },
+        "cMCO2-CELO": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0x112466c8b6e5abe42c78c47eb1b9d40baa3f943c".lower(),
+            "token0": "0x32a9fe697a32135bfd313a6ac28792dae4d9979d".lower(),  # cMCO2
+            "token1": "0x471ece3750da237f93b8e339c536989b8978a438".lower(),  # CELO
+            "min_block": 13997603,
+        },
     },
 }
 
@@ -504,6 +539,18 @@ DEX_POOLS_PRICE_PATHS = {
         "0x236aa50979d5f3de3bd1eeb40e81137f22ab794b".lower(): [
             (DEX_POOLS[Chain.BASE]["TBTC-WETH"], 0),
             (DEX_POOLS[Chain.BASE]["WETH-USDbC"], 1),
+        ],
+    },
+    Chain.CELO: {
+        # WETH
+        "0x66803fb87abd4aac3cbb3fad7c3aa01f6f3fb207".lower(): [
+            (DEX_POOLS[Chain.CELO]["WETH-CELO"], 0),
+            (DEX_POOLS[Chain.CELO]["CELO-cUSD"], 1),
+        ],
+        # cMCO2
+        "0x32a9fe697a32135bfd313a6ac28792dae4d9979d".lower(): [
+            (DEX_POOLS[Chain.CELO]["cMCO2-CELO"], 0),
+            (DEX_POOLS[Chain.CELO]["CELO-cUSD"], 1),
         ],
     },
 }
