@@ -615,6 +615,13 @@ class usdc_price_scraper:
             price = self._get_price_using_file_paths(
                 chain=chain, token_address=token_address, block=block
             )
+            # discard price outliers
+            if price and price > 10**18:
+                logging.getLogger(__name__).debug(
+                    f" token {token_address} on chain {chain} price {price} is an outlier. Discarding"
+                )
+                price = None
+
             if price is None:
                 # try get price from var
                 price = self._get_price_using_var_paths(
