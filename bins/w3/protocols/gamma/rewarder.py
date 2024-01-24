@@ -2,6 +2,7 @@ import contextlib
 import logging
 
 from web3 import Web3
+from bins.formulas.full_math import mulDiv
 from bins.general.enums import Chain, error_identity, rewarderType, text_to_chain
 
 # from bins.w3.builders import build_erc20_helper
@@ -259,13 +260,10 @@ class gamma_masterchef_rewarder(gamma_rewarder):
             hype_rewardsPerSec = 0
             if allocPoint > 0:
                 # get percentage allocated to this pool
-                hype_rewardsPerSec = (
-                    (
-                        basic_info["rewardPerSecond"]
-                        * (allocPoint / basic_info["totalAllocPoint"])
-                    )
-                    if basic_info["totalAllocPoint"]
-                    else 0
+                hype_rewardsPerSec = mulDiv(
+                    basic_info["rewardPerSecond"],
+                    allocPoint,
+                    basic_info["totalAllocPoint"],
                 )
 
                 result.append(
