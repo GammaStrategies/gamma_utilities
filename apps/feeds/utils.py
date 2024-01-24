@@ -220,7 +220,7 @@ def add_apr_process01(
         # if there is hype qtty staked and price per share
         apr = calculate_rewards_apr(
             token_price=rewardToken_price,
-            token_reward_rate=int(reward_data["rewards_perSecond"])
+            token_reward_rate=float(reward_data["rewards_perSecond"])
             / (10 ** reward_data["rewardToken_decimals"]),
             total_lp_locked=int(reward_data["total_hypervisorToken_qtty"])
             / (10 ** hypervisor_status["decimals"]),
