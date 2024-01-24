@@ -19,6 +19,7 @@ def create_rewards_status_gamma(
         hypervisors_and_pids={
             rewarder_static["hypervisor_address"]: rewarder_static["rewarder_refIds"]
         },
+        convert_bint=True,
         filter=True,
     )
     if not rewards:
@@ -43,6 +44,7 @@ def create_rewards_status_gamma(
         block=reward_data["block"],
     )
     if totalLP := ercHelper.balanceOf(reward_data["rewarder_registry"]):
+        # convert to str
         reward_data["total_hypervisorToken_qtty"] = str(totalLP)
     else:
         logging.getLogger(__name__).debug(

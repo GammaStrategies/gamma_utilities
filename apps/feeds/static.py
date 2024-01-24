@@ -502,6 +502,7 @@ def _create_hypervisor_static_databaseObject(
             f"     could not get creation block and timestamp for {network}'s pool {hypervisor_database['pool']['address'].lower()}. Setting to hypervisor's creation block and timestamp"
         )
         hypervisor_database["pool"]["block"] = hypervisor_database["block"]
+        # TODO: log to telegram
 
     return hypervisor_database
 
