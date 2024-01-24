@@ -291,7 +291,50 @@ DEX_POOLS = {
             "min_block": 100909,
         },
     },
-    Chain.MOONBEAM: {},
+    Chain.MOONBEAM: {
+        "stDOT-xcDOT": {
+            "protocol": Protocol.STELLASWAP,
+            "address": "0xd9d1064e32704bdd540f90d3a9ecaf037748b966".lower(),
+            "token0": "0xbc7e02c4178a7df7d3e564323a5c359dc96c4db4".lower(),  # stDOT
+            "token1": "0xffffffff1fcacbd218edc0eba20fc2308c778080".lower(),  # xcDOT
+            "min_block": 4712455,
+        },
+        "xcDOT-xcBNC": {
+            "protocol": Protocol.STELLASWAP,
+            "address": "0x33c465cfd6932e70a3664593f87616ba9166b0a7".lower(),
+            "token0": "0xffffffff1fcacbd218edc0eba20fc2308c778080".lower(),  # xcDOT
+            "token1": "0xffffffff7cc06abdf7201b350a1265c62c8601d2".lower(),  # xcBNC
+            "min_block": 4625410,
+        },
+        "xcDOT-WGLMR": {
+            "protocol": Protocol.STELLASWAP,
+            "address": "0xb13b281503f6ec8a837ae1a21e86a9cae368fcc5".lower(),
+            "token0": "0xffffffff1fcacbd218edc0eba20fc2308c778080".lower(),  # xcDOT
+            "token1": "0xacc15dc74880c9944775448304b263d191c6077f".lower(),  # WGLMR
+            "min_block": 2772018,
+        },
+        "stDOT-WGLMR": {
+            "protocol": Protocol.STELLASWAP,
+            "address": "0xac6ccde03b940ebcea55115b3f573cb93cfc96c0".lower(),
+            "token0": "0xbc7e02c4178a7df7d3e564323a5c359dc96c4db4".lower(),  # stDOT
+            "token1": "0xacc15dc74880c9944775448304b263d191c6077f".lower(),  # WGLMR
+            "min_block": 4716768,
+        },
+        "USDC-WGLMR_STELLA": {
+            "protocol": Protocol.STELLASWAP,
+            "address": "0xab8c35164a8e3ef302d18da953923ea31f0fe393".lower(),
+            "token0": "0x931715fee2d06333043d11f658c8ce934ac61d0c".lower(),  # USDC
+            "token1": "0xacc15dc74880c9944775448304b263d191c6077f".lower(),  # WGLMR
+            "min_block": 2650227,
+        },
+        "USDC-WGLMR_BEAM": {
+            "protocol": Protocol.BEAMSWAP,
+            "address": "0xf7e2f39624aad83ad235a090be89b5fa861c29b8".lower(),
+            "token0": "0x931715fee2d06333043d11f658c8ce934ac61d0c".lower(),  # USDC
+            "token1": "0xacc15dc74880c9944775448304b263d191c6077f".lower(),  # WGLMR
+            "min_block": 3582431,
+        },
+    },
     Chain.BASE: {
         "TBTC-WETH": {
             "protocol": Protocol.UNISWAPv3,
@@ -549,7 +592,14 @@ DEX_POOLS_PRICE_PATHS = {
             (DEX_POOLS[Chain.ARBITRUM]["WETH-USDC"], 1),
         ],
     },
-    Chain.MOONBEAM: {},
+    Chain.MOONBEAM: {
+        # xcBNC
+        "0xffffffff7cc06abdf7201b350a1265c62c8601d2".lower(): [
+            (DEX_POOLS[Chain.MOONBEAM]["xcDOT-xcBNC"], 0),
+            (DEX_POOLS[Chain.MOONBEAM]["xcDOT-WGLMR"], 0),
+            (DEX_POOLS[Chain.MOONBEAM]["USDC-WGLMR_STELLA"], 0),
+        ],
+    },
     Chain.BASE: {
         # SYNTH
         "0xbd2dbb8ecea9743ca5b16423b4eaa26bdcfe5ed2".lower(): [
