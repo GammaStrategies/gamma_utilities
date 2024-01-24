@@ -682,6 +682,13 @@ class web3wrap:
                                     f" {rpc.type} RPC {rpc.url_short} seems to not return information when calling function {function_name} in {self._network}'s contract {self.address} at block {self.block} message: {err.get('message')}. Continue without adding failed attempt."
                                 )
                                 continue
+                            if code in [-32603]:
+                                # {'code': -32603, 'message': 'VM Exception while processing transaction: revert', 'data': '0x'}
+                                # this mean the function exists but the value returned is not valid ( is a NoneType or something like that). Do not add failed attempt.
+                                logging.getLogger(__name__).debug(
+                                    f" {rpc.type} RPC {rpc.url_short} reverted the call to function {function_name} in {self._network}'s contract {self.address} at block {self.block}. Continue without adding failed attempt."
+                                )
+                                continue
                             elif code in [
                                 429,
                                 4294935297,
