@@ -1189,7 +1189,13 @@ def build_protocol_pool(
                 timestamp=timestamp,
             )
         )
-    elif protocol == Protocol.ALGEBRAv3:
+    elif protocol in [
+        Protocol.STELLASWAP,
+        Protocol.GLACIER,
+        Protocol.SYNTHSWAP,
+        Protocol.LYNEX,
+        Protocol.ALGEBRAv3,
+    ]:
         # construct helper
         return (
             protocols.algebra.pool.poolv3(
@@ -1303,26 +1309,6 @@ def build_protocol_pool(
                 timestamp=timestamp,
             )
         )
-    # elif protocol == Protocol.SYNTHSWAP:
-    #     return (
-    #         protocols.algebra.pool.poolv3(
-    #             address=pool_address, network=chain.database_name, block=block,timestamp=timestamp
-    #         )
-    #         if not cached
-    #         else protocols.algebra.pool.poolv3_cached(
-    #             address=pool_address, network=chain.database_name, block=block,timestamp=timestamp
-    #         )
-    #     )
-    # elif protocol == Protocol.GLACIER:
-    #     return (
-    #         protocols.algebra.pool.poolv3(
-    #             address=pool_address, network=chain.database_name, block=block,timestamp=timestamp
-    #         )
-    #         if not cached
-    #         else protocols.algebra.pool.poolv3_cached(
-    #             address=pool_address, network=chain.database_name, block=block,timestamp=timestamp
-    #         )
-    #     )
     elif protocol == Protocol.SPIRITSWAP:
         return (
             protocols.spiritswap.pool.pool(
@@ -1339,16 +1325,6 @@ def build_protocol_pool(
                 timestamp=timestamp,
             )
         )
-    # elif protocol == Protocol.LYNEX:
-    #     return (
-    #         protocols.lynex.pool.pool(
-    #             address=pool_address, network=chain.database_name, block=block
-    #         )
-    #         if not cached
-    #         else protocols.lynex.pool.pool_cached(
-    #             address=pool_address, network=chain.database_name, block=block
-    #         )
-    #     )
     elif protocol == Protocol.FUSIONX:
         return (
             protocols.fusionx.pool.pool(
