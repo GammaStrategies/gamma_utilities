@@ -582,8 +582,30 @@ class period_yield_data:
     def check_fees(
         self, hypervisor_symbol: str, hypervisor_name: str, dex: str, network: str
     ):
+        # control var
+        _ignore = False
+        # when negative fees, quantify ( 0.0001 negative fee should not be a huge problem)
+        if self.fees.qtty.token0 > Decimal('-0.000001') and self.fees.qtty.token0 < 0:
+            logging.getLogger(__name__).warning(
+                f" Although hypervisor {self.address} has negative fee growth on token0, they are small enough to be zeroed. Fees: {self.fees.qtty.token0}"
+            )
+            self.fees.qtty.token0 = Decimal("0")
+            _ignore = True
+
+        if self.fees.qtty.token1 > Decimal('-0.000001') and self.fees.qtty.token1 < 0:
+            logging.getLogger(__name__).warning(
+                f" Although hypervisor {self.address} has negative fee growth on token1, they are small enough to be zeroed. Fees:  {self.fees.qtty.token1}"
+            )
+            self.fees.qtty.token1 = Decimal("0")
+            _ignore = True
+
+        # exit when ignore
+        if _ignore:
+            return
+
         # check for positive fee growth
         if self.fees.qtty.token0 < 0 or self.fees.qtty.token1 < 0:
+            # raise error to rescrape
             raise ProcessingError(
                 chain=text_to_chain(network),
                 item={
@@ -593,8 +615,8 @@ class period_yield_data:
                     "dex": dex,
                     "ini_block": self.timeframe.ini.block,
                     "end_block": self.timeframe.end.block,
-                    "fees_token0": self.fees.qtty.token0,
-                    "fees_token1": self.fees.qtty.token1,
+                    "fees_token0": self.fees.qtty.token0 + self.fees_gamma.qtty.token0,
+                    "fees_token1": self.fees.qtty.token1 + self.fees_gamma.qtty.token1,
                     "description": " Check if it is related to the old visor contract.",
                 },
                 identity=error_identity.NEGATIVE_FEES,

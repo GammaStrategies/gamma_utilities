@@ -1,3 +1,4 @@
+from decimal import Decimal
 import logging
 from apps.feeds.operations import feed_operations
 from bins.database.helpers import get_default_localdb, get_from_localdb
@@ -59,6 +60,21 @@ def actions_on_negative_fees(error: ProcessingError):
         fees_uncollected_0 = end_uncollected_0 - ini_uncollected_0
         fees_uncollected_1 = end_uncollected_1 - ini_uncollected_1
 
+        # convert to decimal to compare
+        fees_uncollected_0 = Decimal(
+            str(
+                fees_uncollected_0
+                / (10 ** _hypervisor_static["pool"]["token0"]["decimals"])
+            )
+        )
+        fees_uncollected_1 = Decimal(
+            str(
+                fees_uncollected_1
+                / (10 ** _hypervisor_static["pool"]["token1"]["decimals"])
+            )
+        )
+
+        # fees diff cant be negative and should be different to current result
         if (
             fees_uncollected_0 != error.item["fees_token0"]
             or fees_uncollected_1 != error.item["fees_token1"]
@@ -71,11 +87,19 @@ def actions_on_negative_fees(error: ProcessingError):
             db_return_end = get_default_localdb(
                 network=error.chain.database_name
             ).set_status(end_hype_db)
-            logging.getLogger(__name__).debug(
-                f" Hypervisor {error.item.get('hypervisor_name')} had incorrect uncollected fees between ini/end period. Now solved. new data to db. Ini: {db_return_ini.modified_count}. End: {db_return_end.modified_count}"
-            )
-            # end of the process
-            return
+
+            # end of the process if fees are positive now
+            if fees_uncollected_0 >= 0 and fees_uncollected_1 >= 0:
+                # end of the process
+                logging.getLogger(__name__).debug(
+                    f" Hypervisor {error.item.get('hypervisor_name')} had incorrect uncollected fees between ini/end period. Now solved. new data to db. Ini: {db_return_ini.modified_count}. End: {db_return_end.modified_count}"
+                )
+                return
+            else:
+                # fees are still negative, continue
+                logging.getLogger(__name__).debug(
+                    f" Althoug hypervisor {error.item.get('hypervisor_name')} incorrect uncollected fees have been solved, they are still negative."
+                )
     else:
         logging.getLogger(__name__).error(
             f"Error getting static data for hypervisor {error.item.get('hypervisor_name')}. Cant check if uncollected fees are correct"
