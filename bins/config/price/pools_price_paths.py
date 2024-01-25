@@ -334,6 +334,13 @@ DEX_POOLS = {
             "token1": "0xacc15dc74880c9944775448304b263d191c6077f".lower(),  # WGLMR
             "min_block": 3582431,
         },
+        "xcvDOT-xcDOT": {
+            "protocol": Protocol.STELLASWAP,
+            "address": "0xc75247c065aa9411faa30195bb84078b99f1934d".lower(),
+            "token0": "0xffffffff15e1b7e3df971dd813bc394deb899abf".lower(),  # xcvDOT
+            "token1": "0xffffffff1fcacbd218edc0eba20fc2308c778080".lower(),  # xcDOT
+            "min_block": 4710813,
+        },
     },
     Chain.BASE: {
         "TBTC-WETH": {
@@ -596,6 +603,12 @@ DEX_POOLS_PRICE_PATHS = {
         # xcBNC
         "0xffffffff7cc06abdf7201b350a1265c62c8601d2".lower(): [
             (DEX_POOLS[Chain.MOONBEAM]["xcDOT-xcBNC"], 0),
+            (DEX_POOLS[Chain.MOONBEAM]["xcDOT-WGLMR"], 0),
+            (DEX_POOLS[Chain.MOONBEAM]["USDC-WGLMR_STELLA"], 0),
+        ],
+        # xcvDOT
+        "0xffffffff15e1b7e3df971dd813bc394deb899abf".lower(): [
+            (DEX_POOLS[Chain.MOONBEAM]["xcvDOT-xcDOT"], 1),
             (DEX_POOLS[Chain.MOONBEAM]["xcDOT-WGLMR"], 0),
             (DEX_POOLS[Chain.MOONBEAM]["USDC-WGLMR_STELLA"], 0),
         ],

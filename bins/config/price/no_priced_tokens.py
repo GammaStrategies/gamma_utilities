@@ -276,6 +276,12 @@ def xgrail(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
         )
 
 
+# ####
+def esPLS(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
+    # Escrowed PLS: Plutus DAO token not convertable (as far as known now)
+    return None
+
+
 # ADD HERE THE TOKENS THAT ARE NOT PRICED IN ANY POOL
 TOKEN_ADDRESS_CONVERSION = {
     Chain.ETHEREUM: {
