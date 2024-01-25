@@ -346,6 +346,8 @@ class error_identity(str, Enum):
     WRONG_CONTRACT_FIELD_TYPE = "WRONG_CONTRACT_FIELD_TYPE"
     # mongodb has a 16MB default limit per document
     DATABASE_LIMIT = "DATABASE_LIMIT"
+    # when two initial values are consecutive for a HYPE
+    NO_HYPERVISOR_PERIOD_END = "NO_HYPERVISOR_PERIOD_END"
 
 
 class reportType(str, Enum):

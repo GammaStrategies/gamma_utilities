@@ -429,8 +429,20 @@ class hypervisor_periods_base:
                         f" {chain.database_name} {current_item['address']} index {idx} is an initial value but last item was considered initial also. Blocks are consecutive (noproblm). Last item block: {last_item['block']} current block: {current_item['block']}  last ops: {last_operation_types} current ops: {operation_types}"
                     )
                 else:
-                    raise ValueError(
-                        f"  {chain.database_name} {current_item['address']} index {idx} is an initial value but last item was considered initial also. Last item block: {last_item['block']} current block: {current_item['block']}  last ops: {last_operation_types} current ops: {operation_types}"
+                    # raise ProcessingError to rescrape operations between blocks
+                    raise ProcessingError(
+                        chain=chain,
+                        item={
+                            "hypervisor_address": hypervisor_address,
+                            "dex": current_item["dex"],
+                            "ini_block": last_item["block"],
+                            "end_block": current_item["block"],
+                            "ini_operations": operation_types,
+                            "end_operations": last_operation_types,
+                        },
+                        identity=error_identity.NO_HYPERVISOR_PERIOD_END,
+                        action="rescrape",
+                        message=f"  {chain.database_name} {current_item['address']} index {idx} is an initial value but last item was considered initial also. Last item block: {last_item['block']} current block: {current_item['block']}  last ops: {last_operation_types} current ops: {operation_types}. Rescrape.",
                     )
             last_item_type = "ini"
 

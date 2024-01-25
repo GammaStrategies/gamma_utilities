@@ -1,5 +1,6 @@
 import logging
 from apps.errors.processing.negative_fees import actions_on_negative_fees
+from apps.errors.processing.no_hypervisor_end import actions_on_no_hypervisor_period_end
 from apps.errors.processing.supply_difference import actions_on_supply_difference
 from apps.feeds.queue.queue_item import QueueItem
 from apps.feeds.revenue_operations import feed_revenue_operations
@@ -103,6 +104,11 @@ def process_error(error: ProcessingError):
     elif error.identity == error_identity.WRONG_CONTRACT_FIELD_TYPE:
         # process error
         _handle_error_send_message(error.message)
+
+    elif error.identity == error_identity.NO_HYPERVISOR_PERIOD_END:
+        if error.action == "rescrape":
+            # take actions
+            actions_on_no_hypervisor_period_end(error=error)
 
     else:
         logging.getLogger(__name__).warning(
