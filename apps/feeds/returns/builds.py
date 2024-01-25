@@ -116,7 +116,7 @@ def feed_hypervisor_returns_work(
             hypervisor_address=hypervisor_address,
             block_ini=block_ini,
             block_end=block_end,
-            try_solve_errors=False,
+            try_solve_errors=True,
         ):
             # convert to dict and save
             try:
