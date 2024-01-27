@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 import logging
 
+from datetime import datetime, timezone
 from bins.database.common.database_ids import create_id_hypervisor_returns
 from bins.database.common.objects.hypervisor import (
     hypervisor_status_object,
@@ -17,6 +18,16 @@ class time_location:
     timestamp: int = None
     block: int = None
 
+    @property
+    def datetime(self) -> datetime:
+        """UTC datetime from timestamp
+        Can return None when timestamp is None"""
+        return (
+            datetime.fromtimestamp(self.timestamp, tz=timezone.utc)
+            if self.timestamp
+            else None
+        )
+    
     def to_dict(self) -> dict:
         return {
             "timestamp": self.timestamp,
