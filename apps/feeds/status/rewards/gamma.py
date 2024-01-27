@@ -26,7 +26,8 @@ def create_rewards_status_gamma(
         logging.getLogger(__name__).info(
             f"           No active rewards found for {network} hype {rewarder_static['hypervisor_address']} rewarder {rewarder_static['rewarder_address']} at block {hypervisor_status['block']} pids {rewarder_static['rewarder_refIds']}"
         )
-        return
+        # consider returning list of one item with rewards=0. But all references to this func shall be checked (like reScrape...).
+        return []
 
     if len(rewards) > 1:
         logging.getLogger(__name__).error(
