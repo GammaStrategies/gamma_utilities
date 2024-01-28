@@ -57,7 +57,7 @@ def feed_revenue_stats(
     )
     chains = chains or [x for x in Chain if x.database_name in networks]
 
-    # feed database revenue stats, monthly.
+    # feed database revenue stats.
     with tqdm.tqdm(total=len(chains)) as progress_bar:
         for chain in chains:
             #
@@ -465,7 +465,6 @@ def create_lpFees(chain: Chain, ini_timestamp: int, end_timestamp: int) -> list:
         ]
 
         # last known hype status for each hypervisor at the end of the period
-
         for status in get_from_localdb(
             network=chain.database_name,
             collection="status",
