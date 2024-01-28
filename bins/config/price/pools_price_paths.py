@@ -125,6 +125,20 @@ DEX_POOLS = {
             "token1": "0xbfa35599c7aebb0dace9b5aa3ca5f2a79624d8eb".lower(),
             "min_block": 45795073,
         },
+        "liveRETRO_RETRO": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0x6333bb8b6f1dda6f929d70edeb9e31c8148dc9ef".lower(),
+            "token0": "0xcaaf554900e33ae5dbc66ae9f8adc3049b7d31db".lower(),
+            "token1": "0xbfa35599c7aebb0dace9b5aa3ca5f2a79624d8eb".lower(),
+            "min_block": 47307879,
+        },
+        "RETRO_USDC": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0xc7d8b9c270d0e31a6a0cf4496fe019766be42e15".lower(),
+            "token0": "0xbfa35599c7aebb0dace9b5aa3ca5f2a79624d8eb".lower(),
+            "token1": "0x2791bca1f2de4661ed88a30c99a7a9449aa84174".lower(),
+            "min_block": 45554364,
+        },
         "XOC_WETH": {
             "protocol": Protocol.UNISWAPv3,
             "address": "0x4c493eea376d57d69a4e6d55ef048068e65f1765".lower(),
@@ -533,6 +547,11 @@ DEX_POOLS_PRICE_PATHS = {
         # EUROe
         "0x820802fa8a99901f52e39acd21177b0be6ee2974".lower(): [
             (DEX_POOLS[Chain.POLYGON]["USDC-EUROe"], 0),
+        ],
+        # liveRETRO
+        "0xcaaf554900e33ae5dbc66ae9f8adc3049b7d31db".lower(): [
+            (DEX_POOLS[Chain.POLYGON]["liveRETRO_RETRO"], 0),
+            (DEX_POOLS[Chain.POLYGON]["RETRO_USDC"], 1),
         ],
     },
     Chain.POLYGON_ZKEVM: {
