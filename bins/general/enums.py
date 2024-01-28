@@ -115,6 +115,9 @@ class Protocol(str, Enum):
 
     KINETIX = ("kinetix", "kinetix", "Kinetix")
 
+    SWAPR = ("swapr", "swapr", "Swapr")
+    THICK = ("thick", "thick", "Thick")
+
     # extra properties
     database_name: str
     fantasy_name: str

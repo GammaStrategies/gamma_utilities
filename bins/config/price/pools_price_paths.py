@@ -348,13 +348,13 @@ DEX_POOLS = {
             "token1": "0xacc15dc74880c9944775448304b263d191c6077f".lower(),  # WGLMR
             "min_block": 3582431,
         },
-        "xcvDOT-xcDOT": {
-            "protocol": Protocol.STELLASWAP,
-            "address": "0xc75247c065aa9411faa30195bb84078b99f1934d".lower(),
-            "token0": "0xffffffff15e1b7e3df971dd813bc394deb899abf".lower(),  # xcvDOT
-            "token1": "0xffffffff1fcacbd218edc0eba20fc2308c778080".lower(),  # xcDOT
-            "min_block": 4710813,
-        },
+        # "xcvDOT-xcDOT": {
+        #     "protocol": Protocol.STELLASWAP,
+        #     "address": "0xc75247c065aa9411faa30195bb84078b99f1934d".lower(),
+        #     "token0": "0xffffffff15e1b7e3df971dd813bc394deb899abf".lower(),  # xcvDOT
+        #     "token1": "0xffffffff1fcacbd218edc0eba20fc2308c778080".lower(),  # xcDOT
+        #     "min_block": 4710813,
+        # },
         "xcvDOT-xcDOT_BEAM": {
             "protocol": Protocol.BEAMSWAP,
             "address": "0x946583b3801c703dfa042f82f3b9b3a2a9a79393".lower(),
