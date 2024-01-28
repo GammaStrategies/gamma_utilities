@@ -34,6 +34,8 @@ class Chain(str, Enum):
     MANTA = ("manta", 169, "manta", "Manta")
     METIS = ("metis", 1088, "metis", "Metis")
 
+    GNOSIS = ("gnosis", 204, "gnosis", "Gnosis")
+
     # extra properties
     id: int
     database_name: str
