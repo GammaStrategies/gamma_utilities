@@ -4,7 +4,7 @@ import tqdm
 import concurrent.futures
 import contextlib
 from datetime import datetime, timezone
-from apps.feeds.frontend.revenue_stats import feed_revenue_stats
+from apps.feeds.frontend.revenue_stats_daily import feed_revenue_stats
 
 from apps.feeds.queue.pull import pull_from_queue
 from apps.feeds.reports.execution import feed_global_reports

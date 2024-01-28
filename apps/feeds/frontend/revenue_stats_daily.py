@@ -57,6 +57,10 @@ def feed_revenue_stats(
     )
     chains = chains or [x for x in Chain if x.database_name in networks]
 
+    logging.getLogger(__name__).info(
+        f" Feeding frontend revenue stats for {chains}  rewrite:{rewrite}"
+    )
+
     # feed database revenue stats.
     with tqdm.tqdm(total=len(chains)) as progress_bar:
         for chain in chains:

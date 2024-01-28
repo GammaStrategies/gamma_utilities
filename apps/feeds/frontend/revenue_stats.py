@@ -46,10 +46,16 @@ from dateutil.relativedelta import relativedelta
 from bins.mixed.price_utilities import calculate_price_from_pool, price_scraper
 
 
+## TODO: REMOVE bc DEPRECATED.
+# USE apps.feeds.frontend.revenue_stats_daily.feed_revenue_stats_daily
 def feed_revenue_stats(
     chains: list[Chain] | None = None,
     rewrite: bool = False,
 ) -> None:
+    raise DeprecationWarning(
+        "feed_revenue_stats is deprecated. Use apps.feeds.frontend.revenue_stats_daily.feed_revenue_stats_daily instead"
+    )
+
     # define chains to process
     networks = (
         CONFIGURATION["_custom_"]["cml_parameters"].networks
