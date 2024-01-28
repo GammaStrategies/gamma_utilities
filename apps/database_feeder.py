@@ -481,6 +481,9 @@ def main(option="operations"):
                     feed_hypervisor_returns(
                         chain=text_to_chain(network),
                         rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
+                        hypervisor_addresses=CONFIGURATION["_custom_"][
+                            "cml_parameters"
+                        ].hypervisor_addresses,
                     )
 
                 else:

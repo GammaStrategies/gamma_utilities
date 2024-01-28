@@ -240,7 +240,7 @@ def get_last_return_data_from_db(
         for x in get_from_localdb(
             network=chain.database_name,
             collection="static",
-            find={"address": {"$in": hypervisor_addresses}}
+            find=({"address": {"$in": hypervisor_addresses}})
             if hypervisor_addresses
             else {},
             projection={"address": 1, "block": 1, "_id": 0},
