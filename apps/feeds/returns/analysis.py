@@ -1720,7 +1720,7 @@ class period_yield_analyzer:
         self._total_seconds = 0
 
         # initial and end
-        self._ini_price_per_share = self.yield_data_list[0].price_per_share
+        self._ini_price_per_share = self.yield_data_list[0].price_per_share_at_ini
         self._end_price_per_share = self.yield_data_list[-1].price_per_share
         self._ini_timestamp = self.yield_data_list[0].timeframe.ini.timestamp
         self._end_timestamp = self.yield_data_list[-1].timeframe.end.timestamp
@@ -2013,6 +2013,29 @@ class period_yield_analyzer:
             else Decimal("0")
         )
 
+    def _fill_variables_hypervisor_return(self, yield_item: period_yield_data):
+        """Fees + impermanent  ( no rewards included )
+
+        Args:
+            yield_item (period_yield_data): _description_
+
+        Yields:
+            _type_: _description_
+        """
+        self._hype_roi_per_share = (
+            yield_item.price_per_share - self._ini_price_per_share
+        )
+        self._hype_roi_per_share_yield = (
+            self._hype_roi_per_share / self._ini_price_per_share
+            if self._ini_price_per_share
+            else Decimal("0")
+        )
+
+        self._hype_roi_qtty_usd = self.deposit_qtty_usd * self._hype_roi_per_share_yield
+        _token0_weight, _token1_weight = self.get_token_usd_weight(yield_item)
+        self._hype_roi_qtty_token0 = _token0_weight * self._hype_roi_qtty_usd
+        self._hype_roi_qtty_token1 = _token1_weight * self._hype_roi_qtty_usd
+
     def _fill_variables_impermanent(self, yield_item: period_yield_data):
         # IMPERMANENT ( )
 
@@ -2039,29 +2062,6 @@ class period_yield_analyzer:
             if self._ini_price_per_share
             else Decimal("0")
         )
-
-    def _fill_variables_hypervisor_return(self, yield_item: period_yield_data):
-        """Fees + impermanent  ( no rewards included )
-
-        Args:
-            yield_item (period_yield_data): _description_
-
-        Yields:
-            _type_: _description_
-        """
-        self._hype_roi_per_share = (
-            yield_item.price_per_share - self._ini_price_per_share
-        )
-        self._hype_roi_per_share_yield = (
-            self._hype_roi_per_share / self._ini_price_per_share
-            if self._ini_price_per_share
-            else Decimal("0")
-        )
-
-        self._hype_roi_qtty_usd = self.deposit_qtty_usd * self._hype_roi_per_share_yield
-        _token0_weight, _token1_weight = self.get_token_usd_weight(yield_item)
-        self._hype_roi_qtty_token0 = _token0_weight * self._hype_roi_qtty_usd
-        self._hype_roi_qtty_token1 = _token1_weight * self._hype_roi_qtty_usd
 
     def _fill_variables_net_return(self, yield_item: period_yield_data):
         """Roi + rewards ( so fees + impermanent + rewards)
@@ -2520,7 +2520,7 @@ class period_yield_analyzer:
             # modify initial and end values, if needed ( should not be needed bc its sorted by timestamp)
             if yield_item.timeframe.ini.timestamp < self._ini_timestamp:
                 self._ini_timestamp = yield_item.timeframe.ini.timestamp
-                self._ini_price_per_share = yield_item.price_per_share
+                self._ini_price_per_share = yield_item.price_per_share_at_ini
                 self._ini_prices = yield_item.status.ini.prices
                 self._ini_supply = yield_item.status.ini.supply
                 self._deposit_qtty_token0 = yield_item.status.ini.underlying.qtty.token0
