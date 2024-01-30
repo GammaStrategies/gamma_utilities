@@ -664,13 +664,17 @@ class web3wrap:
                         )
                         return 0
 
-                    # log error
-                    logging.getLogger(__name__).debug(
-                        f" function {function_name} in {self._network}'s contract {self.address} at block {self.block} seems to not exist. Check it. err: {e}"
-                    )
+                    # some public RPCs return a contract logic error on functions that do actually exist (ex: on Polygon angleMerkl getActivePoolDistributions ...).
                     if rpc.type == "private":
+                        # log error
+                        logging.getLogger(__name__).debug(
+                            f" function {function_name} in {self._network}'s contract {self.address} at block {self.block} seems to not exist. Check it. err: {e}"
+                        )
                         # return so the other rpcs are not futil used
                         return None
+                    # else:
+                    #     # add failed attempt when public and continue
+                    #     rpc.add_failed(error=e)
 
                 else:
                     #
