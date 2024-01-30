@@ -135,7 +135,7 @@ class angle_merkle_distributor_creator(gamma_rewarder):
         custom_web3: Web3 | None = None,
         custom_web3Url: str | None = None,
     ):
-        self._abi_filename = abi_filename or "DistributionCreator"
+        self._abi_filename = abi_filename or "DistributionCreator_v2"
         self._abi_path = abi_path or f"{self.abi_root_path}/angle"
 
         super().__init__(
@@ -310,6 +310,8 @@ class angle_merkle_distributor_creator(gamma_rewarder):
                 )
 
         return result
+
+    # TODO: getActivePoolDistributions(self, address,skip,first )...
 
     @property
     def getAllDistributions(self) -> list[dict]:
