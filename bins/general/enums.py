@@ -111,7 +111,7 @@ class Protocol(str, Enum):
     BASESWAP = ("baseswap", "baseswap", "BaseSwap")
     SWAPBASED = ("swapbased", "swapbased", "SwapBased")
 
-    PHARAOH = ("pharaoh", "pharaoh", "Pharaoh")
+    PHARAOH = ("pharaoh", "pharaoh", "Pharaoh")  # camelot avalanche
 
     KINETIX = ("kinetix", "kinetix", "Kinetix")
 
@@ -297,6 +297,7 @@ class rewarderType(str, Enum):
     ANGLE_MERKLE = "angle_merkle"
 
     RAMSES_v2 = "ramses_v2"
+    PHARAOH = "pharaoh"
 
     SYNTHSWAP_masterchef_v1 = "synthswap_masterchef_v1"
     SYNTHSWAP_masterchef_v1_rewarder = "synthswap_masterchef_v1_rewarder"

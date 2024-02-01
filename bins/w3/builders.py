@@ -719,6 +719,41 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
         )
+    elif protocol == Protocol.PHARAOH:
+        hypervisor = (
+            protocols.pharaoh.hypervisor.gamma_hypervisor(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                timestamp=timestamp,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not cached and not multicall
+            else protocols.pharaoh.hypervisor.gamma_hypervisor_cached(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                timestamp=timestamp,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not multicall
+            else protocols.pharaoh.hypervisor.gamma_hypervisor_multicall(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                timestamp=timestamp,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+        )
     elif protocol == Protocol.SYNTHSWAP:
         hypervisor = (
             protocols.synthswap.hypervisor.gamma_hypervisor(
@@ -1303,6 +1338,22 @@ def build_protocol_pool(
             )
             if not cached
             else protocols.ramses.pool.pool_cached(
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
+            )
+        )
+    elif protocol == Protocol.PHARAOH:
+        return (
+            protocols.pharaoh.pool.pool(
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
+            )
+            if not cached
+            else protocols.pharaoh.pool.pool_cached(
                 address=pool_address,
                 network=chain.database_name,
                 block=block,

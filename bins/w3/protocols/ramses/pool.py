@@ -251,7 +251,7 @@ class pool(uniswap.pool.poolv3):
                 },
                 identity=error_identity.RETURN_NONE,
                 action="",
-                message=f" (ramses pool) ticks function of {self.address} at block {self.block} returned none. (Check contract creation block)",
+                message=f" (pool) ticks function of {self.address} at block {self.block} returned none. (Check contract creation block)",
             )
 
     @property

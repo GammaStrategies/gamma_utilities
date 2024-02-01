@@ -191,6 +191,7 @@ STATIC_REGISTRY_ADDRESSES = {
     "avalanche": {
         "hypervisors": {
             "glacier": "0x3FE6F25DA67DC6AD2a5117a691f9951eA14d6f15".lower(),
+            "pharaoh": "0x71ea9545ED7f8662a8B461d7cb0899745E3fb3E6".lower(),
         },
         "MasterChefV2Registry": {
             "glacier": "0xF5BFA20F4A77933fEE0C7bB7F39E7642A070d599".lower(),

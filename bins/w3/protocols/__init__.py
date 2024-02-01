@@ -14,6 +14,7 @@ from ..protocols import (
     stellaswap,
     angle,
     ramses,
+    pharaoh,
     ascent,
     synthswap,
     glacier,
