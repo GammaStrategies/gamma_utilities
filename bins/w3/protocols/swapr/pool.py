@@ -11,7 +11,7 @@ ABI_FOLDERNAME = "swapr"
 DEX_NAME = Protocol.SWAPR.database_name
 
 
-class pool(algebra.pool.pool):
+class pool(algebra.pool.poolv3):
     def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
         self._abi_filename = (
             abi_filename
@@ -32,7 +32,7 @@ class pool(algebra.pool.pool):
         return DEX_NAME
 
 
-class pool_cached(algebra.pool.pool_cached):
+class pool_cached(algebra.pool.poolv3_cached):
     def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
         self._abi_filename = (
             abi_filename
@@ -53,7 +53,7 @@ class pool_cached(algebra.pool.pool_cached):
         return DEX_NAME
 
 
-class pool_multicall(algebra.pool.pool_multicall):
+class pool_multicall(algebra.pool.poolv3_multicall):
     def _initialize_abi(self, abi_filename: str = "", abi_path: str = ""):
         self._abi_filename = (
             abi_filename
