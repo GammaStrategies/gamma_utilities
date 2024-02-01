@@ -34,7 +34,7 @@ class Chain(str, Enum):
     MANTA = ("manta", 169, "manta", "Manta")
     METIS = ("metis", 1088, "metis", "Metis")
 
-    GNOSIS = ("gnosis", 204, "gnosis", "Gnosis")
+    GNOSIS = ("gnosis", 100, "gnosis", "Gnosis")
 
     # extra properties
     id: int
@@ -115,7 +115,7 @@ class Protocol(str, Enum):
 
     KINETIX = ("kinetix", "kinetix", "Kinetix")
 
-    SWAPR = ("swapr", "swapr", "Swapr")
+    SWAPR = ("swapr", "swapr", "Swapr")  # gnosis
     THICK = ("thick", "thick", "Thick")
 
     # extra properties

@@ -1140,6 +1140,42 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
         )
+    elif protocol == Protocol.SWAPR:
+        hypervisor = (
+            protocols.swapr.hypervisor.gamma_hypervisor(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                timestamp=timestamp,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not cached and not multicall
+            else protocols.swapr.hypervisor.gamma_hypervisor_cached(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                timestamp=timestamp,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not multicall
+            else protocols.swapr.hypervisor.gamma_hypervisor_multicall(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                timestamp=timestamp,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+        )
+
     else:
         raise NotImplementedError(f" {protocol} has not been implemented yet")
 
@@ -1440,6 +1476,23 @@ def build_protocol_pool(
                 timestamp=timestamp,
             )
         )
+    elif protocol == Protocol.SWAPR:
+        return (
+            protocols.swapr.pool.pool(
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
+            )
+            if not cached
+            else protocols.swapr.pool.pool_cached(
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
+            )
+        )
+
     else:
         raise NotImplementedError(f"Protocol {protocol} not implemented")
 

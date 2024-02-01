@@ -295,6 +295,15 @@ STATIC_REGISTRY_ADDRESSES = {
             "hercules": "0x5aCcDa2325CcfE8660522C7d5c3A885cDcF04501".lower(),
         },
     },
+    "gnosis": {
+        "hypervisors": {
+            "swapr": "0x683292172E2175bd08e3927a5e72FC301b161300".lower(),
+        },
+        "MasterChefV2Registry": {},
+        "uniproxy": {
+            "swapr": "0x38f61169d8bcc08ce303401a13332259f557b35f".lower(),
+        },
+    },
 }
 
 
@@ -350,7 +359,13 @@ USDC_TOKEN_ADDRESSES = {
     Chain.POLYGON_ZKEVM: ["0xa8ce8aee21bc2a48a5ef670afcc9274c7bbbc035".lower()],
     Chain.ROLLUX: ["0x368433cac2a0b8d76e64681a9835502a1f2a8a30".lower()],
     Chain.OPBNB: ["0x9e5aac1ba1a2e6aed6b32689dfcf62a509ca96f3".lower()],
-    Chain.KAVA: ["0xfa9343c3897324496a05fc75abed6bac29f8a40f".lower()],
+    Chain.KAVA: [
+        "0xfa9343c3897324496a05fc75abed6bac29f8a40f".lower(),
+        "0x919c1c267bc06a7039e03fcc2ef738525769109c".lower(),  # usdt
+    ],
+    Chain.METIS: ["0xea32a96608495e54156ae48931a7c20f0dcc1a21".lower()],
+    Chain.MANTA: ["0xb73603c5d87fa094b7314c74ace2e64d165016fb".lower()],
+    Chain.GNOSIS: ["0xddafbb505ad214d7b80b1f830fccc89b60fb7a83".lower()],
 }
 
 

@@ -23,4 +23,5 @@ from ..protocols import (
     fusionx,
     pegasys,
     basex,
+    swapr,
 )
