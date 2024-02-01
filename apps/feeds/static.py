@@ -1168,6 +1168,13 @@ def create_rewards_static_ramses(
                 address=hype_static["address"], network=chain.database_name, block=block
             )
 
+            # check if gauge is set ( not 0x0000...)
+            if hype_status.gauge.address.lower() == "0x0000000000000000000000000000000000000000":
+                logging.getLogger(__name__).debug(
+                    f" Gauge is not set for ramses hype:{hype_static['address']}. Skipping static rewards processing"
+                )
+                continue
+
             if hype_rewards := hype_status.gauge.get_rewards(convert_bint=True):
                 logging.getLogger(__name__).debug(
                     f" Found {len(hype_rewards)} static rewards for the hypervisor {hype_static['address']}"
@@ -1284,6 +1291,16 @@ def create_rewards_static_pharaoh(
             hype_status = pharaoh_hypervisor(
                 address=hype_static["address"], network=chain.database_name, block=block
             )
+
+            # check if gauge is set ( not 0x0000...)
+            if (
+                hype_status.gauge.address.lower()
+                == "0x0000000000000000000000000000000000000000"
+            ):
+                logging.getLogger(__name__).debug(
+                    f" Gauge is not set for pharaoh hype:{hype_static['address']}. Skipping static rewards processing"
+                )
+                continue
 
             if hype_rewards := hype_status.gauge.get_rewards(convert_bint=True):
                 logging.getLogger(__name__).debug(
