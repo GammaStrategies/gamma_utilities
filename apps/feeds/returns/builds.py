@@ -42,6 +42,7 @@ def feed_hypervisor_returns(
     if _last_returns_data_db := get_last_return_data_from_db(
         chain=chain, hypervisor_addresses=hypervisor_addresses, rewrite=rewrite
     ):
+        # get chain last block
         latest_block = get_latest_block(chain=chain)
 
         if multiprocess:
@@ -234,7 +235,7 @@ def get_last_return_data_from_db(
     batch_size = 50000
     result = []
 
-    # get all hypervisors addresses
+    # get all hypervisors addresses (filtered by config)
     hypervisors_static = {
         x["address"]: x["block"]
         for x in get_from_localdb(

@@ -252,6 +252,10 @@ class coingecko_price_helper:
             "mantle": "mantle",
             "rollux": "rollux",
             "opbnb": "opbnb",
+            "kava": "kava",
+            "metis": "metis-andromeda",
+            "manta": "manta-pacific",
+            "gnosis": "xdai",
         }
 
         self.retries = retries

@@ -37,15 +37,23 @@ class geckoterminal_price_helper:
             "mantle": "mantle",
             "rollux": "rollux",
             "opbnb": "opbnb",
+            "gnosis": "xdai",
+            "kava": "kava",
+            "metis": "metis",
+            "manta": "manta-pacific",
         }
 
         self.dexids = {
             "uniswap_v3_arbitrum": Protocol.UNISWAPv3,
             "sushiswap-v3-arbitrum": Protocol.SUSHI,
-            # "pancakeswap-v3-arbitrum": Protocol.PANCAKESWAP,
+            "sushiswap-v3-base": Protocol.SUSHI,
+            "pancakeswap-v3-arbitrum": Protocol.PANCAKESWAP,
             "camelot-v3": Protocol.CAMELOT,
             "zyberswap": Protocol.ZYBERSWAP,
             "ramses": Protocol.RAMSES,
+            "baseswap": Protocol.BASESWAP,
+            "swapbased": Protocol.SWAPBASED,
+            "pancakeswap-v3-base": Protocol.PANCAKESWAP,
         }
 
         self.retries = retries
