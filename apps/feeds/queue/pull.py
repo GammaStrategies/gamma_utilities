@@ -339,10 +339,8 @@ def pull_from_queue_hypervisor_status(network: str, queue_item: QueueItem) -> bo
 
 
 def pull_from_queue_reward_status(network: str, queue_item: QueueItem) -> bool:
-    # debug variables
-    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-    # set local database name and create manager
-    local_db = database_local(mongo_url=mongo_url, db_name=f"{network}_gamma")
+    # control var
+    _result = False
 
     # check if item block is higher than static rewarder block
     if queue_item.block < queue_item.data["reward_static"]["block"]:
@@ -357,7 +355,7 @@ def pull_from_queue_reward_status(network: str, queue_item: QueueItem) -> bool:
                 rewarder_static=queue_item.data["reward_static"],
                 network=network,
             ):
-                for reward_status in reward_status_list:
+                for idx, reward_status in enumerate(reward_status_list):
                     # only save status if rewards per second are greater than 0
                     tmp = 0
                     try:
@@ -369,7 +367,9 @@ def pull_from_queue_reward_status(network: str, queue_item: QueueItem) -> bool:
                         tmp = float(reward_status["rewards_perSecond"])
 
                     if tmp > 0:
-                        if db_return := local_db.set_rewards_status(data=reward_status):
+                        if db_return := get_default_localdb(
+                            network=network
+                        ).set_rewards_status(data=reward_status):
                             # evaluate if price has been saved
                             if (
                                 db_return.upserted_id
@@ -377,24 +377,22 @@ def pull_from_queue_reward_status(network: str, queue_item: QueueItem) -> bool:
                                 or db_return.matched_count
                             ):
                                 logging.getLogger(__name__).debug(
-                                    f" {network} queue item {queue_item.id} reward status saved to database"
+                                    f" {network} queue item {queue_item.id} reward status saved to database -- reward status num. {idx} of {len(reward_status_list)}"
                                 )
-                                # define result
-                                return True
+                                _result = True
                             else:
                                 logging.getLogger(__name__).error(
-                                    f" {network} queue item {queue_item.id} reward status not saved to database. database returned: {db_return.raw_result}"
+                                    f" {network} queue item {queue_item.id} reward status not saved to database. database returned: {db_return.raw_result} -- reward status num. {idx} of {len(reward_status_list)}"
                                 )
                         else:
                             logging.getLogger(__name__).error(
-                                f" No database return received while trying to save results for {network} queue item {queue_item.id}"
+                                f" No database return received while trying to save results for {network} queue item {queue_item.id} -- reward status num. {idx} of {len(reward_status_list)}"
                             )
                     else:
                         logging.getLogger(__name__).debug(
-                            f" {queue_item.id} has 0 rewards per second. Not saving it to database"
+                            f" {queue_item.id} has 0 rewards per second. Not saving it to database -- reward status num. {idx} of {len(reward_status_list)}"
                         )
-                        # define result
-                        return True
+                        _result = True
 
             else:
                 logging.getLogger(__name__).debug(
@@ -405,7 +403,7 @@ def pull_from_queue_reward_status(network: str, queue_item: QueueItem) -> bool:
                 f"Error processing {network}'s rewards status queue item: {e}"
             )
 
-    return False
+    return _result
 
 
 def pull_from_queue_price(network: str, queue_item: QueueItem) -> bool:
