@@ -513,17 +513,17 @@ class hypervisor_periods_camelot(hypervisor_periods_base):
         grail_percentage = 1 - xgrail_percentage
 
         reward_x_second_grail_usd = (
-            (currenItem_rewards["poolEmisionRate"] * grail_percentage)
+            (currenItem_rewards["poolEmissionRate"] * grail_percentage)
             / (10 ** self.rewarder_static["rewardToken_decimals"])
         ) * grailToken_price
         reward_x_second_xgrail_usd = (
-            (currenItem_rewards["poolEmisionRate"] * xgrail_percentage)
+            (currenItem_rewards["poolEmissionRate"] * xgrail_percentage)
             / (10 ** self.rewarder_static["rewardToken_decimals"])
         ) * xGrailToken_price
 
         # calculate period yield
         period_seconds = currenItem["timestamp"] - lastItem["timestamp"]
-        period_yield_qtty = currenItem_rewards["poolEmisionRate"] * period_seconds
+        period_yield_qtty = currenItem_rewards["poolEmissionRate"] * period_seconds
         period_yield_grail_usd = (
             (period_yield_qtty * grail_percentage)
             / (10 ** self.rewarder_static["rewardToken_decimals"])
@@ -564,10 +564,10 @@ class hypervisor_periods_camelot(hypervisor_periods_base):
                 "period_yield_usd": period_yield_grail_usd + period_yield_xgrail_usd,
                 "period_yield_grail_usd": period_yield_grail_usd,
                 "period_yield_xgrail_usd": period_yield_xgrail_usd,
-                "reward_x_second": currenItem_rewards["poolEmisionRate"],
-                "reward_x_second_grail": currenItem_rewards["poolEmisionRate"]
+                "reward_x_second": currenItem_rewards["poolEmissionRate"],
+                "reward_x_second_grail": currenItem_rewards["poolEmissionRate"]
                 * grail_percentage,
-                "reward_x_second_xgrail": currenItem_rewards["poolEmisionRate"]
+                "reward_x_second_xgrail": currenItem_rewards["poolEmissionRate"]
                 * xgrail_percentage,
                 "reward_x_second_usd": reward_x_second_grail_usd
                 + reward_x_second_xgrail_usd,
@@ -576,7 +576,7 @@ class hypervisor_periods_camelot(hypervisor_periods_base):
             },
             "pool": {
                 "address": hypervisor_status["pool"]["address"],
-                "symbol": hypervisor_status["pool"]["symbol"],
+                # "symbol": hypervisor_status["pool"]["symbol"],
                 "liquidity_inRange": pool_liquidity,
                 # "total0": pool_total0,
                 # "total1": pool_total1,
@@ -708,7 +708,7 @@ class hypervisor_periods_camelot(hypervisor_periods_base):
                 xrewardToken_price = item["prices"]["xRewardToken"]
 
                 # discard items with timepassed = 0
-                if item["time_passed"] == 0:
+                if item["rewards"]["period_time"] == 0:
                     logging.getLogger(__name__).debug(
                         f" ...no time passed found while processing apr for {hypervisor_address} using item {item}"
                     )
@@ -911,12 +911,12 @@ class hypervisor_periods_camelot(hypervisor_periods_base):
                 "extra": {
                     "baseRewards_apr": baseRewards_apr if baseRewards_apr > 0 else 0,
                     "baseRewards_apy": baseRewards_apy if baseRewards_apy > 0 else 0,
-                    "boostedRewards_apr": boostRewards_apr
-                    if boostRewards_apr > 0
-                    else 0,
-                    "boostedRewards_apy": boostRewards_apy
-                    if boostRewards_apy > 0
-                    else 0,
+                    "boostedRewards_apr": (
+                        boostRewards_apr if boostRewards_apr > 0 else 0
+                    ),
+                    "boostedRewards_apy": (
+                        boostRewards_apy if boostRewards_apy > 0 else 0
+                    ),
                 },
             }
 

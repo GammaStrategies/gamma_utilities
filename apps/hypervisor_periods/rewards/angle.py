@@ -355,10 +355,10 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
                     continue
 
                 distribution_data["epoch_duration"] = _epoch_duration
-                distribution_data[
-                    "reward_calculations"
-                ] = distributor_creator.get_reward_calculations(
-                    distribution=distribution_data, _epoch_duration=_epoch_duration
+                distribution_data["reward_calculations"] = (
+                    distributor_creator.get_reward_calculations(
+                        distribution=distribution_data, _epoch_duration=_epoch_duration
+                    )
                 )
 
                 # add to result
@@ -543,7 +543,7 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
             },
             "pool": {
                 "address": hypervisor_status["pool"]["address"],
-                "symbol": hypervisor_status["pool"]["symbol"],
+                # "symbol": hypervisor_status["pool"]["symbol"],
                 "liquidity_inRange": pool_liquidity,
                 "total0": pool_total0,
                 "total1": pool_total1,
@@ -877,12 +877,12 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
                 "extra": {
                     "baseRewards_apr": baseRewards_apr if baseRewards_apr > 0 else 0,
                     "baseRewards_apy": baseRewards_apy if baseRewards_apy > 0 else 0,
-                    "boostedRewards_apr": boostRewards_apr
-                    if boostRewards_apr > 0
-                    else 0,
-                    "boostedRewards_apy": boostRewards_apy
-                    if boostRewards_apy > 0
-                    else 0,
+                    "boostedRewards_apr": (
+                        boostRewards_apr if boostRewards_apr > 0 else 0
+                    ),
+                    "boostedRewards_apy": (
+                        boostRewards_apy if boostRewards_apy > 0 else 0
+                    ),
                 },
             }
 
