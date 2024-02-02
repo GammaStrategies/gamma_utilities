@@ -69,12 +69,12 @@ def create_rewards_status_camelot_spnft(
                 ) / _total_tvl
 
                 # set apy to apr
-                reward_data_converted["extra"][
-                    "boostedRewards_apy"
-                ] = reward_data_converted["extra"]["boostedRewards_apr"]
-                reward_data_converted["extra"][
-                    "baseRewards_apy"
-                ] = reward_data_converted["extra"]["baseRewards_apr"]
+                reward_data_converted["extra"]["boostedRewards_apy"] = (
+                    reward_data_converted["extra"]["boostedRewards_apr"]
+                )
+                reward_data_converted["extra"]["baseRewards_apy"] = (
+                    reward_data_converted["extra"]["baseRewards_apr"]
+                )
 
                 # convert all >8bit int to str
                 reward_data_converted["rewards_perSecond"] = str(
@@ -416,7 +416,7 @@ def create_rewards_status_camelot_nitro(
 
                 result.append(reward_data_converted)
             except Exception as e:
-                logging.getLogger(__name__).error(
+                logging.getLogger(__name__).exception(
                     f" Camelot nitro Rewards-> {chain.database_name}'s {rewarder_static['rewardToken']} price at block {hypervisor_status['block']} could not be calculated. Error: {e}"
                 )
                 logging.getLogger(__name__).debug(
