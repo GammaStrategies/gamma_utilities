@@ -105,6 +105,19 @@ def build_and_save_queue_from_operation(operation: dict, network: str):
 
 
 def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network: str):
+
+    # add all items to database at once
+    if items := build_queue_items_from_hypervisor_status(
+        hypervisor_status=hypervisor_status, network=network
+    ):
+        get_default_localdb(network=network).replace_items_to_database(
+            data=items, collection_name="queue"
+        )
+
+
+def build_queue_items_from_hypervisor_status(
+    hypervisor_status: dict, network: str
+) -> list[QueueItem]:
     # create local database manager
     db_name = f"{network}_gamma"
     mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
@@ -248,9 +261,7 @@ def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network
                 f" {network}'s {hypervisor_status['address']} hype's {reward_static['rewarder_address']} reward status at block {hypervisor_status['block']} is already in database"
             )
 
-    # add all items to database at once
-    if items:
-        local_db.replace_items_to_database(data=items, collection_name="queue")
+    return items
 
 
 # def build_and_save_queue_from_revenue_operation(operation: dict, network: str):
