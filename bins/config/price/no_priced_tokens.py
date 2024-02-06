@@ -78,7 +78,20 @@ def xram(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
                 block=block,
             )
             _precision = erc20.call_function_autoRpc("PRECISION")
-            _discount_rate = erc20.call_function_autoRpc("discount")
+            _discount_rate = 0
+            try:
+                _discount_rate = erc20.call_function_autoRpc("exitRatio")
+            except Exception as e:
+                pass
+            if not _discount_rate:
+                try:
+                    _discount_rate = erc20.call_function_autoRpc("discount")
+                except Exception as e:
+                    logging.getLogger(__name__).exception(
+                        f" Can't get xRam token price discount.... Error: {e} . Fallback to 60%"
+                    )
+                    _discount_rate = 60
+
             conversion_rate = _discount_rate / _precision
         except Exception as e:
             logging.getLogger(__name__).exception(
