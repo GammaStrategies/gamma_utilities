@@ -3,411 +3,8 @@ import logging
 import math
 
 from bins.general.enums import Chain
+from bins.general.general_utilities import flatten_dict
 from .objects import period_yield_data
-
-
-def returns_sumary_oooo(
-    yield_data: list[period_yield_data], feeType: str = "lps"
-) -> dict:
-    """_summary_
-
-    Args:
-        yield_data (list[period_yield_data]): _description_
-        feeType (str, optional): Choose between all, gamma or lps . Defaults to "lps".
-            The fee to be used in the summary
-
-    Returns:
-        dict: {
-            total_period_seconds: seconds conforming the period,
-            aggregated: sumup data field ( net result)
-            fees: fees data field
-            impermanent: underlying token value changes without fees collected
-            rewards: rewards data field
-            }
-
-    """
-
-    result = {
-        "roi": Decimal("0"),
-        "aggregated": {
-            "period": {
-                "percentage_yield": Decimal("0"),  # in usd
-                "token0_qtty": Decimal("0"),
-                "token1_qtty": Decimal("0"),
-                "usd_qtty": Decimal("0"),
-            },
-            "extra": {
-                "comparison": {
-                    "prices": {
-                        "ini_token0": Decimal("0"),
-                        "ini_token1": Decimal("0"),
-                        "end_token0": Decimal("0"),
-                        "end_token1": Decimal("0"),
-                        "ini_share": Decimal("0"),
-                        "end_share": Decimal("0"),
-                    },
-                    "deposit": {
-                        "token0_qtty": Decimal("0"),
-                        "token1_qtty": Decimal("0"),
-                        "usd_qtty": Decimal("0"),
-                        "allValue_in_token0": Decimal("0"),
-                        "allValue_in_token1": Decimal("0"),
-                        "fifty_token0_qtty": Decimal("0"),
-                        "fifty_token1_qtty": Decimal("0"),
-                    },
-                    "supply": {
-                        "ini": Decimal("0"),
-                        "end": Decimal("0"),
-                    },
-                },
-            },
-        },
-        "fees": {
-            "period": {
-                "percentage_yield": Decimal("0"),
-                "token0_qtty": Decimal("0"),
-                "token1_qtty": Decimal("0"),
-                "usd_qtty": Decimal("0"),
-                "seconds": 0,
-            },
-            "year": {
-                "apr": Decimal("0"),
-                "apy": Decimal("0"),
-            },
-            "extra": {
-                "token0_collected_within": Decimal("0"),
-                "token1_collected_within": Decimal("0"),
-            },
-        },
-        "impermanent": {
-            "period": {
-                "percentage_yield": Decimal("0"),
-                "token0_qtty": Decimal("0"),
-                "token1_qtty": Decimal("0"),
-                "usd_qtty": Decimal("0"),
-                "token0_qtty_usd": Decimal("0"),
-                "token1_qtty_usd": Decimal("0"),
-                "seconds": 0,
-            },
-        },
-        "rewards": {
-            "period": {
-                "percentage_yield": Decimal("0"),
-                "usd_qtty": Decimal("0"),
-                "seconds": 0,
-            },
-        },
-    }
-
-    #     "chain": "celo",
-    #     "address": "0x002e2a8215e892e77681e2568f85c8f720ce63db",
-    #     "symbol": "xPACT-CELO3",
-    #     "block": 21593485,
-    #     "timestamp": 1695635990,
-    #     "period": 1,
-    #     "year_feeApr": 0,
-    #     "year_feeApy": 0,
-    #     "year_allRewards2": 0,
-    #     "period_feeApr": 0,
-    #     "period_rewardsApr": 0,
-    #     "period_lping": 8.36195166288179e-7,
-    #     "period_hodl_deposited": 0.008339392081189901,
-    #     "period_hodl_fifty": 0.00942349677500146,
-    #     "period_hodl_token0": 0,
-    #     "period_hodl_token1": 0.01884699355000292,
-    #     "period_netApr": 8.36195166288179e-7,
-    #     "period_impermanentResult": 8.36195166288179e-7,
-    #     "gamma_vs_hodl": -0.008269592511716772
-    #   },
-
-    # calculate totals: sumarize data
-    if yield_data:
-        # time var control
-        seconds_yield_data = 0
-
-        price_per_share = {
-            "ini_price_per_share": yield_data[0].price_per_share,
-            "end_price_per_share": yield_data[-1].price_per_share,
-        }
-
-        ini_timestamp = yield_data[0].timeframe.ini.timestamp
-        end_timestamp = yield_data[-1].timeframe.end.timestamp
-        ini_prices = yield_data[0].status.ini.prices
-        end_prices = yield_data[-1].status.end.prices
-        ini_supply = yield_data[0].status.ini.supply
-        end_supply = yield_data[-1].status.end.supply
-
-        _current_total_value = (
-            ini_prices.token0 * yield_data[0].status.ini.underlying.qtty.token0
-            + ini_prices.token1 * yield_data[0].status.ini.underlying.qtty.token1
-        )
-
-        # deposit control var
-        deposit = {
-            # quantity of token0 and token1 deposited ( balanced as per the pool ratio at that time)
-            "qtty": yield_data[0].status.ini.underlying.qtty,
-            "usd_qtty": _current_total_value,
-            # quantity of token 0 deposited ( includes token1 converted to token0)
-            "allValue_in_token0": ini_prices.token1
-            / ini_prices.token0
-            * yield_data[0].status.ini.underlying.qtty.token1
-            + yield_data[0].status.ini.underlying.qtty.token0,
-            # quantity of token 1 deposited ( includes token0 converted to token1)
-            "allValue_in_token1": ini_prices.token0
-            / ini_prices.token1
-            * yield_data[0].status.ini.underlying.qtty.token0
-            + yield_data[0].status.ini.underlying.qtty.token1,
-            # quantity of 50% token0 and 50% token1 deposited
-            "fifty_token0_qtty": (_current_total_value * Decimal("0.5"))
-            / ini_prices.token0,
-            "fifty_token1_qtty": (_current_total_value * Decimal("0.5"))
-            / ini_prices.token1,
-        }
-
-        for yield_item in yield_data:
-            # time var control
-            seconds_yield_data += yield_item.period_seconds
-
-            # period price per share
-            if yield_item.timeframe.ini.timestamp < ini_timestamp:
-                # modify control vars
-                ini_timestamp = yield_item.timeframe.ini.timestamp
-                price_per_share["ini_price_per_share"] = yield_item.price_per_share
-                ini_prices = yield_item.status.ini.prices
-                _current_total_value = (
-                    ini_prices.token0 * yield_item.status.ini.underlying.qtty.token0
-                    + ini_prices.token1 * yield_item.status.ini.underlying.qtty.token1
-                )
-                ini_supply = yield_item.status.ini.supply
-                deposit["qtty"] = yield_item.status.ini.underlying.qtty
-                deposit["usd_qtty"] = _current_total_value
-                deposit["allValue_in_token0"] = (
-                    ini_prices.token1
-                    / ini_prices.token0
-                    * yield_item.status.ini.underlying.qtty.token1
-                    + yield_item.status.ini.underlying.qtty.token0
-                )
-                deposit["allValue_in_token1"] = (
-                    ini_prices.token0
-                    / ini_prices.token1
-                    * yield_item.status.ini.underlying.qtty.token0
-                    + yield_item.status.ini.underlying.qtty.token1
-                )
-                deposit["fifty_token0_qtty"] = (
-                    _current_total_value * Decimal("0.5")
-                ) / ini_prices.token0
-                deposit["fifty_token1_qtty"] = (
-                    _current_total_value * Decimal("0.5")
-                ) / ini_prices.token1
-
-            if yield_item.timeframe.end.timestamp > end_timestamp:
-                # modify control vars
-                end_timestamp = yield_item.timeframe.end.timestamp
-                price_per_share["end_price_per_share"] = yield_item.price_per_share
-                end_prices = yield_item.status.end.prices
-                end_supply = yield_item.status.end.supply
-
-            if feeType == "all":
-                tmp = yield_item.fees
-            elif feeType == "gamma":
-                tmp = yield_item.fees_gamma
-            elif feeType == "lps":
-                tmp = yield_item.fees
-
-            if tmp:
-                if result["fees"]["period"]["percentage_yield"]:
-                    result["fees"]["period"]["percentage_yield"] *= 1 + tmp.period_yield
-                else:
-                    result["fees"]["period"]["percentage_yield"] = 1 + tmp.period_yield
-
-                # add to total period seconds
-                result["fees"]["period"]["seconds"] += yield_item.period_seconds
-
-                # add to total period qtty
-                result["fees"]["period"]["token0_qtty"] += tmp.qtty.token0 or Decimal(
-                    "0"
-                )
-                result["fees"]["period"]["token1_qtty"] += tmp.qtty.token1 or Decimal(
-                    "0"
-                )
-
-                result["fees"]["period"]["usd_qtty"] += (
-                    tmp.qtty.token0 * yield_item.status.end.prices.token0
-                    + tmp.qtty.token1 * yield_item.status.end.prices.token1
-                ) or Decimal("0")
-
-            if yield_item.fees_collected_within:
-                if yield_item.fees_collected_within.qtty.token0:
-                    result["fees"]["extra"][
-                        "token0_collected_within"
-                    ] += yield_item.fees_collected_within.qtty.token0
-                if yield_item.fees_collected_within.qtty.token1:
-                    result["fees"]["extra"][
-                        "token1_collected_within"
-                    ] += yield_item.fees_collected_within.qtty.token1
-
-            # impermanent
-
-            result["impermanent"]["period"][
-                "token0_qtty"
-            ] += yield_item.period_impermanent_token0
-            result["impermanent"]["period"][
-                "token1_qtty"
-            ] += yield_item.period_impermanent_token1
-            result["impermanent"]["period"][
-                "usd_qtty"
-            ] += yield_item.period_impermanent_usd
-            #
-            result["impermanent"]["period"][
-                "token0_qtty_usd"
-            ] += yield_item.period_impermanent_token0_usd
-            result["impermanent"]["period"][
-                "token1_qtty_usd"
-            ] += yield_item.period_impermanent_token1_usd
-
-            result["impermanent"]["period"]["seconds"] += yield_item.period_seconds
-
-            # rewards
-            if tmp := yield_item.rewards.period_yield:
-                if result["rewards"]["period"]["percentage_yield"]:
-                    result["rewards"]["period"]["percentage_yield"] *= 1 + tmp
-                else:
-                    result["rewards"]["period"]["percentage_yield"] = 1 + tmp
-
-                result["rewards"]["period"][
-                    "usd_qtty"
-                ] += yield_item.rewards.usd or Decimal("0")
-                # add to total period seconds
-                result["rewards"]["period"]["seconds"] += yield_item.period_seconds
-
-        # calculate fees yield for the period
-        if result["fees"]["period"]["percentage_yield"]:
-            result["fees"]["period"]["percentage_yield"] -= 1
-        if result["rewards"]["period"]["percentage_yield"]:
-            result["rewards"]["period"]["percentage_yield"] -= 1
-        # calculate impermanent yield for the period
-        try:
-            result["impermanent"]["period"]["percentage_yield"] = result["impermanent"][
-                "period"
-            ]["usd_qtty"] / (
-                result["fees"]["period"]["usd_qtty"]
-                / result["fees"]["period"]["percentage_yield"]
-            )
-        except Exception as e:
-            # logging.getLogger(__name__).error("  cant calc impermanent yield ...%s", e)
-            result["impermanent"]["period"]["percentage_yield"] = Decimal("0")
-
-        # calculate net yield of the period
-        result["aggregated"]["period"]["percentage_yield"] = (
-            result["fees"]["period"]["percentage_yield"]
-            + result["impermanent"]["period"]["percentage_yield"]
-            + result["rewards"]["period"]["percentage_yield"]
-        )
-
-        result["aggregated"]["period"]["token0_qtty"] = (
-            result["fees"]["period"]["token0_qtty"]
-            + result["impermanent"]["period"]["token0_qtty"]
-        )
-        result["aggregated"]["period"]["token1_qtty"] = (
-            result["fees"]["period"]["token1_qtty"]
-            + result["impermanent"]["period"]["token1_qtty"]
-        )
-        # usd is the only combined measure
-        result["aggregated"]["period"]["usd_qtty"] = (
-            result["fees"]["period"]["usd_qtty"]
-            + result["impermanent"]["period"]["usd_qtty"]
-            + result["rewards"]["period"]["usd_qtty"]
-        )
-
-        # calculate yearly extrapolation yield
-        day_in_seconds = 60 * 60 * 24
-        year_in_seconds = day_in_seconds * 365
-
-        result["fees"]["year"]["apr"] = (
-            result["fees"]["period"]["percentage_yield"]
-            * (
-                (Decimal(str(year_in_seconds)))
-                / Decimal(str(result["fees"]["period"]["seconds"]))
-            )
-            if result["fees"]["period"]["seconds"]
-            else Decimal("0")
-        )
-        try:
-            result["fees"]["year"]["apy"] = (
-                (
-                    (
-                        1
-                        + result["fees"]["period"]["percentage_yield"]
-                        * (
-                            (Decimal(str(day_in_seconds)))
-                            / Decimal(str(result["fees"]["period"]["seconds"]))
-                        )
-                    )
-                    ** Decimal("365")
-                    - Decimal("1")
-                )
-                if result["fees"]["period"]["seconds"]
-                else Decimal("0")
-            )
-        except OverflowError as e:
-            logging.getLogger(__name__).debug(f"  cant calc apy Overflow err ...{e}")
-
-        # fill comparison data
-        result["aggregated"]["extra"]["comparison"]["deposit"]["token0_qtty"] = deposit[
-            "qtty"
-        ].token0
-        result["aggregated"]["extra"]["comparison"]["deposit"]["token1_qtty"] = deposit[
-            "qtty"
-        ].token1
-        result["aggregated"]["extra"]["comparison"]["deposit"]["usd_qtty"] = deposit[
-            "usd_qtty"
-        ]
-        result["aggregated"]["extra"]["comparison"]["deposit"][
-            "allValue_in_token0"
-        ] = deposit["allValue_in_token0"]
-        result["aggregated"]["extra"]["comparison"]["deposit"][
-            "allValue_in_token1"
-        ] = deposit["allValue_in_token1"]
-        result["aggregated"]["extra"]["comparison"]["deposit"][
-            "fifty_token0_qtty"
-        ] = deposit["fifty_token0_qtty"]
-        result["aggregated"]["extra"]["comparison"]["deposit"][
-            "fifty_token1_qtty"
-        ] = deposit["fifty_token1_qtty"]
-
-        result["aggregated"]["extra"]["comparison"]["prices"][
-            "ini_token0"
-        ] = ini_prices.token0
-        result["aggregated"]["extra"]["comparison"]["prices"][
-            "ini_token1"
-        ] = ini_prices.token1
-
-        result["aggregated"]["extra"]["comparison"]["prices"][
-            "end_token0"
-        ] = end_prices.token0
-        result["aggregated"]["extra"]["comparison"]["prices"][
-            "end_token1"
-        ] = end_prices.token1
-        result["aggregated"]["extra"]["comparison"]["prices"][
-            "ini_share"
-        ] = price_per_share["ini_price_per_share"]
-        result["aggregated"]["extra"]["comparison"]["prices"][
-            "end_share"
-        ] = price_per_share["end_price_per_share"]
-
-        result["aggregated"]["extra"]["comparison"]["supply"]["ini"] = ini_supply
-        result["aggregated"]["extra"]["comparison"]["supply"]["end"] = end_supply
-
-    try:
-        result["roi"] = (
-            price_per_share["end_price_per_share"]
-            - price_per_share["ini_price_per_share"]
-        ) / price_per_share["ini_price_per_share"]
-
-    except Exception as e:
-        pass
-    # result
-    return result
 
 
 def returns_sumary(yield_data: list[period_yield_data], feeType: str = "lps") -> dict:
@@ -508,27 +105,6 @@ def returns_sumary(yield_data: list[period_yield_data], feeType: str = "lps") ->
             },
         },
     }
-
-    #     "chain": "celo",
-    #     "address": "0x002e2a8215e892e77681e2568f85c8f720ce63db",
-    #     "symbol": "xPACT-CELO3",
-    #     "block": 21593485,
-    #     "timestamp": 1695635990,
-    #     "period": 1,
-    #     "year_feeApr": 0,
-    #     "year_feeApy": 0,
-    #     "year_allRewards2": 0,
-    #     "period_feeApr": 0,
-    #     "period_rewardsApr": 0,
-    #     "period_lping": 8.36195166288179e-7,
-    #     "period_hodl_deposited": 0.008339392081189901,
-    #     "period_hodl_fifty": 0.00942349677500146,
-    #     "period_hodl_token0": 0,
-    #     "period_hodl_token1": 0.01884699355000292,
-    #     "period_netApr": 8.36195166288179e-7,
-    #     "period_impermanentResult": 8.36195166288179e-7,
-    #     "gamma_vs_hodl": -0.008269592511716772
-    #   },
 
     # calculate totals: sumarize data
     if yield_data:
@@ -732,15 +308,6 @@ def returns_sumary(yield_data: list[period_yield_data], feeType: str = "lps") ->
                         1 + yield_item.rewards_per_share_percentage_yield
                     )
 
-            # # XPERIMENT
-            # _share_price_difference = (
-            #     yield_item.price_per_share - price_per_share["ini_price_per_share"]
-            # )
-
-            # logging.getLogger("benchmark").info(
-            #     f" {result['fees']['period']['per_share_usd']:,.2f} [{result['fees']['period']['per_share_yield']:,.2%}] \t {result['rewards']['period']['per_share_usd']:,.2f} [{result['rewards']['period']['per_share_yield']:,.2%}] \t {result['impermanent']['period']['per_share_usd']:,.2f} [{result['impermanent']['period']['per_share_yield']:,.2%}]    ( {yield_item.price_per_share_at_ini:,.2f} -> {yield_item.price_per_share:,.2f} ) [ {_share_price_difference:,.2f}]  {yield_item.status.ini.underlying.qtty.token0}->{yield_item.status.end.underlying.qtty.token0} {yield_item.status.ini.underlying.qtty.token1}->{yield_item.status.end.underlying.qtty.token1}"
-            # )
-
         # calculate fees yield for the period
         if result["fees"]["period"]["percentage_yield"]:
             result["fees"]["period"]["percentage_yield"] -= 1
@@ -766,21 +333,6 @@ def returns_sumary(yield_data: list[period_yield_data], feeType: str = "lps") ->
         except Exception as e:
             # logging.getLogger(__name__).error("  cant calc impermanent yield ...%s", e)
             result["impermanent"]["period"]["percentage_yield"] = Decimal("0")
-
-        # result["impermanent"]["period"]["per_share_yield"] = (
-        #     result["impermanent"]["period"]["per_share_usd"]
-        #     / price_per_share["ini_price_per_share"]
-        #     if price_per_share["ini_price_per_share"]
-        #     else Decimal("0")
-        # )
-
-        # # rewrds share yield
-        # result["rewards"]["period"]["per_share_yield"] = (
-        #     result["rewards"]["period"]["per_share_usd"]
-        #     / price_per_share["ini_price_per_share"]
-        #     if price_per_share["ini_price_per_share"]
-        #     else Decimal("0")
-        # )
 
         # calculate net yield of the period
         result["aggregated"]["period"]["percentage_yield"] = (
@@ -858,18 +410,18 @@ def returns_sumary(yield_data: list[period_yield_data], feeType: str = "lps") ->
         result["aggregated"]["extra"]["comparison"]["deposit"]["usd_qtty"] = deposit[
             "usd_qtty"
         ]
-        result["aggregated"]["extra"]["comparison"]["deposit"][
-            "allValue_in_token0"
-        ] = deposit["allValue_in_token0"]
-        result["aggregated"]["extra"]["comparison"]["deposit"][
-            "allValue_in_token1"
-        ] = deposit["allValue_in_token1"]
-        result["aggregated"]["extra"]["comparison"]["deposit"][
-            "fifty_token0_qtty"
-        ] = deposit["fifty_token0_qtty"]
-        result["aggregated"]["extra"]["comparison"]["deposit"][
-            "fifty_token1_qtty"
-        ] = deposit["fifty_token1_qtty"]
+        result["aggregated"]["extra"]["comparison"]["deposit"]["allValue_in_token0"] = (
+            deposit["allValue_in_token0"]
+        )
+        result["aggregated"]["extra"]["comparison"]["deposit"]["allValue_in_token1"] = (
+            deposit["allValue_in_token1"]
+        )
+        result["aggregated"]["extra"]["comparison"]["deposit"]["fifty_token0_qtty"] = (
+            deposit["fifty_token0_qtty"]
+        )
+        result["aggregated"]["extra"]["comparison"]["deposit"]["fifty_token1_qtty"] = (
+            deposit["fifty_token1_qtty"]
+        )
 
         result["aggregated"]["extra"]["comparison"]["prices"][
             "ini_token0"
@@ -884,12 +436,12 @@ def returns_sumary(yield_data: list[period_yield_data], feeType: str = "lps") ->
         result["aggregated"]["extra"]["comparison"]["prices"][
             "end_token1"
         ] = end_prices.token1
-        result["aggregated"]["extra"]["comparison"]["prices"][
-            "ini_share"
-        ] = price_per_share["ini_price_per_share"]
-        result["aggregated"]["extra"]["comparison"]["prices"][
-            "end_share"
-        ] = price_per_share["end_price_per_share"]
+        result["aggregated"]["extra"]["comparison"]["prices"]["ini_share"] = (
+            price_per_share["ini_price_per_share"]
+        )
+        result["aggregated"]["extra"]["comparison"]["prices"]["end_share"] = (
+            price_per_share["end_price_per_share"]
+        )
 
         result["aggregated"]["extra"]["comparison"]["supply"]["ini"] = ini_supply
         result["aggregated"]["extra"]["comparison"]["supply"]["end"] = end_supply
@@ -904,236 +456,6 @@ def returns_sumary(yield_data: list[period_yield_data], feeType: str = "lps") ->
         pass
     # result
     return result
-
-
-def chart_period(yield_data: list[period_yield_data]) -> list[dict]:
-    """Create a list of points in a chart representing the period yield evolution in time
-
-    Args:
-        yield_data (list[period_yield_data]):
-
-    """
-
-    #     "chain": "celo",
-    #     "address": "0x002e2a8215e892e77681e2568f85c8f720ce63db",
-    #     "symbol": "xPACT-CELO3",
-    #     "block": 21593485,
-    #     "timestamp": 1695635990,
-    #     "period": 1,
-    #     "year_feeApr": 0,
-    #     "year_feeApy": 0,
-    #     "year_allRewards2": 0,
-    #     "period_feeApr": 0,
-    #     "period_rewardsApr": 0,
-    #     "period_lping": 8.36195166288179e-7,
-    #     "period_hodl_deposited": 0.008339392081189901,
-    #     "period_hodl_fifty": 0.00942349677500146,
-    #     "period_hodl_token0": 0,
-    #     "period_hodl_token1": 0.01884699355000292,
-    #     "period_netApr": 8.36195166288179e-7,
-    #     "period_impermanentResult": 8.36195166288179e-7,
-    #     "gamma_vs_hodl": -0.008269592511716772
-    #   },
-
-    # calculate totals: sumarize data
-    if yield_data:
-        # time var control
-        seconds_yield_data = 0
-
-        price_per_share = {
-            "ini_price_per_share": yield_data[0].price_per_share,
-            "end_price_per_share": yield_data[-1].price_per_share,
-        }
-
-        ini_timestamp = yield_data[0].timeframe.ini.timestamp
-        end_timestamp = yield_data[-1].timeframe.end.timestamp
-        ini_prices = yield_data[0].status.ini.prices
-        end_prices = yield_data[-1].status.end.prices
-
-        # deposit control var
-        deposit = {
-            "qtty": yield_data[0].status.ini.underlying.qtty,
-            "allValue_in_token0": ini_prices.token1
-            / ini_prices.token0
-            * yield_data[0].status.ini.underlying.qtty.token1
-            + yield_data[0].status.ini.underlying.qtty.token0,
-            "allValue_in_token1": ini_prices.token0
-            / ini_prices.token1
-            * yield_data[0].status.ini.underlying.qtty.token0
-            + yield_data[0].status.ini.underlying.qtty.token1,
-        }
-
-    #     for yield_item in yield_data:
-    #         # time var control
-    #         seconds_yield_data += yield_item.period_seconds
-
-    #         # period price per share
-    #         if yield_item.timeframe.ini.timestamp < price_per_share["ini_timestamp"]:
-    #             # modify control vars
-    #             ini_timestamp = yield_item.timeframe.ini.timestamp
-    #             price_per_share["ini_price_per_share"] = yield_item.price_per_share
-    #             ini_prices = yield_item.status.ini.prices
-    #             deposit = {
-    #                 "qtty": yield_item.status.ini.underlying.qtty,
-    #                 "allValue_in_token0": ini_prices.token1
-    #                 / ini_prices.token0
-    #                 * yield_item.status.ini.underlying.qtty.token1
-    #                 + yield_item.status.ini.underlying.qtty.token0,
-    #                 "allValue_in_token1": ini_prices.token0
-    #                 / ini_prices.token1
-    #                 * yield_item.status.ini.underlying.qtty.token0
-    #                 + yield_item.status.ini.underlying.qtty.token1,
-    #             }
-
-    #         if yield_item.timeframe.end.timestamp > price_per_share["end_timestamp"]:
-    #             # modify control vars
-    #             end_timestamp = yield_item.timeframe.end.timestamp
-    #             price_per_share["end_price_per_share"] = yield_item.price_per_share
-
-    #         if tmp := yield_item.fees.period_yield:
-    #             if result["fees"]["period"]["percentage_yield"]:
-    #                 result["fees"]["period"]["percentage_yield"] *= 1 + tmp
-    #             else:
-    #                 result["fees"]["period"]["percentage_yield"] = 1 + tmp
-
-    #             # add to total period seconds
-    #             result["fees"]["period"]["seconds"] += yield_item.period_seconds
-
-    #             result["fees"]["period"][
-    #                 "token0_qtty"
-    #             ] += yield_item.fees.qtty.token0 or Decimal("0")
-    #             result["fees"]["period"][
-    #                 "token1_qtty"
-    #             ] += yield_item.fees.qtty.token1 or Decimal("0")
-    #             result["fees"]["period"][
-    #                 "usd_qtty"
-    #             ] += yield_item.period_fees_usd or Decimal("0")
-
-    #         if yield_item.fees_collected_within:
-    #             if yield_item.fees_collected_within.qtty.token0:
-    #                 result["fees"]["extra"][
-    #                     "token0_collected_within"
-    #                 ] += yield_item.fees_collected_within.qtty.token0
-    #             if yield_item.fees_collected_within.qtty.token1:
-    #                 result["fees"]["extra"][
-    #                     "token1_collected_within"
-    #                 ] += yield_item.fees_collected_within.qtty.token1
-
-    #         # impermanent
-
-    #         result["impermanent"]["period"][
-    #             "token0_qtty"
-    #         ] += yield_item.period_impermanent_token0
-    #         result["impermanent"]["period"][
-    #             "token1_qtty"
-    #         ] += yield_item.period_impermanent_token1
-    #         result["impermanent"]["period"][
-    #             "usd_qtty"
-    #         ] += yield_item.period_impermanent_usd
-    #         #
-    #         result["impermanent"]["period"][
-    #             "token0_qtty_usd"
-    #         ] += yield_item.period_impermanent_token0_usd
-    #         result["impermanent"]["period"][
-    #             "token1_qtty_usd"
-    #         ] += yield_item.period_impermanent_token1_usd
-
-    #         result["impermanent"]["period"]["seconds"] += yield_item.period_seconds
-
-    #         # rewards
-    #         if tmp := yield_item.rewards.period_yield:
-    #             if result["rewards"]["period"]["percentage_yield"]:
-    #                 result["rewards"]["period"]["percentage_yield"] *= 1 + tmp
-    #             else:
-    #                 result["rewards"]["period"]["percentage_yield"] = 1 + tmp
-
-    #             result["rewards"]["period"][
-    #                 "usd_qtty"
-    #             ] += yield_item.rewards.usd or Decimal("0")
-    #             # add to total period seconds
-    #             result["rewards"]["period"]["seconds"] += yield_item.period_seconds
-
-    #     # calculate fees yield for the period
-    #     if result["fees"]["period"]["percentage_yield"]:
-    #         result["fees"]["period"]["percentage_yield"] -= 1
-    #     if result["rewards"]["period"]["percentage_yield"]:
-    #         result["rewards"]["period"]["percentage_yield"] -= 1
-    #     # calculate impermanent yield for the period
-    #     try:
-    #         result["impermanent"]["period"]["percentage_yield"] = result["impermanent"][
-    #             "period"
-    #         ]["usd_qtty"] / (
-    #             result["fees"]["period"]["usd_qtty"]
-    #             / result["fees"]["period"]["percentage_yield"]
-    #         )
-    #     except Exception as e:
-    #         # logging.getLogger(__name__).error("  cant calc impermanent yield ...%s", e)
-    #         result["impermanent"]["period"]["percentage_yield"] = Decimal("0")
-
-    #     # calculate net yield of the period
-    #     result["aggregated"]["period"]["percentage_yield"] = (
-    #         result["fees"]["period"]["percentage_yield"]
-    #         + result["impermanent"]["period"]["percentage_yield"]
-    #         + result["rewards"]["period"]["percentage_yield"]
-    #     )
-
-    #     result["aggregated"]["period"]["token0_qtty"] = (
-    #         result["fees"]["period"]["token0_qtty"]
-    #         + result["impermanent"]["period"]["token0_qtty"]
-    #     )
-    #     result["aggregated"]["period"]["token1_qtty"] = (
-    #         result["fees"]["period"]["token1_qtty"]
-    #         + result["impermanent"]["period"]["token1_qtty"]
-    #     )
-    #     # usd is the only combined measure
-    #     result["aggregated"]["period"]["usd_qtty"] = (
-    #         result["fees"]["period"]["usd_qtty"]
-    #         + result["impermanent"]["period"]["usd_qtty"]
-    #         + result["rewards"]["period"]["usd_qtty"]
-    #     )
-
-    #     # calculate yearly extrapolation yield
-    #     day_in_seconds = 60 * 60 * 24
-    #     year_in_seconds = day_in_seconds * 365
-
-    #     result["fees"]["year"]["apr"] = (
-    #         result["fees"]["period"]["percentage_yield"]
-    #         * (
-    #             (Decimal(str(year_in_seconds)))
-    #             / Decimal(str(result["fees"]["period"]["seconds"]))
-    #         )
-    #         if result["fees"]["period"]["seconds"]
-    #         else Decimal("0")
-    #     )
-    #     try:
-    #         result["fees"]["year"]["apy"] = (
-    #             (
-    #                 (
-    #                     1
-    #                     + result["fees"]["period"]["percentage_yield"]
-    #                     * (
-    #                         (Decimal(str(day_in_seconds)))
-    #                         / Decimal(str(result["fees"]["period"]["seconds"]))
-    #                     )
-    #                 )
-    #                 ** Decimal("365")
-    #                 - Decimal("1")
-    #             )
-    #             if result["fees"]["period"]["seconds"]
-    #             else Decimal("0")
-    #         )
-    #     except OverflowError as e:
-    #         logging.getLogger(__name__).debug(f"  cant calc apy Overflow err ...{e}")
-
-    # try:
-    #     result["roi"] = (
-    #         price_per_share["end_price_per_share"]
-    #         - price_per_share["ini_price_per_share"]
-    #     ) / price_per_share["ini_price_per_share"]
-    # except Exception as e:
-    #     pass
-    # # result
-    # return result
 
 
 def log_summary(summary: dict, hype_static: dict, chain: Chain, feeType: str) -> None:
@@ -1371,24 +693,6 @@ def log_summary(summary: dict, hype_static: dict, chain: Chain, feeType: str) ->
         f"     {_one_}  \t    {_two_}  \t   {_three_}  \t   {_four_}  \t   {_five_} "
     )
     p = ""
-
-
-def log_summary_web(summary: dict, hype_static: dict, chain: Chain) -> None:
-    ini_status = summary[0]["status"]["ini"]
-    end_status = summary[-1]["status"]["end"]
-
-    # prices
-    ini_prices = ini_status["prices"]
-    end_prices = end_status["prices"]
-    # value per share
-    ini_vps = summary[0]["price_per_share"]
-    end_vps = summary[-1]["price_per_share"]
-
-    # LOG
-
-    logging.getLogger(__name__).info(
-        f" {chain.fantasy_name}'s {hype_static['dex']} {hype_static['symbol']} returns:  [{hype_static['address']}]"
-    )
 
 
 def log_debug_data(
@@ -1739,34 +1043,63 @@ class period_yield_analyzer:
         self._deposit_qtty_token1 = self.yield_data_list[
             0
         ].status.ini.underlying.qtty.token1
-        # fees
-        self._fees_qtty_token0 = Decimal("0")
-        self._fees_qtty_token1 = Decimal("0")
-        self._fees_per_share = Decimal("0")
-        self._fees_per_share_yield = Decimal("0")
-        self._fees_qtty_usd = Decimal("0")
-        # rewards
-        self._rewards_per_share = Decimal("0")
-        self._rewards_per_share_yield = Decimal("0")
-        self._rewards_qtty_usd = Decimal("0")
+        # fees ( period and aggregated )
+        self._fees_qtty_token0_period = Decimal("0")
+        self._fees_qtty_token1_period = Decimal("0")
+        self._fees_usd_token0_period = Decimal("0")
+        self._fees_usd_token1_period = Decimal("0")
+        self._fees_usd_total_period = Decimal("0")
+        self._fees_per_share_period = Decimal("0")
+        self._fees_per_share_yield_period = Decimal("0")
+        self._fees_qtty_token0_aggregated = Decimal("0")
+        self._fees_qtty_token1_aggregated = Decimal("0")
+        self._fees_usd_token0_aggregated = Decimal("0")
+        self._fees_usd_token1_aggregated = Decimal("0")
+        self._fees_usd_total_aggregated = Decimal("0")
+        self._fees_per_share_aggregated = Decimal("0")
+        self._fees_per_share_yield_aggregated = Decimal("0")
+        # rewards ( period and aggregated )
+        self._rewards_per_share_aggregated = Decimal("0")
+        self._rewards_per_share_yield_aggregated = Decimal("0")
+        self._rewards_usd_total_aggregated = Decimal("0")
+        self._rewards_per_share_period = Decimal("0")
+        self._rewards_per_share_yield_period = Decimal("0")
+        self._rewards_usd_total_period = Decimal("0")
         self._rewards_token_symbols = set()
-        # impermanent
-        self._impermanent_qtty_token0 = Decimal("0")
-        self._impermanent_qtty_token1 = Decimal("0")
-        self._impermanent_per_share = Decimal("0")
-        self._impermanent_per_share_yield = Decimal("0")
-        self._impermanent_qtty_usd = Decimal("0")
+        # impermanent ( period and aggregated )
+        self._impermanent_qtty_token0_aggregated = Decimal("0")
+        self._impermanent_qtty_token1_aggregated = Decimal("0")
+        self._impermanent_usd_token0_aggregated = Decimal("0")
+        self._impermanent_usd_token1_aggregated = Decimal("0")
+        self._impermanent_per_share_aggregated = Decimal("0")
+        self._impermanent_per_share_yield_aggregated = Decimal("0")
+        self._impermanent_usd_total_aggregated = Decimal("0")
+        self._impermanent_qtty_token0_period = Decimal("0")
+        self._impermanent_qtty_token1_period = Decimal("0")
+        self._impermanent_usd_token0_period = Decimal("0")
+        self._impermanent_usd_token1_period = Decimal("0")
+        self._impermanent_per_share_period = Decimal("0")
+        self._impermanent_per_share_yield_period = Decimal("0")
+        self._impermanent_usd_total_period = Decimal("0")
+
         # returns ( hypervisor and net returns ) -> hypervisor returns = fees + impermanent and net returns = hypervisor returns + rewards
-        self._hype_roi_qtty_usd = Decimal("0")
-        self._hype_roi_qtty_token0 = Decimal("0")
-        self._hype_roi_qtty_token1 = Decimal("0")
-        self._hype_roi_per_share = Decimal("0")
-        self._hype_roi_per_share_yield = Decimal("0")
-        self._net_roi_qtty_usd = Decimal("0")
-        self._net_roi_qtty_token0 = Decimal("0")
-        self._net_roi_qtty_token1 = Decimal("0")
-        self._net_roi_per_share = Decimal("0")
-        self._net_roi_per_share_yield = Decimal("0")
+        self._hype_roi_usd_total_period = Decimal("0")
+        self._hype_roi_qtty_token0_period = Decimal("0")
+        self._hype_roi_qtty_token1_period = Decimal("0")
+        self._hype_roi_per_share_period = Decimal("0")
+        self._hype_roi_per_share_yield_period = Decimal("0")
+        self._hype_roi_usd_total_aggregated = Decimal("0")
+        self._hype_roi_qtty_token0_aggregated = Decimal("0")
+        self._hype_roi_qtty_token1_aggregated = Decimal("0")
+        self._hype_roi_per_share_aggregated = Decimal("0")
+        self._hype_roi_per_share_yield_aggregated = Decimal("0")
+        #
+        self._net_roi_usd_total_period = Decimal("0")
+        self._net_roi_per_share_period = Decimal("0")
+        self._net_roi_per_share_yield_period = Decimal("0")
+        self._net_roi_usd_total_aggregated = Decimal("0")
+        self._net_roi_per_share_aggregated = Decimal("0")
+        self._net_roi_per_share_yield_aggregated = Decimal("0")
 
         # comparison
         self._current_period_hodl_deposited = Decimal("0")
@@ -1788,30 +1121,42 @@ class period_yield_analyzer:
         year_in_seconds = Decimal(str(day_in_seconds * 365))
         # create vars
         self._year_fees_per_share_yield = (
-            self._fees_per_share_yield / total_seconds
+            self._fees_per_share_yield_aggregated / total_seconds
             if total_seconds
             else Decimal("0")
         ) * year_in_seconds
 
         self._year_fees_qtty_usd = (
-            self._fees_qtty_usd / total_seconds if total_seconds else Decimal("0")
+            self._fees_usd_total_aggregated / total_seconds
+            if total_seconds
+            else Decimal("0")
         ) * year_in_seconds
         self._year_fees_per_share = (
-            self._fees_per_share / total_seconds if total_seconds else Decimal("0")
+            self._fees_per_share_aggregated / total_seconds
+            if total_seconds
+            else Decimal("0")
         ) * year_in_seconds
         self._year_fees_qtty_token0 = (
-            self._fees_qtty_token0 / total_seconds if total_seconds else Decimal("0")
+            self._fees_qtty_token0_aggregated / total_seconds
+            if total_seconds
+            else Decimal("0")
         ) * year_in_seconds
         self._year_fees_qtty_token1 = (
-            self._fees_qtty_token1 / total_seconds if total_seconds else Decimal("0")
+            self._fees_qtty_token1_aggregated / total_seconds
+            if total_seconds
+            else Decimal("0")
         ) * year_in_seconds
 
         # period rewards to yearly extrapolation
         self._year_rewards_qtty_usd = (
-            self._rewards_qtty_usd / total_seconds if total_seconds else Decimal("0")
+            self._rewards_usd_total_aggregated / total_seconds
+            if total_seconds
+            else Decimal("0")
         ) * year_in_seconds
         self._year_rewards_per_share = (
-            self._rewards_per_share / total_seconds if total_seconds else Decimal("0")
+            self._rewards_per_share_aggregated / total_seconds
+            if total_seconds
+            else Decimal("0")
         ) * year_in_seconds
         self._year_rewards_per_share_yield = (
             self._year_rewards_per_share / self._ini_price_per_share
@@ -1821,12 +1166,12 @@ class period_yield_analyzer:
 
         # period impermanent to yearly extrapolation
         self._year_impermanent_qtty_usd = (
-            self._impermanent_qtty_usd / total_seconds
+            self._impermanent_usd_total_aggregated / total_seconds
             if total_seconds
             else Decimal("0")
         ) * year_in_seconds
         self._year_impermanent_per_share = (
-            self._impermanent_per_share / total_seconds
+            self._impermanent_per_share_aggregated / total_seconds
             if total_seconds
             else Decimal("0")
         ) * year_in_seconds
@@ -1838,12 +1183,12 @@ class period_yield_analyzer:
 
         # period net yield to yearly extrapolation
         self._year_net_yield_qtty_usd = (
-            self._net_roi_yield_qtty_usd / self._total_seconds
+            self._net_roi_usd_total_aggregated / self._total_seconds
             if self._total_seconds
             else Decimal("0")
         ) * year_in_seconds
         self._year_net_yield_per_share = (
-            self._net_roi_yield / self._total_seconds
+            self._net_roi_per_share_yield_aggregated / self._total_seconds
             if self._total_seconds
             else Decimal("0")
         ) * year_in_seconds
@@ -1985,102 +1330,185 @@ class period_yield_analyzer:
             # GRAPH ( needs all previous data )
             self._fill_graph(yield_item)
 
-            # TODO: remove this
-            # self.debug_line(yield_item)
-
     # FILL VARIABLES
     def _fill_variables_fees(self, yield_item: period_yield_data):
         # FEES
-        self._fees_qtty_token0 += yield_item.fees.qtty.token0 or Decimal("0")
-        self._fees_qtty_token1 += yield_item.fees.qtty.token1 or Decimal("0")
-        self._fees_qtty_usd += yield_item.period_fees_usd or Decimal("0")
-        self._fees_per_share += yield_item.fees_per_share or Decimal("0")
-        self._fees_per_share_yield = (
-            self._fees_per_share / self._ini_price_per_share
+
+        # fees for this timewindow ( line )
+        self._fees_qtty_token0_period = yield_item.fees.qtty.token0 or Decimal("0")
+        self._fees_qtty_token1_period = yield_item.fees.qtty.token1 or Decimal("0")
+        self._fees_usd_token0_period = (
+            yield_item.fees.qtty.token0 * yield_item.status.end.prices.token0
+        )
+        self._fees_usd_token1_period = (
+            yield_item.fees.qtty.token1 * yield_item.status.end.prices.token1
+        )
+        self._fees_usd_total_period = yield_item.period_fees_usd or Decimal("0")
+        # aggregated fees
+        self._fees_qtty_token0_aggregated += self._fees_qtty_token0_period
+        self._fees_qtty_token1_aggregated += self._fees_qtty_token1_period
+        self._fees_usd_token0_aggregated += self._fees_usd_token0_period
+        self._fees_usd_token1_aggregated += self._fees_usd_token1_period
+        self._fees_usd_total_aggregated += self._fees_usd_total_period
+        # fees per share
+        self._fees_per_share_period = yield_item.fees_per_share or Decimal("0")
+        self._fees_per_share_aggregated += yield_item.fees_per_share or Decimal("0")
+        # yield
+        self._fees_per_share_yield_period = (
+            self._fees_per_share_period / yield_item.price_per_share_at_ini
+            if yield_item.price_per_share_at_ini
+            else Decimal("0")
+        )
+        self._fees_per_share_yield_aggregated = (
+            self._fees_per_share_aggregated / self._ini_price_per_share
             if self._ini_price_per_share
             else Decimal("0")
         )
 
     def _fill_variables_rewards(self, yield_item: period_yield_data):
         # rewards for the period
-        # yield_item.rewards.period_yield is extrapolated to current period seconds
-        self._rewards_per_share += yield_item.rewards_per_share or Decimal("0")
-        self._rewards_qtty_usd += yield_item.rewards.usd or Decimal("0")
+        self._rewards_per_share_period = yield_item.rewards_per_share or Decimal("0")
+        self._rewards_usd_total_period = yield_item.rewards.usd or Decimal("0")
+        self._rewards_per_share_yield_period = (
+            self._rewards_per_share_period / yield_item.price_per_share_at_ini
+            if yield_item.price_per_share_at_ini
+            else Decimal("0")
+        )
+        #
+        self._rewards_per_share_aggregated += yield_item.rewards_per_share or Decimal(
+            "0"
+        )
+        self._rewards_usd_total_aggregated += yield_item.rewards.usd or Decimal("0")
+        self._rewards_per_share_yield_aggregated = (
+            self._rewards_per_share_aggregated / self._ini_price_per_share
+            if self._ini_price_per_share
+            else Decimal("0")
+        )
 
-        self._rewards_per_share_yield = (
-            self._rewards_per_share / self._ini_price_per_share
+    def _fill_variables_impermanent(self, yield_item: period_yield_data):
+        # IMPERMANENT (  share price end - share price ini - fees x share from the period[ so fees usd for the period/supply  ])
+        self._impermanent_qtty_token0_period = (
+            yield_item.status.end.underlying.qtty.token0
+            - yield_item.status.ini.underlying.qtty.token0
+        ) - yield_item.fees.qtty.token0
+
+        self._impermanent_qtty_token1_period = (
+            yield_item.status.end.underlying.qtty.token1
+            - yield_item.status.ini.underlying.qtty.token1
+        ) - yield_item.fees.qtty.token1
+
+        self._impermanent_usd_token0_period = (
+            (
+                yield_item.status.end.underlying.qtty.token0
+                * yield_item.status.end.prices.token0
+            )
+            - (
+                yield_item.status.ini.underlying.qtty.token0
+                * yield_item.status.ini.prices.token0
+            )
+            - (yield_item.fees.qtty.token0 * yield_item.status.end.prices.token0)
+        )
+
+        self._impermanent_usd_token1_period = (
+            (
+                yield_item.status.end.underlying.qtty.token1
+                * yield_item.status.end.prices.token1
+            )
+            - (
+                yield_item.status.ini.underlying.qtty.token1
+                * yield_item.status.ini.prices.token1
+            )
+            - (yield_item.fees.qtty.token1 * yield_item.status.end.prices.token1)
+        )
+
+        self._impermanent_usd_total_period = (
+            self._impermanent_usd_token0_period + self._impermanent_usd_token1_period
+        )
+
+        self._impermanent_per_share_period = (
+            yield_item.price_per_share
+            - yield_item.price_per_share_at_ini
+            - (yield_item.period_fees_usd / yield_item.status.end.supply)
+        )
+
+        self._impermanent_per_share_yield_period = (
+            self._impermanent_per_share_period / yield_item.price_per_share_at_ini
+            if yield_item.price_per_share_at_ini
+            else Decimal("0")
+        )
+
+        # aggregated
+        self._impermanent_qtty_token0_aggregated += self._impermanent_qtty_token0_period
+        self._impermanent_qtty_token1_aggregated += self._impermanent_qtty_token1_period
+        self._impermanent_usd_token0_aggregated += self._impermanent_usd_token0_period
+        self._impermanent_usd_token1_aggregated += self._impermanent_usd_token1_period
+        self._impermanent_usd_total_aggregated += self._impermanent_usd_total_period
+        # we do not use the *_period vars above to avoid errors like different end - ini price between periods or missing periods ( not common but possible )
+        self._impermanent_per_share_aggregated = (
+            yield_item.price_per_share
+            - self._ini_price_per_share
+            - self._fees_per_share_aggregated
+        )
+        self._impermanent_per_share_yield_aggregated = (
+            self._impermanent_per_share_aggregated / self._ini_price_per_share
             if self._ini_price_per_share
             else Decimal("0")
         )
 
     def _fill_variables_hypervisor_return(self, yield_item: period_yield_data):
-        """Fees + impermanent  ( no rewards included )
+        """Fees + impermanent  ( no rewards included )"""
 
-        Args:
-            yield_item (period_yield_data): _description_
-
-        Yields:
-            _type_: _description_
-        """
-        self._hype_roi_per_share = (
-            yield_item.price_per_share - self._ini_price_per_share
-        )
-        self._hype_roi_per_share_yield = (
-            self._hype_roi_per_share / self._ini_price_per_share
-            if self._ini_price_per_share
-            else Decimal("0")
-        )
-
-        self._hype_roi_qtty_usd = self.deposit_qtty_usd * self._hype_roi_per_share_yield
-        _token0_weight, _token1_weight = self.get_token_usd_weight(yield_item)
-        self._hype_roi_qtty_token0 = _token0_weight * self._hype_roi_qtty_usd
-        self._hype_roi_qtty_token1 = _token1_weight * self._hype_roi_qtty_usd
-
-    def _fill_variables_impermanent(self, yield_item: period_yield_data):
-        # IMPERMANENT ( )
-
-        self._impermanent_qtty_usd = self._hype_roi_qtty_usd - self._fees_qtty_usd
-
-        self._impermanent_qtty_token0 = (
+        self._hype_roi_usd_total_period = (
+            yield_item.price_per_share * yield_item.status.end.supply
+        ) - (yield_item.price_per_share_at_ini * yield_item.status.ini.supply)
+        self._hype_roi_qtty_token0_period = (
             yield_item.status.end.underlying.qtty.token0
-            - yield_item.fees.qtty.token0
-            # - self._deposit_qtty_token0
             - yield_item.status.ini.underlying.qtty.token0
         )
-        self._impermanent_qtty_token1 = (
+        self._hype_roi_qtty_token1_period = (
             yield_item.status.end.underlying.qtty.token1
-            - yield_item.fees.qtty.token1
             - yield_item.status.ini.underlying.qtty.token1
         )
-        self._impermanent_per_share = (
-            yield_item.price_per_share
-            - self._ini_price_per_share
-            - self._fees_per_share
+        self._hype_roi_per_share_period = (
+            yield_item.price_per_share - yield_item.price_per_share_at_ini
         )
-        self._impermanent_per_share_yield = (
-            self._impermanent_per_share / self._ini_price_per_share
+        self._hype_roi_per_share_yield_period = (
+            self._hype_roi_per_share_period / yield_item.price_per_share_at_ini
+            if yield_item.price_per_share_at_ini
+            else Decimal("0")
+        )
+        # aggregated
+        self._hype_roi_usd_total_aggregated += self._hype_roi_usd_total_period
+        self._hype_roi_qtty_token0_aggregated += self._hype_roi_qtty_token0_period
+        self._hype_roi_qtty_token1_aggregated += self._hype_roi_qtty_token1_period
+        self._hype_roi_per_share_aggregated += self._hype_roi_per_share_period
+        self._hype_roi_per_share_yield_aggregated = (
+            self._hype_roi_per_share_aggregated / self._ini_price_per_share
             if self._ini_price_per_share
             else Decimal("0")
         )
 
     def _fill_variables_net_return(self, yield_item: period_yield_data):
-        """Roi + rewards ( so fees + impermanent + rewards)
+        """Roi + rewards ( so fees + impermanent + rewards)"""
 
-        Args:
-            yield_item (period_yield_data):
-
-        """
-        # include rewards in net return
-        self._net_roi_per_share = (
-            self._fees_per_share + self._rewards_per_share + self._impermanent_per_share
+        self._net_roi_usd_total_period = (
+            self._hype_roi_usd_total_period + self._rewards_usd_total_period
         )
-        self._net_roi_yield = (
-            (self._net_roi_per_share / self._ini_price_per_share)
-            if self._ini_price_per_share
+        self._net_roi_per_share_period = (
+            self._hype_roi_per_share_period + self._rewards_per_share_period
+        )
+        self._net_roi_per_share_yield_period = (
+            self._net_roi_per_share_period / yield_item.price_per_share_at_ini
+            if yield_item.price_per_share_at_ini
             else Decimal("0")
         )
-        self._net_roi_yield_qtty_usd = (
-            self._fees_qtty_usd + self._rewards_qtty_usd + self._impermanent_qtty_usd
+
+        self._net_roi_usd_total_aggregated += self._net_roi_usd_total_period
+        self._net_roi_per_share_aggregated += self._net_roi_per_share_period
+        self._net_roi_per_share_yield_aggregated = (
+            self._net_roi_per_share_aggregated / self._ini_price_per_share
+            if self._ini_price_per_share
+            else Decimal("0")
         )
 
     def _fill_variables_price(self, yield_item: period_yield_data):
@@ -2156,6 +1584,32 @@ class period_yield_analyzer:
                     "seconds": reward_detail["seconds"],
                     "period yield": reward_detail["period yield"],
                 }
+        # calculate per share prices ( to help when debugging)
+        _status_ini = yield_item.status.ini.to_dict()
+        _status_ini["prices"]["share"] = (
+            (
+                yield_item.status.ini.prices.token0
+                * yield_item.status.ini.underlying.qtty.token0
+                + yield_item.status.ini.prices.token1
+                * yield_item.status.ini.underlying.qtty.token1
+            )
+            / yield_item.status.ini.supply
+            if yield_item.status.ini.supply
+            else 0
+        )
+        _status_end = yield_item.status.end.to_dict()
+        _status_end["prices"]["share"] = (
+            (
+                yield_item.status.end.prices.token0
+                * yield_item.status.end.underlying.qtty.token0
+                + yield_item.status.end.prices.token1
+                * yield_item.status.end.underlying.qtty.token1
+            )
+            / yield_item.status.end.supply
+            if yield_item.status.end.supply
+            else 0
+        )
+
         # add to graph data
         self._graph_data.append(
             {
@@ -2164,54 +1618,97 @@ class period_yield_analyzer:
                 "symbol": self.hypervisor_static["symbol"],
                 "block": yield_item.timeframe.end.block,
                 "timestamp": yield_item.timeframe.end.timestamp,
+                "timestamp_from": yield_item.timeframe.ini.timestamp,
+                "datetime_from": f"{yield_item.timeframe.ini.datetime:%Y-%m-%d %H:%M:%S}",
+                "datetime_to": f"{yield_item.timeframe.end.datetime:%Y-%m-%d %H:%M:%S}",
                 "period_seconds": self._total_seconds,
                 "status": {
-                    "ini": yield_item.status.ini.to_dict(),
-                    "end": yield_item.status.end.to_dict(),
+                    "ini": _status_ini,
+                    "end": _status_end,
                 },
                 "fees": {
+                    "point": {
+                        "yield": self._fees_per_share_yield_period,
+                        "total_usd": self._fees_usd_total_period,
+                        "qtty_token0": self._fees_qtty_token0_period,
+                        "qtty_token1": self._fees_qtty_token1_period,
+                        "usd_token0": self._fees_usd_token0_period,
+                        "usd_token1": self._fees_usd_token1_period,
+                        "per_share": self._fees_per_share_period,
+                    },
                     "period": {
-                        "yield": self._fees_per_share_yield,
-                        "qtty_usd": self._fees_qtty_usd,
-                        "qtty_token0": self._fees_qtty_token0,
-                        "qtty_token1": self._fees_qtty_token1,
+                        "yield": self._fees_per_share_yield_aggregated,
+                        "total_usd": self._fees_usd_total_aggregated,
+                        "qtty_token0": self._fees_qtty_token0_aggregated,
+                        "qtty_token1": self._fees_qtty_token1_aggregated,
+                        "usd_token0": self._fees_usd_token0_aggregated,
+                        "usd_token1": self._fees_usd_token1_aggregated,
+                        "per_share": self._fees_per_share_aggregated,
                     },
                     "year": {
                         "yield": self._year_fees_per_share_yield,
-                        "qtty_usd": self._year_fees_qtty_usd,
+                        "total_usd": self._year_fees_qtty_usd,
                         "qtty_token0": self._year_fees_qtty_token0,
                         "qtty_token1": self._year_fees_qtty_token1,
                     },
                 },
                 "rewards": {
+                    "point": {
+                        "yield": self._rewards_per_share_yield_period,
+                        "total_usd": self._rewards_usd_total_period,
+                        "per_share": self._rewards_per_share_period,
+                    },
                     "period": {
-                        "yield": self._rewards_per_share_yield,
-                        "qtty_usd": self._rewards_qtty_usd,
+                        "yield": self._rewards_per_share_yield_aggregated,
+                        "total_usd": self._rewards_usd_total_aggregated,
+                        "per_share": self._rewards_per_share_aggregated,
                     },
                     "year": {
                         "yield": self._year_rewards_per_share_yield,
-                        "qtty_usd": self._year_rewards_qtty_usd,
+                        "total_usd": self._year_rewards_qtty_usd,
                     },
                     "details": _rwds_details,
                 },
                 "impermanent": {
+                    "point": {
+                        "yield": self._impermanent_per_share_yield_period,
+                        "total_usd": self._impermanent_usd_total_period,
+                        "qtty_token0": self._impermanent_qtty_token0_period,
+                        "qtty_token1": self._impermanent_qtty_token1_period,
+                        "usd_token0": self._impermanent_usd_token0_period,
+                        "usd_token1": self._impermanent_usd_token1_period,
+                        "per_share": self._impermanent_per_share_period,
+                    },
                     "period": {
-                        "yield": self._impermanent_per_share_yield,
-                        "qtty_usd": self._impermanent_qtty_usd,
-                        "qtty_token0": self._impermanent_qtty_token0,
-                        "qtty_token1": self._impermanent_qtty_token1,
-                    }
+                        "yield": self._impermanent_per_share_yield_aggregated,
+                        "total_usd": self._impermanent_usd_total_aggregated,
+                        "qtty_token0": self._impermanent_qtty_token0_aggregated,
+                        "qtty_token1": self._impermanent_qtty_token1_aggregated,
+                        "usd_token0": self._impermanent_usd_token0_aggregated,
+                        "usd_token1": self._impermanent_usd_token1_aggregated,
+                        "per_share": self._impermanent_per_share_aggregated,
+                    },
                 },
                 "roi": {
+                    "point": {
+                        "return": self._net_roi_per_share_yield_period,
+                        "total_usd": self._net_roi_usd_total_period,
+                    },
                     "period": {
-                        "return": self._net_roi_yield,
-                        "qtty_usd": self._net_roi_yield_qtty_usd,
+                        "return": self._net_roi_per_share_yield_aggregated,
+                        "total_usd": self._net_roi_usd_total_aggregated,
+                    },
+                    "point_hypervisor": {
+                        "return": self._hype_roi_per_share_yield_period,
+                        "total_usd": self._hype_roi_usd_total_period,
+                        "qtty_token0": self._hype_roi_qtty_token0_period,
+                        "qtty_token1": self._hype_roi_qtty_token1_period,
                     },
                     "period_hypervisor": {
-                        "return": self._hype_roi_per_share_yield,
-                        "qtty_usd": self._hype_roi_qtty_usd,
-                        "qtty_token0": self._hype_roi_qtty_token0,
-                        "qtty_token1": self._hype_roi_qtty_token1,
+                        "return": self._hype_roi_per_share_yield_aggregated,
+                        "total_usd": self._hype_roi_usd_total_aggregated,
+                        "qtty_token0": self._hype_roi_qtty_token0_aggregated,
+                        "qtty_token1": self._hype_roi_qtty_token1_aggregated,
                     },
                 },
                 "price": {
@@ -2222,7 +1719,7 @@ class period_yield_analyzer:
                 },
                 "comparison": {
                     "return": {
-                        "gamma": self._net_roi_yield,
+                        "gamma": self._net_roi_per_share_yield_aggregated,
                         "hodl_deposited": self._period_hodl_deposited_yield,
                         "hodl_fifty": self._period_hodl_fifty_yield,
                         "hodl_token0": self._period_hodl_token0_yield,
@@ -2231,7 +1728,7 @@ class period_yield_analyzer:
                     "gamma_vs": {
                         "hodl_deposited": (
                             (
-                                (self._net_roi_yield + 1)
+                                (self._net_roi_per_share_yield_aggregated + 1)
                                 / (self._period_hodl_deposited_yield + 1)
                             )
                             if self._period_hodl_deposited_yield != -1
@@ -2240,7 +1737,7 @@ class period_yield_analyzer:
                         - 1,
                         "hodl_fifty": (
                             (
-                                (self._net_roi_yield + 1)
+                                (self._net_roi_per_share_yield_aggregated + 1)
                                 / (self._period_hodl_fifty_yield + 1)
                             )
                             if self._period_hodl_fifty_yield != -1
@@ -2249,7 +1746,7 @@ class period_yield_analyzer:
                         - 1,
                         "hodl_token0": (
                             (
-                                (self._net_roi_yield + 1)
+                                (self._net_roi_per_share_yield_aggregated + 1)
                                 / (self._period_hodl_token0_yield + 1)
                             )
                             if self._period_hodl_token0_yield != -1
@@ -2258,7 +1755,7 @@ class period_yield_analyzer:
                         - 1,
                         "hodl_token1": (
                             (
-                                (self._net_roi_yield + 1)
+                                (self._net_roi_per_share_yield_aggregated + 1)
                                 / (self._period_hodl_token1_yield + 1)
                             )
                             if self._period_hodl_token1_yield != -1
@@ -2271,41 +1768,43 @@ class period_yield_analyzer:
                 "year_feeApr": self._year_fees_per_share_yield,
                 "year_feeApy": self._year_fees_per_share_yield,
                 "year_allRewards2": self._year_rewards_per_share_yield,
-                "period_feeApr": self._fees_per_share_yield,
-                "period_rewardsApr": self._rewards_per_share_yield,
-                "period_lping": self._net_roi_yield,
+                "period_feeApr": self._fees_per_share_yield_aggregated,
+                "period_rewardsApr": self._rewards_per_share_yield_aggregated,
+                "period_lping": self._net_roi_per_share_yield_aggregated,
                 "period_hodl_deposited": self._period_hodl_deposited_yield,
                 "period_hodl_fifty": self._period_hodl_fifty_yield,
                 "period_hodl_token0": self._period_hodl_token0_yield,
                 "period_hodl_token1": self._period_hodl_token1_yield,
-                "period_netApr": self._net_roi_yield,
-                "period_impermanentResult": self._impermanent_per_share_yield,
+                "period_netApr": self._net_roi_per_share_yield_aggregated,
+                "period_impermanentResult": self._impermanent_per_share_yield_aggregated,
                 "gamma_vs_hodl": (
-                    (self._net_roi_yield + 1) / (self._period_hodl_deposited_yield + 1)
+                    (self._net_roi_per_share_yield_aggregated + 1)
+                    / (self._period_hodl_deposited_yield + 1)
                 )
                 - 1,
             }
         )
-        # OLD VERSION
-        #     "chain": "celo",
-        #     "address": "0x002e2a8215e892e77681e2568f85c8f720ce63db",
-        #     "symbol": "xPACT-CELO3",
-        #     "block": 21593485,
-        #     "timestamp": 1695635990,
-        #     "period": 1,
-        #     "year_feeApr": 0,
-        #     "year_feeApy": 0,
-        #     "year_allRewards2": 0,
-        #     "period_feeApr": 0,
-        #     "period_rewardsApr": 0,
-        #     "period_lping": 8.36195166288179e-7,
-        #     "period_hodl_deposited": 0.008339392081189901,
-        #     "period_hodl_fifty": 0.00942349677500146,
-        #     "period_hodl_token0": 0,
-        #     "period_hodl_token1": 0.01884699355000292,
-        #     "period_netApr": 8.36195166288179e-7,
-        #     "period_impermanentResult": 8.36195166288179e-7,
-        #     "gamma_vs_hodl": -0.008269592511716772
+
+    def get_graph_csv(self):
+        """Return a csv string with the graph data
+
+        Returns:
+            str: csv string
+        """
+        # create csv string
+        csv_string = ""
+        for item in self._graph_data:
+            flat_item = flatten_dict(item)
+
+            # create header if not already
+            if csv_string == "":
+                headers = list(flat_item.keys())
+                csv_string += ",".join(headers) + "\n"
+            # append data to csv string
+            csv_string += ",".join([str(x) for x in flat_item.values()]) + "\n"
+
+        # return csv string
+        return csv_string
 
     def _check_data_consistency(self):
         """Check if data is consistent
@@ -2313,25 +1812,27 @@ class period_yield_analyzer:
         Raises:
             Exception: _description_
         """
-        # check ROI equality
-        if (
-            f"{self._hype_roi_qtty_token0 + self._hype_roi_qtty_token1:,.3f}"
-            != f"{self._hype_roi_qtty_usd:,.3f}"
-        ):
-            raise Exception("ROI calculation error")
-        # check ROI overall
-        if (
-            f"{self._hype_roi_per_share:,.3f}"
-            != f"{self._end_price_per_share - self._ini_price_per_share:,.3f}"
-        ):
-            raise Exception("ROI calculation error")
+        # TODO: implement
 
-        # check USD qtty ( only fees + impermanent, because rewards are external to this system)
-        if (
-            f"{self._hype_roi_qtty_usd:,.3f}"
-            != f"{self._fees_qtty_usd + self._impermanent_qtty_usd:,.3f}"
-        ):
-            raise Exception("USD qtty calculation error")
+        # # check ROI equality
+        # if (
+        #     f"{self._hype_roi_qtty_token0 + self._hype_roi_qtty_token1:,.3f}"
+        #     != f"{self._hype_roi_qtty_usd:,.3f}"
+        # ):
+        #     raise Exception("ROI calculation error")
+        # # check ROI overall
+        # if (
+        #     f"{self._hype_roi_per_share:,.3f}"
+        #     != f"{self._end_price_per_share - self._ini_price_per_share:,.3f}"
+        # ):
+        #     raise Exception("ROI calculation error")
+
+        # # check USD qtty ( only fees + impermanent, because rewards are external to this system)
+        # if (
+        #     f"{self._hype_roi_qtty_usd:,.3f}"
+        #     != f"{self._fees_qtty_usd + self._impermanent_qtty_usd:,.3f}"
+        # ):
+        #     raise Exception("USD qtty calculation error")
 
     # GETTERS
     def get_graph(self) -> list[dict]:
@@ -2368,16 +1869,13 @@ class period_yield_analyzer:
         )
         # Summary
         logging.getLogger(__name__).info(
-            f"    {feeType} period fees : {self._fees_per_share_yield:,.2%}  [ {self._fees_qtty_token0:,.2f} {self.hypervisor_static['pool']['token0']['symbol']}   {self._fees_qtty_token1:,.2f} {self.hypervisor_static['pool']['token1']['symbol']} ] [ {self._fees_qtty_usd:,.2f} USD]  [total days: {self._total_seconds/(60*60*24):,.1f} ]  [APR: {self._year_fees_per_share_yield:,.2%} ]"
+            f"    {feeType} period fees : {self._fees_per_share_yield_aggregated:,.2%}  [ {self._fees_qtty_token0_aggregated:,.2f} {self.hypervisor_static['pool']['token0']['symbol']}   {self._fees_qtty_token1_aggregated:,.2f} {self.hypervisor_static['pool']['token1']['symbol']} ] [ {self._fees_usd_total_aggregated:,.2f} USD]  [total days: {self._total_seconds/(60*60*24):,.1f} ]  [APR: {self._year_fees_per_share_yield:,.2%} ]"
         )
         logging.getLogger(__name__).info(
-            f"     period rewards : {self._rewards_per_share_yield:,.2%}  [ {self._rewards_qtty_usd:,.2f} USD]  [data total days: {self._total_seconds/(60*60*24):,.1f} ]"
+            f"     period rewards : {self._rewards_per_share_yield_aggregated:,.2%}  [ {self._rewards_usd_total_aggregated:,.2f} USD]  [data total days: {self._total_seconds/(60*60*24):,.1f} ]"
         )
-        # logging.getLogger(__name__).info(
-        #     f" period impermanent : {impermanent_per_share_yield:,.2%}  [ {impermanent_qtty_token0:,.2f} {self.hypervisor_static['pool']['token0']['symbol']}   {impermanent_qtty_token1:,.2f} {self.hypervisor_static['pool']['token1']['symbol']} ] [ {impermanent_qtty_usd:,.2f} USD]  [data total days: {total_seconds/(60*60*24):,.1f} ]"
-        # )
         logging.getLogger(__name__).info(
-            f" period impermanent : {self._impermanent_per_share_yield:,.2%}  [ {self._impermanent_qtty_usd:,.2f} USD]  [data total days: {self._total_seconds/(60*60*24):,.1f} ]"
+            f" period impermanent : {self._impermanent_per_share_yield_aggregated:,.2%}  [ {self._impermanent_usd_total_aggregated:,.2f} USD]  [data total days: {self._total_seconds/(60*60*24):,.1f} ]"
         )
         logging.getLogger(__name__).info(
             f" token usd price variation: {self._price_variation_token0:,.2%} {self.hypervisor_static['pool']['token0']['symbol']}         {self._price_variation_token1:,.2%} {self.hypervisor_static['pool']['token1']['symbol']}"
@@ -2385,11 +1883,11 @@ class period_yield_analyzer:
 
         # Hypervisor Return
         logging.getLogger(__name__).info(
-            f"     period HYPE ROI (fees+impermanent): {self._hype_roi_per_share_yield:,.2%}  [ {self._hype_roi_qtty_token0:,.2f} {self.hypervisor_static['pool']['token0']['symbol']}   {self._hype_roi_qtty_token1:,.2f} {self.hypervisor_static['pool']['token1']['symbol']} ] [ {self._hype_roi_qtty_usd:,.2f} USD]"
+            f"     period HYPE ROI (fees+impermanent): {self._hype_roi_per_share_yield_aggregated:,.2%}  [ {self._hype_roi_qtty_token0_aggregated:,.2f} {self.hypervisor_static['pool']['token0']['symbol']}   {self._hype_roi_qtty_token1_aggregated:,.2f} {self.hypervisor_static['pool']['token1']['symbol']} ] [ {self._hype_roi_usd_total_aggregated:,.2f} USD]"
         )
         # NET Return
         logging.getLogger(__name__).info(
-            f" --> period NET ROI: {self._net_roi_yield:,.2%}  [ {self._net_roi_yield_qtty_usd:,.2f} USD]"
+            f" --> period NET ROI: {self._net_roi_per_share_yield_aggregated:,.2%}  [ {self._net_roi_usd_total_aggregated:,.2f} USD]"
         )
 
         # comparison data: lping vs holding vs 50/50 vs token0 vs token1
@@ -2399,19 +1897,23 @@ class period_yield_analyzer:
             f"     gamma  \t  holding  \t  50/50  \t  token0  \t  token1 : "
         )
         logging.getLogger(__name__).info(
-            f"     {self._net_roi_yield:,.2%}  \t  {self._period_hodl_deposited_yield:,.2%}  \t  {self._period_hodl_fifty_yield:,.2%}  \t  {self._period_hodl_token0_yield:,.2%}  \t  {self._period_hodl_token1_yield:,.2%} "
+            f"     {self._net_roi_per_share_yield_aggregated:,.2%}  \t  {self._period_hodl_deposited_yield:,.2%}  \t  {self._period_hodl_fifty_yield:,.2%}  \t  {self._period_hodl_token0_yield:,.2%}  \t  {self._period_hodl_token1_yield:,.2%} "
         )
         _one_ = (
             "  ^^^"
-            if self._net_roi_yield > self._period_hodl_deposited_yield
-            and self._net_roi_yield > self._period_hodl_fifty_yield
-            and self._net_roi_yield > self._period_hodl_token0_yield
-            and self._net_roi_yield > self._period_hodl_token1_yield
+            if self._net_roi_per_share_yield_aggregated
+            > self._period_hodl_deposited_yield
+            and self._net_roi_per_share_yield_aggregated > self._period_hodl_fifty_yield
+            and self._net_roi_per_share_yield_aggregated
+            > self._period_hodl_token0_yield
+            and self._net_roi_per_share_yield_aggregated
+            > self._period_hodl_token1_yield
             else "     "
         )
         _two_ = (
             "  ^^^"
-            if self._period_hodl_deposited_yield > self._net_roi_yield
+            if self._period_hodl_deposited_yield
+            > self._net_roi_per_share_yield_aggregated
             and self._period_hodl_deposited_yield > self._period_hodl_fifty_yield
             and self._period_hodl_deposited_yield > self._period_hodl_token0_yield
             and self._period_hodl_deposited_yield > self._period_hodl_token1_yield
@@ -2419,7 +1921,7 @@ class period_yield_analyzer:
         )
         _three_ = (
             "  ^^^"
-            if self._period_hodl_fifty_yield > self._net_roi_yield
+            if self._period_hodl_fifty_yield > self._net_roi_per_share_yield_aggregated
             and self._period_hodl_fifty_yield > self._period_hodl_deposited_yield
             and self._period_hodl_fifty_yield > self._period_hodl_token0_yield
             and self._period_hodl_fifty_yield > self._period_hodl_token1_yield
@@ -2427,7 +1929,7 @@ class period_yield_analyzer:
         )
         _four_ = (
             "  ^^^"
-            if self._period_hodl_token0_yield > self._net_roi_yield
+            if self._period_hodl_token0_yield > self._net_roi_per_share_yield_aggregated
             and self._period_hodl_token0_yield > self._period_hodl_deposited_yield
             and self._period_hodl_token0_yield > self._period_hodl_fifty_yield
             and self._period_hodl_token0_yield > self._period_hodl_token1_yield
@@ -2435,7 +1937,7 @@ class period_yield_analyzer:
         )
         _five_ = (
             " ^^^"
-            if self._period_hodl_token1_yield > self._net_roi_yield
+            if self._period_hodl_token1_yield > self._net_roi_per_share_yield_aggregated
             and self._period_hodl_token1_yield > self._period_hodl_deposited_yield
             and self._period_hodl_token1_yield > self._period_hodl_fifty_yield
             and self._period_hodl_token1_yield > self._period_hodl_token0_yield
@@ -2446,7 +1948,7 @@ class period_yield_analyzer:
         )
         # gamma vs hold
         logging.getLogger(__name__).info(
-            f"     gamma vs hold: {((self._net_roi_yield + 1) / (self._period_hodl_deposited_yield + 1)) - 1:,.2%}"
+            f"     gamma vs hold: {((self._net_roi_per_share_yield_aggregated + 1) / (self._period_hodl_deposited_yield + 1)) - 1:,.2%}"
         )
 
         ## RESULTS SUMMARY
@@ -2463,47 +1965,6 @@ class period_yield_analyzer:
                 f"     {symbol:>5} {data['qtty']:>15,.2f} {data['usd']:>15,.2f} {data['seconds']/(60*60*24):>8,.2f} {data['period yield']:>10,.2%}"
             )
         logging.getLogger(__name__).info(f"    ")
-
-    # def convert_to_data_table(self):
-    #     result = []
-    #     # flatten data to be used in data table
-    #     for item in self.yield_data_list:
-    #         result.append(
-    #             {
-    #                 "address": item.address,
-    #                 "ini_block": item.timeframe.ini.block,
-    #                 "end_block": item.timeframe.end.block,
-    #                 "ini_timestamp": item.timeframe.ini.timestamp,
-    #                 "end_timestamp": item.timeframe.end.timestamp,
-    #                 "period_seconds": item.period_days,
-    #                 "ini_price_token0": item.status.ini.prices.token0,
-    #                 "ini_price_token1": item.status.ini.prices.token1,
-    #                 "end_price_token0": item.status.end.prices.token0,
-    #                 "end_price_token1": item.status.end.prices.token1,
-    #                 "ini_supply": item.status.ini.supply,
-    #                 "end_supply": item.status.end.supply,
-    #                 "ini_underlying_token0": item.status.ini.underlying.qtty.token0,
-    #                 "ini_underlying_token1": item.status.ini.underlying.qtty.token1,
-    #                 "ini_underlying_usd": item.ini_underlying_usd,
-    #                 "end_underlying_token0": item.status.end.underlying.qtty.token0,
-    #                 "end_underlying_token1": item.status.end.underlying.qtty.token1,
-    #                 "end_underlying_usd": item.end_underlying_usd,
-    #                 "fees_lps_qtty_token0": item.fees.qtty.token0,
-    #                 "fees_lps_qtty_token1": item.fees.qtty.token1,
-    #                 "fees_lps_period_yield": item.fees.period_yield,
-    #                 "fees_gamma_qtty_token0": item.fees_gamma.qtty.token0,
-    #                 "fees_gamma_qtty_token1": item.fees_gamma.qtty.token1,
-    #                 "fees_gamma_period_yield": item.fees_gamma.period_yield,
-    #                 "rewards_qtty_usd": item.rewards.usd,
-    #                 "rewards_period_yield": item.rewards.period_yield,
-    #                 # "rewards_details": item.rewards.details,
-    #                 "fees_per_share": item.fees_per_share,
-    #                 "rewards_per_share": item.rewards_per_share,
-    #                 "impermanent_per_share": item.impermanent_per_share,
-    #                 "price_per_share": item.price_per_share,
-
-    #             }
-    #         )
 
     # HELPERS
     def _find_initial_values(self):
@@ -2552,8 +2013,3 @@ class period_yield_analyzer:
         _token0_percentage = _token0_end_usd_value / _temp if _temp else Decimal("0")
         _token1_percentage = _token1_end_usd_value / _temp if _temp else Decimal("0")
         return _token0_percentage, _token1_percentage
-
-    def debug_line(self, yield_item: period_yield_data):
-        logging.getLogger("benchmark").info(
-            f" {self._fees_per_share:,.2f}  {self._rewards_per_share:,.2f}  {self._impermanent_per_share:,.2f}  {yield_item.price_per_share:,.2f} [roi net:{self._net_roi_per_share:,.2f}] [roi hype:{self._hype_roi_per_share:,.2f}] [initial:{self._ini_price_per_share:,.2f} ]"
-        )
