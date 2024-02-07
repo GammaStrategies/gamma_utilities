@@ -246,7 +246,22 @@ DEX_POOLS = {
             "min_block": 26972126,
         },
     },
-    Chain.AVALANCHE: {},
+    Chain.AVALANCHE: {
+        "PHAR_WAVAX": {
+            "protocol": Protocol.PHARAOH,
+            "address": "0xc1f141909cea52f5315c19c1121cef1dc86f4926".lower(),
+            "token0": "0xaaab9d12a30504559b0c5a9a5977fee4a6081c6b".lower(),  # PHAR
+            "token1": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7".lower(),  # WAVAX
+            "min_block": 39001510,
+        },
+        "WAVAX_USDC": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0xfae3f424a0a47706811521e3ee268f00cfb5c45e".lower(),
+            "token0": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7".lower(),  # WAVAX
+            "token1": "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e".lower(),  # USDC
+            "min_block": 32516926,
+        },
+    },
     Chain.ARBITRUM: {
         "DAI_USDC": {
             "protocol": Protocol.UNISWAPv3,
@@ -614,7 +629,13 @@ DEX_POOLS_PRICE_PATHS = {
             (DEX_POOLS[Chain.BSC]["USDT_USDC"], 0),
         ],
     },
-    Chain.AVALANCHE: {},
+    Chain.AVALANCHE: {
+        # PHAR
+        "0xaaab9d12a30504559b0c5a9a5977fee4a6081c6b".lower(): [
+            (DEX_POOLS[Chain.AVALANCHE]["PHAR_WAVAX"], 0),
+            (DEX_POOLS[Chain.AVALANCHE]["WAVAX_USDC"], 1),
+        ],
+    },
     Chain.ARBITRUM: {
         # DAI
         "0xda10009cbd5d07dd0cecc66161fc93d7c9000da1".lower(): [

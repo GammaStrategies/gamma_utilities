@@ -111,6 +111,60 @@ def xram(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
         )
 
 
+def xphar(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
+
+    # xPhar is a buy option of PHAR with 30% price penalty when selling back to RAM previous to 90 days
+    phar_token = "0xaaab9d12a30504559b0c5a9a5977fee4a6081c6b".lower()
+    xphar_token = "0xaaae58986b24e422740c8f22b3efb80bcbd68159".lower()
+
+    if address.lower() == xphar_token:
+        conversion_rate = None
+        try:
+            # get the discount rate from the contract
+            erc20 = build_erc20_helper(
+                chain=chain,
+                address=xphar_token,
+                abi_filename="xPhar",
+                abi_path=(
+                    CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+                )
+                + "/pharaoh",
+                block=block,
+            )
+            _precision = erc20.call_function_autoRpc("PRECISION")
+            _discount_rate = 0
+            try:
+                _discount_rate = erc20.call_function_autoRpc("exitRatio")
+            except Exception as e:
+                pass
+            if not _discount_rate:
+                try:
+                    _discount_rate = erc20.call_function_autoRpc("discount")
+                except Exception as e:
+                    logging.getLogger(__name__).exception(
+                        f" Can't get xPhar token price discount.... Error: {e} . Fallback to 60%"
+                    )
+                    _discount_rate = 50
+
+            conversion_rate = _discount_rate / _precision
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f" Can't get xPhar token price. Error: {e} . Fallback to 50%"
+            )
+            conversion_rate = 0.5
+
+        #
+        return NoPricedToken_conversion(
+            original=NoPricedToken_item(
+                token_address=xphar_token, chain=chain, block=block
+            ),
+            converted=NoPricedToken_item(
+                token_address=phar_token, chain=chain, block=block
+            ),
+            conversion_rate=conversion_rate,
+        )
+
+
 def oretro(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
     # oRETRO is a call option token that is used as the emission token for the Retro protocol
     # The discount rate is subject to change and based on market conditions.
@@ -318,6 +372,10 @@ TOKEN_ADDRESS_CONVERSION = {
     Chain.OPTIMISM: {
         # ANGLE -> ethereum
         "0x58441e37255b09f9f545e9dc957f1c41658ff665".lower(): angle,
+    },
+    Chain.AVALANCHE: {
+        # xPHAR--PHAR
+        "0xaaae58986b24e422740c8f22b3efb80bcbd68159".lower(): xphar,
     },
 }
 
