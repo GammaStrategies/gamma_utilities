@@ -2030,7 +2030,7 @@ def _get_static_hypervisors_to_process(
         hypervisor_addresses_toExclude = list(hypervisor_static_list.keys())
     else:
         logging.getLogger(__name__).info(
-            f"   Rewriting all hypervisors static information of {network}'s {dex} "
+            f"   Creating a list of all hypervisors static information of {network}'s {dex} ( rewrite enabled )"
         )
 
     # get a list of hypervisor addresses from registry
