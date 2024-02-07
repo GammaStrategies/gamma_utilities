@@ -1,3 +1,4 @@
+import logging
 from bins.config.hardcodes import SPECIAL_HYPERVISOR_ABIS, SPECIAL_POOL_ABIS
 
 from bins.errors.general import ProcessingError
@@ -17,7 +18,7 @@ from .pool import (
 WEEK = 60 * 60 * 24 * 7
 
 ABI_FILENAME = "hypervisor"
-ABI_FOLDERNAME = "ramses"
+ABI_FOLDERNAME = "pharaoh"
 DEX_NAME = Protocol.PHARAOH.database_name
 
 
@@ -66,6 +67,11 @@ class gamma_hypervisor(ramses.hypervisor.gamma_hypervisor):
                 block=self.block,
             )
         return self._multiFeeDistribution
+
+    @property
+    def veNFTTokenId(self) -> int:
+        """The veNFTToken Id"""
+        return self.call_function_autoRpc("veNFTTokenId")
 
     def build_pool(
         self,
@@ -162,6 +168,27 @@ class gamma_hypervisor_cached(ramses.hypervisor.gamma_hypervisor_cached):
             )
         return self._multiFeeDistribution
 
+    @property
+    def veNFTTokenId(self) -> int:
+        prop_name = "veNFTTokenId"
+        result = self._cache.get_data(
+            chain_id=self._chain_id,
+            address=self.address,
+            block=self.block,
+            key=prop_name,
+        )
+        if result is None:
+            result = getattr(super(), prop_name)
+            self._cache.add_data(
+                chain_id=self._chain_id,
+                address=self.address,
+                block=self.block,
+                key=prop_name,
+                data=result,
+                save2file=self.SAVE2FILE,
+            )
+        return result
+
     def build_pool(
         self,
         address: str,
@@ -223,6 +250,10 @@ class gamma_hypervisor_multicall(ramses.hypervisor.gamma_hypervisor_multicall):
         """multiFeeDistribution receiver"""
         return self._receiver
 
+    @property
+    def veNFTTokenId(self) -> int:
+        return self._veNFTTokenId
+
     # builds
     def build_pool(
         self,
@@ -239,3 +270,108 @@ class gamma_hypervisor_multicall(ramses.hypervisor.gamma_hypervisor_multicall):
             timestamp=timestamp,
             processed_calls=processed_calls,
         )
+
+    def _fill_from_processed_calls(self, processed_calls: list):
+        _this_object_names = ["hypervisor"]
+        for _pCall in processed_calls:
+            # filter by address
+            if _pCall["address"].lower() == self._address.lower():
+                # filter by object type
+                if _pCall["object"] in _this_object_names:
+                    if _pCall["name"] in [
+                        "name",
+                        "symbol",
+                        "decimals",
+                        "totalSupply",
+                        "baseLower",
+                        "baseUpper",
+                        "currentTick",
+                        "deposit0Max",
+                        "deposit1Max",
+                        "directDeposit",
+                        "fee",
+                        "feeRecipient",
+                        "limitLower",
+                        "limitUpper",
+                        "maxTotalSupply",
+                        "owner",
+                        "tickSpacing",
+                        "whitelistedAddress",
+                        "veNFTTokenId",
+                        "voter",
+                        "DOMAIN_SEPARATOR",
+                        "PRECISION",
+                    ]:
+                        # one output only
+                        if len(_pCall["outputs"]) != 1:
+                            raise ValueError(
+                                f"Expected only one output for {_pCall['name']}"
+                            )
+                        # check if value exists
+                        if "value" not in _pCall["outputs"][0]:
+                            raise ValueError(
+                                f"Expected value in output for {_pCall['name']}"
+                            )
+                        _object_name = f"_{_pCall['name']}"
+                        setattr(self, _object_name, _pCall["outputs"][0]["value"])
+
+                    elif _pCall["name"] in ["getBasePosition", "getLimitPosition"]:
+                        _object_name = f"_{_pCall['name']}"
+                        setattr(
+                            self,
+                            _object_name,
+                            {
+                                "liquidity": _pCall["outputs"][0]["value"],
+                                "amount0": _pCall["outputs"][1]["value"],
+                                "amount1": _pCall["outputs"][2]["value"],
+                            },
+                        )
+                    elif _pCall["name"] == "getTotalAmounts":
+                        _object_name = f"_{_pCall['name']}"
+                        setattr(
+                            self,
+                            _object_name,
+                            {
+                                "total0": _pCall["outputs"][0]["value"],
+                                "total1": _pCall["outputs"][1]["value"],
+                            },
+                        )
+                    elif _pCall["name"] == "pool":
+                        self._pool = self.build_pool(
+                            address=_pCall["outputs"][0]["value"],
+                            network=self._network,
+                            block=self.block,
+                            timestamp=self._timestamp,
+                            processed_calls=processed_calls,
+                        )
+                    elif _pCall["name"] in ["token0", "token1"]:
+                        _object_name = f"_{_pCall['name']}"
+                        setattr(
+                            self,
+                            _object_name,
+                            self.build_token(
+                                address=_pCall["outputs"][0]["value"],
+                                network=self._network,
+                                block=self.block,
+                                timestamp=self._timestamp,
+                                processed_calls=processed_calls,
+                            ),
+                        )
+                    elif _pCall["name"] == "gauge":
+                        self._gauge = gauge(
+                            address=_pCall["outputs"][0]["value"],
+                            network=self._network,
+                            block=self.block,
+                            timestamp=self._timestamp,
+                        )
+                    elif _pCall["name"] == "receiver":
+                        self._receiver = multiFeeDistribution(
+                            address=_pCall["outputs"][0]["value"],
+                            network=self._network,
+                            block=self.block,
+                            timestamp=self._timestamp,
+                        )
+                    else:
+                        logging.getLogger(__name__).debug(
+                            f" {_pCall['name']} multicall field not defined to be processed. Ignoring"
+                        )
