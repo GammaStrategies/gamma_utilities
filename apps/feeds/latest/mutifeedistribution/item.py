@@ -62,20 +62,21 @@ class multifeeDistribution_snapshot:
             result["rewardToken_decimals"] = self.rewardToken_decimals
         if self.rewardToken_price:
             result["rewardToken_price"] = self.rewardToken_price
-        if self.apr:
+        if self.apr != None:
             result["apr"] = self.apr
+
         if self.apr_baseRewards is not None:
             result["apr_baseRewards"] = self.apr_baseRewards
         if self.apr_boostedRewards is not None:
             result["apr_boostedRewards"] = self.apr_boostedRewards
         if self.baseRewards_sinceLastUpdateTime is not None:
-            result[
-                "baseRewards_sinceLastUpdateTime"
-            ] = self.baseRewards_sinceLastUpdateTime
+            result["baseRewards_sinceLastUpdateTime"] = (
+                self.baseRewards_sinceLastUpdateTime
+            )
         if self.boostedRewards_sinceLastUpdateTime is not None:
-            result[
-                "boostedRewards_sinceLastUpdateTime"
-            ] = self.boostedRewards_sinceLastUpdateTime
+            result["boostedRewards_sinceLastUpdateTime"] = (
+                self.boostedRewards_sinceLastUpdateTime
+            )
         if self.seconds_sinceLastUpdateTime is not None:
             result["seconds_sinceLastUpdateTime"] = self.seconds_sinceLastUpdateTime
 
