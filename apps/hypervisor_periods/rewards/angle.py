@@ -1,3 +1,4 @@
+from datetime import datetime
 import logging
 from apps.feeds.utils import get_hypervisor_price_per_share, get_reward_pool_prices
 from apps.hypervisor_periods.base import hypervisor_periods_base
@@ -147,8 +148,16 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
 
     def _execute_postLoop(self, hypervisor_data: dict):
         if not self.items_to_calc_apr:
+            # convert timestamp to datetime for logging
+            try:
+                _datetimelog = datetime.utcfromtimestamp(
+                    self.hypervisor_status["timestamp"]
+                )
+            except Exception as e:
+                _datetimelog = self.hypervisor_status["timestamp"]
+
             logging.getLogger(__name__).error(
-                f" No items to calculate apr found for {self.chain.fantasy_name}'s {self.type} rewards hypervisor {self.hypervisor_status['address']} at block {self.hypervisor_status['block']}"
+                f" No items to calculate apr found for {self.chain.fantasy_name}'s {self.type} rewards hypervisor {self.hypervisor_status['address']} at block {self.hypervisor_status['block']}  [{_datetimelog}]"
             )
             return
 
