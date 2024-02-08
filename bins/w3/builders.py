@@ -129,7 +129,13 @@ def build_db_hypervisor_multicall(
 ) -> dict():
     try:
         # check if multicall contract is created after block to avoid problems
-        if MULTICALL3_ADDRESSES.get(text_to_chain(network), {}).get("block", 0) > block:
+        if (
+            block != 0
+            and MULTICALL3_ADDRESSES.get(text_to_chain(network), {}).get("block", 0)
+            > block
+        ) or MULTICALL3_ADDRESSES.get(text_to_chain(network), {}).get(
+            "block", None
+        ) == None:
             logging.getLogger(__name__).debug(
                 f" Returning non multicall db dict hypervisor bcause multicall contract creation block is gt {block}."
             )
@@ -141,7 +147,7 @@ def build_db_hypervisor_multicall(
                 static_mode=static_mode,
                 custom_web3=custom_web3,
                 custom_web3Url=custom_web3Url,
-                cached=True,
+                cached=block != 0,
                 force_rpcType=force_rpcType,
             )
 
@@ -382,26 +388,28 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
             if not cached and not multicall
-            else protocols.uniswap.hypervisor.gamma_hypervisor_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not multicall
-            else protocols.uniswap.hypervisor.gamma_hypervisor_multicall(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
+            else (
+                protocols.uniswap.hypervisor.gamma_hypervisor_cached(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+                if not multicall
+                else protocols.uniswap.hypervisor.gamma_hypervisor_multicall(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
             )
         )
     elif protocol == Protocol.ZYBERSWAP:
@@ -417,26 +425,28 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
             if not cached and not multicall
-            else protocols.zyberswap.hypervisor.gamma_hypervisor_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not multicall
-            else protocols.zyberswap.hypervisor.gamma_hypervisor_multicall(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
+            else (
+                protocols.zyberswap.hypervisor.gamma_hypervisor_cached(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+                if not multicall
+                else protocols.zyberswap.hypervisor.gamma_hypervisor_multicall(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
             )
         )
     elif protocol == Protocol.QUICKSWAP:
@@ -452,26 +462,28 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
             if not cached and not multicall
-            else protocols.quickswap.hypervisor.gamma_hypervisor_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not multicall
-            else protocols.quickswap.hypervisor.gamma_hypervisor_multicall(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
+            else (
+                protocols.quickswap.hypervisor.gamma_hypervisor_cached(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+                if not multicall
+                else protocols.quickswap.hypervisor.gamma_hypervisor_multicall(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
             )
         )
     elif protocol == Protocol.THENA:
@@ -487,26 +499,28 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
             if not cached and not multicall
-            else protocols.thena.hypervisor.gamma_hypervisor_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not multicall
-            else protocols.thena.hypervisor.gamma_hypervisor_multicall(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
+            else (
+                protocols.thena.hypervisor.gamma_hypervisor_cached(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+                if not multicall
+                else protocols.thena.hypervisor.gamma_hypervisor_multicall(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
             )
         )
     elif protocol == Protocol.CAMELOT:
@@ -522,26 +536,28 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
             if not cached and not multicall
-            else protocols.camelot.hypervisor.gamma_hypervisor_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not multicall
-            else protocols.camelot.hypervisor.gamma_hypervisor_multicall(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
+            else (
+                protocols.camelot.hypervisor.gamma_hypervisor_cached(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+                if not multicall
+                else protocols.camelot.hypervisor.gamma_hypervisor_multicall(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
             )
         )
     elif protocol == Protocol.BEAMSWAP:
@@ -557,26 +573,28 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
             if not cached and not multicall
-            else protocols.beamswap.hypervisor.gamma_hypervisor_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not multicall
-            else protocols.beamswap.hypervisor.gamma_hypervisor_multicall(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
+            else (
+                protocols.beamswap.hypervisor.gamma_hypervisor_cached(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+                if not multicall
+                else protocols.beamswap.hypervisor.gamma_hypervisor_multicall(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
             )
         )
     elif protocol == Protocol.RETRO:
@@ -592,26 +610,28 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
             if not cached and not multicall
-            else protocols.retro.hypervisor.gamma_hypervisor_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not multicall
-            else protocols.retro.hypervisor.gamma_hypervisor_multicall(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
+            else (
+                protocols.retro.hypervisor.gamma_hypervisor_cached(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+                if not multicall
+                else protocols.retro.hypervisor.gamma_hypervisor_multicall(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
             )
         )
     elif protocol == Protocol.SUSHI:
@@ -627,26 +647,28 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
             if not cached and not multicall
-            else protocols.sushiswap.hypervisor.gamma_hypervisor_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not multicall
-            else protocols.sushiswap.hypervisor.gamma_hypervisor_multicall(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
+            else (
+                protocols.sushiswap.hypervisor.gamma_hypervisor_cached(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+                if not multicall
+                else protocols.sushiswap.hypervisor.gamma_hypervisor_multicall(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
             )
         )
     elif protocol == Protocol.STELLASWAP:
@@ -662,26 +684,28 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
             if not cached and not multicall
-            else protocols.stellaswap.hypervisor.gamma_hypervisor_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not multicall
-            else protocols.stellaswap.hypervisor.gamma_hypervisor_multicall(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
+            else (
+                protocols.stellaswap.hypervisor.gamma_hypervisor_cached(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+                if not multicall
+                else protocols.stellaswap.hypervisor.gamma_hypervisor_multicall(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
             )
         )
     elif protocol == Protocol.RAMSES:
@@ -697,26 +721,28 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
             if not cached and not multicall
-            else protocols.ramses.hypervisor.gamma_hypervisor_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not multicall
-            else protocols.ramses.hypervisor.gamma_hypervisor_multicall(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
+            else (
+                protocols.ramses.hypervisor.gamma_hypervisor_cached(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+                if not multicall
+                else protocols.ramses.hypervisor.gamma_hypervisor_multicall(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
             )
         )
     elif protocol == Protocol.PHARAOH:
@@ -732,26 +758,28 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
             if not cached and not multicall
-            else protocols.pharaoh.hypervisor.gamma_hypervisor_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not multicall
-            else protocols.pharaoh.hypervisor.gamma_hypervisor_multicall(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
+            else (
+                protocols.pharaoh.hypervisor.gamma_hypervisor_cached(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+                if not multicall
+                else protocols.pharaoh.hypervisor.gamma_hypervisor_multicall(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
             )
         )
     elif protocol == Protocol.SYNTHSWAP:
@@ -767,26 +795,28 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
             if not cached and not multicall
-            else protocols.synthswap.hypervisor.gamma_hypervisor_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not multicall
-            else protocols.synthswap.hypervisor.gamma_hypervisor_multicall(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
+            else (
+                protocols.synthswap.hypervisor.gamma_hypervisor_cached(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+                if not multicall
+                else protocols.synthswap.hypervisor.gamma_hypervisor_multicall(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
             )
         )
     elif protocol == Protocol.SPIRITSWAP:
@@ -802,26 +832,28 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
             if not cached and not multicall
-            else protocols.spiritswap.hypervisor.gamma_hypervisor_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not multicall
-            else protocols.spiritswap.hypervisor.gamma_hypervisor_multicall(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
+            else (
+                protocols.spiritswap.hypervisor.gamma_hypervisor_cached(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+                if not multicall
+                else protocols.spiritswap.hypervisor.gamma_hypervisor_multicall(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
             )
         )
     elif protocol == Protocol.GLACIER:
@@ -837,26 +869,28 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
             if not cached and not multicall
-            else protocols.glacier.hypervisor.gamma_hypervisor_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not multicall
-            else protocols.glacier.hypervisor.gamma_hypervisor_multicall(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
+            else (
+                protocols.glacier.hypervisor.gamma_hypervisor_cached(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+                if not multicall
+                else protocols.glacier.hypervisor.gamma_hypervisor_multicall(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
             )
         )
     elif protocol == Protocol.FUSIONX:
@@ -872,26 +906,28 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
             if not cached and not multicall
-            else protocols.fusionx.hypervisor.gamma_hypervisor_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not multicall
-            else protocols.fusionx.hypervisor.gamma_hypervisor_multicall(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
+            else (
+                protocols.fusionx.hypervisor.gamma_hypervisor_cached(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+                if not multicall
+                else protocols.fusionx.hypervisor.gamma_hypervisor_multicall(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
             )
         )
     elif protocol == Protocol.LYNEX:
@@ -907,26 +943,28 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
             if not cached and not multicall
-            else protocols.lynex.hypervisor.gamma_hypervisor_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not multicall
-            else protocols.lynex.hypervisor.gamma_hypervisor_multicall(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
+            else (
+                protocols.lynex.hypervisor.gamma_hypervisor_cached(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+                if not multicall
+                else protocols.lynex.hypervisor.gamma_hypervisor_multicall(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
             )
         )
     elif protocol == Protocol.ASCENT:
@@ -942,26 +980,28 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
             if not cached and not multicall
-            else protocols.ascent.hypervisor.gamma_hypervisor_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not multicall
-            else protocols.ascent.hypervisor.gamma_hypervisor_multicall(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
+            else (
+                protocols.ascent.hypervisor.gamma_hypervisor_cached(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+                if not multicall
+                else protocols.ascent.hypervisor.gamma_hypervisor_multicall(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
             )
         )
     elif protocol == Protocol.PANCAKESWAP:
@@ -978,26 +1018,28 @@ def build_hypervisor(
                     custom_web3Url=custom_web3Url,
                 )
                 if not cached and not multicall
-                else protocols.pancakeswap.hypervisor.gamma_hypervisor_bep20_cached(
-                    address=hypervisor_address,
-                    network=network,
-                    block=block,
-                    timestamp=timestamp,
-                    abi_filename=abi_filename,
-                    abi_path=abi_path,
-                    custom_web3=custom_web3,
-                    custom_web3Url=custom_web3Url,
-                )
-                if not multicall
-                else protocols.pancakeswap.hypervisor.gamma_hypervisor_bep20_multicall(
-                    address=hypervisor_address,
-                    network=network,
-                    block=block,
-                    timestamp=timestamp,
-                    abi_filename=abi_filename,
-                    abi_path=abi_path,
-                    custom_web3=custom_web3,
-                    custom_web3Url=custom_web3Url,
+                else (
+                    protocols.pancakeswap.hypervisor.gamma_hypervisor_bep20_cached(
+                        address=hypervisor_address,
+                        network=network,
+                        block=block,
+                        timestamp=timestamp,
+                        abi_filename=abi_filename,
+                        abi_path=abi_path,
+                        custom_web3=custom_web3,
+                        custom_web3Url=custom_web3Url,
+                    )
+                    if not multicall
+                    else protocols.pancakeswap.hypervisor.gamma_hypervisor_bep20_multicall(
+                        address=hypervisor_address,
+                        network=network,
+                        block=block,
+                        timestamp=timestamp,
+                        abi_filename=abi_filename,
+                        abi_path=abi_path,
+                        custom_web3=custom_web3,
+                        custom_web3Url=custom_web3Url,
+                    )
                 )
             )
         else:
@@ -1013,26 +1055,28 @@ def build_hypervisor(
                     custom_web3Url=custom_web3Url,
                 )
                 if not cached and not multicall
-                else protocols.pancakeswap.hypervisor.gamma_hypervisor_cached(
-                    address=hypervisor_address,
-                    network=network,
-                    block=block,
-                    timestamp=timestamp,
-                    abi_filename=abi_filename,
-                    abi_path=abi_path,
-                    custom_web3=custom_web3,
-                    custom_web3Url=custom_web3Url,
-                )
-                if not multicall
-                else protocols.pancakeswap.hypervisor.gamma_hypervisor_multicall(
-                    address=hypervisor_address,
-                    network=network,
-                    block=block,
-                    timestamp=timestamp,
-                    abi_filename=abi_filename,
-                    abi_path=abi_path,
-                    custom_web3=custom_web3,
-                    custom_web3Url=custom_web3Url,
+                else (
+                    protocols.pancakeswap.hypervisor.gamma_hypervisor_cached(
+                        address=hypervisor_address,
+                        network=network,
+                        block=block,
+                        timestamp=timestamp,
+                        abi_filename=abi_filename,
+                        abi_path=abi_path,
+                        custom_web3=custom_web3,
+                        custom_web3Url=custom_web3Url,
+                    )
+                    if not multicall
+                    else protocols.pancakeswap.hypervisor.gamma_hypervisor_multicall(
+                        address=hypervisor_address,
+                        network=network,
+                        block=block,
+                        timestamp=timestamp,
+                        abi_filename=abi_filename,
+                        abi_path=abi_path,
+                        custom_web3=custom_web3,
+                        custom_web3Url=custom_web3Url,
+                    )
                 )
             )
     elif protocol == Protocol.BASEX:
@@ -1048,26 +1092,28 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
             if not cached and not multicall
-            else protocols.basex.hypervisor.gamma_hypervisor_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not multicall
-            else protocols.basex.hypervisor.gamma_hypervisor_multicall(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
+            else (
+                protocols.basex.hypervisor.gamma_hypervisor_cached(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+                if not multicall
+                else protocols.basex.hypervisor.gamma_hypervisor_multicall(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
             )
         )
     elif protocol == Protocol.GAMMA:
@@ -1083,26 +1129,28 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
             if not cached and not multicall
-            else protocols.gamma.hypervisor.gamma_hypervisor_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not multicall
-            else protocols.gamma.hypervisor.gamma_hypervisor_multicall(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
+            else (
+                protocols.gamma.hypervisor.gamma_hypervisor_cached(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+                if not multicall
+                else protocols.gamma.hypervisor.gamma_hypervisor_multicall(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
             )
         )
     elif protocol == Protocol.PEGASYS:
@@ -1118,26 +1166,28 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
             if not cached and not multicall
-            else protocols.pegasys.hypervisor.gamma_hypervisor_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not multicall
-            else protocols.pegasys.hypervisor.gamma_hypervisor_multicall(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
+            else (
+                protocols.pegasys.hypervisor.gamma_hypervisor_cached(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+                if not multicall
+                else protocols.pegasys.hypervisor.gamma_hypervisor_multicall(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
             )
         )
     elif protocol == Protocol.SWAPR:
@@ -1153,26 +1203,28 @@ def build_hypervisor(
                 custom_web3Url=custom_web3Url,
             )
             if not cached and not multicall
-            else protocols.swapr.hypervisor.gamma_hypervisor_cached(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not multicall
-            else protocols.swapr.hypervisor.gamma_hypervisor_multicall(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
+            else (
+                protocols.swapr.hypervisor.gamma_hypervisor_cached(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+                if not multicall
+                else protocols.swapr.hypervisor.gamma_hypervisor_multicall(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
             )
         )
 
