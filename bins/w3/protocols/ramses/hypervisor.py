@@ -278,11 +278,11 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
             "current_baseRewards": amount_base,
             "current_boostedRewards": amount_boost,
             "current_period_seconds": seconds_in_period,
-            "current_rewards_per_second": int(
-                (amount_base + amount_boost) / seconds_in_period
-            )
-            if seconds_in_period
-            else 0,
+            "current_rewards_per_second": (
+                int((amount_base + amount_boost) / seconds_in_period)
+                if seconds_in_period
+                else 0
+            ),
             "inside_baseRewards_per_second": inside_base_rewards_per_second,
             "inside_boostedRewards_per_second": inside_boosted_rewards_per_second,
             "inside_seconds_base": inside_seconds_base,
@@ -308,15 +308,18 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
         # return result
         return data_result
 
-    def get_already_claimedRewards(self, period: int, reward_token: str) -> int:
+    def get_already_claimedRewards(
+        self, period: int, reward_token: str, position: str | None = None
+    ) -> int:
         """Get the claimed rewards for an specific period
 
         Args:
             period (int):
             reward_token (str):
+            position (str):  "base" | "limit" | None
 
         Returns:
-            int: sum of base and limit positions rewards already collected
+            int: sum of base and limit positions rewards already collected ( or the specified one )
         """
         _base_position = self.gauge.periodClaimedAmount(
             period=period,
@@ -328,6 +331,10 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
             ),
             address=reward_token,
         )
+        # return base result if specified
+        if position and position.lower() == "base":
+            return _base_position
+
         _limit_position = self.gauge.periodClaimedAmount(
             period=period,
             positionHash=get_positionKey_ramses(
@@ -338,6 +345,9 @@ class gamma_hypervisor(gamma.hypervisor.gamma_hypervisor):
             ),
             address=reward_token,
         )
+        # return limit result if specified
+        if position and position.lower() == "limit":
+            return _limit_position
 
         # return result
         return _base_position + _limit_position

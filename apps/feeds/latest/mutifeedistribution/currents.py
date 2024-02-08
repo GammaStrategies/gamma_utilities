@@ -12,39 +12,41 @@ from bins.w3.protocols.ramses.collectors import (
 
 # PULL TO QUEUE
 def feed_latest_multifeedistribution_snapshot():
-    """add a multifeedistribution snapshot to the queue
-
-    Args:
-        chain (Chain):
-    """
-    #
-    chain = Chain.ARBITRUM
-    items_to_queue = create_items_to_feed_latest_multifeedistribution_snapshot(
-        chain=chain, rewarder_type=rewarderType.RAMSES_v2
-    )
-
-    # only add non existant items to the queue
-    addresses_already_queued = [
-        x["address"]
-        for x in get_from_localdb(
-            network=chain.database_name,
-            collection="queue",
-            find={"type": queueItemType.LATEST_MULTIFEEDISTRIBUTION},
-        )
+    """add a multifeedistribution snapshot to the queue"""
+    # TODO: do not hardcode but include into config--
+    #  define chains + protocols + rewarder types to be processed in this function
+    items_to_process = [
+        (Chain.ARBITRUM, Protocol.RAMSES, rewarderType.RAMSES_v2),
+        (Chain.AVALANCHE, Protocol.PHARAOH, rewarderType.PHARAOH),
     ]
-    if items_to_queue := [
-        x for x in items_to_queue if x["address"] not in addresses_already_queued
-    ]:
-        # add to queue
-        task_enqueue_operations(
-            operations=items_to_queue,
-            network=chain.database_name,
-            operation_type=queueItemType.LATEST_MULTIFEEDISTRIBUTION,
+
+    for chain, protocol, rewarder_type in items_to_process:
+        items_to_queue = create_items_to_feed_latest_multifeedistribution_snapshot(
+            chain=chain, rewarder_type=rewarder_type, protocol=protocol
         )
+
+        # only add non existant items to the queue
+        addresses_already_queued = [
+            x["address"]
+            for x in get_from_localdb(
+                network=chain.database_name,
+                collection="queue",
+                find={"type": queueItemType.LATEST_MULTIFEEDISTRIBUTION},
+            )
+        ]
+        if items_to_queue := [
+            x for x in items_to_queue if x["address"] not in addresses_already_queued
+        ]:
+            # add to queue
+            task_enqueue_operations(
+                operations=items_to_queue,
+                network=chain.database_name,
+                operation_type=queueItemType.LATEST_MULTIFEEDISTRIBUTION,
+            )
 
 
 def create_items_to_feed_latest_multifeedistribution_snapshot(
-    chain: Chain, rewarder_type: rewarderType
+    chain: Chain, rewarder_type: rewarderType, protocol: Protocol
 ):
     """Create item list to feed latest multifeedistribution snapshot"""
     #
@@ -71,9 +73,10 @@ def create_items_to_feed_latest_multifeedistribution_snapshot(
                 "address": reward["rewarder_registry"],
                 "timestamp": "",
                 "user": "",
-                "reward_token": "",
+                "reward_token": reward["rewardToken"],
                 "topic": "snapshot",
                 "logIndex": 0,
+                "protocol": protocol.database_name,
                 "is_last_item": False,
             }
         )
