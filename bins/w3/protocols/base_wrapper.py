@@ -683,6 +683,15 @@ class web3wrap:
                 else:
                     #
                     for err in e.args:
+
+                        if not isinstance(err, dict):
+                            # unknown error
+                            logging.getLogger(__name__).exception(
+                                f" [0]Unknown ValueError: {rpc.type} RPC {rpc.url_short} function {function_name}   -> {err}"
+                            )
+                            rpc.add_failed(error=e)
+                            continue
+
                         # try to react from the code
                         if code := err.get("code", None):
                             if code in [4294935296, -32000]:
