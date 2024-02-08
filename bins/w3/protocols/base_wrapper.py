@@ -529,9 +529,11 @@ class web3wrap:
     def as_dict(self, convert_bint=False, minimal: bool = False) -> dict:
         result = {
             "block": self.block,
-            "timestamp": self._timestamp
-            if self._timestamp and self._timestamp > 0
-            else self.timestampFromBlockNumber(block=self.block),
+            "timestamp": (
+                self._timestamp
+                if self._timestamp and self._timestamp > 0
+                else self.timestampFromBlockNumber(block=self.block)
+            ),
         }
 
         # lower case address to be able to be directly compared
@@ -665,7 +667,9 @@ class web3wrap:
                         return 0
 
                     # some public RPCs return a contract logic error on functions that do actually exist (ex: on Polygon angleMerkl getActivePoolDistributions ...).
-                    if rpc.type == "private":
+                    if rpc.type == "private" and not any(
+                        ext in rpc.url_short for ext in ["nodereal"]
+                    ):
                         # log error
                         logging.getLogger(__name__).debug(
                             f" function {function_name} in {self._network}'s contract {self.address} at block {self.block} seems to not exist. Check it. err: {e}"
@@ -823,6 +827,8 @@ class web3wrap:
                         f" {rpc.type} RPC {rpc.url_short} returned a BadFunctionCallOutput while calling function {function_name} in {self._network}'s contract {self.address} at block {self.block}. BREAKING. err: {e}"
                     )
 
+                    # CONSIDER contract may not have been deployed at this block
+
                     # raise error to process
                     raise ProcessingError(
                         chain=text_to_chain(self._network),
@@ -836,7 +842,7 @@ class web3wrap:
                         },
                         identity=error_identity.WRONG_CONTRACT_FIELD_TYPE,
                         action="important_message",
-                        message=f" Wrong ABI found for {self._network}'s contract {self.address} (fn:{function_name})",
+                        message=f" Wrong ABI found for {self._network}'s contract {self.address} (fn:{function_name}) at block {self.block}. Contract may not have been deployed at this block.",
                     )
                     # exit loop
                     # break
@@ -935,8 +941,11 @@ class web3wrap:
 
         last_error = None
 
+        # use private rpcs to get latest blocks bc public rpcs may not have the latest block ( like defillama's  )
         # get w3Provider list
-        for rpc in RPC_MANAGER.get_rpc_list(network=self._network):
+        for rpc in RPC_MANAGER.get_rpc_list(
+            network=self._network, rpcKey_names=["private", "public"]
+        ):
             try:
                 rpc.add_attempt(method=cuType.eth_getBlockByNumber)
                 _w3 = self.setup_w3(network=self._network, web3Url=rpc.url)
@@ -944,7 +953,11 @@ class web3wrap:
                     logging.getLogger(__name__).error(
                         f" ERROR --> Block {block} is not valid. address:{self._address} {self._network} {rpc.url_short}"
                     )
-                return _w3.eth.get_block(block)
+                result = _w3.eth.get_block(block)
+                logging.getLogger(__name__).debug(
+                    f" {rpc.type} RPC {rpc.url_short} successfully returned result when getting {block} BLOCK number in {self._network} network (returned: {result.number})"
+                )
+                return result
 
             except exceptions.BlockNotFound as e:
                 logging.getLogger(__name__).error(
