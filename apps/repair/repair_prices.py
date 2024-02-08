@@ -256,6 +256,62 @@ def rescrape_price_from_outlier(outlier: dict) -> bool:
         return False
 
 
+def rescrape_price_from_dbItem(priceDBitem: dict) -> bool:
+    # rescrape price and log if difference
+    _price, _source = get_price(
+        network=priceDBitem["network"],
+        token_address=priceDBitem["address"],
+        block=priceDBitem["block"],
+    )
+
+    if _price is None:
+        logging.getLogger(__name__).warning(
+            f" Could not find price for {priceDBitem['network']} {priceDBitem['address']} at block {priceDBitem['block']}"
+        )
+        return False
+
+    # calculate difference
+    # _price_difference = (priceDBitem["average"] - _price) / priceDBitem["average"]
+    _price_difference = (priceDBitem["price"] - _price) / priceDBitem["price"]
+
+    # if there is a big difference
+
+    # check if price is far from the average
+    if abs(_price_difference) <= 0.05:
+        logging.getLogger(__name__).debug(
+            f" No significant price difference found for {priceDBitem['network']} {priceDBitem['address']} at block {priceDBitem['block']} was found: {_price_difference:.0%} -> old {priceDBitem['price']:.2f} vs new {_price:.2f}. Skipping."
+        )
+        # TODO: save price in cached rescraped prices as no significance found ( so that we don't rescrape it again)
+        return False
+
+    logging.getLogger(__name__).debug(
+        f" Saving new price for {priceDBitem['network']} {priceDBitem['address']} at block {priceDBitem['block']}: {_price:.2f}  [old: {priceDBitem['price']:.2f}]"
+    )
+    # save new price to database
+    token_data = {
+        "id": priceDBitem["id"],
+        "network": priceDBitem["network"],
+        "address": priceDBitem["address"],
+        "block": priceDBitem["block"],
+        "price": _price,
+        "source": _source,
+    }
+    # save price to database
+    if db_return := get_default_globaldb().replace_item_to_database(
+        collection_name="usd_prices",
+        data=token_data,
+    ):
+        logging.getLogger(__name__).debug(
+            f" Successfully replaced price for {priceDBitem['network']} {priceDBitem['address']} at block {priceDBitem['block']}: {db_return.raw_result}"
+        )
+        return True
+    else:
+        logging.getLogger(__name__).warning(
+            f" Could not save price to database for {priceDBitem['network']} {priceDBitem['address']} at block {token_data['block']}. No successfull result received from database"
+        )
+        return False
+
+
 def repair_prices_are_arrays():
     """Repair prices that are saved as arrays in the database"""
     items_to_save = []
@@ -287,7 +343,7 @@ def repair_prices_are_arrays():
             )
 
 
-def query_price_outliers(
+def query_price_outliers_original(
     chain: Chain | None = None,
     token_addresses: list[str] | None = None,
     # average_range: list[int] = [-200, "current"],
@@ -417,6 +473,121 @@ def query_price_outliers(
         # {"$addFields": {"sortfield": {"$sum": ["$zScore1", "$zScore2", "$zScore3"]}}},
         # sort by the highest zScore, (one randomly selected)
         {"$sort": {f"zScore{random.randrange(1,4)}": -1}},
+    ]
+
+    if limit:
+        query.append({"$limit": limit})
+
+    return query
+
+
+def query_price_outliers(
+    chain: Chain | None = None,
+    token_addresses: list[str] | None = None,
+    limit: int | None = None,
+) -> list[dict]:
+    """Query for price outliers
+
+    Args:
+        chain (Chain | None, optional): . Defaults to None.
+        token_addresses (list[str] | None, optional): . Defaults to None.
+        limit (int | None, optional): limit the number of returned items. Defaults to None.
+
+    """
+
+    # tokens list with problems to avoid
+    problematic_tokens: dict[Chain, list] = {
+        Chain.ETHEREUM: [
+            "0x04f2694c8fcee23e8fd0dfea1d4f5bb8c352111f".lower(),  # sOHM no price
+            "0xf4dc48d260c93ad6a96c5ce563e70ca578987c74".lower(),  # BABEL
+        ]
+    }
+
+    _match = {}
+    if chain:
+        _match["network"] = chain.database_name
+
+    if token_addresses:
+        _match["address"] = {"$in": token_addresses}
+
+    # Problematic tokens:
+    if chain and chain in problematic_tokens and not token_addresses:
+        # add problematic tokens to the match
+        _match["$and"] = [
+            {"address": {"$nin": problematic_tokens[chain]}},
+        ]
+    if not chain and not token_addresses and problematic_tokens:
+        # add problematic tokens to the match
+        _match["$and"] = [
+            {
+                "$and": [
+                    {"address": {"$nin": _lst}},
+                    {"network": {"$ne": _ch.database_name}},
+                ]
+            }
+            for _ch, _lst in problematic_tokens.items()
+        ]
+
+    query = [
+        {"$match": _match},
+        {
+            "$setWindowFields": {
+                "partitionBy": "$address",
+                "sortBy": {"block": 1},
+                "output": {
+                    "stdeviation": {
+                        "$stdDevSamp": "$price",
+                        "window": {"range": ["current", 200]},
+                    },
+                    "average": {
+                        "$avg": "$price",
+                        "window": {"range": ["current", 200]},
+                    },
+                    "average_m": {"$avg": "$price", "window": {"range": [-5, 5]}},
+                },
+            }
+        },
+        {
+            "$addFields": {
+                "zScore1": {
+                    "$cond": [
+                        {"$eq": ["$average", 0]},
+                        0,
+                        {
+                            "$abs": {
+                                "$divide": [
+                                    {"$subtract": ["$price", "$average"]},
+                                    "$price",
+                                ]
+                            }
+                        },
+                    ]
+                },
+                "zScore2": {
+                    "$cond": [
+                        {"$eq": ["$stdeviation", 0]},
+                        0,
+                        {"$abs": {"$divide": ["$stdeviation", "$price"]}},
+                    ]
+                },
+                "zScore3": {
+                    "$cond": [
+                        {"$eq": ["$average_m", 0]},
+                        0,
+                        {
+                            "$abs": {
+                                "$divide": [
+                                    {"$subtract": ["$price", "$average_m"]},
+                                    "$price",
+                                ]
+                            }
+                        },
+                    ]
+                },
+            }
+        },
+        {"$match": {"zScore2": {"$gte": 0.1}}},
+        {"$sort": {"zScore2": -1}},
     ]
 
     if limit:
