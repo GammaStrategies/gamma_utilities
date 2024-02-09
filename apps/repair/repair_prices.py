@@ -106,6 +106,7 @@ def repair_all_outlier_prices_from_pricedb(
     token_addresses: list[str] | None = None,
     limit: int | None = None,
     multiprocess: bool = False,
+    price_divergence: float = 0.03,
 ):
     """_summary_
 
@@ -114,6 +115,7 @@ def repair_all_outlier_prices_from_pricedb(
         token_addresses (list[str] | None, optional): list of token addresses. Defaults to None.
         limit (int | None, optional): Limit the maximum amount of items to process. Defaults to None.
         multiprocess (bool, optional): . Defaults to False.
+        price_divergence (float, optional): . Defaults to 3%.
 
     Returns:
         _type_: _description_
@@ -128,14 +130,16 @@ def repair_all_outlier_prices_from_pricedb(
     )
 
     logging.getLogger(__name__).info(
-        f" Found {len(outliers)} outlier prices in {chain.database_name}"
+        f" Found {len(outliers):,.0f} outlier prices in {chain.database_name}"
     )
-
+    _fails = 0
     if multiprocess:
+        logging.getLogger(__name__).info(
+            f" Rescraping in multiprocess mode. Will use the standard 'price_divergence' value"
+        )
         with tqdm.tqdm(total=len(outliers)) as progress_bar:
             # prepare arguments
-            _fails = 0
-            with ProcessPoolExecutor(max_workers=10) as ex:
+            with ProcessPoolExecutor(max_workers=8) as ex:
                 for result in ex.map(rescrape_price_from_outlier, outliers):
                     if not result:
                         _fails += 1
@@ -148,60 +152,22 @@ def repair_all_outlier_prices_from_pricedb(
         return
 
     # find outliers for each of the token addresses, using monthly chunks of data ( more specifically, using blocks corresponding to 30 days )
-    for outlier in tqdm.tqdm(outliers):
-        # rescrape price and log if difference
-        _price, _source = get_price(
-            network=outlier["network"],
-            token_address=outlier["address"],
-            block=outlier["block"],
-        )
-
-        if _price is None:
-            logging.getLogger(__name__).warning(
-                f" Could not find price for {outlier['network']} {outlier['address']} at block {outlier['block']}"
+    with tqdm.tqdm(total=len(outliers)) as progress_bar:
+        for outlier in tqdm.tqdm(outliers):
+            progress_bar.set_description(
+                f" Rescraping {chain.fantasy_name} price outliers: {_fails} not processed"
             )
-            continue
+            progress_bar.refresh()
 
-        # calculate difference
-        # _price_difference = (outlier["average"] - _price) / outlier["average"]
-        _price_difference = (outlier["price"] - _price) / outlier["price"]
+            if not rescrape_price_from_outlier(
+                outlier=outlier, price_divergence=price_divergence
+            ):
+                _fails += 1
 
-        # if there is a big difference
-
-        # check if price is far from the average
-        if abs(_price_difference) <= 0.1:
-            logging.getLogger(__name__).debug(
-                f" No significant price difference found for {outlier['network']} {outlier['address']} at block {outlier['block']} was found: {_price_difference:.0%} -> old {outlier['price']:.2f} vs new {_price:.2f}. Skipping."
-            )
-            continue
-
-        logging.getLogger(__name__).debug(
-            f" Saving new price for {outlier['network']} {outlier['address']} at block {outlier['block']}: {_price:.2f}  [old: {outlier['price']:.2f}]"
-        )
-        # save new price to database
-        token_data = {
-            "id": outlier["id"],
-            "network": outlier["network"],
-            "address": outlier["address"],
-            "block": outlier["block"],
-            "price": _price,
-            "source": _source,
-        }
-        # save price to database
-        if db_return := get_default_globaldb().replace_item_to_database(
-            collection_name="usd_prices",
-            data=token_data,
-        ):
-            logging.getLogger(__name__).debug(
-                f" Successfully replaced price for {outlier['network']} {outlier['address']} at block {outlier['block']}: {db_return.raw_result}"
-            )
-        else:
-            logging.getLogger(__name__).warning(
-                f" Could not save price to database for {outlier['network']} {outlier['address']} at block {token_data['block']}. No successfull result received from database"
-            )
+            progress_bar.update(1)
 
 
-def rescrape_price_from_outlier(outlier: dict) -> bool:
+def rescrape_price_from_outlier(outlier: dict, price_divergence: float = 0.03) -> bool:
     # rescrape price and log if difference
     _price, _source = get_price(
         network=outlier["network"],
@@ -222,7 +188,7 @@ def rescrape_price_from_outlier(outlier: dict) -> bool:
     # if there is a big difference
 
     # check if price is far from the average
-    if abs(_price_difference) <= 0.1:
+    if abs(_price_difference) <= price_divergence:
         logging.getLogger(__name__).debug(
             f" No significant price difference found for {outlier['network']} {outlier['address']} at block {outlier['block']} was found: {_price_difference:.0%} -> old {outlier['price']:.2f} vs new {_price:.2f}. Skipping."
         )
@@ -256,7 +222,9 @@ def rescrape_price_from_outlier(outlier: dict) -> bool:
         return False
 
 
-def rescrape_price_from_dbItem(priceDBitem: dict) -> bool:
+def rescrape_price_from_dbItem(
+    priceDBitem: dict, price_divergence: float = 0.03
+) -> bool:
     # rescrape price and log if difference
     _price, _source = get_price(
         network=priceDBitem["network"],
@@ -277,7 +245,7 @@ def rescrape_price_from_dbItem(priceDBitem: dict) -> bool:
     # if there is a big difference
 
     # check if price is far from the average
-    if abs(_price_difference) <= 0.05:
+    if abs(_price_difference) <= price_divergence:
         logging.getLogger(__name__).debug(
             f" No significant price difference found for {priceDBitem['network']} {priceDBitem['address']} at block {priceDBitem['block']} was found: {_price_difference:.0%} -> old {priceDBitem['price']:.2f} vs new {_price:.2f}. Skipping."
         )
