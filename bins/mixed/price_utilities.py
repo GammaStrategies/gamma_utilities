@@ -102,21 +102,25 @@ class price_scraper:
         if self.cache:
             result.append(databaseSource.CACHE)
 
+        # onchain is the first option
+        if self.onchain:
+            result.append(databaseSource.ONCHAIN)
+
         # coingecko with api key
         if self.coingecko and CONFIGURATION.get("sources", {}).get(
             "coingeko_api_key", None
         ):
             result.append(databaseSource.COINGECKO)
-
+        # geckoterminal ( )
         if self.geckoterminal:
             result.append(databaseSource.GECKOTERMINAL)
-        if self.onchain:
-            result.append(databaseSource.ONCHAIN)
+
         # coingeko without api key
         if self.coingecko and not CONFIGURATION.get("sources", {}).get(
             "coingeko_api_key", None
         ):
             result.append(databaseSource.COINGECKO)
+
         # thegraph is the last option ( careful )
         if self.thegraph:
             result.append(databaseSource.THEGRAPH)

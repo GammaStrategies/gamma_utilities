@@ -1781,9 +1781,11 @@ def repair_missing_rewards_status(
     for reward_static in tqdm.tqdm(
         database_local(mongo_url=mongo_url, db_name=db_name).get_items_from_database(
             collection_name="rewards_static",
-            find={"hypervisor_address": {"$in": hypervisor_addresses}}
-            if hypervisor_addresses
-            else {},
+            find=(
+                {"hypervisor_address": {"$in": hypervisor_addresses}}
+                if hypervisor_addresses
+                else {}
+            ),
             batch_size=batch_size,
             sort=[("_id", -1)],
         )
@@ -2555,8 +2557,8 @@ def get_price(
             coingecko=True,
             geckoterminal_sleepNretry=True,
             source_order=[
-                databaseSource.COINGECKO,
                 databaseSource.ONCHAIN,
+                databaseSource.COINGECKO,
                 databaseSource.GECKOTERMINAL,
             ],
         ).get_price(network=network, token_id=token_address, block=block)

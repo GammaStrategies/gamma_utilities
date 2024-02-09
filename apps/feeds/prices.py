@@ -84,13 +84,15 @@ def feed_prices(
             coingecko=coingecko,
             thegraph=False,
             geckoterminal_sleepNretry=True,
-            source_order=[
-                databaseSource.COINGECKO,
-                databaseSource.ONCHAIN,
-                databaseSource.GECKOTERMINAL,
-            ]
-            if coingecko
-            else [databaseSource.ONCHAIN, databaseSource.GECKOTERMINAL],
+            source_order=(
+                [
+                    databaseSource.ONCHAIN,
+                    databaseSource.COINGECKO,
+                    databaseSource.GECKOTERMINAL,
+                ]
+                if coingecko
+                else [databaseSource.ONCHAIN, databaseSource.GECKOTERMINAL]
+            ),
         )
         # log errors
         _errors = 0
