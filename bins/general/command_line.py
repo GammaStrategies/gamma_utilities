@@ -82,6 +82,7 @@ def parse_commandLine_args():
             "operations",
             "status",
             "static",
+            "static_feeRecipients",
             "prices",
             "user_status",
             "queue",

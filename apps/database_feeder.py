@@ -9,7 +9,7 @@ from apps.feeds.frontend.revenue_stats_daily import feed_revenue_stats
 from apps.feeds.queue.pull import pull_from_queue
 from apps.feeds.reports.execution import feed_global_reports
 from apps.feeds.returns.builds import feed_hypervisor_returns
-from bins.general.enums import Chain, text_to_chain
+from bins.general.enums import Chain, text_to_chain, text_to_protocol
 from .feeds.operations import feed_operations
 
 from bins.configuration import CONFIGURATION
@@ -21,7 +21,11 @@ from bins.database.common.db_collections_common import (
     database_global,
 )
 
-from .feeds.static import feed_hypervisor_static, feed_rewards_static
+from .feeds.static import (
+    feed_hypervisor_static,
+    feed_rewards_static,
+    update_static_feeRecipients,
+)
 from .feeds.users import feed_user_operations
 
 from .feeds.status.hypervisors.general import feed_hypervisor_status
@@ -232,6 +236,33 @@ def main(option="operations"):
                                     "cml_parameters"
                                 ].rewrite,
                             )
+                        except Exception as e:
+                            logging.getLogger(__name__).exception(
+                                f" Error processing {option} data from {network} {dex}  )-:  {e} "
+                            )
+
+                elif option == "static_feeRecipients":
+                    for dex in CONFIGURATION["script"]["protocols"][protocol][
+                        "networks"
+                    ].get(network, []):
+                        # filter if dex not in cml ( when cml is used )
+                        if CONFIGURATION["_custom_"]["cml_parameters"].protocols:
+                            if (
+                                dex
+                                not in CONFIGURATION["_custom_"][
+                                    "cml_parameters"
+                                ].protocols
+                            ):
+                                continue
+
+                        try:
+                            # feed database
+                            update_static_feeRecipients(
+                                chain=text_to_chain(network),
+                                dex=text_to_protocol(dex),
+                                multiprocess=True,
+                            )
+
                         except Exception as e:
                             logging.getLogger(__name__).exception(
                                 f" Error processing {option} data from {network} {dex}  )-:  {e} "

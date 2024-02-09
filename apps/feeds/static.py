@@ -2,6 +2,7 @@
 import contextlib
 import logging
 import concurrent.futures
+from multiprocessing.pool import Pool
 from requests import HTTPError
 import tqdm
 from apps.feeds.queue.push import build_and_save_queue_items_from_hypervisor_addresses
@@ -604,6 +605,99 @@ def remove_disabled_hypervisors(chain: Chain, hypervisor_addresses: list[str]):
             )
 
 
+# update static hypervisor feeRecipients
+def update_static_feeRecipients(chain: Chain, dex: Protocol, multiprocess: bool = True):
+    """Update feeRecipients in hypervisor static"""
+
+    static_hypervisors = get_from_localdb(
+        network=chain.database_name,
+        collection="static",
+        find={"dex": dex.database_name},
+    )
+
+    logging.getLogger(__name__).info(
+        f" Trying to update {len(static_hypervisors)} static hypervisors feeRecipient for {chain.database_name} {dex.database_name} "
+    )
+
+    if multiprocess:
+        # prepare arguments
+        args = [(chain, dex, hypervisor) for hypervisor in static_hypervisors]
+        with Pool() as pool:
+            for result in pool.starmap(update_static_feeRecipient, args):
+                pass
+
+    # exit multiprocess mode
+    else:
+        for hypervisor in static_hypervisors:
+            update_static_feeRecipient(chain, dex, hypervisor)
+
+
+def update_static_feeRecipient(chain: Chain, dex: Protocol, hype_static: dict):
+
+    try:
+
+        hypervisor_static_db = build_db_hypervisor_multicall(
+            address=hype_static["address"],
+            network=chain.database_name,
+            block=0,
+            dex=hype_static["dex"],
+            pool_address=hype_static["pool"]["address"],
+            token0_address=hype_static["pool"]["token0"]["address"],
+            token1_address=hype_static["pool"]["token1"]["address"],
+            static_mode=True,
+        )
+
+        if hypervisor_static_db == None:
+
+            logging.getLogger(__name__).error(
+                f"     Could not build {chain} hypervisor {hype_static['address']} static data with a single multicall. Falling to multiple single calls."
+            )
+            # build it again but without mlticall
+            hypervisor_static_db = build_db_hypervisor(
+                address=hype_static["address"],
+                network=chain.database_name,
+                block=0,
+                dex=hype_static["dex"],
+                static_mode=True,
+            )
+            if hypervisor_static_db == None:
+                logging.getLogger(__name__).error(
+                    f"     Could not build {chain} hypervisor {hype_static['address']} static data with multiple single calls. Cant continue."
+                )
+                return False
+
+        if not "feeRecipient" in hypervisor_static_db:
+            logging.getLogger(__name__).error(
+                f"     No feeRecipient field found for {chain} hypervisor {hype_static['address']}"
+            )
+            return False
+
+        if hypervisor_static_db["feeRecipient"] != hype_static["feeRecipient"]:
+            logging.getLogger(__name__).info(
+                f"     Changing feeRecipient of {chain} hypervisor {hype_static['address']} from {hype_static['feeRecipient']} to {hypervisor_static_db['feeRecipient']}"
+            )
+
+            hype_static["feeRecipient"] = hypervisor_static_db["feeRecipient"]
+
+            if db_return := get_default_localdb(
+                network=chain.database_name
+            ).replace_item_to_database(data=hype_static, collection_name="static"):
+                logging.getLogger(__name__).debug(
+                    f"     feeRecipient update database result: mod: {db_return.modified_count} upsert: {db_return.upserted_id} "
+                )
+                return True
+            else:
+                logging.getLogger(__name__).error(
+                    f"     feeRecipient update database did not return anything while updating {chain} hypervisor {hype_static['address']} feeRecipient"
+                )
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            f"     Could not update {chain} hypervisor {hype_static['address']} feeRecipient. Error: {e}"
+        )
+
+    return False
+
+
 # rewards static data
 
 
@@ -1169,7 +1263,10 @@ def create_rewards_static_ramses(
             )
 
             # check if gauge is set ( not 0x0000...)
-            if hype_status.gauge.address.lower() == "0x0000000000000000000000000000000000000000":
+            if (
+                hype_status.gauge.address.lower()
+                == "0x0000000000000000000000000000000000000000"
+            ):
                 logging.getLogger(__name__).debug(
                     f" Gauge is not set for ramses hype:{hype_static['address']}. Skipping static rewards processing"
                 )
@@ -1589,14 +1686,16 @@ def create_rewards_static_camelot_spNFT(
                 "rewardToken": nft_pool_data["grailToken"],
                 "rewardToken_symbol": grailTokenHelper.symbol,
                 "rewardToken_decimals": grailTokenHelper.decimals,
-                "rewards_perSecond": str(nft_pool_data["poolEmissionRate"])
-                if convert_bint
-                else nft_pool_data["poolEmissionRate"],
-                "total_hypervisorToken_qtty": str(
-                    nft_pool_data["lpSupplyWithMultiplier"]
-                )
-                if convert_bint
-                else nft_pool_data["lpSupplyWithMultiplier"],
+                "rewards_perSecond": (
+                    str(nft_pool_data["poolEmissionRate"])
+                    if convert_bint
+                    else nft_pool_data["poolEmissionRate"]
+                ),
+                "total_hypervisorToken_qtty": (
+                    str(nft_pool_data["lpSupplyWithMultiplier"])
+                    if convert_bint
+                    else nft_pool_data["lpSupplyWithMultiplier"]
+                ),
                 "start_rewards_timestamp": creation_timestamp,
                 "end_rewards_timestamp": 0,
             }
@@ -1617,14 +1716,16 @@ def create_rewards_static_camelot_spNFT(
                 "rewardToken": nft_pool_data["xGrailToken"],
                 "rewardToken_symbol": xGrailTokenHelper.symbol,
                 "rewardToken_decimals": xGrailTokenHelper.decimals,
-                "rewards_perSecond": str(nft_pool_data["poolEmissionRate"])
-                if convert_bint
-                else nft_pool_data["poolEmissionRate"],
-                "total_hypervisorToken_qtty": str(
-                    nft_pool_data["lpSupplyWithMultiplier"]
-                )
-                if convert_bint
-                else nft_pool_data["lpSupplyWithMultiplier"],
+                "rewards_perSecond": (
+                    str(nft_pool_data["poolEmissionRate"])
+                    if convert_bint
+                    else nft_pool_data["poolEmissionRate"]
+                ),
+                "total_hypervisorToken_qtty": (
+                    str(nft_pool_data["lpSupplyWithMultiplier"])
+                    if convert_bint
+                    else nft_pool_data["lpSupplyWithMultiplier"]
+                ),
                 "start_rewards_timestamp": creation_timestamp,
                 "end_rewards_timestamp": 0,
             }
@@ -1760,12 +1861,16 @@ def create_rewards_static_camelot_nitro(
                     "rewardToken": _pool_data["rewardsToken1"]["token"].lower(),
                     "rewardToken_symbol": token0.symbol,
                     "rewardToken_decimals": token0.decimals,
-                    "rewards_perSecond": str(_pool_data["rewardsToken1PerSecond"])
-                    if convert_bint
-                    else _pool_data["rewardsToken1PerSecond"],
-                    "total_hypervisorToken_qtty": str(_pool_data["totalDepositAmount"])
-                    if convert_bint
-                    else _pool_data["totalDepositAmount"],
+                    "rewards_perSecond": (
+                        str(_pool_data["rewardsToken1PerSecond"])
+                        if convert_bint
+                        else _pool_data["rewardsToken1PerSecond"]
+                    ),
+                    "total_hypervisorToken_qtty": (
+                        str(_pool_data["totalDepositAmount"])
+                        if convert_bint
+                        else _pool_data["totalDepositAmount"]
+                    ),
                     "start_rewards_timestamp": _pool_data["settings"]["startTime"],
                     "end_rewards_timestamp": _pool_data["settings"]["endTime"],
                 }
@@ -1789,12 +1894,16 @@ def create_rewards_static_camelot_nitro(
                     "rewardToken": _pool_data["rewardsToken2"]["token"].lower(),
                     "rewardToken_symbol": token1.symbol,
                     "rewardToken_decimals": token1.decimals,
-                    "rewards_perSecond": str(_pool_data["rewardsToken2PerSecond"])
-                    if convert_bint
-                    else _pool_data["rewardsToken2PerSecond"],
-                    "total_hypervisorToken_qtty": str(_pool_data["totalDepositAmount"])
-                    if convert_bint
-                    else _pool_data["totalDepositAmount"],
+                    "rewards_perSecond": (
+                        str(_pool_data["rewardsToken2PerSecond"])
+                        if convert_bint
+                        else _pool_data["rewardsToken2PerSecond"]
+                    ),
+                    "total_hypervisorToken_qtty": (
+                        str(_pool_data["totalDepositAmount"])
+                        if convert_bint
+                        else _pool_data["totalDepositAmount"]
+                    ),
                     "start_rewards_timestamp": _pool_data["settings"]["startTime"],
                     "end_rewards_timestamp": _pool_data["settings"]["endTime"],
                 }
