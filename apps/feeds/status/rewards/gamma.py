@@ -63,7 +63,7 @@ def create_rewards_status_gamma(
         )
         result.append(reward_data)
     except Exception as e:
-        logging.getLogger(__name__).error(
+        logging.getLogger(__name__).exception(
             f" Gamma Rewards-> {network}'s {rewarder_static['rewardToken']} price at block {hypervisor_status['block']} could not be calculated. Error: {e}"
         )
         logging.getLogger(__name__).debug(

@@ -98,7 +98,7 @@ def create_rewards_status_camelot_spnft(
 
                 result.append(reward_data_converted)
             except Exception as e:
-                logging.getLogger(__name__).error(
+                logging.getLogger(__name__).exception(
                     f" Camelot spNFT Rewards-> {chain.database_name}'s {rewarder_static['rewardToken']} price at block {hypervisor_status['block']} could not be calculated. Error: {e}"
                 )
                 logging.getLogger(__name__).debug(
