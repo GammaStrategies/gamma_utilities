@@ -24,4 +24,5 @@ from ..protocols import (
     pegasys,
     basex,
     swapr,
+    aperture,
 )
