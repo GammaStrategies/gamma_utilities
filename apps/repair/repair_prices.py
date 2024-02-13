@@ -223,7 +223,7 @@ def rescrape_price_from_outlier(outlier: dict, price_divergence: float = 0.03) -
 
 
 def rescrape_price_from_dbItem(
-    priceDBitem: dict, price_divergence: float = 0.03
+    priceDBitem: dict, price_divergence: float = 0.01
 ) -> bool:
     # rescrape price and log if difference
     _price, _source = get_price(
