@@ -413,3 +413,11 @@ HYPERVISOR_RETURNS_FORCED_INI_BLOCKS = {
         "0x19ccd73473252db5d3f290bffdf7db45dc7849ca".lower(): 41470754,
     },
 }
+
+
+# Implemented but not launched Chains like (currently opbnb) have no hype events thus operations gathering always takes longer time to complete ( because the initial point is the same block).
+# We can define here a block ( now) we know thare is no operations before.).
+# This only affects the operations gathering process.
+HYPERVISOR_NO_OPERATIONS_BEFORE = {
+    Chain.OPBNB: 16097091,
+}

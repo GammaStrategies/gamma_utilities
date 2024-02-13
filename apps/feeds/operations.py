@@ -6,9 +6,10 @@ from datetime import datetime
 
 from web3 import Web3
 from apps.feeds.queue.push import build_and_save_queue_from_operation
+from bins.config.hardcodes import HYPERVISOR_NO_OPERATIONS_BEFORE
 from bins.database.helpers import get_default_localdb, get_from_localdb
 
-from bins.general.enums import Chain, Protocol, queueItemType
+from bins.general.enums import Chain, Protocol, queueItemType, text_to_chain
 from bins.w3.builders import build_erc20_helper
 from bins.w3.protocols.gamma.collectors import (
     create_data_collector,
@@ -158,6 +159,10 @@ def feed_operations(
                 logging.getLogger(__name__).info(f"   new hypervisors-->  {diffs}")
                 # set initial block
                 block_ini = new_block_ini
+
+            # force initial block mannualy if set so.
+            if HYPERVISOR_NO_OPERATIONS_BEFORE.get(text_to_chain(network), None):
+                block_ini = HYPERVISOR_NO_OPERATIONS_BEFORE[network]
 
         # define block to scrape
         if not block_ini and not block_end:
