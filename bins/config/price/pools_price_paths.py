@@ -32,6 +32,13 @@ DEX_POOLS = {
             "token1": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2".lower(),
             "min_block": 13856851,
         },
+        "BABEL_WETH": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0xe2de090153403b0f0401142d5394da897630dcb7".lower(),
+            "token0": "0xf4dc48d260c93ad6a96c5ce563e70ca578987c74".lower(),
+            "token1": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2".lower(),
+            "min_block": 13682876,
+        },
     },
     Chain.OPTIMISM: {
         "WETH_USDC": {
@@ -502,6 +509,11 @@ DEX_POOLS_PRICE_PATHS = {
         "0x467719ad09025fcc6cf6f8311755809d45a5e5f3".lower(): [
             (DEX_POOLS[Chain.ETHEREUM]["AXL_USDC"], 1)
         ],
+        # BABEL
+        "0xf4dc48d260c93ad6a96c5ce563e70ca578987c74".lower(): [
+            (DEX_POOLS[Chain.ETHEREUM]["BABEL_WETH"], 0),
+            (DEX_POOLS[Chain.ETHEREUM]["USDC_WETH"], 0),
+        ],
     },
     Chain.OPTIMISM: {
         # OP
@@ -633,6 +645,10 @@ DEX_POOLS_PRICE_PATHS = {
         # PHAR
         "0xaaab9d12a30504559b0c5a9a5977fee4a6081c6b".lower(): [
             (DEX_POOLS[Chain.AVALANCHE]["PHAR_WAVAX"], 0),
+            (DEX_POOLS[Chain.AVALANCHE]["WAVAX_USDC"], 1),
+        ],
+        # WAVAX
+        "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7".lower(): [
             (DEX_POOLS[Chain.AVALANCHE]["WAVAX_USDC"], 1),
         ],
     },
