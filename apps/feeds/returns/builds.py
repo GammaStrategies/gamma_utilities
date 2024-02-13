@@ -4,6 +4,9 @@ import time
 from apps.errors.actions import process_error
 from apps.feeds.operations import feed_operations
 from apps.hypervisor_periods.returns.general import hypervisor_periods_returns
+from bins.config.hardcodes import (
+    HYPERVISOR_RETURNS_FORCED_INI_BLOCKS,
+)
 from bins.configuration import CONFIGURATION
 from bins.database.common.db_collections_common import database_local
 from bins.database.helpers import (
@@ -241,9 +244,11 @@ def get_last_return_data_from_db(
         for x in get_from_localdb(
             network=chain.database_name,
             collection="static",
-            find=({"address": {"$in": hypervisor_addresses}})
-            if hypervisor_addresses
-            else {},
+            find=(
+                ({"address": {"$in": hypervisor_addresses}})
+                if hypervisor_addresses
+                else {}
+            ),
             projection={"address": 1, "block": 1, "_id": 0},
         )
         if x["address"]
@@ -255,11 +260,22 @@ def get_last_return_data_from_db(
         .get(chain.database_name, [])
     }
 
+    # Filter the forced start block for hypervisors defined in the configuration
+    # we change the hypervisor contract creation block to the one defined in the configuration
+    for hype_address, creation_block in hypervisors_static.items():
+        if new_creation_block := HYPERVISOR_RETURNS_FORCED_INI_BLOCKS.get(
+            chain.database_name, {}
+        ).get(hype_address, None):
+            logging.getLogger(__name__).debug(
+                f" > Changed hype Returns creation block for {hype_address} -> from {creation_block} to {new_creation_block}"
+            )
+            hypervisors_static[hype_address] = new_creation_block
+
     # get all hypes n max block at hypervisor returns database
     # get the last end block found in hypervisor returns for each hype in the specified list
     query = []
-    if (
-        _match := {"$match": {"address": {"$in": hypervisor_addresses}}}
+    if _match := (
+        {"$match": {"address": {"$in": hypervisor_addresses}}}
         if hypervisor_addresses
         else {}
     ):

@@ -397,3 +397,19 @@ SPECIAL_POOL_ABIS = {
         },
     }
 }
+
+
+# Hypervisor returns sometimes, at the beguining of the hype life, at setup, direct deposits ( transfers not deposits) to the pool are used to set its token weights correctly.
+# Here we define the hypervisor starting block desired ( being a block after the fixing ratio transfers are done).
+
+#  <Chain>:{
+#      <hypervisor address>: <starting block>
+#  }
+HYPERVISOR_RETURNS_FORCED_INI_BLOCKS = {
+    Chain.AVALANCHE: {
+        "0xfa81e2922b084ab260f7f8abd1d455d1235688d0".lower(): 41465089,
+        "0xce8f3d036a7d2860c1dbb35a392e1c505feac4f3".lower(): 41467795,
+        "0x08c0fe331e82b9e1e3d72bd7dd9ab4a730a84481".lower(): 41469930,
+        "0x19ccd73473252db5d3f290bffdf7db45dc7849ca".lower(): 41470754,
+    },
+}
