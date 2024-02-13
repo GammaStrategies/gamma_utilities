@@ -54,6 +54,8 @@ class geckoterminal_price_helper:
             "baseswap": Protocol.BASESWAP,
             "swapbased": Protocol.SWAPBASED,
             "pancakeswap-v3-base": Protocol.PANCAKESWAP,
+            "uniswap-v3-avalanche": Protocol.UNISWAPv3,
+            "pharaoh-exchange": Protocol.PHARAOH,
         }
 
         self.retries = retries
