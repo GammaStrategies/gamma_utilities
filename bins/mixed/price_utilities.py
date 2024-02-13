@@ -615,10 +615,11 @@ class usdc_price_scraper:
             if token_address.lower() in USDC_TOKEN_ADDRESSES.get(chain, []):
                 return 1
 
-            # try get path from file
-            price = self._get_price_using_file_paths(
+            # try get price from var
+            price = self._get_price_using_var_paths(
                 chain=chain, token_address=token_address, block=block
             )
+
             # discard price outliers
             if price and price > 10**18:
                 logging.getLogger(__name__).debug(
@@ -627,8 +628,8 @@ class usdc_price_scraper:
                 price = None
 
             if price is None:
-                # try get price from var
-                price = self._get_price_using_var_paths(
+                # try get path from file
+                price = self._get_price_using_file_paths(
                     chain=chain, token_address=token_address, block=block
                 )
 
