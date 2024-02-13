@@ -481,6 +481,15 @@ DEX_POOLS = {
             "min_block": 13997603,
         },
     },
+    Chain.MANTA: {
+        "USDC-WETH": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0xd7f09148eb22686cb5dcbdd0cf27d04123d14c74".lower(),
+            "token0": "0xb73603c5d87fa094b7314c74ace2e64d165016fb".lower(),  # USDC
+            "token1": "0x0dc808adce2099a9f62aa87d9670745aba741746".lower(),  # WETH
+            "min_block": 1360000,
+        },
+    },
 }
 
 
@@ -712,6 +721,12 @@ DEX_POOLS_PRICE_PATHS = {
         "0x32a9fe697a32135bfd313a6ac28792dae4d9979d".lower(): [
             (DEX_POOLS[Chain.CELO]["cMCO2-CELO"], 0),
             (DEX_POOLS[Chain.CELO]["CELO-cUSD"], 1),
+        ],
+    },
+    Chain.MANTA: {
+        # WETH
+        "0x0dc808adce2099a9f62aa87d9670745aba741746".lower(): [
+            (DEX_POOLS[Chain.MANTA]["USDC-WETH"], 1),
         ],
     },
 }
