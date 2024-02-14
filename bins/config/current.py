@@ -66,12 +66,24 @@ MULTICALL3_ADDRESSES = {
         "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
         "block": 5022,
     },
-    # Chain.LINEA:{
-    #     "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
-    #     "block":  ,
-    # },
-    # Chain.METIS:{
-    #     "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
-    #     "block":  2338552
-    # },
+    Chain.LINEA: {
+        "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
+        "block": 42,
+    },
+    Chain.METIS: {
+        "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
+        "block": 2338552,
+    },
+    Chain.MANTA: {
+        "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
+        "block": 332890,
+    },
+    Chain.GNOSIS: {
+        "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
+        "block": 21022491,
+    },
+    Chain.ROLLUX: {
+        "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
+        "block": 119222,
+    },
 }
