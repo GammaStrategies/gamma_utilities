@@ -523,7 +523,14 @@ DEX_POOLS = {
             "token0": "0xb73603c5d87fa094b7314c74ace2e64d165016fb".lower(),  # USDC
             "token1": "0xf417f5a458ec102b90352f697d6e2ac3a3d2851f".lower(),  # USDT
             "min_block": 700000,
-        }
+        },
+        "MATIC-USDC": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0xbf11176eb2b7b14aec32acbfe1085bf55798d138".lower(),
+            "token0": "0x0f52a51287f9b3894d73df05164d0ee2533ccbb4".lower(),  # MATIC
+            "token1": "0xb73603c5d87fa094b7314c74ace2e64d165016fb".lower(),  # USDC
+            "min_block": 700000,
+        },
     },
 }
 
@@ -785,6 +792,10 @@ DEX_POOLS_PRICE_PATHS = {
         # USDT
         "0xf417f5a458ec102b90352f697d6e2ac3a3d2851f".lower(): [
             (DEX_POOLS[Chain.MANTA]["USDC-USDT"], 0),
+        ],
+        # MATIC
+        "0x0f52a51287f9b3894d73df05164d0ee2533ccbb4".lower(): [
+            (DEX_POOLS[Chain.MANTA]["MATIC-USDC"], 1),
         ],
     },
 }
