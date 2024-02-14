@@ -85,7 +85,7 @@ class data_collector:
         topics: dict = {},
         topics_data_decoders: dict = {},
         max_blocks: int = 5000,
-    ) -> list[dict]:
+    ):
         """operation item generator
 
         Args:
@@ -107,18 +107,20 @@ class data_collector:
 
         # get a list of events
         filter_chunks = self._web3_helper.create_eventFilter_chunks(
-            eventfilter={
-                "fromBlock": block_ini,
-                "toBlock": block_end,
-                "address": contracts,
-                "topics": [[v for k, v in self._topics.items()]],
-            }
-            if contracts
-            else {
-                "fromBlock": block_ini,
-                "toBlock": block_end,
-                "topics": [[v for k, v in self._topics.items()]],
-            },
+            eventfilter=(
+                {
+                    "fromBlock": block_ini,
+                    "toBlock": block_end,
+                    "address": contracts,
+                    "topics": [[v for k, v in self._topics.items()]],
+                }
+                if contracts
+                else {
+                    "fromBlock": block_ini,
+                    "toBlock": block_end,
+                    "topics": [[v for k, v in self._topics.items()]],
+                }
+            ),
             max_blocks=max_blocks,
         )
 
@@ -364,7 +366,7 @@ class wallet_transfers_collector(data_collector):
         contract_addresses: list[str] = None,
         fromTo: str = "to",
         max_blocks: int = 5000,
-    ) -> list[dict]:
+    ):
         """operation item generator
 
         Args:
@@ -567,7 +569,7 @@ class rewardPaid_collector(data_collector):
         block_end: int | None = None,
         contract_addresses: list[str] = None,
         max_blocks: int = 5000,
-    ) -> list[dict]:
+    ):
         """operation item generator
 
         Args:
