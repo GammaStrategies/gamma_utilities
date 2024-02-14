@@ -279,9 +279,11 @@ STATIC_REGISTRY_ADDRESSES = {
     "manta": {
         "hypervisors": {
             "aperture": "0x683292172e2175bd08e3927a5e72fc301b161300".lower(),
+            "quickswap": "0x8a9570ec97534277Ade6e46d100939FbCE4968f0".lower(),
         },
         "MasterChefV2Registry": {
             "aperture": "0xc27ddd78fc49875fe6f844b72bbf31dfbb099881".lower(),
+            "quickswap": "0xD6Cc4a33dA7557A629e819c68fB805ddB225f517".lower(),
         },
     },
     "metis": {

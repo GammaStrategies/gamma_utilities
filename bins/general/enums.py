@@ -79,7 +79,7 @@ class Protocol(str, Enum):
 
     BEAMSWAP = ("beamswap", "beamswap", "Beamswap")  # univ3 mod
     CAMELOT = ("camelot", "camelot", "Camelot")  # algebra mods
-    QUICKSWAP = ("quickswap", "quickswap", "QuickSwap")
+    QUICKSWAP = ("quickswap", "quickswap", "QuickSwap")  # algebra and univ3
     ZYBERSWAP = ("zyberswap", "zyberswap", "Zyberswap")
     THENA = ("thena", "thena", "Thena")
     GLACIER = ("glacier", "glacier", "Glacier")

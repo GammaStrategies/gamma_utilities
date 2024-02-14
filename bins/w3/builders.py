@@ -450,20 +450,11 @@ def build_hypervisor(
             )
         )
     elif protocol == Protocol.QUICKSWAP:
-        hypervisor = (
-            protocols.quickswap.hypervisor.gamma_hypervisor(
-                address=hypervisor_address,
-                network=network,
-                block=block,
-                timestamp=timestamp,
-                abi_filename=abi_filename,
-                abi_path=abi_path,
-                custom_web3=custom_web3,
-                custom_web3Url=custom_web3Url,
-            )
-            if not cached and not multicall
-            else (
-                protocols.quickswap.hypervisor.gamma_hypervisor_cached(
+        # QuickSwap has Algebra and Uniswap v3 pools:
+        if network == Chain.MANTA.database_name:
+            # uniswap v3 pool
+            hypervisor = (
+                protocols.quickswap.hypervisor_univ3.gamma_hypervisor(
                     address=hypervisor_address,
                     network=network,
                     block=block,
@@ -473,8 +464,34 @@ def build_hypervisor(
                     custom_web3=custom_web3,
                     custom_web3Url=custom_web3Url,
                 )
-                if not multicall
-                else protocols.quickswap.hypervisor.gamma_hypervisor_multicall(
+                if not cached and not multicall
+                else (
+                    protocols.quickswap.hypervisor_univ3.gamma_hypervisor_cached(
+                        address=hypervisor_address,
+                        network=network,
+                        block=block,
+                        timestamp=timestamp,
+                        abi_filename=abi_filename,
+                        abi_path=abi_path,
+                        custom_web3=custom_web3,
+                        custom_web3Url=custom_web3Url,
+                    )
+                    if not multicall
+                    else protocols.quickswap.hypervisor_univ3.gamma_hypervisor_multicall(
+                        address=hypervisor_address,
+                        network=network,
+                        block=block,
+                        timestamp=timestamp,
+                        abi_filename=abi_filename,
+                        abi_path=abi_path,
+                        custom_web3=custom_web3,
+                        custom_web3Url=custom_web3Url,
+                    )
+                )
+            )
+        else:
+            hypervisor = (
+                protocols.quickswap.hypervisor.gamma_hypervisor(
                     address=hypervisor_address,
                     network=network,
                     block=block,
@@ -484,8 +501,31 @@ def build_hypervisor(
                     custom_web3=custom_web3,
                     custom_web3Url=custom_web3Url,
                 )
+                if not cached and not multicall
+                else (
+                    protocols.quickswap.hypervisor.gamma_hypervisor_cached(
+                        address=hypervisor_address,
+                        network=network,
+                        block=block,
+                        timestamp=timestamp,
+                        abi_filename=abi_filename,
+                        abi_path=abi_path,
+                        custom_web3=custom_web3,
+                        custom_web3Url=custom_web3Url,
+                    )
+                    if not multicall
+                    else protocols.quickswap.hypervisor.gamma_hypervisor_multicall(
+                        address=hypervisor_address,
+                        network=network,
+                        block=block,
+                        timestamp=timestamp,
+                        abi_filename=abi_filename,
+                        abi_path=abi_path,
+                        custom_web3=custom_web3,
+                        custom_web3Url=custom_web3Url,
+                    )
+                )
             )
-        )
     elif protocol == Protocol.THENA:
         hypervisor = (
             protocols.thena.hypervisor.gamma_hypervisor(
