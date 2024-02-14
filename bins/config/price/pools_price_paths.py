@@ -503,6 +503,13 @@ DEX_POOLS = {
             "token1": "0x0dc808adce2099a9f62aa87d9670745aba741746".lower(),
             "min_block": 1200000,
         },
+        "WBTC-WETH": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0xfc9ffc1c6e0ebf7be3ce93245b309f4d3b593101".lower(),
+            "token0": "0x305e88d809c9dc03179554bfbf85ac05ce8f18d6".lower(),  # STONE
+            "token1": "0x0dc808adce2099a9f62aa87d9670745aba741746".lower(),
+            "min_block": 800000,
+        },
     },
 }
 
@@ -749,6 +756,11 @@ DEX_POOLS_PRICE_PATHS = {
         # STONE
         "0xec901da9c68e90798bbbb74c11406a32a70652c3".lower(): [
             (DEX_POOLS[Chain.MANTA]["STONE-WETH"], 0),
+            (DEX_POOLS[Chain.MANTA]["USDC-WETH"], 1),
+        ],
+        # WBTC
+        "0x305e88d809c9dc03179554bfbf85ac05ce8f18d6".lower(): [
+            (DEX_POOLS[Chain.MANTA]["WBTC-WETH"], 0),
             (DEX_POOLS[Chain.MANTA]["USDC-WETH"], 1),
         ],
     },
