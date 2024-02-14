@@ -886,16 +886,29 @@ class web3wrap:
         if not rpcKey_names and self._custom_rpcType:
             rpcKey_names = [self._custom_rpcType]
 
+        # get a list of rpcs to use
+        _rpc_list = RPC_MANAGER.get_rpc_list(
+            network=self._network, rpcKey_names=rpcKey_names
+        )
+        # check if no rpcs are available and only one in rpcKey_names
+        if rpcKey_names and len(rpcKey_names) == 1:
+            logging.getLogger(__name__).warning(
+                f" There are no {rpcKey_names[0]} rpcs available for {self._network} network. Trying to use any rpc available"
+            )
+            # try to use any rpc available ( not only the one in rpcKey_names)
+            _rpc_list = RPC_MANAGER.get_rpc_list(network=self._network)
+
+        # get function result
         result = self.call_function(
             function_name,
-            RPC_MANAGER.get_rpc_list(network=self._network, rpcKey_names=rpcKey_names),
+            _rpc_list,
             *args,
         )
         if not result is None:
             return result
         else:
             logging.getLogger(__name__).error(
-                f" Could not use any rpcProvider calling function {function_name} with params {args} on {self._network} network {self.address} block {self.block}"
+                f" Could not use any rpcProvider calling function {function_name} with params {args} on {self._network} network {self.address} block {self.block}. rpclist:[{[x.url_short for x in _rpc_list] if _rpc_list else 'None'}]"
             )
 
         raise ProcessingError(
