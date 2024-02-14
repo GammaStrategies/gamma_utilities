@@ -214,13 +214,13 @@ STATIC_REGISTRY_ADDRESSES = {
         ],
         "MasterChefV2Registry": {
             "pancakeswap": "0x0087cA4844cAE94B1c51dEc0f9434A6F92006Af9".lower(),
+            "baseswap": "0x5981B43b74bb6DaA13a3cd97dddF4C52c9f0fC5F".lower(),
+            "swapbased": "0x1dE56231bE01e4d91A085e68E573e4aDaf78693A".lower(),
         },
         "angle_merkl": {
             "distributor": "0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae".lower(),
             "distributionCreator": "0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd".lower(),
             "coreMerkl": "0xC16B81Af351BA9e64C1a069E3Ab18c244A1E3049".lower(),
-            "baseswap": "0x5981B43b74bb6DaA13a3cd97dddF4C52c9f0fC5F".lower(),
-            "swapbased": "0x1dE56231bE01e4d91A085e68E573e4aDaf78693A".lower(),
         },
         "uniproxy": {
             "synthswap": "0x38f61169D8bcc08cE303401A13332259F557B35f".lower(),
@@ -238,6 +238,11 @@ STATIC_REGISTRY_ADDRESSES = {
         "uniproxy": {
             "fusionx": "0xFc13Ebe7FEB9595D70195E9168aA7F3acE153621".lower(),
         },
+        "angle_merkl": {
+            "distributor": "0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae".lower(),
+            "distributionCreator": "0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd".lower(),
+            "coreMerkl": "0xC16B81Af351BA9e64C1a069E3Ab18c244A1E3049".lower(),
+        },
     },
     "linea": {
         "hypervisors": {
@@ -245,6 +250,11 @@ STATIC_REGISTRY_ADDRESSES = {
         },
         "uniproxy": {
             "lynex": "0xFc13Ebe7FEB9595D70195E9168aA7F3acE153621".lower(),
+        },
+        "angle_merkl": {
+            "distributor": "0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae".lower(),
+            "distributionCreator": "0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd".lower(),
+            "coreMerkl": "0x5adDc89785D75C86aB939E9e15bfBBb7Fc086A87".lower(),
         },
     },
     "rollux": {
@@ -304,6 +314,11 @@ STATIC_REGISTRY_ADDRESSES = {
         "MasterChefV2Registry": {},
         "uniproxy": {
             "swapr": "0x38f61169d8bcc08ce303401a13332259f557b35f".lower(),
+        },
+        "angle_merkl": {
+            "distributor": "0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae".lower(),
+            "distributionCreator": "0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd".lower(),
+            "coreMerkl": "0xFD0DFC837Fe7ED19B23df589b6F6Da5a775F99E0".lower(),
         },
     },
 }
