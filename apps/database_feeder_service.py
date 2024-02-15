@@ -32,8 +32,6 @@ from .database_feeder import (
     feed_blocks_timestamp,
 )
 
-from .feeds.users import feed_user_operations
-
 from .feeds.status.hypervisors.general import feed_hypervisor_status
 from .feeds.status.rewards.general import feed_rewards_status
 
