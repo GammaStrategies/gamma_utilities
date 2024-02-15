@@ -46,7 +46,7 @@ def build_db_hypervisor(
     cached: bool = False,
     force_rpcType: str | None = None,
     minimal: bool = False,
-) -> dict():
+) -> dict:
     try:
         # build hypervisor
         hypervisor = build_hypervisor(
@@ -126,7 +126,7 @@ def build_db_hypervisor_multicall(
     custom_web3Url: str | None = None,
     force_rpcType: str | None = None,
     convert_bint: bool = True,
-) -> dict():
+) -> dict:
     try:
         # check if multicall contract is created after block to avoid problems
         if (
