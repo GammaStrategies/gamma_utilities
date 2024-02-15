@@ -2,6 +2,45 @@ from bins.general.enums import Chain
 
 # https://docs.chain.link/data-feeds/price-feeds/addresses/
 CHAINLINK_USD_PRICE_FEEDS = {
+    Chain.ARBITRUM: {
+        "0x82af49447d8a07e3bd95bd0d56f35241523fbab1".lower(): {
+            "token": "WETH",
+            "address_feed": "0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612".lower(),
+            "creation_block": 101490,
+        },
+    },
+    Chain.AVALANCHE: {
+        "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7".lower(): {
+            "token": "WAVAX",
+            "address_feed": "0x0A77230d17318075983913bC2145DB16C7366156".lower(),
+            "creation_block": 2655715,
+        },
+        "0x152b9d0fdc40c096757f570a51e494bd4b943e50".lower(): {
+            "token": "BTC.b",
+            "address_feed": "0x86442E3a98558357d46E6182F4b262f76c4fa26F".lower(),
+            "creation_block": 22835709,
+        },
+        "0x49d5c2bdffac6ce2bfdb6640f4f80f226bc10bab".lower(): {
+            "token": "WETH.b",
+            "address_feed": "0x976B3D034E162d8bD72D6b9C989d545b839003b0".lower(),
+            "creation_block": 2656574,
+        },
+        "0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7".lower(): {
+            "token": "USDt",
+            "address_feed": "0xEBE676ee90Fe1112671f19b6B7459bC678B67e8a".lower(),
+            "creation_block": 2657390,
+        },
+        "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e".lower(): {
+            "token": "USDC",
+            "address_feed": "0xF096872672F44d6EBA71458D74fe67F9a77a23B9".lower(),
+            "creation_block": 2713394,
+        },
+        "0xa7d7079b0fead91f3e65f86e8915cb59c1a4c664".lower(): {
+            "token": "USDC.e",
+            "address_feed": "0xF096872672F44d6EBA71458D74fe67F9a77a23B9".lower(),
+            "creation_block": 2713394,
+        },
+    },
     Chain.GNOSIS: {
         "0x6a023ccd1ff6f2045c3309768ead9e68f978f6e1".lower(): {
             "token": "WETH",
@@ -19,5 +58,5 @@ CHAINLINK_USD_PRICE_FEEDS = {
             "token": "GNO",
             "address_feed": "0x22441d81416430A54336aB28765abd31a792Ad37".lower(),
         },
-    }
+    },
 }
