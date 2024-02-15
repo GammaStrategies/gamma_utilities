@@ -61,7 +61,11 @@ class QueueItem:
                 #     f" {self.data} is missing reward_static. using id: {self.id}"
                 # )
 
-        elif self.type in [queueItemType.OPERATION, queueItemType.REVENUE_OPERATION]:
+        elif self.type in [
+            queueItemType.OPERATION,
+            queueItemType.REVENUE_OPERATION,
+            queueItemType.USER_OPERATION,
+        ]:
             # create the basic id
             self.id = create_id_queue(
                 type=self.type, block=self.block, hypervisor_address=self.address
@@ -155,6 +159,7 @@ def create_priority_queueItemType() -> list[list[queueItemType]]:
         queueItemType.HYPERVISOR_STATIC: queue_items_list,
         queueItemType.REWARD_STATIC: queue_items_list,
         queueItemType.REVENUE_OPERATION: queue_items_list,
+        queueItemType.USER_OPERATION: queue_items_list,
     }
 
     # build a result
@@ -200,6 +205,7 @@ def create_priority_queueItemType_latestOut() -> list[list[queueItemType]]:
         queueItemType.HYPERVISOR_STATIC: queue_items_list,
         queueItemType.REWARD_STATIC: queue_items_list,
         queueItemType.REVENUE_OPERATION: queue_items_list,
+        queueItemType.USER_OPERATION: queue_items_list,
     }
 
     # build a result
@@ -239,6 +245,7 @@ def create_priority_queueItemType_inSequence() -> list[list[queueItemType]]:
         queueItemType.HYPERVISOR_STATIC: [],
         queueItemType.REWARD_STATIC: [],
         queueItemType.REVENUE_OPERATION: [],
+        queueItemType.USER_OPERATION: [],
     }
 
     # build a result
@@ -291,6 +298,11 @@ def create_priority_queueItemType_customOrder() -> list[list[queueItemType]]:
         queueItemType.HYPERVISOR_STATIC: [],
         queueItemType.REWARD_STATIC: [queueItemType.HYPERVISOR_STATIC],
         queueItemType.REVENUE_OPERATION: [
+            queueItemType.BLOCK,
+            queueItemType.HYPERVISOR_STATIC,
+            queueItemType.PRICE,
+        ],
+        queueItemType.USER_OPERATION: [
             queueItemType.BLOCK,
             queueItemType.HYPERVISOR_STATIC,
             queueItemType.PRICE,

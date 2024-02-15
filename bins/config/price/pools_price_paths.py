@@ -532,6 +532,15 @@ DEX_POOLS = {
             "min_block": 700000,
         },
     },
+    Chain.GNOSIS: {
+        "PNK-WETH": {
+            "protocol": Protocol.SWAPR,
+            "address": "0x2613cb099c12cecb1bd290fd0ef6833949374165".lower(),
+            "token0": "0x37b60f4e9a31a64ccc0024dce7d0fd07eaa0f7b3".lower(),  # PNK
+            "token1": "0x6a023ccd1ff6f2045c3309768ead9e68f978f6e1".lower(),  # WETH
+            "min_block": 19991544,
+        },
+    },
 }
 
 

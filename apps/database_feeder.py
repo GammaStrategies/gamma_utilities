@@ -6,7 +6,7 @@ import contextlib
 from datetime import datetime, timezone
 from apps.feeds.frontend.revenue_stats_daily import feed_revenue_stats
 
-from apps.feeds.queue.pull import pull_from_queue
+from apps.feeds.queue.pulls.common import pull_from_queue
 from apps.feeds.reports.execution import feed_global_reports
 from apps.feeds.returns.builds import feed_hypervisor_returns
 from bins.general.enums import Chain, text_to_chain, text_to_protocol
@@ -26,7 +26,6 @@ from .feeds.static import (
     feed_rewards_static,
     update_static_feeRecipients,
 )
-from .feeds.users import feed_user_operations
 
 from .feeds.status.hypervisors.general import feed_hypervisor_status
 from .feeds.status.rewards.general import feed_rewards_status
@@ -313,11 +312,7 @@ def main(option="operations"):
 
                 elif option == "user_status":
                     # feed database with user status
-                    feed_user_operations(
-                        protocol=protocol,
-                        network=network,
-                        rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
-                    )
+                    raise NotImplementedError(f" {option} not implemented yet")
 
                 elif option == "prices":
                     # feed database with prices from all status

@@ -2,7 +2,7 @@ import logging
 import time
 import threading
 from multiprocessing import Pool
-from apps.feeds.queue.pull import pull_from_queue
+from apps.feeds.queue.pulls.common import pull_from_queue
 from apps.feeds.queue.queue_item import (
     create_selector_per_network,
     queue_item_selector,

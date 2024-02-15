@@ -864,20 +864,20 @@ class database_local(db_collections_common):
                     },
                     "multi_indexes": [],
                 },
-                "user_operations": {
-                    "mono_indexes": {
-                        "id": True,
-                        "block": False,
-                        "user_address": False,
-                        "hypervisor_address": False,
-                        "timestamp": False,
-                        "logIndex": False,
-                        "topic": False,
-                    },
-                    "multi_indexes": [
-                        [("block", DESCENDING), ("logIndex", DESCENDING)],
-                    ],
-                },
+                # "user_operations": {
+                #     "mono_indexes": {
+                #         "id": True,
+                #         "block": False,
+                #         "user_address": False,
+                #         "hypervisor_address": False,
+                #         "timestamp": False,
+                #         "logIndex": False,
+                #         "topic": False,
+                #     },
+                #     "multi_indexes": [
+                #         [("block", DESCENDING), ("logIndex", DESCENDING)],
+                #     ],
+                # },
                 "rewards_static": {
                     "mono_indexes": {
                         "id": True,
@@ -1178,13 +1178,13 @@ class database_local(db_collections_common):
             collection_name="operations", aggregate=query
         )
 
-    def get_user_operations(
-        self, user_address: str, timestamp_ini: int | None, timestamp_end: int | None
+    def get_operations_from_address(
+        self, address: str, timestamp_ini: int | None, timestamp_end: int | None
     ) -> list[dict]:
-        """Get all operations for a user
+        """Get all operations for a particualr address
 
         Args:
-            user_address (str):
+            address (str):
             timestamp_ini (int | None):
             timestamp_end (int | None):
 
@@ -1198,10 +1198,10 @@ class database_local(db_collections_common):
         """
         find = {
             "$or": [
-                {"src": user_address},
-                {"dst": user_address},
-                {"from": user_address},
-                {"to": user_address},
+                {"src": address},
+                {"dst": address},
+                {"from": address},
+                {"to": address},
             ]
         }
 
@@ -1373,44 +1373,44 @@ class database_local(db_collections_common):
         ]
 
     # user operations
-    def set_user_operation(self, data: dict) -> UpdateResult:
-        """
+    # def set_user_operation(self, data: dict) -> UpdateResult:
+    #     """
 
-        Args:
-            data (dict):
-        """
-        # define database id
-        data["id"] = create_id_user_operation(
-            user_address=data["user_address"],
-            block=data["block"],
-            logIndex=data["logIndex"],
-            hypervisor_address=data["hypervisor_address"],
-        )
+    #     Args:
+    #         data (dict):
+    #     """
+    #     # define database id
+    #     data["id"] = create_id_user_operation(
+    #         user_address=data["user_address"],
+    #         block=data["block"],
+    #         logIndex=data["logIndex"],
+    #         hypervisor_address=data["hypervisor_address"],
+    #     )
 
-        # convert decimal to bson compatible and save
-        return self.replace_item_to_database(
-            data=data, collection_name="user_operations"
-        )
+    #     # convert decimal to bson compatible and save
+    #     return self.replace_item_to_database(
+    #         data=data, collection_name="user_operations"
+    #     )
 
-    def set_user_operations_bulk(self, data: list[dict]) -> BulkWriteResult:
-        """Bulk insert user operations
+    # def set_user_operations_bulk(self, data: list[dict]) -> BulkWriteResult:
+    #     """Bulk insert user operations
 
-        Args:
-            data (list[dict]):
-        """
-        # define database ids
-        for item in data:
-            item["id"] = create_id_user_operation(
-                user_address=data["user_address"],
-                block=data["block"],
-                logIndex=data["logIndex"],
-                hypervisor_address=data["hypervisor_address"],
-            )
+    #     Args:
+    #         data (list[dict]):
+    #     """
+    #     # define database ids
+    #     for item in data:
+    #         item["id"] = create_id_user_operation(
+    #             user_address=data["user_address"],
+    #             block=data["block"],
+    #             logIndex=data["logIndex"],
+    #             hypervisor_address=data["hypervisor_address"],
+    #         )
 
-        # convert decimal to bson compatible and save
-        return self.replace_items_to_database(
-            data=data, collection_name="user_operations"
-        )
+    #     # convert decimal to bson compatible and save
+    #     return self.replace_items_to_database(
+    #         data=data, collection_name="user_operations"
+    #     )
 
     # user rewards
     def get_user_rewards_operations(

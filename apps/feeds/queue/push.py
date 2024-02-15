@@ -9,7 +9,11 @@ from bins.database.common.database_ids import (
     create_id_rewards_status,
 )
 from bins.database.common.db_collections_common import database_global, database_local
-from bins.database.helpers import get_default_globaldb, get_default_localdb
+from bins.database.helpers import (
+    get_default_globaldb,
+    get_default_localdb,
+    get_from_localdb,
+)
 from bins.general.enums import (
     Chain,
     Protocol,
@@ -43,14 +47,6 @@ def build_and_save_queue_from_operation(operation: dict, network: str):
         f"  Building queue items related to a {operation['topic']} operation on {network}'s {operation['address']} hype at block {operation['blockNumber']}"
     )
 
-    # create local database manager
-    db_name = f"{network}_gamma"
-    mongo_url = CONFIGURATION["sources"]["database"]["mongo_server_url"]
-    local_db = database_local(
-        mongo_url=mongo_url,
-        db_name=db_name,
-    )
-
     # build a block list: block and block-1 to calc APR loc's way
     blocks = (
         [operation["blockNumber"], operation["blockNumber"] - 1]
@@ -63,8 +59,8 @@ def build_and_save_queue_from_operation(operation: dict, network: str):
         hypervisor_id = create_id_hypervisor_status(
             hypervisor_address=operation["address"], block=block
         )
-        if found_status := local_db.get_items_from_database(
-            collection_name="status", find={"id": hypervisor_id}
+        if found_status := get_from_localdb(
+            network=network, collection="status", find={"id": hypervisor_id}
         ):
             # already in database
             logging.getLogger(__name__).debug(
@@ -77,7 +73,7 @@ def build_and_save_queue_from_operation(operation: dict, network: str):
         else:
             # not in database
             # add hype status to queue
-            local_db.set_queue_item(
+            get_default_localdb(network=network).set_queue_item(
                 data=QueueItem(
                     type=queueItemType.HYPERVISOR_STATUS,
                     block=block,
@@ -89,12 +85,12 @@ def build_and_save_queue_from_operation(operation: dict, network: str):
             # save block timestamp when block is operation["blockNumber"]
             if block == operation["blockNumber"]:
                 # save to database
-                database_global(mongo_url=mongo_url).set_block(
+                get_default_globaldb().set_block(
                     network=network, block=block, timestamp=operation["timestamp"]
                 )
             else:
                 # block-1
-                local_db.set_queue_item(
+                get_default_localdb(network=network).set_queue_item(
                     data=QueueItem(
                         type=queueItemType.BLOCK,
                         block=block,
@@ -102,6 +98,23 @@ def build_and_save_queue_from_operation(operation: dict, network: str):
                         data=operation,
                     ).as_dict
                 )
+
+    # # 2) create a user operation queue item
+    # if db_return := get_default_localdb(network=network).set_queue_item(
+    #     data=QueueItem(
+    #         type=queueItemType.USER_OPERATION,
+    #         block=operation["blockNumber"],
+    #         address=operation["address"],
+    #         data=operation,
+    #     ).as_dict
+    # ):
+    #     logging.getLogger(__name__).debug(
+    #         f" Saved user operation Queue Item {operation['id']}"
+    #     )
+    # else:
+    #     logging.getLogger(__name__).error(
+    #         f"  database did not return anything while saving {queueItemType.USER_OPERATION} to queue"
+    #     )
 
 
 def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network: str):

@@ -1,7 +1,6 @@
 from apps.analysis.benchmark import benchmark_logs_analysis
-from apps.analysis.network import sumary_network
 from apps.analysis.queue import analyze_queues
-from apps.analysis.user import analyze_user_transactions, sumary_user
+from apps.analysis.user import analyze_user_transactions
 from apps.feeds.reports.execution import feed_global_reports
 from bins.general.enums import Chain, queueItemType, reportType, text_to_chain
 from bins.configuration import CONFIGURATION
@@ -19,41 +18,10 @@ def main(option: str, **kwargs):
         end_datetime = None
 
     if option == "user":
-        # check if user address to analyze
-        if CONFIGURATION["_custom_"]["cml_parameters"].user_address:
-            for protocol in CONFIGURATION["script"]["protocols"]:
-                # override networks if specified in cml
-                networks = (
-                    CONFIGURATION["_custom_"]["cml_parameters"].networks
-                    or CONFIGURATION["script"]["protocols"][protocol]["networks"]
-                )
-                for network in networks:
-                    sumary_user(
-                        network=network,
-                        protocol="gamma",
-                        user_address=CONFIGURATION["_custom_"][
-                            "cml_parameters"
-                        ].user_address.lower(),
-                        ini_date=ini_datetime,
-                        end_date=end_datetime,
-                    )
-        else:
-            raise ValueError("user address not provided. Use --user_address <address>")
+        raise NotImplementedError("user analysis not implemented")
+
     elif option == "network":
-        for protocol in CONFIGURATION["script"]["protocols"]:
-            # override networks if specified in cml
-            networks = (
-                CONFIGURATION["_custom_"]["cml_parameters"].networks
-                or CONFIGURATION["script"]["protocols"][protocol]["networks"]
-            )
-            for network in networks:
-                # execute summary
-                sumary_network(
-                    network=network,
-                    protocol=protocol,
-                    ini_date=ini_datetime,
-                    end_date=end_datetime,
-                )
+        raise NotImplementedError("network analysis not implemented")
     elif option == "benchmark_logs":
         benchmark_logs_analysis()
     elif option == "queue":

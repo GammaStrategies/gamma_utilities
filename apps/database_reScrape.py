@@ -3,7 +3,7 @@ import logging
 import concurrent.futures
 import time
 import tqdm
-from apps.feeds.queue.pull import process_queue_item_type
+from apps.feeds.queue.pulls.common import process_queue_item_type
 from apps.feeds.queue.queue_item import QueueItem
 from apps.feeds.revenue_operations import (
     create_revenue_addresses,
@@ -57,8 +57,8 @@ def manual_reScrape(
         f" Starting a manual {'threaded ' if threaded else ''}rescraping process using {db_collection} for {chain} {f'using filter: {find}' if find else ''} {f'sorted by : {sort}' if sort else ''} {f'rewrite on' if rewrite else ''}"
     )
 
-    if (
-        database_items := get_from_localdb(
+    if database_items := (
+        get_from_localdb(
             network=chain.database_name,
             collection=db_collection,
             aggregate=aggregate,
