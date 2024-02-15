@@ -227,6 +227,7 @@ class databaseSource(str, Enum):
     COINGECKO = "coingecko"
     GECKOTERMINAL = "geckoterminal"
     ONCHAIN = "onchain"
+    CHAINLINK = "chainlink"
     CACHE = "cache"
     MANUAL = "manual"
     AVERAGE = "average"
@@ -251,6 +252,7 @@ class queueItemType(str, Enum):
     LATEST_MULTIFEEDISTRIBUTION = ("latest_multifeedistribution", 8, None, None)
     # revenue operations
     REVENUE_OPERATION = ("revenue_operation", 9, None, None)
+    USER_OPERATION = ("user_operation", 10, None, None)
 
     # extra properties
     order: int  # order of importance to be processed

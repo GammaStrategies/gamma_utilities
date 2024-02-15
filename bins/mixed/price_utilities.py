@@ -4,12 +4,17 @@ import logging
 import time
 
 from ratelimit.exception import RateLimitException
+from bins.config.price.chainlink_feeds import CHAINLINK_USD_PRICE_FEEDS
 from bins.config.price.no_priced_tokens import (
     NoPricedToken_conversion,
     no_priced_token_conversions,
 )
 
 from bins.errors.general import ProcessingError
+from bins.w3.protocols.chainlink.chainlink_helper import (
+    chainlink_connector,
+    chainlink_connector_multicall,
+)
 from ..cache import cache_utilities
 from ..apis import thegraph_utilities, coingecko_utilities
 from ..apis.geckoterminal_helper import geckoterminal_price_helper
@@ -44,6 +49,7 @@ class price_scraper:
         geckoterminal: bool = True,
         geckoterminal_sleepNretry: bool = False,
         thegraph: bool = True,
+        chainlink: bool = True,
         source_order: list[databaseSource] | None = None,
     ):
         cache_folderName = CONFIGURATION["cache"]["save_path"]
@@ -60,6 +66,7 @@ class price_scraper:
         self.geckoterminal_sleepNretry = geckoterminal_sleepNretry
         self.thegraph = thegraph
         self.onchain = onchain
+        self.chainlink = chainlink
 
         self.source_order = source_order
 
@@ -101,6 +108,9 @@ class price_scraper:
         result = []
         if self.cache:
             result.append(databaseSource.CACHE)
+
+        if self.chainlink:
+            result.append(databaseSource.CHAINLINK)
 
         # onchain is the first option
         if self.onchain:
@@ -190,7 +200,8 @@ class price_scraper:
             )
 
         # follow the source order
-        for source in source_order or self.source_order or self.create_source_order():
+        source_order = source_order or self.source_order or self.create_source_order()
+        for source in source_order:
             if source == databaseSource.CACHE:
                 _price, _source = self._get_price_from_cache(
                     search_chain.database_name, search_token_id, search_block, of
@@ -229,6 +240,12 @@ class price_scraper:
                     search_chain.database_name, search_token_id, search_block
                 )
 
+            elif source == databaseSource.CHAINLINK:
+                _price, _source = self._get_price_from_chainlink(
+                    network=search_chain.database_name,
+                    token_id=search_token_id,
+                    block=search_block,
+                )
             # if price found, exit for loop
             if _price not in [None, 0, {}]:
                 break
@@ -522,6 +539,27 @@ class price_scraper:
 
         return _price, _source
 
+    def _get_price_from_chainlink(
+        self, network: str, token_id: str, block: int
+    ) -> tuple[float, databaseSource]:
+        _price = 0
+        _source = databaseSource.CHAINLINK
+        try:
+            # convert network string to chain enum
+            chain = text_to_chain(network)
+            # get price
+            _price_helper = chainlink_price_scraper()
+            _price = _price_helper.get_price(
+                chain=chain, token_address=token_id, block=block
+            )
+
+        except Exception as e:
+            logging.getLogger(LOG_NAME).exception(
+                f"Error while getting chainlink price {e}"
+            )
+
+        return _price, _source
+
     # HELPERS
     def _convert_block_to_timestamp(self, network: str, block: int) -> int:
         # try database
@@ -601,6 +639,10 @@ class price_scraper:
             for name, connector in self.thegraph_connectors.items()
             if network in connector.networks
         }
+
+    def _get_price_difference(self, price1: float, price2: float) -> float:
+        """get the difference between two prices as price2 - price1"""
+        return price2 - price1
 
 
 class usdc_price_scraper:
@@ -808,6 +850,49 @@ class usdc_price_scraper:
                 f"Error while getting onchain price for token {token_address} on chain {chain}. Error: {e}"
             )
             return None
+
+
+class chainlink_price_scraper:
+
+    def __init__(self):
+        pass
+
+    def get_price(
+        self, chain: Chain, token_address: str, block: int | None = None
+    ) -> float | None:
+        try:
+
+            # check if token is in our configured static chainlink feed addresses
+            if chainlink_feed_data := CHAINLINK_USD_PRICE_FEEDS.get(chain, {}).get(
+                token_address.lower(), None
+            ):
+                # create a chainlink helper and get the last price
+                lnk_connector = chainlink_connector_multicall(
+                    address=chainlink_feed_data["address_feed"],
+                    network=chain.database_name,
+                    block=block,
+                )
+                lnk_connector.fill_with_multicall()
+                price = (
+                    lnk_connector.latestRoundData["answer"] / 10**lnk_connector.decimals
+                )
+                return price
+            else:
+                logging.getLogger(__name__).debug(
+                    f" token {token_address} not found in chainlink feeds. Cant get chainlink price"
+                )
+
+        except ProcessingError as e:
+            # do nothing at this level
+            # raise error again
+            raise e
+
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f"Error while getting onchain price for token {token_address} on chain {chain}. Error: {e}"
+            )
+
+        return None
 
 
 def calculate_price_from_pool(

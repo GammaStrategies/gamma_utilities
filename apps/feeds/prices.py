@@ -86,6 +86,7 @@ def feed_prices(
             geckoterminal_sleepNretry=True,
             source_order=(
                 [
+                    databaseSource.CHAINLINK,
                     databaseSource.ONCHAIN,
                     databaseSource.COINGECKO,
                     databaseSource.GECKOTERMINAL,

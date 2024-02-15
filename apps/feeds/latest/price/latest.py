@@ -32,6 +32,7 @@ def feed_latest_usd_prices(threaded: bool = True):
             coingecko=True,
             geckoterminal_sleepNretry=True,
             source_order=[
+                databaseSource.CHAINLINK,
                 databaseSource.ONCHAIN,
                 databaseSource.COINGECKO,
                 databaseSource.GECKOTERMINAL,
@@ -44,6 +45,7 @@ def feed_latest_usd_prices(threaded: bool = True):
             coingecko=True,
             geckoterminal_sleepNretry=True,
             source_order=[
+                databaseSource.CHAINLINK,
                 databaseSource.ONCHAIN,
                 databaseSource.GECKOTERMINAL,
                 databaseSource.COINGECKO,

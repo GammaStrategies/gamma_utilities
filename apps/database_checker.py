@@ -17,7 +17,7 @@ from bins.database.helpers import (
 )
 
 from apps.feeds.queue.queue_item import QueueItem
-from apps.feeds.queue.pull import process_queue_item_type
+from apps.feeds.queue.pulls.common import process_queue_item_type
 from apps.feeds.queue.push import build_and_save_queue_from_hypervisor_status
 
 from bins.configuration import CONFIGURATION, TOKEN_ADDRESS_EXCLUDE
@@ -2557,6 +2557,7 @@ def get_price(
             coingecko=True,
             geckoterminal_sleepNretry=True,
             source_order=[
+                databaseSource.CHAINLINK,
                 databaseSource.ONCHAIN,
                 databaseSource.COINGECKO,
                 databaseSource.GECKOTERMINAL,
@@ -2569,6 +2570,7 @@ def get_price(
             coingecko=True,
             geckoterminal_sleepNretry=True,
             source_order=[
+                databaseSource.CHAINLINK,
                 databaseSource.ONCHAIN,
                 databaseSource.GECKOTERMINAL,
                 databaseSource.COINGECKO,
