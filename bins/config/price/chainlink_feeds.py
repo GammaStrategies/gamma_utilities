@@ -9,6 +9,28 @@ CHAINLINK_USD_PRICE_FEEDS = {
             "creation_block": 101490,
         },
     },
+    Chain.BASE: {
+        "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca".lower(): {
+            "token": "USDbC",
+            "address_feed": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B".lower(),
+            "creation_block": 2093500,
+        },
+        "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913".lower(): {
+            "token": "USDC",
+            "address_feed": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B".lower(),
+            "creation_block": 2093500,
+        },
+        "0x4200000000000000000000000000000000000006".lower(): {
+            "token": "WETH",
+            "address_feed": "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70".lower(),
+            "creation_block": 2092862,
+        },
+        "0x50c5725949a6f0c72e6c4a641f24049a917db0cb".lower(): {
+            "token": "DAI",
+            "address_feed": "0x591e79239a7d679378eC8c847e5038150364C78F".lower(),
+            "creation_block": 2105150,
+        },
+    },
     Chain.AVALANCHE: {
         "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7".lower(): {
             "token": "WAVAX",
