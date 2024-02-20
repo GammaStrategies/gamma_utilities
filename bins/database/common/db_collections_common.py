@@ -14,7 +14,6 @@ from ...database.common.database_ids import (
     create_id_price,
     create_id_rewards_static,
     create_id_rewards_status,
-    create_id_user_operation,
     create_id_user_status,
 )
 from ...database.common.db_managers import MongoDbManager
@@ -864,20 +863,19 @@ class database_local(db_collections_common):
                     },
                     "multi_indexes": [],
                 },
-                # "user_operations": {
-                #     "mono_indexes": {
-                #         "id": True,
-                #         "block": False,
-                #         "user_address": False,
-                #         "hypervisor_address": False,
-                #         "timestamp": False,
-                #         "logIndex": False,
-                #         "topic": False,
-                #     },
-                #     "multi_indexes": [
-                #         [("block", DESCENDING), ("logIndex", DESCENDING)],
-                #     ],
-                # },
+                "user_operations": {
+                    "mono_indexes": {
+                        "id": True,
+                        "block": False,
+                        "user_addresses": False,
+                        "hypervisor_address": False,
+                        "timestamp": False,
+                        "topic": False,
+                    },
+                    "multi_indexes": [
+                        [("block", DESCENDING), ("logIndex", DESCENDING)],
+                    ],
+                },
                 "rewards_static": {
                     "mono_indexes": {
                         "id": True,
@@ -1371,46 +1369,6 @@ class database_local(db_collections_common):
                 collection_name="user_status", find=find, sort=sort
             )
         ]
-
-    # user operations
-    # def set_user_operation(self, data: dict) -> UpdateResult:
-    #     """
-
-    #     Args:
-    #         data (dict):
-    #     """
-    #     # define database id
-    #     data["id"] = create_id_user_operation(
-    #         user_address=data["user_address"],
-    #         block=data["block"],
-    #         logIndex=data["logIndex"],
-    #         hypervisor_address=data["hypervisor_address"],
-    #     )
-
-    #     # convert decimal to bson compatible and save
-    #     return self.replace_item_to_database(
-    #         data=data, collection_name="user_operations"
-    #     )
-
-    # def set_user_operations_bulk(self, data: list[dict]) -> BulkWriteResult:
-    #     """Bulk insert user operations
-
-    #     Args:
-    #         data (list[dict]):
-    #     """
-    #     # define database ids
-    #     for item in data:
-    #         item["id"] = create_id_user_operation(
-    #             user_address=data["user_address"],
-    #             block=data["block"],
-    #             logIndex=data["logIndex"],
-    #             hypervisor_address=data["hypervisor_address"],
-    #         )
-
-    #     # convert decimal to bson compatible and save
-    #     return self.replace_items_to_database(
-    #         data=data, collection_name="user_operations"
-    #     )
 
     # user rewards
     def get_user_rewards_operations(

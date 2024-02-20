@@ -130,8 +130,11 @@ STATIC_REGISTRY_ADDRESSES = {
             "ramses": "0xc6dd68b546d696d5a31837b05065a151d6b6f892".lower(),
             "camelot": "0xdeF431652F824E04B678a49ce84267f560884470".lower(),
         },
-        "gamma_uniproxy": "0x1F1Ca4e8236CD13032653391dB7e9544a6ad123E".lower(),
-        "gamma_uniproxy_helper": "0x851b3Fb3c3178Cd3FBAa0CdaAe0175Efa15a30f1".lower(),
+        # important to identify ultimate depositor
+        "deposit_proxies": [
+            # Camelot spNFT Gamma uniproxy helper
+            "0x851b3Fb3c3178Cd3FBAa0CdaAe0175Efa15a30f1".lower(),
+        ],
     },
     "celo": {
         "hypervisors": {
