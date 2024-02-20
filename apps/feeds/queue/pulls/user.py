@@ -204,7 +204,6 @@ def _build_user_operation_from_transfer(
             )
 
         else:
-
             # transfer between wallets
             user_addresses = [operation["src"].lower(), operation["dst"].lower()]
             _op_subtopic = "transfer"
@@ -237,10 +236,10 @@ def _build_user_operation_from_transfer(
             "token0_decimals": hypervisor_static["pool"]["token0"]["decimals"],
             "token1_decimals": hypervisor_static["pool"]["token1"]["decimals"],
         },
+        "user_addresses": user_addresses,
         "shares": operation["qtty"],
         "sender": operation["src"].lower(),  # <-- user wallet depending on the topic
         "to": operation["dst"].lower(),  # <-- user wallet depending on the topic
-        "user_addresses": user_addresses,
         "topic": _op_subtopic,
     }
     return user_operation
@@ -288,6 +287,7 @@ def _build_user_operation_from_withdraw(
             "token0_decimals": hypervisor_static["pool"]["token0"]["decimals"],
             "token1_decimals": hypervisor_static["pool"]["token1"]["decimals"],
         },
+        "user_addresses": [user_address],
         "shares": operation["shares"],
         "sender": operation["sender"].lower(),
         "to": user_address,  # <-- user wallet
@@ -361,6 +361,7 @@ def _build_user_operation_from_deposit(
             "token0_decimals": hypervisor_static["pool"]["token0"]["decimals"],
             "token1_decimals": hypervisor_static["pool"]["token1"]["decimals"],
         },
+        "user_addresses": [user_address],
         "shares": operation["shares"],
         "sender": user_address,  # <-- user wallet
         "to": operation["to"].lower(),
