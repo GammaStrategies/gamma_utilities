@@ -1,8 +1,13 @@
+from decimal import Decimal
 import logging
 from apps.feeds.queue.queue_item import QueueItem
 from bins.configuration import STATIC_REGISTRY_ADDRESSES
 from bins.database.common.database_ids import create_id_operation
-from bins.database.helpers import get_default_localdb, get_from_localdb
+from bins.database.helpers import (
+    get_default_globaldb,
+    get_default_localdb,
+    get_from_localdb,
+)
 from bins.general.enums import Chain, text_to_chain
 from bins.w3.builders import build_erc20_helper
 
@@ -212,10 +217,34 @@ def _build_user_operation_from_transfer(
             user_addresses = [operation["src"].lower(), operation["dst"].lower()]
             _op_subtopic = "transfer"
 
-    #
-    #
-    # TODO: check if sender user has this many LP tokens to send ( database perspective )
-    #
+    # check if sender user has this many LP tokens to send ( database perspective )
+    # important because not always the rewarder is identified ( spNFT in this case).
+    # This is a universal hard check for all cases.
+    # Just because we need the balance before current state, we subtract one to the logIndex ( bc query is lte)
+    if user_operation["logIndex"] == 0:
+        # set log index to a number high enough to make sure it will be the last logIndex and subtract one from the block
+        current_user_shares = _get_user_shares(
+            network=network,
+            user_address=operation["src"].lower(),
+            block=operation["blockNumber"] - 1,
+            logIndex=999999999,
+            hypervisor_address=operation["address"],
+        )
+    else:
+        current_user_shares = _get_user_shares(
+            network=network,
+            user_address=operation["src"].lower(),
+            block=operation["blockNumber"],
+            logIndex=operation["logIndex"] - 1,
+            hypervisor_address=operation["address"],
+        )
+    if Decimal(operation["qtty"]) > current_user_shares:
+        # May be an untracked rewarder address
+        # spNFTs are identified by either the sender ( being a proxy) or the receiver ( being a rewarder in the database ).
+        logging.getLogger(__name__).error(
+            f"  -> User {operation['src']} has not enough shares [{current_user_shares}] to send {operation['qtty']} at block {operation['blockNumber']}. Skipping operation {operation['id']}"
+        )
+        return None
     #
 
     #  create user operation
@@ -491,52 +520,118 @@ def _get_all_known_rewarder_addresses(
     return staking_addresses
 
 
-# ARBITRUM yes
-# AVALANCHE no
-# BASE no
-# BINANCE yes
-# CELO no
-# ETHEREUM
+def _get_user_shares(
+    network: str, user_address: str, block: int, logIndex: int, hypervisor_address: str
+) -> int:
 
-# Masterchef, ZyberChef, etc...  addresses are in operations == STAKE EVENTS
-# spNFT addresses are in operations == STAKE EVENTS
+    # build a fast query to get the user shares at the specified block
+    _query = [
+        {
+            "$match": {
+                "$and": [
+                    {
+                        "$or": [
+                            {"sender": user_address},
+                            {"to": user_address},
+                        ]
+                    },
+                    {
+                        "$or": [
+                            {"blockNumber": {"$lt": block}},
+                            {
+                                "$and": [
+                                    {"blockNumber": block},
+                                    {"logIndex": {"$lte": logIndex}},
+                                ]
+                            },
+                        ]
+                    },
+                    {"hypervisor.address": hypervisor_address},
+                ]
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "hypervisor_address": "$hypervisor.address",
+                "user_shares": {
+                    "$ifNull": [
+                        {
+                            "$cond": [
+                                {
+                                    "$or": [
+                                        {"$eq": ["$topic", "deposit"]},
+                                        {
+                                            "$and": [
+                                                {"$eq": ["$topic", "transfer"]},
+                                                {
+                                                    "$eq": [
+                                                        "$to",
+                                                        user_address,
+                                                    ]
+                                                },
+                                            ]
+                                        },
+                                    ]
+                                },
+                                {"$toDecimal": {"$ifNull": ["$qtty", "$shares"]}},
+                                {
+                                    "$cond": [
+                                        {
+                                            "$or": [
+                                                {"$eq": ["$topic", "withdraw"]},
+                                                {
+                                                    "$and": [
+                                                        {"$eq": ["$topic", "transfer"]},
+                                                        {
+                                                            "$eq": [
+                                                                "$sender",
+                                                                user_address,
+                                                            ]
+                                                        },
+                                                    ]
+                                                },
+                                            ]
+                                        },
+                                        {
+                                            "$multiply": [
+                                                {
+                                                    "$toDecimal": {
+                                                        "$ifNull": ["$qtty", "$shares"]
+                                                    }
+                                                },
+                                                -1,
+                                            ]
+                                        },
+                                        0,
+                                    ]
+                                },
+                            ]
+                        },
+                        0,
+                    ]
+                },
+            }
+        },
+        {
+            "$group": {
+                "_id": "$hypervisor_address",
+                "user_shares": {"$sum": "$user_shares"},
+            }
+        },
+    ]
 
-# lots of transfers SRC= this address  ( >900 all time)
-BIG_INTERACTORS_ = {
-    Chain.ARBITRUM: [
-        ############### SRC = this address ( >900 all time) ###############
-        # GammaUniproxy_helper
-        "0x851b3fb3c3178cd3fbaa0cdaae0175efa15a30f1".lower(),
-        # DividendsV2 ( camelot related)
-        "0x5422aa06a38fd9875fc2501380b40659feebd3bb".lower(),
-        # ZyberChef
-        "0x9ba666165867e916ee7ed3a3ae6c19415c2fbddd".lower(),
-        # BeefyVaultV7
-        "0x5f8e55ad78387ff6397c803ae85d6e2beb700563".lower(),
-        # BeefyVaultV7
-        "0x9ef1afccffaa70108b299652f010f646f5c8cd22".lower(),
-        # camelot spNFT
-        "0x14ad01d5f496e9c40358629f6a95a7c3b5c4b767".lower(),
-        "0x3b6486154b9dae942c393b1cb3d11e3395b02df8".lower(),
-        ############### DST = this address ( >900 all time) ###############
-        # Zyberchef above
-        # MasterChef
-        "0x8a8fde5d57725f070bfc55cd022b924e1c36c8a0".lower(),
-        # camelot spNFT above
-        # unknown strategyGAMMA contract ( rodeo finance?)
-        "0x7f7bdd3ce762dadcd62fc95530457163abded7ec".lower(),
-        # overnight finance
-        "0xd23682c0e8f58f788263050a6229d1ab272141f2".lower(),
-    ],
-    Chain.BSC: [
-        # ZapThenaV3
-        "0xc39c0147e65d999eeeab2cbc5cf4760129d4515b".lower(),
-        # (ERC1967Proxy)  Planet Gamma https://app.planet.finance/
-        "0x3496294f8ab14904cb5427556ae217ccfd09fcb1".lower(),
-        # PlanetZapOneInch   Planet Gamma
-        "0x5989e25702443fc00ec583eb83c1dc54fa7bd188".lower(),
-    ],
-}
+    user_shares = get_from_localdb(
+        network=network, collection="user_operations", aggregate=_query
+    )
+    if len(user_shares) > 1:
+        logging.getLogger(__name__).error(
+            f"  -> More than one user shares found for {user_address} at block {block} in hypervisor {hypervisor_address}"
+        )
 
+    if not user_shares:
+        return 0
 
-# ARBITRUM
+    # convert to decimal n return
+    user_shares = get_default_globaldb().convert_d128_to_decimal(user_shares[0])
+    return user_shares["user_shares"]
