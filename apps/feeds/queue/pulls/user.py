@@ -221,7 +221,7 @@ def _build_user_operation_from_transfer(
     # important because not always the rewarder is identified ( spNFT in this case).
     # This is a universal hard check for all cases.
     # Just because we need the balance before current state, we subtract one to the logIndex ( bc query is lte)
-    if user_operation["logIndex"] == 0:
+    if operation["logIndex"] == 0:
         # set log index to a number high enough to make sure it will be the last logIndex and subtract one from the block
         current_user_shares = _get_user_shares(
             network=network,
