@@ -100,21 +100,22 @@ def build_and_save_queue_from_operation(operation: dict, network: str):
                 )
 
     # # 2) create a user operation queue item
-    # if db_return := get_default_localdb(network=network).set_queue_item(
-    #     data=QueueItem(
-    #         type=queueItemType.USER_OPERATION,
-    #         block=operation["blockNumber"],
-    #         address=operation["address"],
-    #         data=operation,
-    #     ).as_dict
-    # ):
-    #     logging.getLogger(__name__).debug(
-    #         f" Saved user operation Queue Item {operation['id']}"
-    #     )
-    # else:
-    #     logging.getLogger(__name__).error(
-    #         f"  database did not return anything while saving {queueItemType.USER_OPERATION} to queue"
-    #     )
+    if operation["topic"] in ["deposit", "withdraw", "transfer"]:
+        if db_return := get_default_localdb(network=network).set_queue_item(
+            data=QueueItem(
+                type=queueItemType.USER_OPERATION,
+                block=operation["blockNumber"],
+                address=operation["address"],
+                data=operation,
+            ).as_dict
+        ):
+            logging.getLogger(__name__).debug(
+                f" Saved user operation Queue Item {operation['id']}"
+            )
+        else:
+            logging.getLogger(__name__).error(
+                f"  database did not return anything while saving {queueItemType.USER_OPERATION} to queue"
+            )
 
 
 def build_and_save_queue_from_hypervisor_status(hypervisor_status: dict, network: str):
