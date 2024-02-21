@@ -26,26 +26,30 @@ def pull_from_queue_user_operation(network: str, queue_item: QueueItem) -> bool:
     )
 
     try:
-        user_operation = _build_user_operation_from_queue_item(
+        if user_operation := _build_user_operation_from_queue_item(
             network=network, queue_item=queue_item
-        )
-
-        # save user operation to database
-        if db_return := get_default_localdb(network).save_item_to_database(
-            data=user_operation, collection_name="user_operations"
         ):
-            if db_return.upserted_id:
-                logging.getLogger(__name__).debug(
-                    f" Saved new user operation {user_operation['id']} topic: {user_operation['topic']}"
-                )
-            elif db_return.modified_count:
-                logging.getLogger(__name__).debug(
-                    f" Updated user operation {user_operation['id']} topic: {user_operation['topic']}"
-                )
-            else:
-                logging.getLogger(__name__).debug(
-                    f" Database returned -> {db_return.raw_result}  topic: {user_operation['topic']}"
-                )
+
+            # save user operation to database
+            if db_return := get_default_localdb(network).replace_item_to_database(
+                data=user_operation, collection_name="user_operations"
+            ):
+                if db_return.upserted_id:
+                    logging.getLogger(__name__).debug(
+                        f"  <- Done processing {network}'s user operation queue item {queue_item.id}. Saved successfully"
+                    )
+                elif db_return.modified_count:
+                    logging.getLogger(__name__).debug(
+                        f"  <- Done processing {network}'s user operation queue item {queue_item.id}. Modified successfully"
+                    )
+                else:
+                    logging.getLogger(__name__).debug(
+                        f"  <- Done processing {network}'s user operation queue item {queue_item.id}. Database returned {db_return.raw_result}"
+                    )
+        else:
+            logging.getLogger(__name__).debug(
+                f"  <- Done processing {network}'s user operation queue item {queue_item.id}. No user operation created"
+            )
 
         # return result
         return True
