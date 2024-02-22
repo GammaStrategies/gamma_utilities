@@ -217,35 +217,37 @@ def _build_user_operation_from_transfer(
             user_addresses = [operation["src"].lower(), operation["dst"].lower()]
             _op_subtopic = "transfer"
 
-    # check if sender user has this many LP tokens to send ( database perspective )
-    # important because not always the rewarder is identified ( spNFT in this case).
-    # This is a universal hard check for all cases.
-    # Just because we need the balance before current state, we subtract one to the logIndex ( bc query is lte)
-    if operation["logIndex"] == 0:
-        # set log index to a number high enough to make sure it will be the last logIndex and subtract one from the block
-        current_user_shares = _get_user_shares(
-            network=network,
-            user_address=operation["src"].lower(),
-            block=operation["blockNumber"] - 1,
-            logIndex=999999999,
-            hypervisor_address=operation["address"],
-        )
-    else:
-        current_user_shares = _get_user_shares(
-            network=network,
-            user_address=operation["src"].lower(),
-            block=operation["blockNumber"],
-            logIndex=operation["logIndex"] - 1,
-            hypervisor_address=operation["address"],
-        )
-    if Decimal(operation["qtty"]) > current_user_shares:
-        # May be an untracked rewarder address
-        # spNFTs are identified by either the sender ( being a proxy) or the receiver ( being a rewarder in the database ).
-        logging.getLogger(__name__).error(
-            f"  -> User {operation['src']} has not enough shares [{current_user_shares}] to send {operation['qtty']} at block {operation['blockNumber']}. Skipping operation {operation['id']}"
-        )
-        return None
-    #
+    # in the case of a transfer, we need to check if the sender has enough LP tokens to send
+    if _op_subtopic == "transfer":
+        # check if sender user has this many LP tokens to send ( database perspective )
+        # important because not always the rewarder is identified ( spNFT in this case).
+        # This is a universal hard check for all cases.
+        # Just because we need the balance before current state, we subtract one to the logIndex ( bc query is lte)
+        if operation["logIndex"] == 0:
+            # set log index to a number high enough to make sure it will be the last logIndex and subtract one from the block
+            current_user_shares = _get_user_shares(
+                network=network,
+                user_address=operation["src"].lower(),
+                block=operation["blockNumber"] - 1,
+                logIndex=999999999,
+                hypervisor_address=operation["address"],
+            )
+        else:
+            current_user_shares = _get_user_shares(
+                network=network,
+                user_address=operation["src"].lower(),
+                block=operation["blockNumber"],
+                logIndex=operation["logIndex"] - 1,
+                hypervisor_address=operation["address"],
+            )
+        if Decimal(operation["qtty"]) > current_user_shares:
+            # May be an untracked rewarder address
+            # spNFTs are identified by either the sender ( being a proxy) or the receiver ( being a rewarder in the database ).
+            logging.getLogger(__name__).error(
+                f"  -> User {operation['src']} has not enough shares [{current_user_shares}] to send {operation['qtty']} at block {operation['blockNumber']}. Skipping operation {operation['id']}"
+            )
+            return None
+        #
 
     #  create user operation
     user_operation = {
