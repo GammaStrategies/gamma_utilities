@@ -138,7 +138,7 @@ def _build_user_operation_from_transfer(
     #
     #    from wallet to spNFT/Zyberchef/Masterchef ( stake )
     #
-    #    from wallet to wallet ( transfer )
+    #    from wallet to wallet ( transfer )  ( including contracts, but not proxies)
 
     # get all the known rewarder addresses for the network
     known_rewarder_addresses = _get_all_known_rewarder_addresses(
@@ -296,9 +296,11 @@ def _build_user_operation_from_withdraw(
     if operation["topic"] != "withdraw":
         raise ValueError(f"Not a withdraw operation id: {operation['id']}")
 
-    user_address = operation["to"].lower()  # the 'to' field also
-
-    # TODO: check if this user has this many shares in the hypervisor ( database read )
+    # the SENDER is the actual withdraw caller. The liquidation of the underlying tokens go to the "TO" address,
+    # but the actual user address in a withdraw event is the sender, not the to address.
+    user_address = operation[
+        "sender"
+    ].lower()  # normally the sender and the to are the same, but not always!
 
     #  create user operation
     user_operation = {
