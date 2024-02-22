@@ -216,15 +216,19 @@ def create_chunks(
             if allow_repeat:
                 result.append((i, i + chunk_size))
             else:
-                result.append((i, i + chunk_size)) if len(
-                    result
-                ) == 0 else result.append((i + 1, i + chunk_size))
+                (
+                    result.append((i, i + chunk_size))
+                    if len(result) == 0
+                    else result.append((i + 1, i + chunk_size))
+                )
         else:
             if allow_repeat:
                 result.append((i, max))
             else:
-                result.append((i, max)) if len(result) == 0 else result.append(
-                    (i + 1, max)
+                (
+                    result.append((i, max))
+                    if len(result) == 0
+                    else result.append((i + 1, max))
                 )
     return result
 
@@ -497,3 +501,11 @@ def flatten_dict(
         else:
             items.append((new_key, v))
     return dict(items)
+
+
+# PROCESSES UTILS
+from signal import signal, SIGINT
+
+
+def initializer():
+    signal(SIGINT, lambda: None)

@@ -7,6 +7,7 @@ from apps.database_reScrape import manual_reScrape, reScrape_loopWork_rewards_st
 from bins.database.helpers import get_default_globaldb, get_from_localdb
 from bins.formulas.general import itentify_valid_and_outliers
 from bins.general.enums import Chain
+from bins.general.general_utilities import initializer
 from bins.mixed.price_utilities import price_scraper
 
 
@@ -139,7 +140,7 @@ def repair_all_outlier_prices_from_pricedb(
         )
         with tqdm.tqdm(total=len(outliers)) as progress_bar:
             # prepare arguments
-            with ProcessPoolExecutor(max_workers=8) as ex:
+            with ProcessPoolExecutor(max_workers=8, initializer=initializer) as ex:
                 for result in ex.map(rescrape_price_from_outlier, outliers):
                     if not result:
                         _fails += 1
