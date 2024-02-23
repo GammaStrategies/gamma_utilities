@@ -7,7 +7,14 @@ from apps.feeds.queue.queue_item import QueueItem
 from bins.configuration import CONFIGURATION
 from bins.database.common.database_ids import create_id_operation
 from bins.database.helpers import get_default_localdb, get_from_localdb
-from bins.general.enums import Chain, Protocol, queueItemType, text_to_protocol
+from bins.errors.general import ProcessingError
+from bins.general.enums import (
+    Chain,
+    Protocol,
+    error_identity,
+    queueItemType,
+    text_to_protocol,
+)
 from bins.general.general_utilities import convert_string_datetime
 from bins.w3.onchain_data_helper import onchain_data_helper
 from bins.w3.builders import build_erc20_helper
@@ -79,7 +86,16 @@ def create_revenue_addresses(
                 continue
 
             if hype_static.get("feeRecipient", None):
-                fixed_revenue_addresses.add(hype_static["feeRecipient"].lower())
+                # check if it is a valid address ( 0x000 means not set )
+                if (
+                    hype_static["feeRecipient"].lower()
+                    != "0x0000000000000000000000000000000000000000"
+                ):
+                    fixed_revenue_addresses.add(hype_static["feeRecipient"].lower())
+                else:
+                    logging.getLogger(__name__).debug(
+                        f" Static hype {hype_static['address']} has feeRecipent set to 0x0.   "
+                    )
 
     try:
         # try getting initial block as last found in database
@@ -160,14 +176,42 @@ def feed_revenue_operations(
         revenue_address_type="hypervisors",
     )
     if addresses:
-        feed_revenue_operations_from_hypervisors(
-            chain=chain,
-            addresses=addresses,
-            block_ini=block_ini,
-            block_end=block_end,
-            max_blocks_step=max_blocks_step,
-            rewrite=rewrite,
-        )
+        try:
+            feed_revenue_operations_from_hypervisors(
+                chain=chain,
+                addresses=addresses,
+                block_ini=block_ini,
+                block_end=block_end,
+                max_blocks_step=max_blocks_step,
+                rewrite=rewrite,
+            )
+        except KeyboardInterrupt:
+            raise
+        except ProcessingError as e:
+            if e.identity == error_identity.TOO_MANY_BLOCKS_TO_QUERY:
+                # should we try again??
+                try:
+                    feed_revenue_operations_from_hypervisors(
+                        chain=chain,
+                        addresses=addresses,
+                        block_ini=block_ini,
+                        block_end=block_end,
+                        max_blocks_step=1000,
+                        rewrite=rewrite,
+                    )
+                except Exception as e:
+                    logging.getLogger(__name__).exception(
+                        f" Error for the second consecutive time while feeding {chain.database_name} revenue operations: {e}"
+                    )
+
+            else:
+                logging.getLogger(__name__).exception(
+                    f" Processing error while feeding {chain.database_name} revenue operations: {e}"
+                )
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f" Unexpected error while feeding {chain.database_name} revenue operations: {e}"
+            )
 
     # 2) rewardPaid to revenue addresses
     addresses, block_ini, block_end = create_revenue_addresses(
@@ -230,24 +274,17 @@ def feed_revenue_operations_from_hypervisors(
         # set progress callback to data collector
         collector_helper.progress_callback = _update_progress
 
-        try:
-            for operations in collector_helper.operations_generator(
-                block_ini=block_ini,
-                block_end=block_end,
-                max_blocks=max_blocks_step,
-            ):
-                # process operation
-                task_enqueue_revenue_operations(
-                    operations=operations,
-                    network=chain.database_name,
-                    operation_type=queueItemType.REVENUE_OPERATION,
-                    rewrite=rewrite,
-                )
-        except KeyboardInterrupt:
-            raise
-        except Exception as e:
-            logging.getLogger(__name__).exception(
-                f" Unexpected error while feeding {chain.database_name} revenue operations: {e}"
+        for operations in collector_helper.operations_generator(
+            block_ini=block_ini,
+            block_end=block_end,
+            max_blocks=max_blocks_step,
+        ):
+            # process operation
+            task_enqueue_revenue_operations(
+                operations=operations,
+                network=chain.database_name,
+                operation_type=queueItemType.REVENUE_OPERATION,
+                rewrite=rewrite,
             )
 
 

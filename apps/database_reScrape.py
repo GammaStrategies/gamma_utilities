@@ -404,14 +404,19 @@ def revenueOperations_fillGaps(chain: Chain):
             revenue_address_type="hypervisors",
         )
         if addresses:
-            feed_revenue_operations_from_hypervisors(
-                chain=chain,
-                addresses=addresses,
-                block_ini=block_ini,
-                block_end=block_end,
-                max_blocks_step=max_blocks_step,
-                rewrite=rewrite,
-            )
+            try:
+                feed_revenue_operations_from_hypervisors(
+                    chain=chain,
+                    addresses=addresses,
+                    block_ini=block_ini,
+                    block_end=block_end,
+                    max_blocks_step=max_blocks_step,
+                    rewrite=rewrite,
+                )
+            except Exception as e:
+                logging.getLogger(__name__).exception(
+                    f" Unexpected error while processing revenue operations from hypervisors -> error {e}"
+                )
 
         # 2) rewardPaid to revenue addresses
         addresses, block_ini, block_end = create_revenue_addresses(

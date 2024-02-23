@@ -63,10 +63,10 @@ if __name__ == "__main__":
     if CONFIGURATION["_custom_"]["cml_parameters"].ini_datetime:
         # convert to datetime UTC
         try:
-            CONFIGURATION["_custom_"][
-                "cml_parameters"
-            ].ini_datetime = convert_string_datetime(
-                string=CONFIGURATION["_custom_"]["cml_parameters"].ini_datetime
+            CONFIGURATION["_custom_"]["cml_parameters"].ini_datetime = (
+                convert_string_datetime(
+                    string=CONFIGURATION["_custom_"]["cml_parameters"].ini_datetime
+                )
             )
         except Exception:
             logging.getLogger(__name__).error(
@@ -75,10 +75,10 @@ if __name__ == "__main__":
     if CONFIGURATION["_custom_"]["cml_parameters"].end_datetime:
         # convert to datetime
         try:
-            CONFIGURATION["_custom_"][
-                "cml_parameters"
-            ].end_datetime = convert_string_datetime(
-                string=CONFIGURATION["_custom_"]["cml_parameters"].end_datetime
+            CONFIGURATION["_custom_"]["cml_parameters"].end_datetime = (
+                convert_string_datetime(
+                    string=CONFIGURATION["_custom_"]["cml_parameters"].end_datetime
+                )
             )
         except Exception:
             logging.getLogger(__name__).error(
