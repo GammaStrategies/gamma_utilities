@@ -953,6 +953,37 @@ class web3wrap:
 
         return None
 
+    def _getTransaction(self, txHash: str):
+        """Get transaction
+
+        Args:
+            txHash (str): transaction hash
+
+        Returns:
+            dict: transaction
+        """
+
+        # get w3Provider list
+        for rpc in RPC_MANAGER.get_rpc_list(network=self._network):
+            try:
+                rpc.add_attempt(method=cuType.eth_getTransactionReceipt)
+                _w3 = self.setup_w3(network=self._network, web3Url=rpc.url)
+                if "GENESIS" in txHash:
+                    logging.getLogger(__name__).debug(
+                        f" txHash [{txHash}] is a genesis tx, so it will fail to be retrieved from any rpc. Return none"
+                    )
+                    return None
+
+                return _w3.eth.get_transaction(txHash)
+            except Exception as e:
+                logging.getLogger(__name__).debug(
+                    f" error getting transaction using {rpc.url_short} rpc: {e}"
+                )
+                rpc.add_failed(error=e)
+                continue
+
+        return None
+
     def _getBlockData(self, block: int | str) -> types.BlockData:
         """Get block data
 
