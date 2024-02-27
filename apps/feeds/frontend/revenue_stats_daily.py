@@ -341,15 +341,24 @@ def create_revenue(chain: Chain, ini_timestamp: int, end_timestamp: int) -> list
             }
         },
         # CAMELOT dex revenue is multiplied by 0.623529 to match the fee split
+        # QUICKSWAP dex revenue is multiplied by 0.5 to match the fee split
         # TODO: add dex chain specific fee multiplier to config
         {
             "$addFields": {
                 "usd_value": {
-                    "$cond": [
-                        {"$eq": ["$dex", "camelot"]},
-                        {"$multiply": ["$usd_value", 0.623529]},
-                        "$usd_value",
-                    ]
+                    "$switch": {
+                        "branches": [
+                            {
+                                "case": {"$eq": ["$dex", "camelot"]},
+                                "then": {"$multiply": ["$usd_value", 0.623529]},
+                            },
+                            {
+                                "case": {"$eq": ["$dex", "quickswap"]},
+                                "then": {"$multiply": ["$usd_value", 0.5]},
+                            },
+                        ],
+                        "default": "$usd_value",
+                    }
                 }
             }
         },
@@ -738,9 +747,9 @@ def create_lpFees(chain: Chain, ini_timestamp: int, end_timestamp: int) -> list:
                     "gamma_vs_pool_liquidity_end": gamma_liquidity_end,
                     "feeTier": pool_fee_tier,
                     "eVolume": grossFees_usd / pool_fee_tier,
-                    "collecedFees_day": collectedFees_usd / days_period
-                    if days_period
-                    else 0,
+                    "collecedFees_day": (
+                        collectedFees_usd / days_period if days_period else 0
+                    ),
                 },
             }
         )
