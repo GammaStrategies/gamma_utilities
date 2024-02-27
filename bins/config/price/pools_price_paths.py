@@ -659,7 +659,7 @@ DEX_POOLS_PRICE_PATHS = {
         # liveRETRO
         "0xcaaf554900e33ae5dbc66ae9f8adc3049b7d31db".lower(): [
             (DEX_POOLS[Chain.POLYGON]["liveRETRO_RETRO"], 0),
-            (DEX_POOLS[Chain.POLYGON]["RETRO_USDC"], 1),
+            (DEX_POOLS[Chain.POLYGON]["RETRO_USDC"], 0),
         ],
     },
     Chain.POLYGON_ZKEVM: {
