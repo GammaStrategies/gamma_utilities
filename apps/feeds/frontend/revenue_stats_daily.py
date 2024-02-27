@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 import logging
 
 import tqdm
+from bins.config.hardcodes import REVENUE_FEE_OVERRIDE
 from bins.configuration import CONFIGURATION
 from bins.database.common.database_ids import create_id_frontend_revenue_stats_daily
 from bins.database.common.db_collections_common import database_local
@@ -340,28 +341,7 @@ def create_revenue(chain: Chain, ini_timestamp: int, end_timestamp: int) -> list
                 ]
             }
         },
-        # CAMELOT dex revenue is multiplied by 0.623529 to match the fee split
-        # QUICKSWAP dex revenue is multiplied by 0.5 to match the fee split
-        # TODO: add dex chain specific fee multiplier to config
-        {
-            "$addFields": {
-                "usd_value": {
-                    "$switch": {
-                        "branches": [
-                            {
-                                "case": {"$eq": ["$dex", "camelot"]},
-                                "then": {"$multiply": ["$usd_value", 0.623529]},
-                            },
-                            {
-                                "case": {"$eq": ["$dex", "quickswap"]},
-                                "then": {"$multiply": ["$usd_value", 0.5]},
-                            },
-                        ],
-                        "default": "$usd_value",
-                    }
-                }
-            }
-        },
+        addFields_usdvalue_revenue_query_part(chain=chain),
         {
             "$group": {
                 "_id": "$dex",
@@ -861,6 +841,41 @@ def create_volume(lpFees: list) -> list:
 
 
 ## HELPER
+def addFields_usdvalue_revenue_query_part(chain: Chain) -> dict:
+    """Add a usd_value field to the query, with fee overrides, if any
+
+    Args:
+        chain (Chain): chain
+
+    Returns:
+        dict: "$addFields" query part
+    """
+
+    # check if there are fee overrides to apply
+    branches = []
+    for dex, fee_multiplier in REVENUE_FEE_OVERRIDE.get(chain, {}).items():
+        branches.append(
+            {
+                "case": {"$eq": ["$dex", dex]},
+                "then": {"$multiply": ["$usd_value", fee_multiplier]},
+            }
+        )
+
+    if branches:
+        return {
+            "$addFields": {
+                "usd_value": {
+                    "$switch": {
+                        "branches": branches,
+                        "default": "$usd_value",
+                    }
+                }
+            }
+        }
+    else:
+        return {"$addFields": {"usd_value": "$usd_value"}}
+
+
 def get_next_timestamps_revenue_stats(
     chain: Chain, rewrite: bool = False
 ) -> tuple[int, int]:

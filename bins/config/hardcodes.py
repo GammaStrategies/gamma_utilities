@@ -421,3 +421,16 @@ HYPERVISOR_RETURNS_FORCED_INI_BLOCKS = {
 HYPERVISOR_NO_OPERATIONS_BEFORE = {
     Chain.OPBNB: 16097091,
 }
+
+
+# Gamma fee Revenue is not always the exact amounts transfered to the feeRecipients. Sometimes, special agreements are made lowering that amount.
+# Here we define the fee in a by chain dex basis.
+# chain:{ dex: fee multiplier }
+REVENUE_FEE_OVERRIDE = {
+    Chain.ARBITRUM: {
+        "camelot": 0.623529,
+    },
+    Chain.POLYGON: {"quickswap": 0.5},
+    Chain.POLYGON_ZKEVM: {"quickswap": 0.5},
+    Chain.MANTA: {"quickswap": 0.5},
+}
