@@ -151,6 +151,13 @@ class data_collector:
             if entries:
                 chunk_result = []
                 for event in entries:
+                    _tmp_topic_hex = event.topics[0].hex()
+                    # check if topic is in the list
+                    if not _tmp_topic_hex in self._topics_reversed:
+                        logging.getLogger(__name__).error(
+                            f" Topic not found in topics list. Discarding topic {_tmp_topic_hex}. [ topics {event.topics} ]"
+                        )
+                        continue
                     # get topic name found
                     topic = self._topics_reversed[event.topics[0].hex()]
                     # first topic is topic id
