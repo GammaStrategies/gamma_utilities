@@ -16,7 +16,7 @@
 #   },
 
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import logging
 
 import tqdm
@@ -50,7 +50,15 @@ from bins.mixed.price_utilities import calculate_price_from_pool, price_scraper
 def feed_revenue_stats(
     chains: list[Chain] | None = None,
     rewrite: bool = False,
+    days_back: int | None = None,
 ) -> None:
+    """_summary_
+
+    Args:
+        chains (list[Chain] | None, optional): chain list. Defaults to all.
+        rewrite (bool, optional): Use with days back to rewrite a portion. Defaults to False.
+        days_back (int | None, optional): Days back as initial point. Defaults to as much as there are left.
+    """
     # define chains to process
     networks = (
         CONFIGURATION["_custom_"]["cml_parameters"].networks
@@ -70,7 +78,7 @@ def feed_revenue_stats(
             progress_bar.refresh()
 
             for chain_protocol_time_result in create_revenue_stats(
-                chain=chain, rewrite=rewrite
+                chain=chain, rewrite=rewrite, days_back=days_back
             ):
                 # save to database
                 if chain_protocol_time_result:
@@ -116,7 +124,17 @@ def feed_revenue_stats(
             progress_bar.update(1)
 
 
-def create_revenue_stats(chain: Chain, rewrite: bool = False) -> dict:
+def create_revenue_stats(
+    chain: Chain, rewrite: bool = False, days_back: int | None = None
+) -> dict:
+    """Create all revenue stats for a particular chain
+
+    Args:
+        chain (Chain): _description_
+        rewrite (bool, optional): _description_. Defaults to False.
+        days_back (int | None, optional): days to initiate from. Defaults to as much as there are left in the database.
+
+    """
     logging.getLogger(__name__).info(
         f" Feeding frontend revenue stats for {chain.database_name}"
     )
@@ -124,7 +142,9 @@ def create_revenue_stats(chain: Chain, rewrite: bool = False) -> dict:
     for (
         ini_timestamp,
         end_timestamp,
-    ) in get_all_next_timestamps_revenue_stats(chain=chain, rewrite=rewrite):
+    ) in get_all_next_timestamps_revenue_stats(
+        chain=chain, rewrite=rewrite, days_back=days_back
+    ):
         try:
             # define result vars
             chain_protocol_time_result = {}
@@ -877,22 +897,22 @@ def addFields_usdvalue_revenue_query_part(chain: Chain) -> dict:
 
 
 def get_next_timestamps_revenue_stats(
-    chain: Chain, rewrite: bool = False
+    chain: Chain, rewrite: bool = False, days_back: int | None = None
 ) -> tuple[int, int]:
     """Get daily ini and end timestamps
 
     Args:
         chain (Chain): _description_
         rewrite (bool, optional): _description_. Defaults to False.
+        days_back (int, optional): number of days back to start from. Defaults to None.
 
-    Raises:
-        ValueError: _description_
-        ValueError: _description_
-
-    Returns:
-        tuple[int, int]: _description_
     """
     if not rewrite:
+        # raise warning if days back is set, cause it will be ignored
+        if days_back:
+            logging.getLogger(__name__).warning(
+                f" days_back is set to {days_back} but rewrite is False. days_back will be ignored."
+            )
         # define last timestamp for this type
         last_item = get_default_globaldb().get_items_from_database(
             collection_name="frontend",
@@ -903,46 +923,81 @@ def get_next_timestamps_revenue_stats(
             sort=[("timestamp", -1)],
             limit=1,
         )
+
+    #
     if rewrite or not last_item:
-        try:
-            first_revenue_operation = get_from_localdb(
-                network=chain.database_name,
-                collection="revenue_operations",
-                find={},
-                sort=[("timestamp", 1)],
-                limit=1,
-            )
-            _datetime = datetime.fromtimestamp(
-                first_revenue_operation[0]["timestamp"], timezone.utc
-            )
-            # define ini and end timestamp within the same day
-            ini_timestamp = int(
-                datetime(
-                    year=_datetime.year,
-                    month=_datetime.month,
-                    day=_datetime.day,
-                    hour=0,
-                    minute=0,
-                    second=0,
-                    tzinfo=timezone.utc,
-                ).timestamp()
-            )
-            end_timestamp = int(
-                datetime(
-                    year=_datetime.year,
-                    month=_datetime.month,
-                    day=_datetime.day,
-                    hour=23,
-                    minute=59,
-                    second=59,
-                    tzinfo=timezone.utc,
-                ).timestamp()
-            )
-        except Exception as e:
-            # seems there is no revenue operations in the database
-            raise ValueError(
-                f" Cant find revenue operations for {chain}   error->  {e}"
-            )
+
+        # should we force the start from days back?
+        if days_back:
+            try:
+                _datetime = datetime.now(timezone.utc) - timedelta(days=days_back)
+                # define ini and end timestamp within the same day
+                ini_timestamp = int(
+                    datetime(
+                        year=_datetime.year,
+                        month=_datetime.month,
+                        day=_datetime.day,
+                        hour=0,
+                        minute=0,
+                        second=0,
+                        tzinfo=timezone.utc,
+                    ).timestamp()
+                )
+                end_timestamp = int(
+                    datetime(
+                        year=_datetime.year,
+                        month=_datetime.month,
+                        day=_datetime.day,
+                        hour=23,
+                        minute=59,
+                        second=59,
+                        tzinfo=timezone.utc,
+                    ).timestamp()
+                )
+            except Exception as e:
+                raise ValueError(
+                    f" Cant calculate ini end timestamp for {chain}   error->  {e}"
+                )
+        else:
+            try:
+                first_revenue_operation = get_from_localdb(
+                    network=chain.database_name,
+                    collection="revenue_operations",
+                    find={},
+                    sort=[("timestamp", 1)],
+                    limit=1,
+                )
+                _datetime = datetime.fromtimestamp(
+                    first_revenue_operation[0]["timestamp"], timezone.utc
+                )
+                # define ini and end timestamp within the same day
+                ini_timestamp = int(
+                    datetime(
+                        year=_datetime.year,
+                        month=_datetime.month,
+                        day=_datetime.day,
+                        hour=0,
+                        minute=0,
+                        second=0,
+                        tzinfo=timezone.utc,
+                    ).timestamp()
+                )
+                end_timestamp = int(
+                    datetime(
+                        year=_datetime.year,
+                        month=_datetime.month,
+                        day=_datetime.day,
+                        hour=23,
+                        minute=59,
+                        second=59,
+                        tzinfo=timezone.utc,
+                    ).timestamp()
+                )
+            except Exception as e:
+                # seems there is no revenue operations in the database
+                raise ValueError(
+                    f" Cant find revenue operations for {chain}   error->  {e}"
+                )
     else:
         try:
             _last_datetime = datetime.fromtimestamp(
@@ -981,13 +1036,14 @@ def get_next_timestamps_revenue_stats(
 
 
 def get_all_next_timestamps_revenue_stats(
-    chain: Chain, rewrite: bool = False
+    chain: Chain, rewrite: bool = False, days_back: int | None = None
 ) -> list[tuple[int, int]]:
     """Return a list of ini_timestamp, end_timestamp pairs for all periods left to be scraped in the database
 
     Args:
         chain (Chain): chain
         rewrite (bool, optional): reset. Defaults to False.
+        days_back (int, optional): number of days to beguin from. Defaults to None.
 
     Returns:
         list[tuple[int, int]]: ordered list of ini_timestamp, end_timestamp pairs
@@ -995,7 +1051,11 @@ def get_all_next_timestamps_revenue_stats(
     result = []
     try:
         # define the first timestamp
-        result.append(get_next_timestamps_revenue_stats(chain=chain, rewrite=rewrite))
+        result.append(
+            get_next_timestamps_revenue_stats(
+                chain=chain, rewrite=rewrite, days_back=days_back
+            )
+        )
         # define the last timestamp
         final_datetime = int(
             datetime(
