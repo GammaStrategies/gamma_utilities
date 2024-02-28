@@ -1,5 +1,5 @@
 from bins.configuration import CONFIGURATION
-from bins.general.enums import Chain
+from bins.general.enums import Chain, Protocol
 
 
 ## Special abis filename/path reference for the specified chain/address here defined
@@ -423,14 +423,17 @@ HYPERVISOR_NO_OPERATIONS_BEFORE = {
 }
 
 
-# Gamma fee Revenue is not always the exact amounts transfered to the feeRecipients. Sometimes, special agreements are made lowering that amount.
+# Gamma fee Revenue is not always the exact amounts transfered to the feeRecipients.
+# Sometimes, special agreements are made where Gamma collects 100% of a 'gross revenue' value but gets only a percentage of that.
 # Here we define the fee in a by chain dex basis.
-# chain:{ dex: fee multiplier }
+# chain:{ dex(protocol database name): fee multiplier }
 REVENUE_FEE_OVERRIDE = {
     Chain.ARBITRUM: {
-        "camelot": 0.623529,
+        Protocol.CAMELOT.database_name: 0.623529,
     },
-    Chain.POLYGON: {"quickswap": 0.5},
-    Chain.POLYGON_ZKEVM: {"quickswap": 0.5},
-    Chain.MANTA: {"quickswap": 0.5},
+    Chain.POLYGON: {Protocol.QUICKSWAP.database_name: 0.5},
+    Chain.POLYGON_ZKEVM: {Protocol.QUICKSWAP.database_name: 0.5},
+    Chain.MANTA: {Protocol.QUICKSWAP.database_name: 0.5},
+    Chain.BASE: {Protocol.THICK.database_name, 0.2},
+    Chain.LINEA: {Protocol.LYNEX.database_name, 0.2},
 }
