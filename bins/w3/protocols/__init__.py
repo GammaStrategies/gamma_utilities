@@ -26,4 +26,5 @@ from ..protocols import (
     swapr,
     aperture,
     thick,
+    hercules,
 )

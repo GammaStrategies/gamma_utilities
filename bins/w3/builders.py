@@ -1341,6 +1341,43 @@ def build_hypervisor(
                 )
             )
         )
+    elif protocol == Protocol.HERCULES:
+        hypervisor = (
+            protocols.hercules.hypervisor.gamma_hypervisor(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                timestamp=timestamp,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not cached and not multicall
+            else (
+                protocols.hercules.hypervisor.gamma_hypervisor_cached(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+                if not multicall
+                else protocols.hercules.hypervisor.gamma_hypervisor_multicall(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+            )
+        )
 
     else:
         raise NotImplementedError(f" {protocol} has not been implemented yet")
@@ -1652,6 +1689,22 @@ def build_protocol_pool(
             )
             if not cached
             else protocols.swapr.pool.pool_cached(
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
+            )
+        )
+    elif protocol == Protocol.HERCULES:
+        return (
+            protocols.hercules.pool.pool(
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
+            )
+            if not cached
+            else protocols.hercules.pool.pool_cached(
                 address=pool_address,
                 network=chain.database_name,
                 block=block,
