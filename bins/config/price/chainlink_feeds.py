@@ -81,4 +81,28 @@ CHAINLINK_USD_PRICE_FEEDS = {
             "address_feed": "0x22441d81416430A54336aB28765abd31a792Ad37".lower(),
         },
     },
+    Chain.METIS: {
+        "0xea32a96608495e54156ae48931a7c20f0dcc1a21".lower(): {
+            "token": "m.USDC",
+            "address_feed": "0x663855969c85F3BE415807250414Ca9129533a5f".lower(),
+        },
+        "0xbb06dca3ae6887fabf931640f67cab3e3a16f4dc".lower(): {
+            "token": "m.USDT",
+            "address_feed": "0xbb06dca3ae6887fabf931640f67cab3e3a16f4dc".lower(),
+        },
+        "0x420000000000000000000000000000000000000a".lower(): {
+            "token": "WETH",
+            "address_feed": "0x3BBe70e2F96c87aEce7F67A2b0178052f62E37fE".lower(),
+        },
+        "0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000".lower(): {
+            "token": "METIS",
+            "address_feed": "0xD4a5Bb03B5D66d9bf81507379302Ac2C2DFDFa6D".lower(),
+            # in monitoring state
+        },
+        "0x75cb093e4d61d2a2e65d8e0bbb01de8d89b53481".lower(): {
+            "token": "WMETIS",
+            "address_feed": "0xD4a5Bb03B5D66d9bf81507379302Ac2C2DFDFa6D".lower(),
+            # in monitoring state
+        },
+    },
 }
