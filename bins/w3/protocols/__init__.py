@@ -25,4 +25,5 @@ from ..protocols import (
     basex,
     swapr,
     aperture,
+    thick,
 )

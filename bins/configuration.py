@@ -213,6 +213,7 @@ STATIC_REGISTRY_ADDRESSES = {
             "baseswap": "0x8118C33513feC13f8cf488CCb4509190650F0e92".lower(),
             "swapbased": "0x39ce2eB762e7bFe19b6AD4D5bA384c67CE4051f0".lower(),
             "pancakeswap": "0x339685503dD534D27ce4a064314c2E5c7144aa92".lower(),
+            "thick": "0xf1DF4F17e34Ba710DfFC487F73f1e19476E815a6".lower(),
         },
         "synthswap_v1_masterchefs": [
             "0xef153cb7bfc04c657cb7f582c7411556320098b9".lower(),
@@ -221,6 +222,7 @@ STATIC_REGISTRY_ADDRESSES = {
             "pancakeswap": "0x0087cA4844cAE94B1c51dEc0f9434A6F92006Af9".lower(),
             "baseswap": "0x5981B43b74bb6DaA13a3cd97dddF4C52c9f0fC5F".lower(),
             "swapbased": "0x1dE56231bE01e4d91A085e68E573e4aDaf78693A".lower(),
+            "thick": "0xD8266D45bB9fB3456b2b953535480dB7e4f95179".lower(),
         },
         "angle_merkl": {
             "distributor": "0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae".lower(),
