@@ -84,7 +84,7 @@ class web3wrap:
     def merge_abi(self, abi_filename: str, abi_path: str):
         # merge abi
         self._abi += file_utilities.load_json(
-            filename=self._abi_filename, folder_path=self._abi_path
+            filename=abi_filename, folder_path=abi_path
         )
 
     def setup_w3(self, network: str, web3Url: str | None = None) -> Web3:
@@ -95,6 +95,7 @@ class web3wrap:
             ):
                 web3Url = rpclist[0].url
             elif rpclist := RPC_MANAGER.get_rpc_list(network=self._network):
+                # 0x0000000000000000000000000000000000000000 addresses happen when building 'neutral' erc20 helpers. Do not worry about it.
                 # there are no private RPCs available
                 logging.getLogger(__name__).warning(
                     f"  no private RPCs available for network {self._network} address {self._address}. Using any available RPC."
