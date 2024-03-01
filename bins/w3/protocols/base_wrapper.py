@@ -667,6 +667,13 @@ class web3wrap:
                         )
                         return 0
 
+                    if "execution reverted" in e.args:
+                        # function exists but the value returned is not valid ( is a NoneType or something like that). Do not add failed attempt.
+                        logging.getLogger(__name__).debug(
+                            f" {rpc.type} RPC {rpc.url_short} reverted the call to function {function_name} in {self._network}'s contract {self.address} at block {self.block}. Continue without adding failed attempt."
+                        )
+                        return None
+
                     # some public RPCs return a contract logic error on functions that do actually exist (ex: on Polygon angleMerkl getActivePoolDistributions ...).
                     if rpc.type == "private" and not any(
                         ext in rpc.url_short for ext in ["nodereal"]
