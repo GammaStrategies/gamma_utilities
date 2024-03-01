@@ -343,6 +343,51 @@ def xgrail(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
         )
 
 
+def olynx(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
+    # call option token that is used as the emission token for the Lynex dex
+    # The discount rate is subject to change and based on market conditions.
+
+    olynx_token = "0x63349BA5E1F71252eCD56E8F950D1A518B400b60".lower()
+
+    if address.lower() == olynx_token:
+        # check block and chain
+        if chain == Chain.LINEA and block < 2207782:
+            logging.getLogger(__name__).warning(
+                f" No data for {chain.fantasy_name} oLYNEX before block 2207782"
+            )
+            return None
+
+        # get the underlying token and discount rate from the contract
+        erc20 = build_erc20_helper(
+            chain=chain,
+            address=olynx_token,
+            abi_filename="optionTokenv3",
+            abi_path=(CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi")
+            + "/lynex",
+            block=block,
+        )
+        # get the token address to convert to
+        underlying_token = erc20.call_function_autoRpc("UNDERLYING_TOKEN")
+        if not underlying_token:
+            logging.getLogger(__name__).error(
+                f" Can't get the underlying token for oLYNEX. Using LYNEX token as fallback"
+            )
+            underlying_token = "0x1a51b19ce03dbe0cb44c1528e34a7edd7771e9af".lower()
+
+        discount_rate = erc20.call_function_autoRpc("discount")
+        conversion_rate = (100 - discount_rate) / 100
+
+        return NoPricedToken_conversion(
+            original=NoPricedToken_item(
+                token_address=olynx_token, chain=chain, block=block
+            ),
+            converted=NoPricedToken_item(
+                token_address=underlying_token.lower(), chain=chain, block=block
+            ),
+            conversion_rate=conversion_rate,
+        )
+
+
 # ####
 def esPLS(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
     # Escrowed PLS: Plutus DAO token not convertable (as far as known now)
@@ -376,6 +421,10 @@ TOKEN_ADDRESS_CONVERSION = {
     Chain.AVALANCHE: {
         # xPHAR--PHAR
         "0xaaae58986b24e422740c8f22b3efb80bcbd68159".lower(): xphar,
+    },
+    Chain.LINEA: {
+        # oLYNEX--LYNEX(or configured token)
+        "0x63349BA5E1F71252eCD56E8F950D1A518B400b60".lower(): olynx,
     },
 }
 

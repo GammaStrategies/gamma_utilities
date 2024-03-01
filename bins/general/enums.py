@@ -309,6 +309,9 @@ class rewarderType(str, Enum):
     # https://docs.camelot.exchange/protocol/nitro-pools
     CAMELOT_nitro = "camelot_nitro"
 
+    LYNEX_gauge_v2 = "lynex_gauge_v2"
+    LYNEX_voter_v5 = "lynex_voter_v5"
+
 
 class Family_type(str, Enum):
     #      ( value , type , database_name, fantasy_name )

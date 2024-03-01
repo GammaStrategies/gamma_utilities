@@ -8,6 +8,7 @@ from apps.feeds.status.rewards.camelot import (
     create_rewards_status_camelot_spnft,
 )
 from apps.feeds.status.rewards.gamma import create_rewards_status_gamma
+from apps.feeds.status.rewards.lynex import create_rewards_status_lynex
 from apps.feeds.status.rewards.synthswap import create_rewards_status_synthswap
 from apps.feeds.status.rewards.thena import create_rewards_status_thena
 from apps.feeds.status.rewards.zyberswap import create_rewards_status_zyberswap
@@ -297,6 +298,14 @@ def create_reward_status_from_hype_status(
         ]:
             # get rewards status
             rewards_data = create_rewards_status_gamma(
+                network=network,
+                rewarder_static=rewarder_static,
+                hypervisor_status=hypervisor_status,
+            )
+
+        elif rewarder_static["rewarder_type"] == rewarderType.LYNEX_gauge_v2:
+            # get rewards status
+            rewards_data = create_rewards_status_lynex(
                 network=network,
                 rewarder_static=rewarder_static,
                 hypervisor_status=hypervisor_status,

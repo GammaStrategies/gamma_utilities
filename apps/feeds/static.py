@@ -46,6 +46,7 @@ from bins.w3.protocols.gamma.rewarder import (
     gamma_masterchef_registry,
     gamma_masterchef_v1,
 )
+from bins.w3.protocols.lynex.rewarder import lynex_voter_v5
 from bins.w3.protocols.synthswap.rewarder import synthswap_masterchef_v1
 from bins.w3.protocols.thena.rewarder import thena_voter_v3
 from bins.w3.protocols.zyberswap.rewarder import zyberswap_masterchef_v1
@@ -861,6 +862,16 @@ def create_rewards_static(
             block=block,
         )
 
+    # LYNEX
+    if dex == Protocol.LYNEX.database_name:
+        rewards_static_lst += create_rewards_static_lynex(
+            chain=text_to_chain(network),
+            hypervisor_addresses=hypervisor_addresses,
+            already_processed=already_processed,
+            rewrite=rewrite,
+            block=block,
+        )
+
     # GAMMA
     if dex in list(
         STATIC_REGISTRY_ADDRESSES.get(network, {})
@@ -1042,6 +1053,12 @@ def create_rewards_static_thena(
     rewrite: bool = False,
     block: int = 0,
 ) -> list[dict]:
+
+    if network != Chain.BSC.database_name:
+        raise ValueError(
+            f" THENA voter address only for BINANCE chain... Cant continue.**************"
+        )
+
     result = []
     to_process_contract_addresses = {
         "0x3a1d0952809f4948d15ebce8d345962a282c4fcb".lower(): {
@@ -1908,6 +1925,73 @@ def create_rewards_static_camelot_nitro(
                     "end_rewards_timestamp": _pool_data["settings"]["endTime"],
                 }
             )
+
+    return result
+
+
+def create_rewards_static_lynex(
+    chain: Chain,
+    hypervisor_addresses: list[str],
+    already_processed: list[str],
+    rewrite: bool = False,
+    block: int = 0,
+) -> list[dict]:
+    result = []
+
+    if chain != Chain.LINEA:
+        raise ValueError(
+            f" LYNEX voter address only for LINEA chain... Cant continue.**************"
+        )
+
+    to_process_contract_addresses = {
+        "0x0B2c83B6e39E32f694a86633B4d1Fe69d13b63c5".lower(): {
+            "creation_block": 2207763,
+            "type": rewarderType.LYNEX_voter_v5,
+        }
+    }
+    ephemeral_cache = {
+        "creation_block": {},
+    }
+
+    for thenaVoter_address, contract_data in to_process_contract_addresses.items():
+        # create thena voter object
+        _voter = lynex_voter_v5(
+            address=thenaVoter_address, network=chain.database_name, block=block
+        )
+        rewards_data = _voter.get_rewards(
+            hypervisor_addresses=hypervisor_addresses, convert_bint=True
+        )
+        for reward_data in rewards_data:
+            # add block creation data to cache
+            if not reward_data["rewarder_address"] in ephemeral_cache["creation_block"]:
+                # add block creation data
+                if creation_data := _get_contract_creation_block(
+                    network=chain.database_name,
+                    contract_address=reward_data["rewarder_address"],
+                ):
+                    ephemeral_cache["creation_block"][
+                        reward_data["rewarder_address"]
+                    ] = creation_data["block"]
+                else:
+                    # modify block number manually -> block num. is later used to update rewards_status from
+                    ephemeral_cache["creation_block"][
+                        reward_data["rewarder_address"]
+                    ] = contract_data["creation_block"]
+
+            # set creation block
+            reward_data["block"] = ephemeral_cache["creation_block"][
+                reward_data["rewarder_address"]
+            ]
+            if (
+                rewrite
+                or create_id_rewards_static(
+                    hypervisor_address=reward_data["hypervisor_address"],
+                    rewarder_address=reward_data["rewarder_address"],
+                    rewardToken_address=reward_data["rewardToken"],
+                )
+                not in already_processed
+            ):
+                result.append(reward_data)
 
     return result
 
