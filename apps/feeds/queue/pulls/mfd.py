@@ -78,10 +78,9 @@ def build_multiFeeDistribution_from_queueItem(
             raise ValueError(
                 f" More than one rewarder information found for {mfd_address}. Cant continue"
             )
-        reward_static = rewards_related_info[0]
 
         # if no rewards status are found, skip it
-        if reward_static["rewards_status"] == []:
+        if not rewards_related_info or rewards_related_info[0]["rewards_status"] == []:
             logging.getLogger(__name__).warning(
                 f"  no rewards status found for queue's {network} {queue_item.type} {queue_item.id}"
             )
@@ -94,6 +93,8 @@ def build_multiFeeDistribution_from_queueItem(
                 get_default_localdb(network=network).del_queue_item(id=queue_item.id)
             # exit empty handed
             return []
+
+        reward_static = rewards_related_info[0]
 
         # set hypervisor address ( easy to access var)
         hypervisor_address = reward_static["hypervisor_address"]
