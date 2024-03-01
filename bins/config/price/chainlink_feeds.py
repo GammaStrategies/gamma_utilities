@@ -105,4 +105,26 @@ CHAINLINK_USD_PRICE_FEEDS = {
             # in monitoring state
         },
     },
+    Chain.LINEA: {
+        "0x3aab2285ddcddad8edf438c1bab47e1a9d05a9b4".lower(): {
+            "token": "WBTC",
+            "address_feed": "0x7A99092816C8BD5ec8ba229e3a6E6Da1E628E1F9".lower(),
+        },
+        "0xe5d7c2a44ffddf6b295a15c148167daaaf5cf34f".lower(): {
+            "token": "WETH",
+            "address_feed": "0x3c6Cd9Cc7c7a4c2Cf5a82734CD249D7D593354dA".lower(),
+        },
+        "0x176211869ca2b568f2a7d4ee941e073a821ee1ff".lower(): {
+            "token": "USDC",
+            "address_feed": "0xAADAa473C1bDF7317ec07c915680Af29DeBfdCb5".lower(),
+        },
+        "0xa219439258ca9da29e9cc4ce5596924745e12b93".lower(): {
+            "token": "USDT",
+            "address_feed": "0xefCA2bbe0EdD0E22b2e0d2F8248E99F4bEf4A7dB".lower(),
+        },
+        "0xb5bedd42000b71fdde22d3ee8a79bd49a568fc8f".lower(): {
+            "token": "wstETH",
+            "address_feed": "0x8eCE1AbA32716FdDe8D6482bfd88E9a0ee01f565".lower(),
+        },
+    },
 }
