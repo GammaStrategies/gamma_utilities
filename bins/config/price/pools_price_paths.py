@@ -541,6 +541,22 @@ DEX_POOLS = {
             "min_block": 19991544,
         },
     },
+    Chain.LINEA: {
+        "LYNX-WETH": {
+            "protocol": Protocol.LYNEX,
+            "address": "0x78b1730c6b7f49e1650093b0cb09f9df51dc831f".lower(),
+            "token0": "0x1a51b19ce03dbe0cb44c1528e34a7edd7771e9af".lower(),  # LYNX
+            "token1": "0xe5d7c2a44ffddf6b295a15c148167daaaf5cf34f".lower(),  # WETH
+            "min_block": 2375630,
+        },
+        "LYNX-USDC": {
+            "protocol": Protocol.LYNEX,
+            "address": "0xdda5ec5af00ab99dc80c33e08881eb80c027d498".lower(),
+            "token0": "0x1a51b19ce03dbe0cb44c1528e34a7edd7771e9af".lower(),  # LYNX
+            "token1": "0x176211869ca2b568f2a7d4ee941e073a821ee1ff".lower(),  # USDC
+            "min_block": 2207775,
+        },
+    },
 }
 
 
