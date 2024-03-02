@@ -13,6 +13,10 @@ from bins.w3.protocols.ramses.collectors import (
 # PULL TO QUEUE
 def feed_latest_multifeedistribution_snapshot():
     """add a multifeedistribution snapshot to the queue"""
+
+    logging.getLogger(__name__).info(
+        f" Feeding the latest multifeedistribution queue items"
+    )
     # TODO: do not hardcode but include into config--
     #  define chains + protocols + rewarder types to be processed in this function
     items_to_process = [
