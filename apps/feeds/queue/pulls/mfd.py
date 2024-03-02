@@ -25,7 +25,7 @@ def pull_from_queue_latest_multiFeeDistribution(
         network=network, queue_item=queue_item
     ):
         # save to latest_multifeedistribution collection database
-        if db_return := get_default_localdb(network=network).update_items_to_database(
+        if db_return := get_default_localdb(network=network).replace_items_to_database(
             data=save_todb, collection_name="latest_multifeedistribution"
         ):
             logging.getLogger(__name__).debug(
