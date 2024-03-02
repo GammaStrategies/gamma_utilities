@@ -468,7 +468,7 @@ def latest_db_service():
             "process": None,
         },
         "latest_multifeedistributor": {
-            "every": 60 * 4,  # 4 minutes
+            "every": 60 * 10,  # 10 minutes
             "last": time.time(),
             "callable": feed_latest_multifeedistribution_snapshot,
             "args": (),
