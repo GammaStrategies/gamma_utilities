@@ -196,16 +196,16 @@ def create_priority_queueItemType_latestOut() -> list[list[queueItemType]]:
     # queue is processed in creation order:
     #   Include for each queue item type the types that need to be processed before it
     types_combination = {
+        queueItemType.HYPERVISOR_STATIC: queue_items_list_withoutLatest,
+        queueItemType.REWARD_STATIC: queue_items_list_withoutLatest,
         queueItemType.OPERATION: queue_items_list_withoutLatest,
         queueItemType.BLOCK: queue_items_list_withoutLatest,
         queueItemType.HYPERVISOR_STATUS: queue_items_list_withoutLatest,
         queueItemType.PRICE: queue_items_list_withoutLatest,
         queueItemType.LATEST_MULTIFEEDISTRIBUTION: queue_items_list,
-        queueItemType.REWARD_STATUS: queue_items_list,
-        queueItemType.HYPERVISOR_STATIC: queue_items_list,
-        queueItemType.REWARD_STATIC: queue_items_list,
-        queueItemType.REVENUE_OPERATION: queue_items_list,
-        queueItemType.USER_OPERATION: queue_items_list,
+        queueItemType.REWARD_STATUS: queue_items_list_withoutLatest,
+        queueItemType.REVENUE_OPERATION: queue_items_list_withoutLatest,
+        queueItemType.USER_OPERATION: queue_items_list_withoutLatest,
     }
 
     # build a result
