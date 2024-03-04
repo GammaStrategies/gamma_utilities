@@ -2,7 +2,7 @@ from datetime import datetime
 import logging
 from apps.feeds.utils import get_hypervisor_price_per_share, get_reward_pool_prices
 from apps.hypervisor_periods.base import hypervisor_periods_base
-from bins.general.enums import Chain, Protocol, rewarderType
+from bins.general.enums import Chain, Protocol, rewarderType, text_to_chain
 from bins.w3.builders import build_db_hypervisor, build_db_hypervisor_multicall
 from bins.w3.protocols.angle.rewarder import angle_merkle_distributor_creator
 
@@ -51,14 +51,12 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
         last_item: dict,
         current_item: dict,
     ):
-        # add distribution data to all items in the loop.
+        # add campaign data to all items in the loop.
         # reward tokens are defined here
-        current_item["distribution_data"] = self._build_distribution_data(
+        current_item["campaign_data"] = self._build_campaign_data(
             network=chain.database_name,
             distributor_address=self.rewarder_static["rewarder_registry"],
-            block=current_item["block"],
-            pool_address=current_item["pool"]["address"],
-            hypervisor_address=current_item["address"],
+            hypervisor_status=current_item,
         )
 
     def _execute_inLoop_startItem(
@@ -85,17 +83,17 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
         time_passed = current_item["timestamp"] - last_item["timestamp"]
         rewards_aquired_period_end = 0
 
-        for distribution_data in current_item["distribution_data"]:
+        for campaign_data in current_item["campaign_data"]:
             # calculate rewards of the period
             real_rewards_end = self._build_rewards_from_distribution(
                 network=chain.database_name,
                 hypervisor_status=current_item,
-                distribution_data=distribution_data,
-                calculations_data=distribution_data["reward_calculations"],
+                campaign_data=campaign_data,
+                calculations_data=campaign_data["reward_calculations"],
             )
 
-            # add real rewards to distribution_data for later use
-            distribution_data["reward_calculations"] = real_rewards_end
+            # add real rewards to campaign_data for later use
+            campaign_data["reward_calculations"] = real_rewards_end
 
             # calculate rewards of the period
             rewards_aquired_period_end = (
@@ -108,7 +106,7 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
             self.items_to_calc_apr.append(
                 {
                     "base_rewards": rewards_aquired_period_end
-                    / (10 ** distribution_data["token_decimals"]),
+                    / (10 ** campaign_data["rewardToken_decimals"]),
                     "boosted_rewards": 0,
                     "time_passed": time_passed,
                     "timestamp_ini": last_item["timestamp"],
@@ -134,7 +132,7 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
                         )
                         / (10 ** last_item["pool"]["token1"]["decimals"]),
                     },
-                    "distribution_data": distribution_data,
+                    "campaign_data": campaign_data,
                 }
             )
 
@@ -298,26 +296,28 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
 
     # ANGLE MERKLE DISTRIBUTOR
     # TODO: cache per pool/block
-    def _build_distribution_data(
+    def _build_campaign_data(
         self,
         network: str,
         distributor_address: str,
-        block: int,
-        pool_address: str,
-        hypervisor_address: str,
+        hypervisor_status: dict,
     ) -> list:
         """Create the distribution data for the specified pool address / block
 
         Args:
             network (str):
             distributor_address (str):
-            block (int):
-            pool_address (str):
-            hypervisor_address (str):
+            hypervisor_status (dict):
 
         Returns:
-            list: _description_
+            list:
         """
+
+        # ease access vars
+        block = hypervisor_status["block"]
+        pool_address = hypervisor_status["pool"]["address"]
+        hypervisor_address = hypervisor_status["address"]
+        chain = text_to_chain(network)
 
         # try get result from cache
         result = (
@@ -334,44 +334,76 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
             address=distributor_address,
             network=network,
             block=block,
+            timestamp=hypervisor_status["timestamp"],
         )
 
         # save for later use
-        _epoch_duration = distributor_creator.EPOCH_DURATION
+        _epoch_duration = distributor_creator.HOUR
 
-        # get active distribution data from merkle
-        if distributions := distributor_creator.getActivePoolDistributions(
-            address=pool_address
+        # get active campaigns data from merkle
+        if campaigns := distributor_creator.get_active_campaigns(
+            pool_address=pool_address
         ):
-            for distribution_data in distributions:
+            # try get pool token0 and 1 balance from multicall
+            pool_balaces = distributor_creator.balanceOf_tokens(
+                wallet_address=pool_address,
+                token_addresses=[
+                    hypervisor_status["pool"]["token0"]["address"],
+                    hypervisor_status["pool"]["token1"]["address"],
+                ],
+                block=block,
+                timestamp=hypervisor_status["timestamp"],
+            )
+
+            for campaign_data in campaigns:
                 # only add information regarding the static_reward
-                if distribution_data["token"] != self.rewarder_static["rewardToken"]:
+                if campaign_data["rewardToken"] != self.rewarder_static["rewardToken"]:
                     continue
 
                 # check if reward token is valid
                 if not distributor_creator.isValid_reward_token(
-                    reward_address=distribution_data["token"].lower()
+                    reward_address=campaign_data["rewardToken"].lower()
                 ):
                     # not a valid reward token
                     continue
                 if distributor_creator.isBlacklisted(
-                    reward_data=distribution_data, hypervisor_address=hypervisor_address
+                    reward_data=campaign_data, hypervisor_address=hypervisor_address
                 ):
                     # blacklisted
                     logging.getLogger(__name__).debug(
-                        f" {distribution_data['token']} is blacklisted for hype {hypervisor_address} at block {block}"
+                        f" {campaign_data['rewardToken']} is blacklisted for hype {hypervisor_address} at block {block}"
                     )
                     continue
 
-                distribution_data["epoch_duration"] = _epoch_duration
-                distribution_data["reward_calculations"] = (
+                # add token symbols and decimals to campaign data, and hype totals?
+                campaign_data["rewardToken_symbol"] = self.rewarder_static[
+                    "rewardToken_symbol"
+                ]
+                campaign_data["rewardToken_decimals"] = self.rewarder_static[
+                    "rewardToken_decimals"
+                ]
+                campaign_data["token0_contract"] = hypervisor_status["pool"]["token0"][
+                    "address"
+                ]
+                campaign_data["token1_contract"] = hypervisor_status["pool"]["token1"][
+                    "address"
+                ]
+                campaign_data["token0_balance_in_pool"] = pool_balaces[
+                    campaign_data["token0_contract"]
+                ]
+                campaign_data["token1_balance_in_pool"] = pool_balaces[
+                    campaign_data["token1_contract"]
+                ]
+
+                campaign_data["epoch_duration"] = _epoch_duration
+                campaign_data["reward_calculations"] = (
                     distributor_creator.get_reward_calculations(
-                        distribution=distribution_data, _epoch_duration=_epoch_duration
+                        campaign=campaign_data, _epoch_duration=_epoch_duration
                     )
                 )
 
                 # add to result
-                result.append(distribution_data)
+                result.append(campaign_data)
 
         else:
             # no active distributions
@@ -405,7 +437,7 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
         self,
         network: str,
         hypervisor_status: dict,
-        distribution_data: dict,
+        campaign_data: dict,
         calculations_data: dict,
     ) -> dict:
         # get token prices
@@ -416,9 +448,9 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
         ) = get_reward_pool_prices(
             network=network,
             block=hypervisor_status["block"],
-            reward_token=distribution_data["token"],
-            token0=distribution_data["token0_contract"],
-            token1=distribution_data["token1_contract"],
+            reward_token=campaign_data["rewardToken"],
+            token0=campaign_data["token0_contract"],
+            token1=campaign_data["token1_contract"],
         )
 
         # hypervisor data
@@ -457,7 +489,7 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
         # choose which liquidity is rewarded ( inRange or total )
         rewarded_liquidity = (
             hypervisor_liquidity
-            if distribution_data["isOutOfRangeincentivized"]
+            if campaign_data["campaignData"]["isOutOfRangeIncentivized"]
             else gamma_liquidity_in_range
         )
 
@@ -470,30 +502,30 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
 
         # pool data
         pool_liquidity = int(hypervisor_status["pool"]["liquidity"])
-        pool_total0 = int(distribution_data["token0_balance_in_pool"]) / (
-            10 ** int(distribution_data["token0_decimals"])
+        pool_total0 = int(campaign_data["token0_balance_in_pool"]) / (
+            10 ** int(hypervisor_status["pool"]["token0"]["decimals"])
         )
-        pool_total1 = int(distribution_data["token1_balance_in_pool"]) / (
-            10 ** int(distribution_data["token1_decimals"])
+        pool_total1 = int(campaign_data["token1_balance_in_pool"]) / (
+            10 ** int(hypervisor_status["pool"]["token1"]["decimals"])
         )
         pool_tvl_usd = pool_total0 * token0_price + pool_total1 * token1_price
 
         # check
         if (
-            distribution_data["propFees"] / 10000
-            + distribution_data["propToken0"] / 10000
-            + distribution_data["propToken1"] / 10000
+            campaign_data["campaignData"]["propFees"] / 10000
+            + campaign_data["campaignData"]["propToken0"] / 10000
+            + campaign_data["campaignData"]["propToken1"] / 10000
             != 1
         ):
             raise ValueError(
-                f" {distribution_data['token']} Angle Merkl distribution data is not valid for hypervisor {hypervisor_status['address']} at block {hypervisor_status['block']}. 'prop___' fields must sum 1. {distribution_data}"
+                f" {campaign_data['token']} Angle Merkl distribution data is not valid for hypervisor {hypervisor_status['address']} at block {hypervisor_status['block']}. 'prop___' fields must sum 1. {campaign_data}"
             )
 
         # reward x second
         reward_x_second_propFees = (
             (
                 calculations_data["reward_x_second"]
-                * (distribution_data["propFees"] / 10000)
+                * (campaign_data["campaignData"]["propFees"] / 10000)
             )
             * (rewarded_liquidity / pool_liquidity)
             if pool_liquidity
@@ -502,7 +534,7 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
         reward_x_second_propToken0 = (
             (
                 calculations_data["reward_x_second"]
-                * (distribution_data["propToken0"] / 10000)
+                * (campaign_data["campaignData"]["propToken0"] / 10000)
             )
             * (hypervisor_total0 / pool_total0)
             if pool_total0
@@ -511,7 +543,7 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
         reward_x_second_propToken1 = (
             (
                 calculations_data["reward_x_second"]
-                * (distribution_data["propToken1"] / 10000)
+                * (campaign_data["campaignData"]["propToken1"] / 10000)
             )
             * (hypervisor_total1 / pool_total1)
             if pool_total1
@@ -611,7 +643,7 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
                                     "underlying_token0":
                                     "underlying_token1":
                                 },
-                                distribution_data: {'token1_balance_in_pool':
+                                campaign_data: {'token1_balance_in_pool':
                                                     'token_symbol':
                                                     'token_decimals':
                                                     'epoch_duration':
@@ -675,13 +707,13 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
 
             for item in items_to_calc_apr:
                 # simplify price access
-                hype_token0_price = item["distribution_data"]["reward_calculations"][
+                hype_token0_price = item["campaign_data"]["reward_calculations"][
                     "token0_price"
                 ]
-                hype_token1_price = item["distribution_data"]["reward_calculations"][
+                hype_token1_price = item["campaign_data"]["reward_calculations"][
                     "token1_price"
                 ]
-                rewardToken_price = item["distribution_data"]["reward_calculations"][
+                rewardToken_price = item["campaign_data"]["reward_calculations"][
                     "rewardToken_price"
                 ]
 
@@ -698,14 +730,14 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
                     continue
 
                 # calculate price per share for each item using current prices
-                tvl = item["distribution_data"]["reward_calculations"]["hype_tvl_usd"]
+                tvl = item["campaign_data"]["reward_calculations"]["hype_tvl_usd"]
                 # tvl = (
                 #     item["hypervisor"]["underlying_token0"] * hype_token0_price
                 #     + item["hypervisor"]["underlying_token1"] * hype_token1_price
                 # )
 
                 # set price per share var ( the last will remain)
-                hypervisor_share_price_usd = item["distribution_data"][
+                hypervisor_share_price_usd = item["campaign_data"][
                     "reward_calculations"
                 ]["hype_price_per_share"]
 

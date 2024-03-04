@@ -30,7 +30,6 @@ from bins.w3.builders import (
     build_hypervisor,
     convert_dex_protocol,
 )
-from bins.w3.helpers.multicaller import build_call_with_abi_part, execute_parse_calls
 from bins.w3.protocols.camelot.rewarder import (
     camelot_rewards_nft_pool,
     camelot_rewards_nft_pool_master,
@@ -1152,60 +1151,60 @@ def create_rewards_static_merkl(
             },
         }
 
-        epoch_duration = distributor_creator.EPOCH_DURATION
-
-        # get all distributions from distribution list that match configured hype addresses
-        for index, distribution in enumerate(distributor_creator.getAllDistributions):
+        # get all campaigns from campaign list that match configured hype addresses
+        for index, campaign in enumerate(distributor_creator.get_all_campaigns()):
             # check reward token validity
             if not distributor_creator.isValid_reward_token(
-                reward_address=distribution["token"].lower()
+                reward_address=campaign["rewardToken"].lower()
             ):
                 # reward token not valid
                 logging.getLogger(__name__).debug(
-                    f" Reward token {distribution['token']} is not valid. Merkl reward index {index} will not be processed."
+                    f" Reward token {campaign['rewardToken']} is not valid. Merkl reward index {index} will not be processed."
                 )
                 continue
 
-            if distribution["pool"] in hype_pools:
+            if campaign["campaignData"]["pool"] in hype_pools:
                 # check token in ephemeral cache
-                if not distribution["token"].lower() in ephemeral_cache["tokens"]:
+                if not campaign["rewardToken"].lower() in ephemeral_cache["tokens"]:
                     logging.getLogger(__name__).debug(
-                        f" adding token {distribution['token']} in ephemeral cache"
+                        f" adding token {campaign['rewardToken']} in ephemeral cache"
                     )
                     # bc there is no token info in allDistributions, we need to get it from chain
                     tokenHelper = build_erc20_helper(
-                        chain=chain, address=distribution["token"].lower(), cached=True
+                        chain=chain,
+                        address=campaign["rewardToken"].lower(),
+                        cached=True,
                     )
                     token_symbol = tokenHelper.symbol
                     token_decimals = tokenHelper.decimals
-                    ephemeral_cache["tokens"][distribution["token"].lower()] = {
+                    ephemeral_cache["tokens"][campaign["rewardToken"].lower()] = {
                         "symbol": token_symbol,
                         "decimals": token_decimals,
                     }
 
                 # add rewards for each hype
-                for hype_address in hype_pools[distribution["pool"]]:
+                for hype_address in hype_pools[campaign["campaignData"]["pool"]]:
                     # build static reward data object
                     reward_data = {
                         "block": distributor_creator.block,
                         "timestamp": distributor_creator._timestamp,
                         "hypervisor_address": hype_address.lower(),
-                        "rewarder_address": distribution["rewardId"].lower(),
+                        "rewarder_address": campaign["campaignId"].lower(),
                         "rewarder_type": rewarderType.ANGLE_MERKLE,
                         "rewarder_refIds": [index],
                         "rewarder_registry": distributor_creator_address.lower(),
-                        "rewardToken": distribution["token"].lower(),
+                        "rewardToken": campaign["rewardToken"].lower(),
                         "rewardToken_symbol": ephemeral_cache["tokens"][
-                            distribution["token"].lower()
+                            campaign["rewardToken"].lower()
                         ]["symbol"],
                         "rewardToken_decimals": ephemeral_cache["tokens"][
-                            distribution["token"].lower()
+                            campaign["rewardToken"].lower()
                         ]["decimals"],
                         "rewards_perSecond": 0,  # TODO: remove this field from all static rewards
                         "total_hypervisorToken_qtty": 0,  # TODO: remove this field from all static rewards
-                        "start_rewards_timestamp": distribution["epochStart"],
-                        "end_rewards_timestamp": distribution["epochStart"]
-                        + (epoch_duration * distribution["numEpoch"]),
+                        "start_rewards_timestamp": campaign["startTimestamp"],
+                        "end_rewards_timestamp": campaign["startTimestamp"]
+                        + campaign["duration"],
                         # "raw_data": distribution,  # CAREFUL has >8bit int in total_amount
                     }
 

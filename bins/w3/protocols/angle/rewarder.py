@@ -1,5 +1,8 @@
 import logging
 from web3 import Web3
+from eth_abi import abi
+
+from bins.w3.helpers.multicaller import build_call_with_abi_part, execute_parse_calls
 from ....configuration import TOKEN_ADDRESS_EXCLUDE
 from ....general.enums import rewarderType, text_to_chain
 
@@ -135,8 +138,12 @@ class angle_merkle_distributor_creator(gamma_rewarder):
         custom_web3: Web3 | None = None,
         custom_web3Url: str | None = None,
     ):
-        self._abi_filename = abi_filename or "DistributionCreator_v2"
+        self._abi_filename = abi_filename or "DistributionCreator_v3"
         self._abi_path = abi_path or f"{self.abi_root_path}/angle"
+
+        # cache hour and base
+        self._HOUR = None
+        self._BASE_9 = None
 
         super().__init__(
             address=address,
@@ -152,17 +159,92 @@ class angle_merkle_distributor_creator(gamma_rewarder):
     @property
     def BASE_9(self) -> int:
         """Base for fee computation  (constant)"""
-        return self.call_function_autoRpc("BASE_9", None)
+        if not self._BASE_9:
+            self._BASE_9 = self.call_function_autoRpc("BASE_9", None)
+
+        return self._BASE_9
 
     @property
-    def EPOCH_DURATION(self) -> int:
-        """Epoch duration in seconds (constant)"""
-        return self.call_function_autoRpc("EPOCH_DURATION", None)
+    def CHAIN_ID(self) -> int:
+        """"""
+        return self.call_function_autoRpc("CHAIN_ID", None)
+
+    @property
+    def HOUR(self) -> int:
+        """Hour in seconds (constant)"""
+        if not self._HOUR:
+            self._HOUR = self.call_function_autoRpc("HOUR", None)
+        return self._HOUR
+
+    def _nonces(self, address: str) -> int:
+        """nonce for creating a distribution
+        Returns:
+
+        """
+        return self.call_function_autoRpc(
+            "_nonces", None, Web3.toChecksumAddress(address)
+        )
+
+    def _campaign(self, id) -> tuple:
+        """ """
+        return self.call_function_autoRpc("_campaign", None, id)
+
+    def campaignId(self, campaigndata: tuple):
+        """ """
+        return self.call_function_autoRpc("campaignId", None, campaigndata)
+
+    def campaignList(self, idx: int):
+        """ """
+        return self.format_campaign(
+            campaign_data=self.call_function_autoRpc("campaignList", None, idx)
+        )
+
+    def campaignLookup(self, campaignId) -> int:
+        """ """
+        return self.call_function_autoRpc("campaignLookup", None, campaignId)
+
+    def campaignSpecificFees(self, input) -> int:
+        """ """
+        return self.call_function_autoRpc("campaignSpecificFees", None, input)
 
     @property
     def core(self) -> str:
         """Core contract handling access control"""
         return self.call_function_autoRpc("core", None)
+
+    @property
+    def defaultFees(self) -> int:
+        """Value (in base 10**9) of the fees taken when creating a campaign"""
+        return self.call_function_autoRpc("defaultFees", None)
+
+    def distribution(self, id: int) -> tuple:
+        """Returns the distribution at a given index converted into a campaign
+
+        Args:
+            id (int): index
+        """
+        result = self.call_function_autoRpc("distribution", None, id)
+        return {
+            "campaignId": "0x" + result[0].hex(),
+            "creator": result[1],
+            "rewardToken": result[2],
+            "amount": result[3],
+            "campaignType": result[4],
+            "startTimestamp": result[5],
+            "duration": result[6],
+            "campaignData": result[7],
+        }
+        #           campaignData:
+        #                 distributionToConvert.uniV3Pool,
+        #                 distributionToConvert.propFees, // eg. 6000
+        #                 distributionToConvert.propToken0, // eg. 3000
+        #                 distributionToConvert.propToken1, // eg. 1000
+        #                 distributionToConvert.isOutOfRangeIncentivized, // eg. 0
+        #                 distributionToConvert.boostingAddress, // eg. NULL_ADDRESS
+        #                 distributionToConvert.boostedReward, // eg. 0
+        #                 whitelist, // eg. []
+        #                 blacklist, // eg. []
+        #                 "0x"
 
     def distributionList(self, id: int) -> tuple:
         """List of all rewards ever distributed or to be distributed in the contract
@@ -184,7 +266,7 @@ class angle_merkle_distributor_creator(gamma_rewarder):
                     additionalData bytes            Custom data specified by the distributor
 
         Returns:
-            int:
+
         """
         return self.call_function_autoRpc("distributionList", None, id)
 
@@ -208,188 +290,15 @@ class angle_merkle_distributor_creator(gamma_rewarder):
         """Address to which fees are forwarded"""
         return self.call_function_autoRpc("feeRecipient", None)
 
-    @property
-    def fees(self) -> int:
-        """Value (in base 10**9) of the fees taken when creating a distribution for a pool which do not have a whitelisted token in it"""
-        return self.call_function_autoRpc("fees", None)
-
-    @property
-    def getActiveDistributions(self) -> list[dict]:
-        """Returns the list of all currently active distributions on pools of supported AMMs
-
-        Returns:
-           list[dict]:[
-                   [
-                       rewardId    0xa922593be6d33b26bfad4d55a35c412b555d99e3bb8552397816a893e9fa4c2d,     -> ID ( rewardId= bytes32(keccak256(abi.encodePacked(msg.sender, senderNonce))) )
-                       POOL        0x8dB1b906d47dFc1D84A87fc49bd0522e285b98b9,                             -> POOL
-                       token       0x31429d1856aD1377A8A0079410B297e1a9e214c2,                             -> token
-                       totalAmount    423058392579202828719633,                                            -> totalAmount
-                       positionWrappers/wrapperContracts    0x3785Ce82be62a342052b9E5431e9D3a839cfB581,                           Vyper_contract
-                       wrapperTypes    3,                                                                   Type of the wrappers (...2=Gamma, 3=blacklisted addresses)
-                       propToken0    4000,                                                                   propToken0
-                       propToken1    2000,                                                                   propToken1
-                       propFees    4000,                                                                     propFees
-                       epochStart    1685577600,                                                             epochStart
-                       numEpoch    168,                                                                      numEpoch
-                       isOutOfRangeincentivized    0,                                                        isOutOfRangeincentivized
-                       boostedReward    25000,                                                              -> boostedReward
-                       boostedAddress    0x52701bFA0599db6db2b2476075D9a2f4Cb77DAe3,                        -> boostedAddress
-                       additionalData    0x,
-                       pool fee    500,                                                                       pool fee
-                       token0 contract    0x1a7e4e63778B4f12a199C062f3eFdD288afCBce8,                         agEUR token contract
-                       token0 decim     18,                                                                   agEUR decimals
-                       token0 symbol     agEUR,                                                               agEUR symbol
-                       token0 balance in pool     958630637523418638910027,                                   agEUR poolBalance
-                       token1 contract     0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,                        WETH token contract
-                       token1 decim     18,                                                                   WETH decimals
-                       token1 symbol    WETH,                                                                 WETH symbol
-                       token1 balance in pool    468051842301471649778,                                       WETH poolBalance
-                       tokenSymbol    ANGLE,                                                                 -> tokenSymbol
-                       tokenDecimals    18                                                                   -> tokenDecimals
-                   ], [...],
-                   ]
-        """
-
-        result = []
-        for raw_result in self.call_function_autoRpc("getActiveDistributions", None):
-            try:
-                result.append(self.convert_distribution_extended_tuple(raw_result))
-
-            except Exception as e:
-                logging.getLogger(__name__).exception(
-                    f"Error parsing getActiveDistributions: {e}"
-                )
-
-        return result
-
-    def getActivePoolDistributions(self, address: str) -> list[dict]:
-        """
-
-        Returns:
-            list[tuple]:[
-                    [
-                        rewardId    0xa922593be6d33b26bfad4d55a35c412b555d99e3bb8552397816a893e9fa4c2d,     -> ID ( rewardId= bytes32(keccak256(abi.encodePacked(msg.sender, senderNonce))) )
-                        POOL        0x8dB1b906d47dFc1D84A87fc49bd0522e285b98b9,                             -> POOL
-                        token       0x31429d1856aD1377A8A0079410B297e1a9e214c2,                             -> token
-                        totalAmount    423058392579202828719633,                                            -> totalAmount
-                        wrapperContracts    0x3785Ce82be62a342052b9E5431e9D3a839cfB581,                           Vyper_contract
-                        wrapperTypes    3,
-                        propToken0    4000,                                                                   propToken0
-                        propToken1    2000,                                                                   propToken1
-                        propFees    4000,                                                                     propFees
-                        epochStart    1685577600,                                                             epochStart
-                        numEpoch    168,                                                                      numEpoch
-                        isOutOfRangeincentivized    0,                                                        isOutOfRangeincentivized
-                        boostedReward    25000,                                                              -> boostedReward
-                        boostedAddress    0x52701bFA0599db6db2b2476075D9a2f4Cb77DAe3,                        -> boostedAddress
-                        additionalData    0x,
-                        pool fee    500,                                                                       pool fee
-                        token0 contract    0x1a7e4e63778B4f12a199C062f3eFdD288afCBce8,                         agEUR token contract
-                        token0 decim     18,                                                                   agEUR decimals
-                        token0 symbol     agEUR,                                                               agEUR symbol
-                        token0 balance in pool     958630637523418638910027,                                   agEUR poolBalance
-                        token1 contract     0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,                        WETH token contract
-                        token1 decim     18,                                                                   WETH decimals
-                        token1 symbol    WETH,                                                                 WETH symbol
-                        token1 balance in pool    468051842301471649778,                                       WETH poolBalance
-                        tokenSymbol    ANGLE,                                                                 -> tokenSymbol
-                        tokenDecimals    18                                                                   -> tokenDecimals
-                    ], [...],
-                    ]
-        """
-        result = []
-        for raw_result in self.call_function_autoRpc(
-            "getActivePoolDistributions", None, Web3.toChecksumAddress(address)
-        ):
-            try:
-                result.append(self.convert_distribution_extended_tuple(raw_result))
-
-            except Exception as e:
-                logging.getLogger(__name__).exception(
-                    f"Error parsing getActiveDistributions: {e}"
-                )
-
-        return result
-
-    # TODO: getActivePoolDistributions(self, address,skip,first )...
-
-    @property
-    def getAllDistributions(self) -> list[dict]:
-        """Returns the list of all distributions ever made or to be done in the future
-        Returns:
-            list[tuple]:[
-                    [
-                        rewardId    0xa922593be6d33b26bfad4d55a35c412b555d99e3bb8552397816a893e9fa4c2d,
-                        POOL        0x8dB1b906d47dFc1D84A87fc49bd0522e285b98b9,
-                        token       0x31429d1856aD1377A8A0079410B297e1a9e214c2,
-                        totalAmount    423058392579202828719633,
-                        wrapperContracts    0x3785Ce82be62a342052b9E5431e9D3a839cfB581,
-                        wrapperTypes    3,
-                        propToken0    4000,
-                        propToken1    2000,
-                        propFees    4000,
-                        epochStart    1685577600,
-                        numEpoch    168,
-                        isOutOfRangeincentivized    0,
-                        boostedReward    25000,
-                        boostedAddress    0x52701bFA0599db6db2b2476075D9a2f4Cb77DAe3,
-                        additionalData    0x,
-                    ], [...],
-                    ]
-        """
-        result = []
-        for raw_result in self.call_function_autoRpc("getAllDistributions", None):
-            try:
-                result.append(self.convert_distribution_base_tuple(raw_result))
-
-            except Exception as e:
-                logging.getLogger(__name__).exception(
-                    f"Error parsing getActiveDistributions: {e}"
-                )
-
-        return result
-
-    def getDistributionsAfterEpoch(self, epochStart: int) -> list[tuple]:
-        """Returns the list of all distributions that were or will be live after `epochStart` (included)
-
-        Returns:
-           list[tuple]:[
-                   [
-                       rewardId    0xa922593be6d33b26bfad4d55a35c412b555d99e3bb8552397816a893e9fa4c2d,     -> ID ( rewardId= bytes32(keccak256(abi.encodePacked(msg.sender, senderNonce))) )
-                       POOL        0x8dB1b906d47dFc1D84A87fc49bd0522e285b98b9,                             -> POOL
-                       token       0x31429d1856aD1377A8A0079410B297e1a9e214c2,                             -> token
-                       totalAmount    423058392579202828719633,                                            -> totalAmount
-                        wrapperContracts    0x3785Ce82be62a342052b9E5431e9D3a839cfB581,
-                        wrapperTypes    3,
-                       propToken0    4000,                                                                   propToken0
-                       propToken1    2000,                                                                   propToken1
-                       propFees    4000,                                                                     propFees
-                       epochStart    1685577600,                                                             epochStart
-                       numEpoch    168,                                                                      numEpoch
-                       isOutOfRangeincentivized    0,                                                        isOutOfRangeincentivized
-                       boostedReward    25000,                                                              -> boostedReward
-                       boostedAddress    0x52701bFA0599db6db2b2476075D9a2f4Cb77DAe3,                        -> boostedAddress
-                       additionalData    0x,
-                       pool fee    500,                                                                       pool fee
-                       token0 contract    0x1a7e4e63778B4f12a199C062f3eFdD288afCBce8,                         agEUR token contract
-                       token0 decim     18,                                                                   agEUR decimals
-                       token0 symbol     agEUR,                                                               agEUR symbol
-                       token0 balance in pool     958630637523418638910027,                                   agEUR poolBalance
-                       token1 contract     0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,                        WETH token contract
-                       token1 decim     18,                                                                   WETH decimals
-                       token1 symbol    WETH,                                                                 WETH symbol
-                       token1 balance in pool    468051842301471649778,                                       WETH poolBalance
-                       tokenSymbol    ANGLE,                                                                 -> tokenSymbol
-                       tokenDecimals    18                                                                   -> tokenDecimals
-                   ], [...],
-                   ]
-        """
-        return self.call_function_autoRpc(
-            "getDistributionsAfterEpoch", None, epochStart
+    def getCampaignsBetween(self, start: int, end: int, skip: int, first: int) -> tuple:
+        """ """
+        tmp = self.call_function_autoRpc(
+            "getCampaignsBetween", None, start, end, skip, first
         )
+        return [self.format_campaign(campaign_data=x) for x in tmp[0]]
 
     def getDistributionsBetweenEpochs(
-        self, epochStart: int, epochEnd: int
+        self, epochStart: int, epochEnd: int, skip: int, first: int
     ) -> list[tuple]:
         """Gets the list of all the distributions that have been active between `epochStart` and `epochEnd` (excluded)
             Conversely, if a distribution starts after `epochStart` and ends before `epochEnd`, it is returned by this function
@@ -426,166 +335,7 @@ class angle_merkle_distributor_creator(gamma_rewarder):
                   ]
         """
         return self.call_function_autoRpc(
-            "getDistributionsBetweenEpochs", None, epochStart, epochEnd
-        )
-
-    def getDistributionsForEpoch(self, epoch: int) -> list[tuple]:
-        """Returns the list of all the distributions that were or that are going to be live at a specific epoch
-
-        Returns:
-           list[tuple]:[
-                   [
-                       rewardId    0xa922593be6d33b26bfad4d55a35c412b555d99e3bb8552397816a893e9fa4c2d,     -> ID ( rewardId= bytes32(keccak256(abi.encodePacked(msg.sender, senderNonce))) )
-                       POOL        0x8dB1b906d47dFc1D84A87fc49bd0522e285b98b9,                             -> POOL
-                       token       0x31429d1856aD1377A8A0079410B297e1a9e214c2,                             -> token
-                       totalAmount    423058392579202828719633,                                            -> totalAmount
-                        wrapperContracts    0x3785Ce82be62a342052b9E5431e9D3a839cfB581,
-                        wrapperTypes    3,
-                       propToken0    4000,                                                                   propToken0
-                       propToken1    2000,                                                                   propToken1
-                       propFees    4000,                                                                     propFees
-                       epochStart    1685577600,                                                             epochStart
-                       numEpoch    168,                                                                      numEpoch
-                       isOutOfRangeincentivized    0,                                                        isOutOfRangeincentivized
-                       boostedReward    25000,                                                              -> boostedReward
-                       boostedAddress    0x52701bFA0599db6db2b2476075D9a2f4Cb77DAe3,                        -> boostedAddress
-                       additionalData    0x,
-                       pool fee    500,                                                                       pool fee
-                       token0 contract    0x1a7e4e63778B4f12a199C062f3eFdD288afCBce8,                         agEUR token contract
-                       token0 decim     18,                                                                   agEUR decimals
-                       token0 symbol     agEUR,                                                               agEUR symbol
-                       token0 balance in pool     958630637523418638910027,                                   agEUR poolBalance
-                       token1 contract     0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,                        WETH token contract
-                       token1 decim     18,                                                                   WETH decimals
-                       token1 symbol    WETH,                                                                 WETH symbol
-                       token1 balance in pool    468051842301471649778,                                       WETH poolBalance
-                       tokenSymbol    ANGLE,                                                                 -> tokenSymbol
-                       tokenDecimals    18                                                                   -> tokenDecimals
-                   ], [...],
-                   ]
-        """
-        return self.call_function_autoRpc("getDistributionsForEpoch", None, epoch)
-
-    def getPoolDistributionsAfterEpoch(
-        self, pool_address: str, epochStart: int
-    ) -> list[tuple]:
-        """Returns the list of all distributions that were or will be live after `epochStart` (included) for a specific pool
-        Returns:
-         list[tuple]:[
-                 [
-                     rewardId    0xa922593be6d33b26bfad4d55a35c412b555d99e3bb8552397816a893e9fa4c2d,     -> ID ( rewardId= bytes32(keccak256(abi.encodePacked(msg.sender, senderNonce))) )
-                     POOL        0x8dB1b906d47dFc1D84A87fc49bd0522e285b98b9,                             -> POOL
-                     token       0x31429d1856aD1377A8A0079410B297e1a9e214c2,                             -> token
-                     totalAmount    423058392579202828719633,                                            -> totalAmount
-                     wrapperContracts    0x3785Ce82be62a342052b9E5431e9D3a839cfB581,
-                        wrapperTypes    3,
-                     propToken0    4000,                                                                   propToken0
-                     propToken1    2000,                                                                   propToken1
-                     propFees    4000,                                                                     propFees
-                     epochStart    1685577600,                                                             epochStart
-                     numEpoch    168,                                                                      numEpoch
-                     isOutOfRangeincentivized    0,                                                        isOutOfRangeincentivized
-                     boostedReward    25000,                                                              -> boostedReward
-                     boostedAddress    0x52701bFA0599db6db2b2476075D9a2f4Cb77DAe3,                        -> boostedAddress
-                     additionalData    0x,
-                     pool fee    500,                                                                       pool fee
-                     token0 contract    0x1a7e4e63778B4f12a199C062f3eFdD288afCBce8,                         agEUR token contract
-                     token0 decim     18,                                                                   agEUR decimals
-                     token0 symbol     agEUR,                                                               agEUR symbol
-                     token0 balance in pool     958630637523418638910027,                                   agEUR poolBalance
-                     token1 contract     0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,                        WETH token contract
-                     token1 decim     18,                                                                   WETH decimals
-                     token1 symbol    WETH,                                                                 WETH symbol
-                     token1 balance in pool    468051842301471649778,                                       WETH poolBalance
-                     tokenSymbol    ANGLE,                                                                 -> tokenSymbol
-                     tokenDecimals    18                                                                   -> tokenDecimals
-                 ], [...],
-                 ]
-        """
-        return self.call_function_autoRpc(
-            "getPoolDistributionsAfterEpoch",
-            None,
-            Web3.toChecksumAddress(pool_address),
-            epochStart,
-        )
-
-    def getPoolDistributionsBetweenEpochs(
-        self, pool_address: str, epochStart: int, epochEnd: int
-    ) -> list[tuple]:
-        """Returns the list of all distributions that were or will be live between `epochStart` (included) and `epochEnd` (excluded) for a specific pool
-        Returns:
-          list[tuple]:[
-                  [
-                      rewardId    0xa922593be6d33b26bfad4d55a35c412b555d99e3bb8552397816a893e9fa4c2d,     -> ID ( rewardId= bytes32(keccak256(abi.encodePacked(msg.sender, senderNonce))) )
-                      POOL        0x8dB1b906d47dFc1D84A87fc49bd0522e285b98b9,                             -> POOL
-                      token       0x31429d1856aD1377A8A0079410B297e1a9e214c2,                             -> token
-                      totalAmount    423058392579202828719633,                                            -> totalAmount
-                       wrapperContracts    0x3785Ce82be62a342052b9E5431e9D3a839cfB581,
-                        wrapperTypes    3,
-                      propToken0    4000,                                                                   propToken0
-                      propToken1    2000,                                                                   propToken1
-                      propFees    4000,                                                                     propFees
-                      epochStart    1685577600,                                                             epochStart
-                      numEpoch    168,                                                                      numEpoch
-                      isOutOfRangeincentivized    0,                                                        isOutOfRangeincentivized
-                      boostedReward    25000,                                                              -> boostedReward
-                      boostedAddress    0x52701bFA0599db6db2b2476075D9a2f4Cb77DAe3,                        -> boostedAddress
-             getDistributionsBetweenEpochs         token1 balance in pool    468051842301471649778,                                       WETH poolBalance
-                      tokenSymbol    ANGLE,                                                                 -> tokenSymbol
-                      tokenDecimals    18                                                                   -> tokenDecimals
-                  ], [...],
-                  ]
-        """
-        return self.call_function_autoRpc(
-            "getPoolDistributionsBetweenEpochs",
-            None,
-            Web3.toChecksumAddress(pool_address),
-            epochStart,
-            epochEnd,
-        )
-
-    def getPoolDistributionsForEpoch(
-        self, pool_address: str, epoch: int
-    ) -> list[tuple]:
-        """Returns the list of all the distributions that were or that are going to be live at a specific epoch and for a specific pool
-
-        Returns:
-           list[tuple]:[
-                   [
-                       rewardId    0xa922593be6d33b26bfad4d55a35c412b555d99e3bb8552397816a893e9fa4c2d,     -> ID ( rewardId= bytes32(keccak256(abi.encodePacked(msg.sender, senderNonce))) )
-                       POOL        0x8dB1b906d47dFc1D84A87fc49bd0522e285b98b9,                             -> POOL
-                       token       0x31429d1856aD1377A8A0079410B297e1a9e214c2,                             -> token
-                       totalAmount    423058392579202828719633,                                            -> totalAmount
-                       wrapperContracts    0x3785Ce82be62a342052b9E5431e9D3a839cfB581,
-                        wrapperTypes    3,
-                       propToken0    4000,                                                                   propToken0
-                       propToken1    2000,                                                                   propToken1
-                       propFees    4000,                                                                     propFees
-                       epochStart    1685577600,                                                             epochStart
-                       numEpoch    168,                                                                      numEpoch
-                       isOutOfRangeincentivized    0,                                                        isOutOfRangeincentivized
-                       boostedReward    25000,                                                              -> boostedReward
-                       boostedAddress    0x52701bFA0599db6db2b2476075D9a2f4Cb77DAe3,                        -> boostedAddress
-                       additionalData    0x,
-                       pool fee    500,                                                                       pool fee
-                       token0 contract    0x1a7e4e63778B4f12a199C062f3eFdD288afCBce8,                         agEUR token contract
-                       token0 decim     18,                                                                   agEUR decimals
-                       token0 symbol     agEUR,                                                               agEUR symbol
-                       token0 balance in pool     958630637523418638910027,                                   agEUR poolBalance
-                       token1 contract     0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,                        WETH token contract
-                       token1 decim     18,                                                                   WETH decimals
-                       token1 symbol    WETH,                                                                 WETH symbol
-                       token1 balance in pool    468051842301471649778,                                       WETH poolBalance
-                       tokenSymbol    ANGLE,                                                                 -> tokenSymbol
-                       tokenDecimals    18                                                                   -> tokenDecimals
-                   ], [...],
-                   ]
-        """
-        return self.call_function_autoRpc(
-            "getPoolDistributionsForEpoch",
-            None,
-            Web3.toChecksumAddress(pool_address),
-            epoch,
+            "getDistributionsBetweenEpochs", None, epochStart, epochEnd, skip, first
         )
 
     @property
@@ -595,6 +345,13 @@ class angle_merkle_distributor_creator(gamma_rewarder):
 
         """
         return self.call_function_autoRpc("getValidRewardTokens", None)
+
+    def getValidRewardTokens2(self, skip: int, first: int) -> list[tuple[str, int]]:
+        """Returns the list of all the reward tokens supported as well as their minimum amounts
+        Returns: list[tuple[token address, minimum amount]]
+
+        """
+        return self.call_function_autoRpc("getValidRewardTokens", None, skip, first)
 
     def isWhitelistedToken(self, address: str) -> int:
         """token to whether it is whitelisted or not. No fees are to be paid for incentives given on pools with whitelisted tokens
@@ -615,14 +372,10 @@ class angle_merkle_distributor_creator(gamma_rewarder):
         """Hash of the message that needs to be signed by users creating a distribution"""
         return self.call_function_autoRpc("messageHash", None)
 
-    def nonces(self, address: str) -> int:
-        """nonce for creating a distribution
-        Returns:
-
-        """
-        return self.call_function_autoRpc(
-            "nonces", None, Web3.toChecksumAddress(address)
-        )
+    @property
+    def proxiableUUID(self) -> str:
+        """"""
+        return self.call_function_autoRpc("proxiableUUID", None)
 
     def rewardTokenMinAmounts(self, address: str) -> int:
         """token to the minimum amount that must be sent per epoch for a distribution to be valid if `rewardTokenMinAmounts[token] == 0`, then `token` cannot be used as a reward
@@ -654,87 +407,356 @@ class angle_merkle_distributor_creator(gamma_rewarder):
 
     # custom functions
 
-    def convert_distribution_base_tuple(self, raw_data: tuple) -> dict:
+    def format_campaign(self, campaign_data: list) -> dict:
+        # decode the campaign data field
+        _data_decoded = abi.decode(
+            [
+                "address",
+                "uint32",
+                "uint32",
+                "uint32",
+                "uint32",
+                "address",
+                "uint32",
+                "address[]",
+                "address[]",
+                "bytes",
+            ],
+            campaign_data[7],
+        )
+        # return result
         return {
-            "rewardId": "0x" + raw_data[0].hex(),
-            "pool": raw_data[1].lower(),
-            "token": raw_data[2].lower(),
-            "totalAmount": raw_data[3],
-            "wraper_contracts": raw_data[4],
-            "wraper_type": raw_data[5],
-            "propToken0": raw_data[6],
-            "propToken1": raw_data[7],
-            "propFees": raw_data[8],
-            "epochStart": raw_data[9],
-            "numEpoch": raw_data[10],
-            "isOutOfRangeincentivized": raw_data[11],
-            "boostedReward": raw_data[12],
-            "boostedAddress": raw_data[13],
-            "additionalData": "0x" + raw_data[14].hex(),
+            "campaignId": "0x" + campaign_data[0].hex(),
+            "creator": campaign_data[1].lower(),
+            "rewardToken": campaign_data[2].lower(),
+            "amount": campaign_data[3],
+            "campaignType": campaign_data[4],
+            "startTimestamp": campaign_data[5],
+            "duration": campaign_data[6],
+            "campaignData": {
+                "pool": _data_decoded[0].lower(),
+                "propFees": _data_decoded[1],
+                "propToken0": _data_decoded[2],
+                "propToken1": _data_decoded[3],
+                "isOutOfRangeIncentivized": _data_decoded[4],
+                "boostingAddress": _data_decoded[5].lower(),
+                "boostedReward": _data_decoded[6],
+                "whitelist": _data_decoded[7],
+                "blacklist": _data_decoded[8],
+                "extra": _data_decoded[9],
+            },
         }
 
-    def convert_distribution_extended_tuple(self, raw_data: tuple) -> dict:
-        """Converts the raw data from the getDistributionsBetweenEpochs function into a dictionary"""
+    def get_all_distributions(
+        self,
+        multicall: bool = True,
+        max_index: int = 10000,
+        max_calls_atOnce: int = 100,
+    ) -> list[tuple]:
+        result = []
 
-        result = self.convert_distribution_base_tuple(raw_data[0])
-        result.update(
-            {
-                "pool_fee": raw_data[1],
-                "token0_contract": raw_data[2][0].lower(),
-                "token0_decimals": raw_data[2][1],
-                "token0_symbol": raw_data[2][2],
-                "token0_balance_in_pool": raw_data[2][3],
-                "token1_contract": raw_data[3][0].lower(),
-                "token1_decimals": raw_data[3][1],
-                "token1_symbol": raw_data[3][2],
-                "token1_balance_in_pool": raw_data[3][3],
-                "token_symbol": raw_data[4],
-                "token_decimals": raw_data[5],
-            }
-        )
+        if multicall:
+            # create all calls
+            _calls = [
+                build_call_with_abi_part(
+                    abi_part=self.get_abi_function("distributionList"),
+                    inputs_values=[i],
+                    address=self.address,
+                    object="merkl_distributor",
+                )
+                for i in range(0, max_index)
+            ]
+
+            logging.getLogger(__name__).info(
+                f" {self._network}: {len(_calls)} fn calls will be executed for {self._address} angle merkl distributor, meaning that will be splited in {round(len(_calls)/max_calls_atOnce):,.0f} batches of {max_calls_atOnce} function calls, for each web3 call to RPC."
+            )
+
+            # execute multicall in batches
+            for i in range(0, len(_calls), max_calls_atOnce):
+                # get multicall data
+                _tmp_multicall_data = execute_parse_calls(
+                    network=self._network,
+                    block=self.block,
+                    calls=_calls[i : i + max_calls_atOnce],
+                    convert_bint=False,
+                    requireSuccess=False,
+                    timestamp=self._timestamp,
+                )
+                # convert and add temporary data to multicall_result
+                _errors = 0
+                for itm in _tmp_multicall_data:
+                    if not itm["outputs"]:
+                        logging.getLogger(__name__).debug(
+                            f" Bruteforce index multicall stopped bc no results found in a call."
+                        )
+                        _errors += max_calls_atOnce
+                        break
+                    try:
+                        result.append(
+                            {
+                                "rewardId": "0x" + itm["outputs"][0]["value"].hex(),
+                                "pool": itm["outputs"][1]["value"],
+                                "rewardToken": itm["outputs"][2]["value"],
+                                "amount": itm["outputs"][3]["value"],
+                                "propToken0": itm["outputs"][4]["value"],
+                                "propToken1": itm["outputs"][5]["value"],
+                                "propFees": itm["outputs"][6]["value"],
+                                "epochStart": itm["outputs"][7]["value"],
+                                "numEpoch": itm["outputs"][8]["value"],
+                                "isOutOfRangeIncetivized": itm["outputs"][9]["value"],
+                                "boostedReward": itm["outputs"][10]["value"],
+                                "boostingAddress": itm["outputs"][11]["value"],
+                                "additionalData": "0x"
+                                + itm["outputs"][12]["value"].hex(),
+                            }
+                        )
+                    except Exception as e:
+                        _errors += 1
+                        # abort on too many errors
+                        if _errors >= max_calls_atOnce * 0.10:
+                            logging.getLogger(__name__).debug(
+                                f" Bruteforce index multicall stopped bc no more results found in a loop"
+                            )
+                            break
+
+                if _errors >= max_calls_atOnce * 0.10:
+                    break
+
+        else:
+            logging.getLogger(__name__).debug(
+                f" Getting all distributions from {self.address} using single calls"
+            )
+            for i in range(0, max_index):
+                try:
+                    itm = self.distributionList(i)
+                    result.append(
+                        {
+                            "rewardId": "0x" + itm["outputs"][0]["value"].hex(),
+                            "pool": itm["outputs"][1]["value"],
+                            "rewardToken": itm["outputs"][2]["value"],
+                            "amount": itm["outputs"][3]["value"],
+                            "propToken0": itm["outputs"][4]["value"],
+                            "propToken1": itm["outputs"][5]["value"],
+                            "propFees": itm["outputs"][6]["value"],
+                            "epochStart": itm["outputs"][7]["value"],
+                            "numEpoch": itm["outputs"][8]["value"],
+                            "isOutOfRangeIncetivized": itm["outputs"][9]["value"],
+                            "boostedReward": itm["outputs"][10]["value"],
+                            "boostingAddress": itm["outputs"][11]["value"],
+                            "additionalData": "0x" + itm["outputs"][12]["value"].hex(),
+                        }
+                    )
+                    # result += self.distributionList(i)
+                except Exception as e:
+                    break
+
         return result
 
-        # return {
-        #     "rewardId": "0x" + raw_data[0][0].hex(),
-        #     "pool": raw_data[0][1].lower(),
-        #     "token": raw_data[0][2].lower(),
-        #     "totalAmount": raw_data[0][3],
-        #     "wraper_contracts": raw_data[0][4],
-        #     "wraper_type": raw_data[0][5],
-        #     "propToken0": raw_data[0][6],
-        #     "propToken1": raw_data[0][7],
-        #     "propFees": raw_data[0][8],
-        #     "epochStart": raw_data[0][9],
-        #     "numEpoch": raw_data[0][10],
-        #     "isOutOfRangeincentivized": raw_data[0][11],
-        #     "boostedReward": raw_data[0][12],
-        #     "boostedAddress": raw_data[0][13],
-        #     "additionalData": "0x" + raw_data[0][14].hex(),
-        #     "pool_fee": raw_data[1],
-        #     "token0_contract": raw_data[2][0].lower(),
-        #     "token0_decimals": raw_data[2][1],
-        #     "token0_symbol": raw_data[2][2],
-        #     "token0_balance_in_pool": raw_data[2][3],
-        #     "token1_contract": raw_data[3][0].lower(),
-        #     "token1_decimals": raw_data[3][1],
-        #     "token1_symbol": raw_data[3][2],
-        #     "token1_balance_in_pool": raw_data[3][3],
-        #     "token_symbol": raw_data[4],
-        #     "token_decimals": raw_data[5],
-        # }
+    def get_all_campaigns(
+        self,
+        multicall: bool = True,
+        max_index: int = 10000,
+        max_calls_atOnce: int = 100,
+    ) -> list[dict]:
+        """Get all campaigns
+
+        Args:
+            multicall (bool, optional): _description_. Defaults to True.
+            max_index (int, optional): _description_. Defaults to 10000.
+            max_calls_atOnce (int, optional): _description_. Defaults to 100.
+
+        Returns:
+            list[dict]: [ {
+                    "campaignId":
+                    "creator": str
+                    "rewardToken": str
+                    "amount": int
+                    "campaignType": int
+                    "startTimestamp": int
+                    "duration": int
+                    "campaignData": {
+                        "pool": str
+                        "propFees": int
+                        "propToken0": int
+                        "propToken1": int
+                        "isOutOfRangeIncentivized":
+                        "boostingAddress": str
+                        "boostedReward":
+                        "whitelist": list[str]
+                        "blacklist": list[str]
+                        "extra":
+                    },
+            ]
+        """
+        result = []
+
+        if multicall:
+            # create all calls
+            _calls = [
+                build_call_with_abi_part(
+                    abi_part=self.get_abi_function("campaignList"),
+                    inputs_values=[i],
+                    address=self.address,
+                    object="merkl_distributor",
+                )
+                for i in range(0, max_index)
+            ]
+
+            logging.getLogger(__name__).info(
+                f" {self._network}: {len(_calls)} fn calls will be executed for {self._address} angle merkl distributor, meaning that will be splited in {round(len(_calls)/max_calls_atOnce):,.0f} batches of {max_calls_atOnce} function calls, for each web3 call to RPC."
+            )
+
+            # execute multicall in batches
+            for i in range(0, len(_calls), max_calls_atOnce):
+                # get multicall data
+                _tmp_multicall_data = execute_parse_calls(
+                    network=self._network,
+                    block=self.block,
+                    calls=_calls[i : i + max_calls_atOnce],
+                    convert_bint=False,
+                    requireSuccess=False,
+                    timestamp=self._timestamp,
+                )
+                # convert and add temporary data to multicall_result
+                _errors = 0
+                for itm in _tmp_multicall_data:
+                    if not itm["outputs"]:
+                        logging.getLogger(__name__).debug(
+                            f" Bruteforce index multicall stopped bc no results found in a call."
+                        )
+                        _errors += max_calls_atOnce
+                        break
+                    try:
+                        result.append(
+                            self.format_campaign(
+                                campaign_data=[
+                                    itm["outputs"][i]["value"] for i in range(8)
+                                ]
+                            )
+                        )
+                    except Exception as e:
+                        _errors += 1
+                        # abort on too many errors
+                        if _errors >= max_calls_atOnce * 0.10:
+                            logging.getLogger(__name__).debug(
+                                f" Bruteforce index multicall stopped bc no more results found in a loop"
+                            )
+                            break
+
+                if _errors >= max_calls_atOnce * 0.10:
+                    break
+
+        else:
+            logging.getLogger(__name__).debug(
+                f" Getting all campaigns from {self.address} using single calls"
+            )
+            for i in range(0, max_index):
+                try:
+                    itm = self.distributionList(i)
+                    result.append(
+                        self.format_campaign(
+                            campaign_data=[itm["outputs"][i]["value"] for i in range(8)]
+                        )
+                    )
+                except Exception as e:
+                    break
+
+        return result
+
+    def get_active_campaigns_manual(self, pool_address: str | None = None):
+        """Get all active campaigns using a manual loop
+
+        Args:
+            pool_address (str | None, optional): pool filter . Defaults to None.
+
+        Yields:
+            {
+                    "campaignId":
+                    "creator": str
+                    "rewardToken": str
+                    "amount": int
+                    "campaignType": int
+                    "startTimestamp": int
+                    "duration": int
+                    "campaignData": {
+                        "pool": str
+                        "propFees": int
+                        "propToken0": int
+                        "propToken1": int
+                        "isOutOfRangeIncentivized":
+                        "boostingAddress": str
+                        "boostedReward":
+                        "whitelist": list[str]
+                        "blacklist": list[str]
+                        "extra":
+                    }
+        """
+
+        for campaign in self.get_all_campaigns():
+            # check if address is valid
+            if (
+                not pool_address
+                or campaign["campaignData"]["pool"].lower() == pool_address
+            ):
+                # check if distribution is still active
+                if (
+                    campaign["startTimestamp"] + campaign["duration"]
+                ) > self._timestamp:
+                    yield campaign
+
+    def get_active_campaigns(self, pool_address: str | None = None):
+        """Get all active campaigns ( uses getCampaignsBetween)
+
+        Args:
+            pool_address (str | None, optional): pool filter . Defaults to None.
+
+        Yields:
+            {
+                    "campaignId":
+                    "creator": str
+                    "rewardToken": str
+                    "amount": int
+                    "campaignType": int
+                    "startTimestamp": int
+                    "duration": int
+                    "campaignData": {
+                        "pool": str
+                        "propFees": int
+                        "propToken0": int
+                        "propToken1": int
+                        "isOutOfRangeIncentivized":
+                        "boostingAddress": str
+                        "boostedReward":
+                        "whitelist": list[str]
+                        "blacklist": list[str]
+                        "extra":
+                    }
+        """
+
+        for campaign in self.getCampaignsBetween(
+            start=self._timestamp,
+            end=int(self._timestamp + 3600 * 24 * 365),
+            skip=0,
+            first=10000,
+        ):
+            # check if address is valid
+            if (
+                not pool_address
+                or campaign["campaignData"]["pool"].lower() == pool_address
+            ):
+                yield campaign
 
     def construct_reward_data(
         self,
-        distribution_data: dict,
+        campaign_data: dict,
         hypervisor_address: str,
         total_hypervisorToken_qtty: int | None = None,
-        epoch_duration: int | None = None,
         convert_bint: bool = False,
     ) -> dict:
-        """
+        """Will not return token symbol and decimals ! and total hype qtty when not set..
 
         Args:
-            distribution_data (dict): _description_
+            campaign_data (dict):
             hypervisor_address (str): _description_
             total_hypervisorToken_qtty (int | None, optional): zero as default
             epoch_duration (int | None, optional): _description_. Defaults to None.
@@ -745,9 +767,8 @@ class angle_merkle_distributor_creator(gamma_rewarder):
         """
 
         # calculate rewards per second
-        rewardsPerSec = distribution_data["totalAmount"] / (
-            distribution_data["numEpoch"] * (epoch_duration or self.EPOCH_DURATION)
-        )
+        rewardsPerSec = campaign_data["amount"] / campaign_data["duration"]
+
         # total hype qtty
         total_hypervisorToken_qtty = total_hypervisorToken_qtty or 0
 
@@ -759,13 +780,15 @@ class angle_merkle_distributor_creator(gamma_rewarder):
             "rewarder_type": rewarderType.ANGLE_MERKLE,
             "rewarder_refIds": [],
             "rewarder_registry": self.address.lower(),
-            "rewardToken": distribution_data["token"].lower(),
-            "rewardToken_symbol": distribution_data["token_symbol"],
-            "rewardToken_decimals": distribution_data["token_decimals"],
+            "rewardToken": campaign_data["rewardToken"].lower(),
+            "rewardToken_symbol": "",
+            "rewardToken_decimals": "",
             "rewards_perSecond": str(rewardsPerSec) if convert_bint else rewardsPerSec,
-            "total_hypervisorToken_qtty": str(total_hypervisorToken_qtty)
-            if convert_bint
-            else total_hypervisorToken_qtty,
+            "total_hypervisorToken_qtty": (
+                str(total_hypervisorToken_qtty)
+                if convert_bint
+                else total_hypervisorToken_qtty
+            ),
         }
 
     def isValid_reward_token(self, reward_address: str) -> bool:
@@ -789,11 +812,8 @@ class angle_merkle_distributor_creator(gamma_rewarder):
 
     def isBlacklisted(self, reward_data: dict, hypervisor_address: str) -> bool:
         try:
-            for idx, address in enumerate(reward_data["wraper_contracts"]):
-                if (
-                    address.lower() == hypervisor_address.lower()
-                    and reward_data["wraper_type"][idx] == 3
-                ):
+            for address in reward_data["campaignData"]["blacklist"]:
+                if address.lower() == hypervisor_address.lower():
                     return True
         except Exception as e:
             logging.getLogger(__name__).exception(
@@ -804,7 +824,7 @@ class angle_merkle_distributor_creator(gamma_rewarder):
 
     def _getRoundedEpoch(self, epoch: int, epoch_duration: int | None = None) -> int:
         """Rounds an `epoch` timestamp to the start of the corresponding period"""
-        epoch_duration = epoch_duration or self.EPOCH_DURATION
+        epoch_duration = epoch_duration or self.HOUR
         return (epoch / epoch_duration) * epoch_duration
 
     # get all rewards
@@ -836,18 +856,25 @@ class angle_merkle_distributor_creator(gamma_rewarder):
         """
         result = []
 
-        # save for later use
-        _epoch_duration = self.EPOCH_DURATION
-        # roundEpoch -> (epoch / EPOCH_DURATION) * EPOCH_DURATION;
-        # is live? -> (distributionEpochStart + distribution.numEpoch * EPOCH_DURATION > roundedEpochStart &&  distributionEpochStart < roundedEpochEnd)
-
         if hypervisors_pools:
+
+            # create a list of pools
+            _pools_list = [x[1] for x in hypervisors_pools]
+            # get all active campaigns
+            _active_campaigns = [x for x in self.get_active_campaigns()]
+
+            # iterate over hypervisors pools
             for hypervisor, pool_address in hypervisors_pools:
                 # get data
-                for reward_data in self.getActivePoolDistributions(
-                    address=pool_address
-                ):
-                    if not self.isValid_reward_token(reward_data["token"].lower()):
+                for reward_data in _active_campaigns:
+                    # check if pool is valid
+                    if reward_data["campaignData"]["pool"].lower() not in _pools_list:
+                        continue
+
+                    # check if the token is valid
+                    if not self.isValid_reward_token(
+                        reward_data["rewardToken"].lower()
+                    ):
                         continue
 
                     # check if the address has been blacklisted ( wrapperType -> 3)
@@ -861,9 +888,8 @@ class angle_merkle_distributor_creator(gamma_rewarder):
 
                     result.append(
                         self.construct_reward_data(
-                            distribution_data=reward_data,
+                            campaign_data=reward_data,
                             hypervisor_address=hypervisor,
-                            epoch_duration=_epoch_duration,
                             convert_bint=convert_bint,
                         )
                     )
@@ -875,12 +901,12 @@ class angle_merkle_distributor_creator(gamma_rewarder):
         return result
 
     def get_reward_calculations(
-        self, distribution: dict, _epoch_duration: int | None = None
+        self, campaign: dict, _epoch_duration: int | None = None
     ) -> dict:
-        """extracts reward paste info from distribution raw data
+        """extracts reward paste info from campaign raw data
 
         Args:
-            distribution (dict): dict returned in convert_distribution_xxx_tuple def
+            campaign (dict): dict
             _epoch_duration (int | None, optional): supply to avoid innecesary RPC calls. Defaults to None.
 
         Returns:
@@ -901,33 +927,43 @@ class angle_merkle_distributor_creator(gamma_rewarder):
                 }
         """
 
-        reward_x_epoch_decimal = (
-            distribution["totalAmount"] / (10 ** distribution["token_decimals"])
-        ) / (distribution["numEpoch"])
+        if not _epoch_duration:
+            _epoch_duration = self.HOUR
 
-        reward_x_epoch = distribution["totalAmount"] / (distribution["numEpoch"])
-
-        reward_x_second_decimal = reward_x_epoch_decimal / (
-            _epoch_duration or self.EPOCH_DURATION
+        reward_x_second = campaign["amount"] / campaign["duration"]
+        reward_x_second_decimal = reward_x_second / (
+            10 ** campaign["rewardToken_decimals"]
         )
-        reward_x_second = reward_x_epoch / (_epoch_duration or self.EPOCH_DURATION)
+
+        epochs = campaign["duration"] // _epoch_duration
+
+        reward_x_epoch = campaign["amount"] / epochs
+        reward_x_epoch_decimal = reward_x_epoch / (
+            10 ** campaign["rewardToken_decimals"]
+        )
 
         reward_yearly_decimal = reward_x_second_decimal * 3600 * 24 * 365
         reward_yearly = reward_x_second * 3600 * 24 * 365
 
         reward_yearly_token0_decimal = (
-            distribution["propToken0"] / 10000
+            campaign["campaignData"]["propToken0"] / 10000
         ) * reward_yearly_decimal
-        reward_yearly_token0 = (distribution["propToken0"] / 10000) * reward_yearly
+        reward_yearly_token0 = (
+            campaign["campaignData"]["propToken0"] / 10000
+        ) * reward_yearly
         reward_yearly_token1_decimal = (
-            distribution["propToken1"] / 10000
+            campaign["campaignData"]["propToken1"] / 10000
         ) * reward_yearly_decimal
-        reward_yearly_token1 = (distribution["propToken1"] / 10000) * reward_yearly
+        reward_yearly_token1 = (
+            campaign["campaignData"]["propToken1"] / 10000
+        ) * reward_yearly
 
         reward_yearly_fees_decimal = (
-            distribution["propFees"] / 10000
+            campaign["campaignData"]["propFees"] / 10000
         ) * reward_yearly_decimal
-        reward_yearly_fees = (distribution["propFees"] / 10000) * reward_yearly
+        reward_yearly_fees = (
+            campaign["campaignData"]["propFees"] / 10000
+        ) * reward_yearly
 
         return {
             "reward_x_epoch": reward_x_epoch,
@@ -944,3 +980,70 @@ class angle_merkle_distributor_creator(gamma_rewarder):
             "reward_yearly_token1_decimal": reward_yearly_token1_decimal,
             "reward_yearly_fees_decimal": reward_yearly_fees_decimal,
         }
+
+    def balanceOf_tokens(
+        self,
+        wallet_address: str,
+        token_addresses: list[str],
+        block: int | None = None,
+        timestamp: int | None = None,
+        max_calls_atOnce: int = 100,
+    ) -> dict[str, int]:
+        """Get balances of tokens
+
+        Args:
+            token_addresses (list[str]): list of token addresses
+
+        Returns:
+            dict[str, int]: dict with token address as key and balance as value
+        """
+
+        if not block:
+            block = self.block
+        if not timestamp:
+            timestamp = self._timestamp
+
+        _calls = [
+            build_call_with_abi_part(
+                abi_part={
+                    "constant": True,
+                    "inputs": [{"name": "_owner", "type": "address"}],
+                    "name": "balanceOf",
+                    "outputs": [{"name": "balance", "type": "uint256"}],
+                    "payable": False,
+                    "stateMutability": "view",
+                    "type": "function",
+                },
+                inputs_values=[Web3.toChecksumAddress(wallet_address)],
+                address=token_address,
+                object="balanceOf",
+            )
+            for token_address in token_addresses
+        ]
+
+        logging.getLogger(__name__).debug(
+            f" {self._network}: {len(_calls)} fn calls will be executed in multicall to get the balance of {wallet_address} for {len(token_addresses)} tokens."
+        )
+        max_calls_atOnce = min(max_calls_atOnce, len(_calls))
+        result = {}
+        # execute multicall in batches
+        for i in range(0, len(_calls), max_calls_atOnce):
+            # get multicall data
+            _tmp_multicall_data = execute_parse_calls(
+                network=self._network,
+                block=self.block,
+                calls=_calls[i : i + max_calls_atOnce],
+                convert_bint=False,
+                requireSuccess=False,
+                timestamp=self._timestamp,
+            )
+            # convert and add temporary data to multicall_result
+            for itm in _tmp_multicall_data:
+                try:
+                    result[itm["address"].lower()] = itm["outputs"][0]["value"]
+                except Exception as e:
+                    logging.getLogger(__name__).exception(
+                        f"Error while parsing multicall data: {e}"
+                    )
+
+        return result
