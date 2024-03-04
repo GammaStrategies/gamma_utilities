@@ -20,6 +20,7 @@ def execute_multicall(
     pool_abi_filename: str | None = None,
     pool_abi_path: str | None = None,
     convert_bint: bool = False,
+    timestamp: int = 0,
 ) -> list:
     # build calls
     calls = build_calls_fromfiles(
@@ -35,7 +36,11 @@ def execute_multicall(
     )
     # place em
     return execute_parse_calls(
-        network=network, block=block, calls=calls, convert_bint=convert_bint
+        network=network,
+        block=block,
+        calls=calls,
+        convert_bint=convert_bint,
+        timestamp=timestamp,
     )
 
 
@@ -46,6 +51,7 @@ def execute_parse_calls(
     convert_bint: bool = False,
     requireSuccess: bool = False,
     custom_rpcType: str | None = None,
+    timestamp: int = 0,
 ):
     # place em
     multicall_raw_result = _get_multicall_result(
@@ -54,6 +60,7 @@ def execute_parse_calls(
         calls=calls,
         requireSuccess=requireSuccess,
         custom_rpcType=custom_rpcType,
+        timestamp=timestamp,
     )
     return parse_multicall_readfunctions_result(
         calls=calls,
@@ -68,11 +75,13 @@ def _get_multicall_result(
     calls: list,
     requireSuccess: bool = False,
     custom_rpcType: str | None = None,
+    timestamp: int = 0,
 ):
     # execute call
     multicall_helper = multicall3(
         network=network,
         block=block,
+        timestamp=timestamp,
     )
     # set custom rpcType
     if custom_rpcType:

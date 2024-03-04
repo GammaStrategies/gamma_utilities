@@ -128,6 +128,7 @@ def get_info_hypervisors(
             convert_bint=False,
             requireSuccess=False,
             custom_rpcType=custom_rpcType,
+            timestamp=timestamp,
         )
 
     # parse results to an intelligible structure

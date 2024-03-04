@@ -379,6 +379,7 @@ class hypervisor_periods_camelot(hypervisor_periods_base):
                 block=last_item["block"],
                 calls=_calls,
                 convert_bint=False,
+                timestamp=last_item["timestamp"],
             )
         )
         multicall_result_currentItem = self._parse_multicall_result(
@@ -387,6 +388,7 @@ class hypervisor_periods_camelot(hypervisor_periods_base):
                 block=current_item["block"],
                 calls=_calls,
                 convert_bint=False,
+                timestamp=current_item["timestamp"],
             )
         )
         # return result

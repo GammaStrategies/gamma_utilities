@@ -5,18 +5,13 @@ import sys
 from decimal import Decimal
 from hexbytes import HexBytes
 from web3 import Web3
-from eth_abi import abi
 from bins.config.hardcodes import SPECIAL_POOL_ABIS
 
-from bins.general import file_utilities
 from bins.w3.helpers.multicaller import (
     build_call,
-    build_calls_fromfiles,
     execute_multicall,
-    execute_parse_calls,
 )
 from ....errors.general import ProcessingError
-from ..multicall import multicall3
 
 from ....config.current import WEB3_CHAIN_IDS  # ,CFG
 from ....formulas.full_math import mulDiv
@@ -1472,6 +1467,7 @@ class poolv3_multicall(poolv3):
             pool_abi_filename=pool_abi_filename,
             pool_abi_path=pool_abi_path,
             convert_bint=False,
+            timestamp=self._timestamp,
         )
 
         self._fill_from_processed_calls(processed_calls=data)

@@ -3,7 +3,6 @@ from web3 import Web3
 from bins.config.hardcodes import SPECIAL_HYPERVISOR_ABIS
 from bins.w3.helpers.multicaller import (
     build_call_with_abi_part,
-    build_calls_fromfiles,
     execute_parse_calls,
 )
 from bins.w3.protocols.base_wrapper import web3wrap
@@ -145,6 +144,7 @@ class chainlink_connector_multicall(chainlink_connector):
             calls=_calls,
             convert_bint=False,
             requireSuccess=True,
+            timestamp=self._timestamp,
         )
 
         # fill objects

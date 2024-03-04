@@ -81,6 +81,7 @@ class hercules_rewards_nft_pool_master(web3wrap):
                 block=self.block,
                 calls=master_calls[i : i + _max_calls_atOnce],
                 convert_bint=False,
+                timestamp=self._timestamp,
             )
         return [x["outputs"][0]["value"].lower() for x in nft_pool_addresses]
 
@@ -118,6 +119,7 @@ class hercules_rewards_nft_pool_master(web3wrap):
                 block=self.block,
                 calls=master_calls[i : i + _max_calls_atOnce],
                 convert_bint=False,
+                timestamp=self._timestamp,
             )
         return [x["outputs"][0]["value"].lower() for x in nft_pool_addresses]
 
@@ -174,6 +176,7 @@ class hercules_rewards_nft_pool_master(web3wrap):
                 block=self.block,
                 calls=calls_to_place[i : i + _max_calls_atOnce],
                 convert_bint=False,
+                timestamp=self._timestamp,
             )
 
         result = {}
@@ -380,6 +383,7 @@ class hercules_rewards_nitro_pool_factory(web3wrap):
                 block=self.block,
                 calls=factory_calls[i : i + _max_calls_atOnce],
                 convert_bint=False,
+                timestamp=self._timestamp,
             ):
                 _spNFT_pool_address = _result["inputs"][0]["value"]
                 spnft_pools_length[_spNFT_pool_address] = _result["outputs"][0]["value"]
@@ -405,6 +409,7 @@ class hercules_rewards_nitro_pool_factory(web3wrap):
                 block=self.block,
                 calls=factory_calls[i : i + _max_calls_atOnce],
                 convert_bint=False,
+                timestamp=self._timestamp,
             )
             for _result in _mcall_result:
                 _spNFT_pool_address = _result["inputs"][0]["value"]
@@ -531,6 +536,7 @@ class hercules_rewards_nitro_pool_factory(web3wrap):
                 block=self.block,
                 calls=nitro_pool_calls[i : i + _max_calls_atOnce],
                 convert_bint=False,
+                timestamp=self._timestamp,
             )
 
         # Build result

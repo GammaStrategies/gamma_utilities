@@ -18,7 +18,6 @@ from ..general import (
 from ...helpers.multicaller import (
     build_call,
     build_calls_fromfiles,
-    execute_multicall,
     execute_parse_calls,
 )
 from ..uniswap.pool import (
@@ -1507,7 +1506,11 @@ class gamma_hypervisor_multicall(gamma_hypervisor):
 
         # execute calls
         calls = execute_parse_calls(
-            network=self._network, block=self.block, calls=calls, convert_bint=False
+            network=self._network,
+            block=self.block,
+            calls=calls,
+            convert_bint=False,
+            timestamp=self._timestamp,
         )
 
         # fill objects
@@ -1535,6 +1538,7 @@ class gamma_hypervisor_multicall(gamma_hypervisor):
             block=self.block,
             calls=secondary_calls,
             convert_bint=False,
+            timestamp=self._timestamp,
         )
         # fill pool with secondary calls
         self._pool._fill_from_processed_calls(calls + secondary_calls)

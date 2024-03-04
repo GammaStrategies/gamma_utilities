@@ -279,16 +279,20 @@ class gamma_masterchef_rewarder(gamma_rewarder):
                         "rewardToken": basic_info["rewardToken"].lower(),
                         "rewardToken_symbol": "",
                         "rewardToken_decimals": "",
-                        "rewards_perSecond": str(hype_rewardsPerSec)
-                        if convert_bint
-                        else hype_rewardsPerSec,
+                        "rewards_perSecond": (
+                            str(hype_rewardsPerSec)
+                            if convert_bint
+                            else hype_rewardsPerSec
+                        ),
                         "total_hypervisorToken_qtty": 0,
                         "raw_data": {
                             "allocPoint": allocPoint,
                             "lastRewardTimestamp": lastRewardTimestamp,
-                            "accZyberPerShare": str(accSushiPerShare)
-                            if convert_bint
-                            else accSushiPerShare,
+                            "accZyberPerShare": (
+                                str(accSushiPerShare)
+                                if convert_bint
+                                else accSushiPerShare
+                            ),
                         },
                     }
                 )
@@ -329,6 +333,7 @@ class gamma_masterchef_rewarder(gamma_rewarder):
                 calls=factory_calls[i : i + _max_calls_atOnce],
                 convert_bint=False,
                 requireSuccess=False,
+                timestamp=self._timestamp,
             ):
                 if not _item["outputs"]:
                     continue
@@ -495,6 +500,7 @@ class gamma_masterchef_v1(gamma_rewarder):
                 block=self.block,
                 calls=factory_calls[i : i + _max_calls_atOnce],
                 convert_bint=False,
+                timestamp=self._timestamp,
             ):
                 if _item["name"] == "getRewarder":
                     _input_index = _item["inputs"][0]["value"]
@@ -919,6 +925,7 @@ class gamma_masterchef_v2(gamma_rewarder):
                 block=self.block,
                 calls=factory_calls[i : i + _max_calls_atOnce],
                 convert_bint=False,
+                timestamp=self._timestamp,
             ):
                 if _item["name"] == "getRewarder":
                     _rewarder_address = _item["outputs"][0]["value"].lower()
@@ -1108,6 +1115,7 @@ class gamma_masterchef_registry(web3wrap):
                 calls=factory_calls[i : i + _max_calls_atOnce],
                 convert_bint=False,
                 requireSuccess=False,
+                timestamp=self._timestamp,
             ):
                 if not _item["outputs"]:
                     continue

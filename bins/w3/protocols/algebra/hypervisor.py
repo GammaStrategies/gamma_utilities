@@ -2,7 +2,6 @@ from web3 import Web3
 from bins.config.hardcodes import SPECIAL_HYPERVISOR_ABIS, SPECIAL_POOL_ABIS
 
 from bins.general.enums import Protocol
-from bins.w3.helpers.multicaller import execute_multicall
 from .pool import (
     poolv3,
     poolv3_bep20,

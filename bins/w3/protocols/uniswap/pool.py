@@ -5,7 +5,7 @@ from web3 import Web3
 from hexbytes import HexBytes
 from bins.config.hardcodes import SPECIAL_POOL_ABIS
 
-from bins.w3.helpers.multicaller import execute_multicall, execute_parse_calls
+from bins.w3.helpers.multicaller import execute_multicall
 
 from ....errors.general import ProcessingError
 
@@ -1283,6 +1283,7 @@ class poolv3_multicall(poolv3):
             pool_abi_filename=pool_abi_filename,
             pool_abi_path=pool_abi_path,
             convert_bint=False,
+            timestamp=self._timestamp,
         )
 
         self._fill_from_processed_calls(processed_calls=data)

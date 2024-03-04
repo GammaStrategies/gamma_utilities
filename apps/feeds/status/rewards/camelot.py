@@ -204,6 +204,7 @@ def get_camelot_rewards_spnftpool(
             block=hypervisor_status["block"],
             calls=_calls,
             convert_bint=False,
+            timestamp=hypervisor_status["timestamp"],
         )
     )
 
@@ -541,6 +542,7 @@ def get_camelot_rewards_nitro_pool(
             block=hypervisor_status["block"],
             calls=nitro_pool_calls[i : i + _max_calls_atOnce],
             convert_bint=False,
+            timestamp=hypervisor_status["timestamp"],
         )
 
     # Build result
