@@ -82,11 +82,11 @@ def build_multiFeeDistribution_from_queueItem(
         # if no rewards status are found, skip it
         if not rewards_related_info or rewards_related_info[0]["rewards_status"] == []:
             logging.getLogger(__name__).warning(
-                f"  no rewards status found for queue's {network} {queue_item.type} {queue_item.id}"
+                f"  no rewards status found for queue's {network} {queue_item.type} {queue_item.id} [{rewards_related_info[0]['rewardToken_symbol']}]"
             )
             # remove item from queue if count > 5
             # this item will never be pushed again by the last data script unless it diapear from the queue. So it will be processed again
-            if queue_item.count >= 5:
+            if queue_item.count >= 6:
                 logging.getLogger(__name__).warning(
                     f"  queue's {network} {queue_item.type} {queue_item.id} has been processed 5 or more times. Removing from queue"
                 )
