@@ -396,14 +396,20 @@ USDC_TOKEN_ADDRESSES = {
 # exclude list of token addresses
 TOKEN_ADDRESS_EXCLUDE = {
     Chain.ETHEREUM: {
-        "0x8d652c6d4a8f3db96cd866c1a9220b1447f29898".lower(): "AnglaMerkl",
+        "0x8d652c6d4a8f3db96cd866c1a9220b1447f29898".lower(): "AglaMerkl",
     },
     Chain.POLYGON: {
-        "0xd8ef817FFb926370dCaAb8F758DDb99b03591A5e".lower(): "AnglaMerkl",
+        "0xd8ef817FFb926370dCaAb8F758DDb99b03591A5e".lower(): "AglaMerkl",
         "0x74a2cac1c16cf1b47c176001bd5442029e1ddf3c".lower(): "testtoken",
     },
     Chain.ARBITRUM: {
-        "0xe0688a2fe90d0f93f17f273235031062a210d691".lower(): "AnglaMerkl",
+        "0xe0688a2fe90d0f93f17f273235031062a210d691".lower(): "AglaMerkl",
+    },
+    Chain.OPTIMISM: {
+        "0x41a65aae5d1c8437288d5a29b4d049897572758e".lower(): "MockAngleReward (aglaMerkl)",
+    },
+    Chain.AVALANCHE: {
+        "0xAAA940c5CF5ECa01931bD361F71E288485d3187A".lower(): "Escrowed Token (xToken) pharaoh",
     },
 }
 
