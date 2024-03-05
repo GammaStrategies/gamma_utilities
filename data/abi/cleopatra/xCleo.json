@@ -6,18 +6,24 @@
     },
     {
         "type": "event",
-        "name": "AdminChanged",
+        "name": "Approval",
         "inputs": [
             {
                 "type": "address",
-                "name": "previousAdmin",
+                "name": "owner",
                 "internalType": "address",
-                "indexed": false
+                "indexed": true
             },
             {
                 "type": "address",
-                "name": "newAdmin",
+                "name": "spender",
                 "internalType": "address",
+                "indexed": true
+            },
+            {
+                "type": "uint256",
+                "name": "value",
+                "internalType": "uint256",
                 "indexed": false
             }
         ],
@@ -25,12 +31,144 @@
     },
     {
         "type": "event",
-        "name": "BeaconUpgraded",
+        "name": "CancelVesting",
         "inputs": [
             {
                 "type": "address",
-                "name": "beacon",
+                "name": "user",
                 "internalType": "address",
+                "indexed": true
+            },
+            {
+                "type": "uint256",
+                "name": "vestId",
+                "internalType": "uint256",
+                "indexed": true
+            },
+            {
+                "type": "uint256",
+                "name": "amount",
+                "internalType": "uint256",
+                "indexed": false
+            }
+        ],
+        "anonymous": false
+    },
+    {
+        "type": "event",
+        "name": "Converted",
+        "inputs": [
+            {
+                "type": "address",
+                "name": "user",
+                "internalType": "address",
+                "indexed": true
+            },
+            {
+                "type": "uint256",
+                "name": "",
+                "internalType": "uint256",
+                "indexed": false
+            }
+        ],
+        "anonymous": false
+    },
+    {
+        "type": "event",
+        "name": "ExitVesting",
+        "inputs": [
+            {
+                "type": "address",
+                "name": "user",
+                "internalType": "address",
+                "indexed": true
+            },
+            {
+                "type": "uint256",
+                "name": "vestId",
+                "internalType": "uint256",
+                "indexed": true
+            },
+            {
+                "type": "uint256",
+                "name": "amount",
+                "internalType": "uint256",
+                "indexed": false
+            }
+        ],
+        "anonymous": false
+    },
+    {
+        "type": "event",
+        "name": "Initialized",
+        "inputs": [
+            {
+                "type": "uint8",
+                "name": "version",
+                "internalType": "uint8",
+                "indexed": false
+            }
+        ],
+        "anonymous": false
+    },
+    {
+        "type": "event",
+        "name": "InstantExit",
+        "inputs": [
+            {
+                "type": "address",
+                "name": "user",
+                "internalType": "address",
+                "indexed": true
+            },
+            {
+                "type": "uint256",
+                "name": "",
+                "internalType": "uint256",
+                "indexed": false
+            }
+        ],
+        "anonymous": false
+    },
+    {
+        "type": "event",
+        "name": "NewExitRatios",
+        "inputs": [
+            {
+                "type": "uint256",
+                "name": "exitRatio",
+                "internalType": "uint256",
+                "indexed": false
+            },
+            {
+                "type": "uint256",
+                "name": "veExitRatio",
+                "internalType": "uint256",
+                "indexed": false
+            }
+        ],
+        "anonymous": false
+    },
+    {
+        "type": "event",
+        "name": "NewVest",
+        "inputs": [
+            {
+                "type": "address",
+                "name": "user",
+                "internalType": "address",
+                "indexed": true
+            },
+            {
+                "type": "uint256",
+                "name": "vestId",
+                "internalType": "uint256",
+                "indexed": true
+            },
+            {
+                "type": "uint256",
+                "name": "amount",
+                "internalType": "uint256",
                 "indexed": true
             }
         ],
@@ -38,116 +176,1137 @@
     },
     {
         "type": "event",
-        "name": "Upgraded",
+        "name": "NewVestingTimes",
         "inputs": [
             {
-                "type": "address",
-                "name": "implementation",
-                "internalType": "address",
-                "indexed": true
+                "type": "uint256",
+                "name": "min",
+                "internalType": "uint256",
+                "indexed": false
+            },
+            {
+                "type": "uint256",
+                "name": "max",
+                "internalType": "uint256",
+                "indexed": false
+            },
+            {
+                "type": "uint256",
+                "name": "veMaxVest",
+                "internalType": "uint256",
+                "indexed": false
             }
         ],
         "anonymous": false
     },
     {
-        "type": "fallback",
-        "stateMutability": "payable"
+        "type": "event",
+        "name": "Transfer",
+        "inputs": [
+            {
+                "type": "address",
+                "name": "from",
+                "internalType": "address",
+                "indexed": true
+            },
+            {
+                "type": "address",
+                "name": "to",
+                "internalType": "address",
+                "indexed": true
+            },
+            {
+                "type": "uint256",
+                "name": "value",
+                "internalType": "uint256",
+                "indexed": false
+            }
+        ],
+        "anonymous": false
+    },
+    {
+        "type": "event",
+        "name": "WhitelistStatus",
+        "inputs": [
+            {
+                "type": "address",
+                "name": "candidate",
+                "internalType": "address",
+                "indexed": true
+            },
+            {
+                "type": "bool",
+                "name": "status",
+                "internalType": "bool",
+                "indexed": false
+            }
+        ],
+        "anonymous": false
+    },
+    {
+        "type": "event",
+        "name": "XTokensRedeemed",
+        "inputs": [
+            {
+                "type": "address",
+                "name": "user",
+                "internalType": "address",
+                "indexed": true
+            },
+            {
+                "type": "uint256",
+                "name": "",
+                "internalType": "uint256",
+                "indexed": false
+            }
+        ],
+        "anonymous": false
     },
     {
         "type": "function",
-        "stateMutability": "payable",
+        "stateMutability": "view",
         "outputs": [
             {
-                "type": "address",
-                "name": "admin_",
-                "internalType": "address"
+                "type": "uint256",
+                "name": "",
+                "internalType": "uint256"
             }
         ],
-        "name": "admin",
+        "name": "MAXTIME",
         "inputs": []
     },
     {
         "type": "function",
-        "stateMutability": "payable",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "uint256",
+                "name": "",
+                "internalType": "uint256"
+            }
+        ],
+        "name": "PRECISION",
+        "inputs": []
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "address",
+                "name": "",
+                "internalType": "address"
+            }
+        ],
+        "name": "_pool",
+        "inputs": []
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
         "outputs": [],
-        "name": "changeAdmin",
+        "name": "addWhitelist",
         "inputs": [
             {
                 "type": "address",
-                "name": "newAdmin",
+                "name": "_whitelistee",
                 "internalType": "address"
             }
         ]
     },
     {
         "type": "function",
-        "stateMutability": "payable",
+        "stateMutability": "nonpayable",
+        "outputs": [],
+        "name": "adjustWhitelist",
+        "inputs": [
+            {
+                "type": "address[]",
+                "name": "_candidates",
+                "internalType": "address[]"
+            },
+            {
+                "type": "bool[]",
+                "name": "_status",
+                "internalType": "bool[]"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
         "outputs": [
             {
-                "type": "address",
-                "name": "implementation_",
-                "internalType": "address"
+                "type": "uint256",
+                "name": "",
+                "internalType": "uint256"
             }
         ],
-        "name": "implementation",
+        "name": "allowance",
+        "inputs": [
+            {
+                "type": "address",
+                "name": "owner",
+                "internalType": "address"
+            },
+            {
+                "type": "address",
+                "name": "spender",
+                "internalType": "address"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [],
+        "name": "alterExitRatios",
+        "inputs": [
+            {
+                "type": "uint256",
+                "name": "_newExitRatio",
+                "internalType": "uint256"
+            },
+            {
+                "type": "uint256",
+                "name": "_newVeExitRatio",
+                "internalType": "uint256"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [
+            {
+                "type": "bool",
+                "name": "",
+                "internalType": "bool"
+            }
+        ],
+        "name": "approve",
+        "inputs": [
+            {
+                "type": "address",
+                "name": "spender",
+                "internalType": "address"
+            },
+            {
+                "type": "uint256",
+                "name": "amount",
+                "internalType": "uint256"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "uint256",
+                "name": "",
+                "internalType": "uint256"
+            }
+        ],
+        "name": "balanceOf",
+        "inputs": [
+            {
+                "type": "address",
+                "name": "account",
+                "internalType": "address"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [],
+        "name": "changeMaximumVestingLength",
+        "inputs": [
+            {
+                "type": "uint256",
+                "name": "_maxVest",
+                "internalType": "uint256"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [],
+        "name": "changeMinimumVestingLength",
+        "inputs": [
+            {
+                "type": "uint256",
+                "name": "_minVest",
+                "internalType": "uint256"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [],
+        "name": "changeVeMaximumVestingLength",
+        "inputs": [
+            {
+                "type": "uint256",
+                "name": "_veMax",
+                "internalType": "uint256"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [],
+        "name": "changeWhitelistOperator",
+        "inputs": [
+            {
+                "type": "address",
+                "name": "_newOperator",
+                "internalType": "address"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [],
+        "name": "convertEmissionsToken",
+        "inputs": [
+            {
+                "type": "uint256",
+                "name": "_amount",
+                "internalType": "uint256"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [],
+        "name": "createVest",
+        "inputs": [
+            {
+                "type": "uint256",
+                "name": "_amount",
+                "internalType": "uint256"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "uint8",
+                "name": "",
+                "internalType": "uint8"
+            }
+        ],
+        "name": "decimals",
         "inputs": []
     },
     {
         "type": "function",
-        "stateMutability": "payable",
+        "stateMutability": "nonpayable",
+        "outputs": [
+            {
+                "type": "bool",
+                "name": "",
+                "internalType": "bool"
+            }
+        ],
+        "name": "decreaseAllowance",
+        "inputs": [
+            {
+                "type": "address",
+                "name": "spender",
+                "internalType": "address"
+            },
+            {
+                "type": "uint256",
+                "name": "subtractedValue",
+                "internalType": "uint256"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "uint32",
+                "name": "",
+                "internalType": "uint32"
+            }
+        ],
+        "name": "duration",
+        "inputs": []
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "address",
+                "name": "",
+                "internalType": "address"
+            }
+        ],
+        "name": "emissionsToken",
+        "inputs": []
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "uint256",
+                "name": "",
+                "internalType": "uint256"
+            }
+        ],
+        "name": "exitRatio",
+        "inputs": []
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [
+            {
+                "type": "bool",
+                "name": "",
+                "internalType": "bool"
+            }
+        ],
+        "name": "exitVest",
+        "inputs": [
+            {
+                "type": "uint256",
+                "name": "_vestID",
+                "internalType": "uint256"
+            },
+            {
+                "type": "bool",
+                "name": "_ve",
+                "internalType": "bool"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "uint256",
+                "name": "",
+                "internalType": "uint256"
+            }
+        ],
+        "name": "getBalanceResiding",
+        "inputs": []
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [
+            {
+                "type": "bool",
+                "name": "",
+                "internalType": "bool"
+            }
+        ],
+        "name": "increaseAllowance",
+        "inputs": [
+            {
+                "type": "address",
+                "name": "spender",
+                "internalType": "address"
+            },
+            {
+                "type": "uint256",
+                "name": "addedValue",
+                "internalType": "uint256"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
         "outputs": [],
         "name": "initialize",
         "inputs": [
             {
                 "type": "address",
-                "name": "_logic",
+                "name": "_emissionsToken",
                 "internalType": "address"
             },
             {
                 "type": "address",
-                "name": "admin_",
+                "name": "_votingEscrow",
                 "internalType": "address"
             },
             {
-                "type": "bytes",
-                "name": "_data",
-                "internalType": "bytes"
+                "type": "address",
+                "name": "_voter",
+                "internalType": "address"
+            },
+            {
+                "type": "address",
+                "name": "_timelock",
+                "internalType": "address"
+            },
+            {
+                "type": "address",
+                "name": "_multisig",
+                "internalType": "address"
+            },
+            {
+                "type": "address",
+                "name": "_whitelistOperator",
+                "internalType": "address"
+            },
+            {
+                "type": "address",
+                "name": "_protocolWhitelist",
+                "internalType": "address"
             }
         ]
     },
     {
         "type": "function",
-        "stateMutability": "payable",
+        "stateMutability": "nonpayable",
         "outputs": [],
-        "name": "upgradeTo",
+        "name": "instantExit",
+        "inputs": [
+            {
+                "type": "uint256",
+                "name": "_amount",
+                "internalType": "uint256"
+            },
+            {
+                "type": "uint256",
+                "name": "maxPayAmount",
+                "internalType": "uint256"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "bool",
+                "name": "",
+                "internalType": "bool"
+            }
+        ],
+        "name": "isWhitelisted",
         "inputs": [
             {
                 "type": "address",
-                "name": "newImplementation",
+                "name": "",
                 "internalType": "address"
             }
         ]
     },
     {
         "type": "function",
-        "stateMutability": "payable",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "uint256",
+                "name": "",
+                "internalType": "uint256"
+            }
+        ],
+        "name": "maxVest",
+        "inputs": []
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
         "outputs": [],
-        "name": "upgradeToAndCall",
+        "name": "migrateMultisig",
         "inputs": [
             {
                 "type": "address",
-                "name": "newImplementation",
+                "name": "_multisig",
                 "internalType": "address"
-            },
-            {
-                "type": "bytes",
-                "name": "data",
-                "internalType": "bytes"
             }
         ]
     },
     {
-        "type": "receive",
-        "stateMutability": "payable"
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [],
+        "name": "migrateProtocolWhitelist",
+        "inputs": [
+            {
+                "type": "address",
+                "name": "_protocolWhitelist",
+                "internalType": "address"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [],
+        "name": "migrateTimelock",
+        "inputs": [
+            {
+                "type": "address",
+                "name": "_timelock",
+                "internalType": "address"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "uint256",
+                "name": "",
+                "internalType": "uint256"
+            }
+        ],
+        "name": "minVest",
+        "inputs": []
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "address",
+                "name": "",
+                "internalType": "address"
+            }
+        ],
+        "name": "multisig",
+        "inputs": []
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [],
+        "name": "multisigRedeem",
+        "inputs": [
+            {
+                "type": "uint256",
+                "name": "_amount",
+                "internalType": "uint256"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "string",
+                "name": "",
+                "internalType": "string"
+            }
+        ],
+        "name": "name",
+        "inputs": []
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "bool",
+                "name": "",
+                "internalType": "bool"
+            }
+        ],
+        "name": "optionEnabled",
+        "inputs": []
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "address",
+                "name": "",
+                "internalType": "address"
+            }
+        ],
+        "name": "outToken",
+        "inputs": []
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "bool",
+                "name": "",
+                "internalType": "bool"
+            }
+        ],
+        "name": "paused",
+        "inputs": []
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "address",
+                "name": "",
+                "internalType": "address"
+            }
+        ],
+        "name": "protocolWhitelist",
+        "inputs": []
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "uint256",
+                "name": "payAmount",
+                "internalType": "uint256"
+            }
+        ],
+        "name": "quotePayment",
+        "inputs": [
+            {
+                "type": "uint256",
+                "name": "amount",
+                "internalType": "uint256"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "uint256",
+                "name": "amountOut",
+                "internalType": "uint256"
+            }
+        ],
+        "name": "quotePrice",
+        "inputs": [
+            {
+                "type": "uint256",
+                "name": "amountIn",
+                "internalType": "uint256"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [],
+        "name": "reinitializeVestingParameters",
+        "inputs": [
+            {
+                "type": "uint256",
+                "name": "_min",
+                "internalType": "uint256"
+            },
+            {
+                "type": "uint256",
+                "name": "_max",
+                "internalType": "uint256"
+            },
+            {
+                "type": "uint256",
+                "name": "_veMax",
+                "internalType": "uint256"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [],
+        "name": "removeWhitelist",
+        "inputs": [
+            {
+                "type": "address",
+                "name": "_whitelistee",
+                "internalType": "address"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [],
+        "name": "rescueTrappedTokens",
+        "inputs": [
+            {
+                "type": "address[]",
+                "name": "_tokens",
+                "internalType": "address[]"
+            },
+            {
+                "type": "uint256[]",
+                "name": "_amounts",
+                "internalType": "uint256[]"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [],
+        "name": "setOptionsEnabled",
+        "inputs": [
+            {
+                "type": "bool",
+                "name": "isEnabled",
+                "internalType": "bool"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [],
+        "name": "setPaused",
+        "inputs": [
+            {
+                "type": "bool",
+                "name": "_paused",
+                "internalType": "bool"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [],
+        "name": "setPool",
+        "inputs": [
+            {
+                "type": "address",
+                "name": "newPool",
+                "internalType": "address"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [],
+        "name": "setSecondsAgo",
+        "inputs": [
+            {
+                "type": "uint32",
+                "name": "_duration",
+                "internalType": "uint32"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "string",
+                "name": "",
+                "internalType": "string"
+            }
+        ],
+        "name": "symbol",
+        "inputs": []
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [
+            {
+                "type": "bool",
+                "name": "",
+                "internalType": "bool"
+            }
+        ],
+        "name": "syncAndCheckIsWhitelisted",
+        "inputs": [
+            {
+                "type": "address",
+                "name": "_address",
+                "internalType": "address"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "address",
+                "name": "",
+                "internalType": "address"
+            }
+        ],
+        "name": "timelock",
+        "inputs": []
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "uint256",
+                "name": "",
+                "internalType": "uint256"
+            }
+        ],
+        "name": "totalSupply",
+        "inputs": []
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [
+            {
+                "type": "bool",
+                "name": "",
+                "internalType": "bool"
+            }
+        ],
+        "name": "transfer",
+        "inputs": [
+            {
+                "type": "address",
+                "name": "to",
+                "internalType": "address"
+            },
+            {
+                "type": "uint256",
+                "name": "amount",
+                "internalType": "uint256"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [
+            {
+                "type": "bool",
+                "name": "",
+                "internalType": "bool"
+            }
+        ],
+        "name": "transferFrom",
+        "inputs": [
+            {
+                "type": "address",
+                "name": "from",
+                "internalType": "address"
+            },
+            {
+                "type": "address",
+                "name": "to",
+                "internalType": "address"
+            },
+            {
+                "type": "uint256",
+                "name": "amount",
+                "internalType": "uint256"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [],
+        "name": "useLegacyPair",
+        "inputs": [
+            {
+                "type": "bool",
+                "name": "legacy",
+                "internalType": "bool"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "uint256",
+                "name": "",
+                "internalType": "uint256"
+            }
+        ],
+        "name": "usersTotalVests",
+        "inputs": [
+            {
+                "type": "address",
+                "name": "_user",
+                "internalType": "address"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "bool",
+                "name": "",
+                "internalType": "bool"
+            }
+        ],
+        "name": "usingLegacyPair",
+        "inputs": []
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "uint256",
+                "name": "",
+                "internalType": "uint256"
+            }
+        ],
+        "name": "veExitRatio",
+        "inputs": []
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "uint256",
+                "name": "",
+                "internalType": "uint256"
+            }
+        ],
+        "name": "veMaxVest",
+        "inputs": []
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "uint256",
+                "name": "amount",
+                "internalType": "uint256"
+            },
+            {
+                "type": "uint256",
+                "name": "start",
+                "internalType": "uint256"
+            },
+            {
+                "type": "uint256",
+                "name": "maxEnd",
+                "internalType": "uint256"
+            },
+            {
+                "type": "uint256",
+                "name": "vestID",
+                "internalType": "uint256"
+            }
+        ],
+        "name": "vestInfo",
+        "inputs": [
+            {
+                "type": "address",
+                "name": "user",
+                "internalType": "address"
+            },
+            {
+                "type": "uint256",
+                "name": "",
+                "internalType": "uint256"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "address",
+                "name": "",
+                "internalType": "address"
+            }
+        ],
+        "name": "voter",
+        "inputs": []
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "address",
+                "name": "",
+                "internalType": "address"
+            }
+        ],
+        "name": "votingEscrow",
+        "inputs": []
+    },
+    {
+        "type": "function",
+        "stateMutability": "view",
+        "outputs": [
+            {
+                "type": "address",
+                "name": "",
+                "internalType": "address"
+            }
+        ],
+        "name": "whitelistOperator",
+        "inputs": []
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [
+            {
+                "type": "uint256",
+                "name": "veTokenId",
+                "internalType": "uint256"
+            }
+        ],
+        "name": "xTokenConvertToNft",
+        "inputs": [
+            {
+                "type": "uint256",
+                "name": "_amount",
+                "internalType": "uint256"
+            }
+        ]
+    },
+    {
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "outputs": [],
+        "name": "xTokenIncreaseNft",
+        "inputs": [
+            {
+                "type": "uint256",
+                "name": "_amount",
+                "internalType": "uint256"
+            },
+            {
+                "type": "uint256",
+                "name": "_tokenID",
+                "internalType": "uint256"
+            }
+        ]
     }
 ]
