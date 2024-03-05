@@ -9,6 +9,13 @@ from bins.general.enums import Chain, Protocol
 ## Some Gamma contracts have unit24 fee function outputs (old univ3 contracts)
 SPECIAL_HYPERVISOR_ABIS = {
     Chain.ETHEREUM: {
+        "0x65bc5c6a2630a87c2b494f36148e338dd76c054f": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
         "0xf0a9f5c64f80fa390a46b298791dab9e2bb29bca": {
             "file": "hypervisor_old",
             "folder": (
@@ -178,6 +185,13 @@ SPECIAL_HYPERVISOR_ABIS = {
             + "/gamma",
         },
         "0x0407c810546f1dc007f01a80e65983072d5c6dfa": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0xe14dbb7d054ff1ff5c0cd6adac9f8f26bc7b8945": {
             "file": "hypervisor_old",
             "folder": (
                 CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
