@@ -165,6 +165,60 @@ def xphar(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
         )
 
 
+def xcleo(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
+
+    # xCleo is a buy option of CLEO with 50% price penalty when selling back previous to X days
+    cleo_token = "0xc1e0c8c30f251a07a894609616580ad2ceb547f2".lower()
+    xcleo_token = "0xAAAE58986b24e422740C8F22B3efB80BCbD68159".lower()
+
+    if address.lower() == xcleo_token:
+        conversion_rate = None
+        try:
+            # get the discount rate from the contract
+            erc20 = build_erc20_helper(
+                chain=chain,
+                address=xcleo_token,
+                abi_filename="xCleo",
+                abi_path=(
+                    CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+                )
+                + "/cleopatra",
+                block=block,
+            )
+            _precision = erc20.call_function_autoRpc("PRECISION")
+            _discount_rate = 0
+            try:
+                _discount_rate = erc20.call_function_autoRpc("exitRatio")
+            except Exception as e:
+                pass
+            if not _discount_rate:
+                try:
+                    _discount_rate = erc20.call_function_autoRpc("discount")
+                except Exception as e:
+                    logging.getLogger(__name__).exception(
+                        f" Can't get xCleo token price discount.... Error: {e} . Fallback to 50%"
+                    )
+                    _discount_rate = 50
+
+            conversion_rate = _discount_rate / _precision
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f" Can't get xCleo token price. Error: {e} . Fallback to 50%"
+            )
+            conversion_rate = 0.5
+
+        #
+        return NoPricedToken_conversion(
+            original=NoPricedToken_item(
+                token_address=xcleo_token, chain=chain, block=block
+            ),
+            converted=NoPricedToken_item(
+                token_address=cleo_token, chain=chain, block=block
+            ),
+            conversion_rate=conversion_rate,
+        )
+
+
 def oretro(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
     # oRETRO is a call option token that is used as the emission token for the Retro protocol
     # The discount rate is subject to change and based on market conditions.
@@ -425,6 +479,10 @@ TOKEN_ADDRESS_CONVERSION = {
     Chain.LINEA: {
         # oLYNEX--LYNEX(or configured token)
         "0x63349BA5E1F71252eCD56E8F950D1A518B400b60".lower(): olynx,
+    },
+    Chain.MANTLE: {
+        # xCLEO--CLEO
+        "0xAAAE58986b24e422740C8F22B3efB80BCbD68159".lower(): xcleo,
     },
 }
 
