@@ -22,6 +22,7 @@ def feed_latest_multifeedistribution_snapshot():
     items_to_process = [
         (Chain.ARBITRUM, Protocol.RAMSES, rewarderType.RAMSES_v2),
         (Chain.AVALANCHE, Protocol.PHARAOH, rewarderType.PHARAOH),
+        (Chain.MANTLE, Protocol.CLEOPATRA, rewarderType.CLEOPATRA),
     ]
 
     for chain, protocol, rewarder_type in items_to_process:
