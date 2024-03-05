@@ -1319,7 +1319,7 @@ def create_rewards_static_ramses(
                         ] = creation_data["block"]
                     else:
                         logging.getLogger(__name__).debug(
-                            f"  No contract creation date found for ramses reward static {hype_rewards[0]['rewarder_address']}. Using Hypervisor's {hype_static['address']} block {creation_block} "
+                            f"  No contract creation date found for ramses reward static {hype_rewards[0]['rewarder_address']}. Using Hypervisor's {hype_static['address']}"
                         )
                         ephemeral_cache["creation_block"][
                             hype_rewards[0]["rewarder_address"]
@@ -1446,7 +1446,7 @@ def create_rewards_static_pharaoh(
                         ] = creation_data["block"]
                     else:
                         logging.getLogger(__name__).debug(
-                            f"  No contract creation date found for pharaoh reward static {hype_rewards[0]['rewarder_address']}. Using Hypervisor's {hype_static['address']} block {creation_block} "
+                            f"  No contract creation date found for pharaoh reward static {hype_rewards[0]['rewarder_address']}. Using Hypervisor's {hype_static['address']}"
                         )
                         ephemeral_cache["creation_block"][
                             hype_rewards[0]["rewarder_address"]
@@ -1573,7 +1573,7 @@ def create_rewards_static_cleopatra(
                         ] = creation_data["block"]
                     else:
                         logging.getLogger(__name__).debug(
-                            f"  No contract creation date found for cleopatra reward static {hype_rewards[0]['rewarder_address']}. Using Hypervisor's {hype_static['address']} block {creation_block} "
+                            f"  No contract creation date found for cleopatra reward static {hype_rewards[0]['rewarder_address']}. Using Hypervisor's {hype_static['address']} "
                         )
                         ephemeral_cache["creation_block"][
                             hype_rewards[0]["rewarder_address"]
