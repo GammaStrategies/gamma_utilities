@@ -2,6 +2,7 @@
 
 import logging
 from apps.feeds.operations import task_enqueue_operations
+from bins.configuration import CONFIGURATION
 
 from bins.database.helpers import get_from_localdb
 from bins.general.enums import Chain, Protocol, queueItemType, rewarderType
@@ -63,12 +64,26 @@ def create_items_to_feed_latest_multifeedistribution_snapshot(
         find={"rewarder_type": rewarder_type},
     )
 
+    hypes_not_included = (
+        CONFIGURATION.get("script", {})
+        .get("protocols", {})
+        .get("gamma", {})
+        .get("filters", {})
+        .get("hypervisors_not_included", {})
+        .get(chain.database_name, [])
+    )
+
     logging.getLogger(__name__).debug(
         f" building {len(rewards_static)} mfd item operations to add to queue"
     )
 
     # get addresses to scrape and its minimum block
     for reward in rewards_static:
+
+        if reward["hypervisor_address"] in hypes_not_included:
+            # skip hypervisor
+            continue
+
         # always the same for snapshots
         result.append(
             {
