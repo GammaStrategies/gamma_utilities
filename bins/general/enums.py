@@ -111,7 +111,8 @@ class Protocol(str, Enum):
     BASESWAP = ("baseswap", "baseswap", "BaseSwap")
     SWAPBASED = ("swapbased", "swapbased", "SwapBased")
 
-    PHARAOH = ("pharaoh", "pharaoh", "Pharaoh")  # camelot avalanche
+    PHARAOH = ("pharaoh", "pharaoh", "Pharaoh")  # ramses avalanche
+    CLEOPATRA = ("cleopatra", "cleopatra", "Cleopatra")  # ramses mantle
 
     KINETIX = ("kinetix", "kinetix", "Kinetix")
 
@@ -300,6 +301,7 @@ class rewarderType(str, Enum):
 
     RAMSES_v2 = "ramses_v2"
     PHARAOH = "pharaoh"
+    CLEOPATRA = "cleopatra"
 
     SYNTHSWAP_masterchef_v1 = "synthswap_masterchef_v1"
     SYNTHSWAP_masterchef_v1_rewarder = "synthswap_masterchef_v1_rewarder"

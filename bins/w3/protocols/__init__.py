@@ -15,6 +15,7 @@ from ..protocols import (
     angle,
     ramses,
     pharaoh,
+    cleopatra,
     ascent,
     synthswap,
     glacier,

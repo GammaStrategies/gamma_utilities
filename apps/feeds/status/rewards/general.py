@@ -13,6 +13,7 @@ from apps.feeds.status.rewards.synthswap import create_rewards_status_synthswap
 from apps.feeds.status.rewards.thena import create_rewards_status_thena
 from apps.feeds.status.rewards.zyberswap import create_rewards_status_zyberswap
 from apps.hypervisor_periods.rewards.angle import hypervisor_periods_angleMerkl
+from apps.hypervisor_periods.rewards.cleopatra import hypervisor_periods_cleopatra
 from apps.hypervisor_periods.rewards.ramses import hypervisor_periods_ramses
 from apps.hypervisor_periods.rewards.pharaoh import hypervisor_periods_pharaoh
 
@@ -259,6 +260,19 @@ def create_reward_status_from_hype_status(
             )
             # limit to >2 week data back
             rewards_data = pharaoh_helper.execute_processes_within_hypervisor_periods(
+                timestamp_ini=hypervisor_status["timestamp"] - 60 * 60 * 24 * 16,
+                timestamp_end=hypervisor_status["timestamp"],
+            )
+        elif rewarder_static["rewarder_type"] in [
+            rewarderType.CLEOPATRA,
+        ]:
+            cleopatra_helper = hypervisor_periods_cleopatra(
+                chain=text_to_chain(network),
+                hypervisor_status=hypervisor_status,
+                rewarder_static=rewarder_static,
+            )
+            # limit to >2 week data back
+            rewards_data = cleopatra_helper.execute_processes_within_hypervisor_periods(
                 timestamp_ini=hypervisor_status["timestamp"] - 60 * 60 * 24 * 16,
                 timestamp_end=hypervisor_status["timestamp"],
             )

@@ -238,12 +238,14 @@ STATIC_REGISTRY_ADDRESSES = {
     "mantle": {
         "hypervisors": {
             "fusionx": "0x683292172E2175bd08e3927a5e72FC301b161300".lower(),
+            "cleopatra": "0xa5E9006C17740Cb9e4898657721c4dFE103d8456".lower(),
         },
         "MasterChefV2Registry": {
             "fusionx": "0xC27DDd78FC49875Fe6F844B72bbf31DFBB099881".lower(),
         },
         "uniproxy": {
             "fusionx": "0xFc13Ebe7FEB9595D70195E9168aA7F3acE153621".lower(),
+            "cleopatra": "0xDe4f68F55B4816adaD55047D1E8188d8525DCE72".lower(),
         },
         "angle_merkl": {
             "distributor": "0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae".lower(),

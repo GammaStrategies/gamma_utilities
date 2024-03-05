@@ -822,6 +822,43 @@ def build_hypervisor(
                 )
             )
         )
+    elif protocol == Protocol.CLEOPATRA:
+        hypervisor = (
+            protocols.cleopatra.hypervisor.gamma_hypervisor(
+                address=hypervisor_address,
+                network=network,
+                block=block,
+                timestamp=timestamp,
+                abi_filename=abi_filename,
+                abi_path=abi_path,
+                custom_web3=custom_web3,
+                custom_web3Url=custom_web3Url,
+            )
+            if not cached and not multicall
+            else (
+                protocols.cleopatra.hypervisor.gamma_hypervisor_cached(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+                if not multicall
+                else protocols.cleopatra.hypervisor.gamma_hypervisor_multicall(
+                    address=hypervisor_address,
+                    network=network,
+                    block=block,
+                    timestamp=timestamp,
+                    abi_filename=abi_filename,
+                    abi_path=abi_path,
+                    custom_web3=custom_web3,
+                    custom_web3Url=custom_web3Url,
+                )
+            )
+        )
     elif protocol == Protocol.SYNTHSWAP:
         hypervisor = (
             protocols.synthswap.hypervisor.gamma_hypervisor(
@@ -1593,6 +1630,22 @@ def build_protocol_pool(
             )
             if not cached
             else protocols.pharaoh.pool.pool_cached(
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
+            )
+        )
+    elif protocol == Protocol.CLEOPATRA:
+        return (
+            protocols.cleopatra.pool.pool(
+                address=pool_address,
+                network=chain.database_name,
+                block=block,
+                timestamp=timestamp,
+            )
+            if not cached
+            else protocols.cleopatra.pool.pool_cached(
                 address=pool_address,
                 network=chain.database_name,
                 block=block,

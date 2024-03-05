@@ -53,6 +53,9 @@ from bins.w3.protocols.beamswap.rewarder import beamswap_masterchef_v2
 from bins.w3.protocols.angle.rewarder import angle_merkle_distributor_creator
 from bins.w3.protocols.ramses.hypervisor import gamma_hypervisor as ramses_hypervisor
 from bins.w3.protocols.pharaoh.hypervisor import gamma_hypervisor as pharaoh_hypervisor
+from bins.w3.protocols.cleopatra.hypervisor import (
+    gamma_hypervisor as cleopatra_hypervisor,
+)
 
 from bins.apis.etherscan_utilities import etherscan_helper
 
@@ -834,6 +837,15 @@ def create_rewards_static(
             rewrite=rewrite,
             block=block,
         )
+    # CLEOPATRA
+    if dex == Protocol.CLEOPATRA.database_name:
+        rewards_static_lst += create_rewards_static_cleopatra(
+            chain=text_to_chain(network),
+            hypervisors=hypervisors,
+            already_processed=already_processed,
+            rewrite=rewrite,
+            block=block,
+        )
 
     # SYNTHSWAP
     if dex == Protocol.SYNTHSWAP.database_name:
@@ -1492,6 +1504,133 @@ def create_rewards_static_pharaoh(
                     reward_data["block"] = creation_block
                     logging.getLogger(__name__).debug(
                         f"  Processed pharaoh {chain.database_name}'s {reward_data['rewarder_address']} {reward_data['rewardToken_symbol']} static rewarder at {reward_data['block']}"
+                    )
+                    # add to result
+                    result.append(reward_data)
+    return result
+
+
+def create_rewards_static_cleopatra(
+    chain: Chain,
+    hypervisors: list[dict],
+    already_processed: list[str],
+    rewrite: bool = False,
+    block: int = 0,
+) -> list[dict]:
+    """Same as Ramses, but with different rewarder type
+
+    Args:
+        chain (Chain):
+        hypervisors (list[dict]):
+        already_processed (list[str]):
+        rewrite (bool, optional): . Defaults to False.
+        block (int, optional): . Defaults to 0.
+
+    """
+    result = []
+
+    # rewarder_address = gauge
+    # rewarder_registry = receiver address
+
+    ephemeral_cache = {
+        "tokens": {},
+        "creation_block": {},
+        "receiver_address": {},
+    }
+    for hype_static in hypervisors:
+        if rewrite or hype_static["address"].lower() not in already_processed:
+            # create hypervisor
+            hype_status = cleopatra_hypervisor(
+                address=hype_static["address"], network=chain.database_name, block=block
+            )
+
+            # check if gauge is set ( not 0x0000...)
+            if (
+                hype_status.gauge.address.lower()
+                == "0x0000000000000000000000000000000000000000"
+            ):
+                logging.getLogger(__name__).debug(
+                    f" Gauge is not set for cleopatra hype:{hype_static['address']}. Skipping static rewards processing"
+                )
+                continue
+
+            if hype_rewards := hype_status.gauge.get_rewards(convert_bint=True):
+                logging.getLogger(__name__).debug(
+                    f" Found {len(hype_rewards)} static rewards for the hypervisor {hype_static['address']}"
+                )
+
+                # add block creation data to cache
+                if (
+                    not hype_rewards[0]["rewarder_address"]
+                    in ephemeral_cache["creation_block"]
+                ):
+                    if creation_data := _get_contract_creation_block(
+                        network=chain.database_name,
+                        contract_address=hype_rewards[0]["rewarder_address"],
+                    ):
+                        ephemeral_cache["creation_block"][
+                            hype_rewards[0]["rewarder_address"]
+                        ] = creation_data["block"]
+                    else:
+                        logging.getLogger(__name__).debug(
+                            f"  No contract creation date found for cleopatra reward static {hype_rewards[0]['rewarder_address']}. Using Hypervisor's {hype_static['address']} block {creation_block} "
+                        )
+                        ephemeral_cache["creation_block"][
+                            hype_rewards[0]["rewarder_address"]
+                        ] = hype_static["block"]
+                # set contract creation block
+                creation_block = ephemeral_cache["creation_block"][
+                    hype_rewards[0]["rewarder_address"]
+                ]
+
+                for reward_data in hype_rewards:
+                    # token ephemeral cache
+                    if (
+                        not reward_data["rewardToken"].lower()
+                        in ephemeral_cache["tokens"]
+                    ):
+                        logging.getLogger(__name__).debug(
+                            f" adding token {reward_data['rewardToken']} in ephemeral cache"
+                        )
+                        # build erc20 helper
+                        erc20_helper = build_erc20_helper(
+                            chain=chain, address=reward_data["rewardToken"], cached=True
+                        )
+                        ephemeral_cache["tokens"][
+                            reward_data["rewardToken"].lower()
+                        ] = {
+                            "symbol": erc20_helper.symbol,
+                            "decimals": erc20_helper.decimals,
+                        }
+                    # receiver address ephemeral cache
+                    if (
+                        not hype_status.address.lower()
+                        in ephemeral_cache["receiver_address"]
+                    ):
+                        ephemeral_cache["receiver_address"][
+                            hype_status.address.lower()
+                        ] = hype_status.receiver.address.lower()
+
+                    reward_data["hypervisor_address"] = hype_status.address.lower()
+                    reward_data["rewardToken_symbol"] = ephemeral_cache["tokens"][
+                        reward_data["rewardToken"].lower()
+                    ]["symbol"]
+                    reward_data["rewardToken_decimals"] = ephemeral_cache["tokens"][
+                        reward_data["rewardToken"].lower()
+                    ]["decimals"]
+                    reward_data["total_hypervisorToken_qtty"] = str(
+                        hype_status.totalSupply
+                    )
+
+                    # HACK: set rewarder_registry as the 'receiver' -> MultiFeeDistribution contract address
+                    reward_data["rewarder_registry"] = ephemeral_cache[
+                        "receiver_address"
+                    ][hype_status.address.lower()]
+
+                    # add block creation data
+                    reward_data["block"] = creation_block
+                    logging.getLogger(__name__).debug(
+                        f"  Processed cleopatra {chain.database_name}'s {reward_data['rewarder_address']} {reward_data['rewardToken_symbol']} static rewarder at {reward_data['block']}"
                     )
                     # add to result
                     result.append(reward_data)
