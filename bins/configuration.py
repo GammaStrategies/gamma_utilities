@@ -406,6 +406,7 @@ TOKEN_ADDRESS_EXCLUDE = {
     },
     Chain.ARBITRUM: {
         "0xe0688a2fe90d0f93f17f273235031062a210d691".lower(): "AglaMerkl",
+        "0xe435810e9a591cf08868ff80b0d5abeb705e30d6".lower(): "HeWHoMustNotBeNamed (VOL)",
     },
     Chain.OPTIMISM: {
         "0x41a65aae5d1c8437288d5a29b4d049897572758e".lower(): "MockAngleReward (aglaMerkl)",

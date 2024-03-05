@@ -290,12 +290,18 @@ class angle_merkle_distributor_creator(gamma_rewarder):
         """Address to which fees are forwarded"""
         return self.call_function_autoRpc("feeRecipient", None)
 
-    def getCampaignsBetween(self, start: int, end: int, skip: int, first: int) -> tuple:
+    def getCampaignsBetween(self, start: int, end: int, skip: int, first: int):
         """ """
-        tmp = self.call_function_autoRpc(
+        result = []
+        for x in self.call_function_autoRpc(
             "getCampaignsBetween", None, start, end, skip, first
-        )
-        return [self.format_campaign(campaign_data=x) for x in tmp[0]]
+        )[0]:
+            try:
+                result.append(self.format_campaign(campaign_data=x))
+            except Exception as e:
+                logging.getLogger(__name__).error(f" Error decoding campaign data: {e}")
+
+        return result
 
     def getDistributionsBetweenEpochs(
         self, epochStart: int, epochEnd: int, skip: int, first: int
@@ -424,7 +430,7 @@ class angle_merkle_distributor_creator(gamma_rewarder):
             ],
             campaign_data[7],
         )
-        # return result
+
         return {
             "campaignId": "0x" + campaign_data[0].hex(),
             "creator": campaign_data[1].lower(),
@@ -637,13 +643,13 @@ class angle_merkle_distributor_creator(gamma_rewarder):
                     except Exception as e:
                         _errors += 1
                         # abort on too many errors
-                        if _errors >= max_calls_atOnce * 0.10:
+                        if _errors >= max_calls_atOnce * 0.25:
                             logging.getLogger(__name__).debug(
                                 f" Bruteforce index multicall stopped bc no more results found in a loop"
                             )
                             break
 
-                if _errors >= max_calls_atOnce * 0.10:
+                if _errors >= max_calls_atOnce * 0.25:
                     break
 
         else:
