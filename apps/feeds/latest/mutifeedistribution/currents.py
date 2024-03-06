@@ -52,16 +52,22 @@ def feed_latest_multifeedistribution_snapshot():
 
 
 def create_items_to_feed_latest_multifeedistribution_snapshot(
-    chain: Chain, rewarder_type: rewarderType, protocol: Protocol
+    chain: Chain,
+    rewarder_type: rewarderType,
+    protocol: Protocol,
+    hypervisor_address: str | None = None,
 ):
     """Create item list to feed latest multifeedistribution snapshot"""
     #
     result = []
 
+    _find = {"rewarder_type": rewarder_type}
+    if hypervisor_address:
+        _find["hypervisor_address"] = hypervisor_address
     rewards_static = get_from_localdb(
         network=chain.database_name,
         collection="rewards_static",
-        find={"rewarder_type": rewarder_type},
+        find=_find,
     )
 
     hypes_not_included = (
