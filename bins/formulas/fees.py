@@ -14,7 +14,12 @@ def calculate_gamma_fee(fee_rate: int, protocol: Protocol) -> int:
         int: gamma fee percentage as int
     """
 
-    if protocol in [Protocol.CAMELOT, Protocol.RAMSES]:
+    if protocol in [
+        Protocol.CAMELOT,
+        Protocol.RAMSES,
+        Protocol.CLEOPATRA,
+        Protocol.PHARAOH,
+    ]:
         return fee_rate
     else:
         return int((1 / fee_rate) * 100) if fee_rate < 100 else 10
@@ -53,7 +58,7 @@ def convert_feeProtocol(
         # https://vscode.blockscan.com/arbitrum-one/0x521aa84ab3fcc4c05cabac24dc3682339887b126
         protocol_fee_0 = (feeProtocol0 / 10) // 1
         protocol_fee_1 = (feeProtocol1 / 10) // 1
-    elif pool_protocol == Protocol.RAMSES:
+    elif pool_protocol in [Protocol.RAMSES, Protocol.CLEOPATRA, Protocol.PHARAOH]:
         # factory
         # https://vscode.blockscan.com/arbitrum-one/0x2d846d6f447185590c7c2eddf5f66e95949e0c66
         protocol_fee_0 = (feeProtocol0 * 5 + 50) // 1
