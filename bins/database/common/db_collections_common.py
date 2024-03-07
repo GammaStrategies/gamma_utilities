@@ -854,6 +854,7 @@ class database_local(db_collections_common):
                         ],
                     ],
                 },
+                # hypervisor snapshots
                 "status": {
                     "mono_indexes": {
                         "id": True,
@@ -944,6 +945,16 @@ class database_local(db_collections_common):
                     "multi_indexes": [
                         [("blockNumber", ASCENDING), ("logIndex", ASCENDING)],
                     ],
+                },
+                # latest hypervisor snapshots
+                "latest_hypervisor_snapshots": {
+                    "mono_indexes": {
+                        "id": True,
+                        "block": False,
+                        "address": True,
+                        "timestamp": False,
+                    },
+                    "multi_indexes": [],
                 },
             }
 
