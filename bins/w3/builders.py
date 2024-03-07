@@ -126,6 +126,7 @@ def build_db_hypervisor_multicall(
     custom_web3Url: str | None = None,
     force_rpcType: str | None = None,
     convert_bint: bool = True,
+    timestamp: int | None = None,
 ) -> dict:
     try:
         # check if multicall contract is created after block to avoid problems
@@ -161,6 +162,7 @@ def build_db_hypervisor_multicall(
             custom_web3Url=custom_web3Url,
             cached=False,
             multicall=True,
+            timestamp=timestamp,
         )
 
         # set custom rpc type if needed
