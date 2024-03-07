@@ -198,6 +198,223 @@ SPECIAL_HYPERVISOR_ABIS = {
             )
             + "/gamma",
         },
+        "0x0ec4a47065bf52e1874d2491d4deeed3c638c75f": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0x24fe0b138d9b10a7f0502e213212ee6648926ecb": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0x1b56860eaf38f27b99d2b0d8ffac86b0f1173f1a": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0x33412fef1af035d6dba8b2f9b33b022e4c31dbb4": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0x23c85dca3d19b31f14aeea19beac32c2cb2ffc72": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0x3cca05926af387f1ab4cd45ce8975d31f0469927": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0x5230371a6d5311b1d7dd30c0f5474c2ef0a24661": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0x586880065937a0b1b9541723619b75739df8ef13": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0x3f805de0ec508bf7311baaa617015809be9ce953": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0x388a3938fb6c9c6cb0415946dd5d026f7d98e22c": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0x7d89593e1f327f06579faef15e88aadfae51713a": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0x7f92463e24b2ea1f7267aceed3ad68f7a956d2d8": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0x705b3acaf102404cfdd5e4a60535e4e70091273c": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0x85cbed523459b7f6f81c11e710df969703a8a70c": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0x9196617815d95853945cd8f5e4e0bb88fdfe0281": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0x85a5326f08c44ec673e4bfc666b737f7f3dc6b37": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0x8cd73cb1e1fa35628e36b8c543c5f825cd4e77f1": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0xa625ea468a4c70f13f9a756ffac3d0d250a5c276": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0xb542f4cb10b7913307e3ed432acd9bf2e709f5fa": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0xae29f871c9a4cda7ad2c8dff7193c2a0fe3d0c05": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0xc14e7ec60699a39cfd59bae06168afc2c76f32ac": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0xc86b1e7fa86834cac1468937cdd53ba3ccbc1153": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0xb666bfdb553a1aff4042c1e4f39e43852ba9731d": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0xeaa629224b3ab2b42b42fddb53a1b51351acbe4f": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0xed354a827d99992d9cdada809449985cb73b8bb1": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0xd930ab15c8078ebae4ac8da1098a81583603f7ce": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0xf19f91d7889668a533f14d076adc187be781a458": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0xf6eeca73646ea6a5c878814e6508e87facc7927c": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0xf874d4957861e193aec9937223062679c14f9aca": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0xfe9d3a1e865b9eaea9cd1d9d9073cc520be240c5": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
+        "0x34b95494c3c2732aa82e1e56be57074fee7a2b28": {
+            "file": "hypervisor_old",
+            "folder": (
+                CONFIGURATION.get("data", {}).get("abi_path", None) or "data/abi"
+            )
+            + "/gamma",
+        },
     },
     Chain.POLYGON: {
         "0x9c3b8d3d977ba1d58848565149cb5ac1689dfa5b": {
