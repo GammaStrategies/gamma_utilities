@@ -477,7 +477,8 @@ class web3wrap:
             try:
                 # add rpc attempt
                 rpc.add_attempt(method=cuType.eth_getLogs)
-                if entries := self._w3.eth.filter(filter).get_all_entries():
+                # if entries := self._w3.eth.filter(filter).get_all_entries():
+                if entries := self._w3.eth.get_logs(filter):
                     # exit rpc loop
                     break
             except (requests.exceptions.HTTPError, ValueError) as e:
