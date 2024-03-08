@@ -15,6 +15,10 @@ def reset_cache_files():
     )
     logging.getLogger(__name__).info(f" Resetting cache files from {folder_path}")
     try:
+        # create folder?
+        if not os.path.exists(folder_path):
+            os.makedirs(name=folder_path, exist_ok=True)
+
         files_list = get_files(path=folder_path)
     except Exception as e:
         logging.getLogger(__name__).debug(
