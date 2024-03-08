@@ -44,6 +44,38 @@ class LogstashFormatter(Formatter):
         # <pre>pre-formatted fixed-width code block</pre>
 
 
+def send_telegram(html_message: str, dtime: bool = True) -> requests.Response | None:
+    """Manually send html message thru telegram
+
+    Args:
+        html_message (str):
+        dtime (bool, optional): . Defaults to True.
+
+    Returns:
+        requests.Response | None:
+    """
+    # include utc header time
+    if not TELEGRAM_ENABLED:
+        return
+
+    if dtime:
+        t = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        html_message = f"<i>{t}|n</i>{html_message}"
+    # create payload
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": html_message,
+        "parse_mode": "HTML",
+    }
+    if TELEGRAM_TOKEN != "" and TELEGRAM_CHAT_ID != "":
+        return requests.post(
+            "https://api.telegram.org/bot{token}/sendMessage".format(
+                token=TELEGRAM_TOKEN
+            ),
+            data=payload,
+        ).content
+
+
 # TEST
 def test():
 
