@@ -288,7 +288,7 @@ def operations_db_service():
     identity = identify_me()
     # send eveyone service ON
     logging.getLogger("telegram").info(
-        f" Operations database feeding loop started as {identity}"
+        f" Operations database feeding loop started at {identity}"
     )
 
     # get minimum time between loops ( defaults to 5 minutes)
@@ -530,7 +530,7 @@ def revenue_operations_db_service():
     identity = identify_me()
     # send eveyone service ON
     logging.getLogger("telegram").info(
-        f" Revenue operations database feeding loop started as {identity}"
+        f" Revenue operations database feeding loop started at {identity}"
     )
 
     # minimum time between loops, in seconds

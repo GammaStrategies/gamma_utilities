@@ -7,6 +7,7 @@ from apps.feeds.revenue_operations import feed_revenue_operations
 from bins.database.helpers import get_default_localdb, get_from_localdb
 from bins.errors.general import ProcessingError
 from bins.general.enums import error_identity, queueItemType, text_to_protocol
+from bins.log.telegram_logger import send_to_telegram
 from bins.w3.builders import build_erc20_helper, build_hypervisor
 
 
@@ -102,8 +103,7 @@ def process_error(error: ProcessingError):
                 )
 
     elif error.identity == error_identity.WRONG_CONTRACT_FIELD_TYPE:
-        # process error
-        _handle_error_send_message(error.message)
+        send_to_telegram.error(msg=error.message, topic="configuration", dtime=True)
 
     elif error.identity == error_identity.NO_HYPERVISOR_PERIOD_END:
         if error.action == "rescrape":
@@ -114,7 +114,3 @@ def process_error(error: ProcessingError):
         logging.getLogger(__name__).warning(
             f"Unknown error identity {error.identity}. Can't process error"
         )
-
-
-def _handle_error_send_message(msg: str):
-    logging.getLogger("telegram").info(msg)

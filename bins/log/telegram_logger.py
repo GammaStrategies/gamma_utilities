@@ -44,36 +44,132 @@ class LogstashFormatter(Formatter):
         # <pre>pre-formatted fixed-width code block</pre>
 
 
-def send_telegram(html_message: str, dtime: bool = True) -> requests.Response | None:
-    """Manually send html message thru telegram
+class send_to_telegram:
 
-    Args:
-        html_message (str):
-        dtime (bool, optional): . Defaults to True.
+    @staticmethod
+    def info(
+        msg: str | list[str] | None = None, topic: str | None = None, dtime: bool = True
+    ) -> requests.Response | None:
+        """Send info message thru telegram
 
-    Returns:
-        requests.Response | None:
-    """
-    # include utc header time
-    if not TELEGRAM_ENABLED:
-        return
+        Args:
+            message (str):
+            dtime (bool, optional): . Defaults to True.
 
-    if dtime:
-        t = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        html_message = f"<i>{t}|n</i>{html_message}"
-    # create payload
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": html_message,
-        "parse_mode": "HTML",
-    }
-    if TELEGRAM_TOKEN != "" and TELEGRAM_CHAT_ID != "":
-        return requests.post(
-            "https://api.telegram.org/bot{token}/sendMessage".format(
-                token=TELEGRAM_TOKEN
-            ),
-            data=payload,
-        ).content
+        Returns:
+            requests.Response | None:
+        """
+        if msg is None:
+            return
+        message_lines = [msg] if isinstance(msg, str) else msg
+
+        # add header to message
+        header_message = ""
+        if dtime:
+            header_message = (
+                f"<i>{datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}</i>"
+            )
+        # add topic to header
+        if topic:
+            header_message += f"<b> :INFO: </b><i> {topic}</i>"
+
+        # send message
+        return send_to_telegram.send_telegram_html(header_message, message_lines)
+
+    @staticmethod
+    def warning(
+        msg: str | list[str] | None = None, topic: str | None = None, dtime: bool = True
+    ) -> requests.Response | None:
+        """Send warning message thru telegram
+
+        Args:
+            message (str):
+            dtime (bool, optional): . Defaults to True.
+
+        Returns:
+            requests.Response | None:
+        """
+        if msg is None:
+            return
+        message_lines = [msg] if isinstance(msg, str) else msg
+
+        # add header to message
+        header_message = ""
+        if dtime:
+            header_message = (
+                f"<i>{datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}</i>"
+            )
+        # add topic to header
+        if topic:
+            header_message += f"<b> :WARNING: </b><i> {topic}</i>"
+        # send message
+        return send_to_telegram.send_telegram_html(header_message, message_lines)
+
+    @staticmethod
+    def error(
+        msg: str | list[str] | None = None, topic: str | None = None, dtime: bool = True
+    ) -> requests.Response | None:
+        """Send error message thru telegram
+
+        Args:
+            message (str):
+            dtime (bool, optional): . Defaults to True.
+
+        Returns:
+            requests.Response | None:
+        """
+        if msg is None:
+            return
+        message_lines = [msg] if isinstance(msg, str) else msg
+
+        # add header to message
+        header_message = ""
+        if dtime:
+            header_message = (
+                f"<i>{datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}</i>"
+            )
+        # add topic to header
+        if topic:
+            header_message += f"<b> :ERROR: </b><i> {topic}</i>"
+        # send message
+        return send_to_telegram.send_telegram_html(header_message, message_lines)
+
+    @staticmethod
+    def send_telegram_html(
+        header: str, message_lines: list[str]
+    ) -> requests.Response | None:
+        """Manually send html message thru telegram
+
+        Args:
+            html_message (str):
+            dtime (bool, optional): . Defaults to True.
+
+        Returns:
+            requests.Response | None:
+        """
+        # include utc header time
+        if not TELEGRAM_ENABLED:
+            logging.getLogger(__name__).debug(
+                "Telegram is not enabled. Can't send message"
+            )
+            return
+
+        # add message lines
+        message = header + "\n" + "\n".join(message_lines)
+
+        # create payload
+        payload = {
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": message,
+            "parse_mode": "HTML",
+        }
+        if TELEGRAM_TOKEN != "" and TELEGRAM_CHAT_ID != "":
+            return requests.post(
+                "https://api.telegram.org/bot{token}/sendMessage".format(
+                    token=TELEGRAM_TOKEN
+                ),
+                data=payload,
+            ).content
 
 
 # TEST
