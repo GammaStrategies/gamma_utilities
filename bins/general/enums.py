@@ -36,6 +36,8 @@ class Chain(str, Enum):
 
     GNOSIS = ("gnosis", 100, "gnosis", "Gnosis")
 
+    ASTAR_ZKEVM = ("astar_zkevm", 3776, "astar_zkevm", "Astar zkEVM")
+
     # extra properties
     id: int
     database_name: str

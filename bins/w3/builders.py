@@ -453,7 +453,7 @@ def build_hypervisor(
         )
     elif protocol == Protocol.QUICKSWAP:
         # QuickSwap has Algebra and Uniswap v3 pools:
-        if network == Chain.MANTA.database_name:
+        if network in [Chain.MANTA.database_name, Chain.ASTAR_ZKEVM.database_name]:
             # uniswap v3 pool
             hypervisor = (
                 protocols.quickswap.hypervisor_univ3.gamma_hypervisor(

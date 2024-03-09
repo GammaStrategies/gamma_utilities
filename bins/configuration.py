@@ -330,6 +330,13 @@ STATIC_REGISTRY_ADDRESSES = {
             "coreMerkl": "0xFD0DFC837Fe7ED19B23df589b6F6Da5a775F99E0".lower(),
         },
     },
+    "astar_zkevm": {
+        "hypervisors": {
+            "quickswap": "0x683292172e2175bd08e3927a5e72fc301b161300".lower(),
+        },
+        "MasterChefV2Registry": {},
+        "uniproxy": {},
+    },
 }
 
 
@@ -392,6 +399,7 @@ USDC_TOKEN_ADDRESSES = {
     Chain.METIS: ["0xea32a96608495e54156ae48931a7c20f0dcc1a21".lower()],
     Chain.MANTA: ["0xb73603c5d87fa094b7314c74ace2e64d165016fb".lower()],
     Chain.GNOSIS: ["0xddafbb505ad214d7b80b1f830fccc89b60fb7a83".lower()],
+    Chain.ASTAR_ZKEVM: ["0xa8ce8aee21bc2a48a5ef670afcc9274c7bbbc035".lower()],
 }
 
 
