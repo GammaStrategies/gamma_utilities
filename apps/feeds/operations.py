@@ -121,6 +121,13 @@ def feed_operations(
         # close operations feed
         return
 
+    # check if there are hypervisor_addresses to scrape
+    if not hypervisor_addresses:
+        logging.getLogger(__name__).info(
+            f"   No hypervisors found for {network} in static collection. Can't continue."
+        )
+        return
+
     try:
         # try getting initial block as last found in database
         if not block_ini:
@@ -247,6 +254,9 @@ def feed_operations_hypervisors(
         block_end (int): End block to scrape
         max_blocks_step (int, optional): Maximum blocks to scrape at once in one query (seee operations_generator) Careful bc some RPCs do not like respond well to high values. Defaults to 1000.
     """
+
+    if not hypervisor_addresses:
+        raise ValueError("No hypervisor addresses to scrape")
 
     # set global protocol helper
     data_collector = create_data_collector(network=network)
