@@ -1,4 +1,4 @@
-from apps.checks.analytics.general import check_analytics, checks_telegram_monitoring
+from apps.checks.analytics.general import check_analytics, check_analytics_telegram
 from bins.general.enums import Chain, Protocol
 
 
@@ -22,8 +22,8 @@ def main(option: str, **kwargs):
         raise NotImplementedError("Reward status check not implemented")
     if option == "operations":
         raise NotImplementedError("operations check not implemented")
-    if option == "telegram_monitoring":
-        checks_telegram_monitoring()
+    if option == "analytics_telegram":
+        check_analytics_telegram()
 
 
 # check analytics

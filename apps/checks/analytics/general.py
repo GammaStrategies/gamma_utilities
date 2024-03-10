@@ -1,4 +1,6 @@
-from apps.checks.analytics.telegram_checks import telegram_checks
+from apps.checks.telegram_special.analytics import (
+    telegram_checks as analytics_telegram_checks,
+)
 from bins.configuration import CONFIGURATION
 from bins.general.enums import Chain, text_to_chain, text_to_protocol
 from apps.checks.analytics.check_hypervisor_analytics import check_hypervisors_analytics
@@ -55,7 +57,7 @@ def check_analytics():
                 )
 
 
-def checks_telegram_monitoring():
+def check_analytics_telegram():
     # CHAIN/PROTOCOL FEEDS
     for protocol in CONFIGURATION["script"]["protocols"]:
         # override networks if specified in cml
@@ -91,7 +93,7 @@ def checks_telegram_monitoring():
                         protocols = None
 
             # telegram monitoring
-            telegram_checks(
+            analytics_telegram_checks(
                 chain=text_to_chain(network),
                 protocols=protocols,
                 hypervisor_addresses=hypervisor_addresses,
