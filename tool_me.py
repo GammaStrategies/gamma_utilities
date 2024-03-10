@@ -14,11 +14,13 @@ from bins.general.general_utilities import log_time_passed, convert_string_datet
 from apps import (
     database_feeder,
     database_feeder_service,
-    database_checker,
     database_reScrape,
     database_reports,
     save_config,
 )
+from apps.checks import general as general_checks
+from apps.repair import general as general_repairs
+
 from tests import test
 from bins.cache.files_manager import reset_cache_files
 
@@ -106,7 +108,11 @@ if __name__ == "__main__":
         )
     elif CONFIGURATION["_custom_"]["cml_parameters"].check:
         # checks   --check
-        database_checker.main(option=CONFIGURATION["_custom_"]["cml_parameters"].check)
+        general_checks.main(option=CONFIGURATION["_custom_"]["cml_parameters"].check)
+
+    elif CONFIGURATION["_custom_"]["cml_parameters"].repair:
+        # repairs   --repair
+        general_repairs.main(option=CONFIGURATION["_custom_"]["cml_parameters"].repair)
 
     elif CONFIGURATION["_custom_"]["cml_parameters"].analysis:
         # analysis   --analysis

@@ -120,15 +120,30 @@ def parse_commandLine_args():
         "--check",
         choices=[
             "prices",
+            "analytics",
+            "all",
+            "hypervisor_status",
+            "queue",
+            "reward_status",
+            "operations",
+            "telegram_monitoring",
+        ],
+        help=" execute checks",
+    )
+    # repairs
+    par_repair = exGroup.add_argument(
+        "--repair",
+        choices=[
+            "prices",
             "database",
-            "repair",
+            "all",
             "hypervisor_status",
             "queue",
             "reward_status",
             "operations",
             "special",
         ],
-        help=" execute checks & repairs",
+        help=" execute repairs",
     )
 
     # analysis
@@ -197,7 +212,7 @@ def parse_commandLine_args():
         help="specify a hypervisor address to be analyzed",
     )
 
-    # TODO: replace hyperisor_address and user_address with XXXX_addresses
+    # TODO: replace hypervisor_address and user_address with XXXX_addresses
     par_main.add_argument(
         "--hypervisor_addresses",
         action=ValidateAddresses,

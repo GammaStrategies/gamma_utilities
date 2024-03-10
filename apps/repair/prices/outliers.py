@@ -1,14 +1,13 @@
-import logging
 from concurrent.futures import ProcessPoolExecutor
+import logging
 import random
+
 import tqdm
-from apps.database_checker import get_price
 from apps.database_reScrape import manual_reScrape, reScrape_loopWork_rewards_status
+from apps.repair.prices.helpers import get_price
 from bins.database.helpers import get_default_globaldb, get_from_localdb
-from bins.formulas.general import itentify_valid_and_outliers
 from bins.general.enums import Chain
 from bins.general.general_utilities import initializer
-from bins.mixed.price_utilities import price_scraper
 
 
 def repair_all_outlier_prices_from_rewardsdb(

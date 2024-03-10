@@ -18,6 +18,7 @@ from apps.feeds.revenue_operations import (
     create_revenue_addresses,
     feed_revenue_operations,
 )
+from apps.repair.general import repair_all
 from bins.general.enums import text_to_chain
 
 from bins.general.general_utilities import identify_me
@@ -44,8 +45,6 @@ from .feeds.latest.price.latest import (
     create_latest_usd_prices_address_json,
     feed_latest_usd_prices,
 )
-
-from .database_checker import repair_all
 
 
 def network_sequence_loop(

@@ -1,5 +1,6 @@
 import logging
-from apps.database_checker import get_all_logfiles, load_logFile
+from apps.repair.prices.logs import get_all_logfiles, load_logFile
+
 from bins.general import general_utilities
 from bins.performance.benchmark_logs import (
     analyze_benchmark_info_log,

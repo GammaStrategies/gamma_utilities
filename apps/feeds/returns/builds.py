@@ -151,8 +151,6 @@ def save_hypervisor_returns_to_database(
     chain: Chain,
     period_yield_list: list[dict],
 ):
-    # convert Decimals to Bson decimals
-
     # save all at once
     if db_return := get_default_localdb(
         network=chain.database_name
