@@ -12,7 +12,7 @@ def get_csv_analytics_data_from_endpoint(
 ) -> list[dict]:
     """Get analytics data from gamma endpoint"""
 
-    _url = f"https://{domain}/frontend/analytics/returns/csv?hypervisor_address={hypervisor_address}&chain={chain.database_name}&period={period}"
+    _url = f"https://{domain}/frontend/analytics/returns/csv?hypervisor_address={hypervisor_address}&chain={chain.id}&period={period}"
 
     try:
         result = get_response(
