@@ -120,6 +120,8 @@ def telegram_checks(
             find=_find,
             # projection={"address": 1, "_id": 0},
         )
+    else:
+        hypervisor_static_list = [{"address": x.lower()} for x in hypervisor_addresses]
 
     logging.getLogger(__name__).info(
         f" Checking {len(hypervisor_static_list)} hypervisors for {chain.fantasy_name} chain "
