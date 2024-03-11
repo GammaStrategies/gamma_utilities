@@ -5,6 +5,7 @@ import concurrent.futures
 import contextlib
 from datetime import datetime, timezone
 from apps.feeds.frontend.revenue_stats_daily import feed_revenue_stats
+from apps.feeds.latest.hypervisor_return.latest import feed_latest_hypervisor_returns
 
 from apps.feeds.queue.pulls.common import pull_from_queue
 from apps.feeds.reports.execution import feed_global_reports
@@ -409,6 +410,13 @@ def main(option="operations"):
                     feed_hypervisor_returns(
                         chain=text_to_chain(network),
                         rewrite=CONFIGURATION["_custom_"]["cml_parameters"].rewrite,
+                        hypervisor_addresses=CONFIGURATION["_custom_"][
+                            "cml_parameters"
+                        ].hypervisor_addresses,
+                    )
+                elif option == "latest_returns":
+                    feed_latest_hypervisor_returns(
+                        chain=text_to_chain(network),
                         hypervisor_addresses=CONFIGURATION["_custom_"][
                             "cml_parameters"
                         ].hypervisor_addresses,

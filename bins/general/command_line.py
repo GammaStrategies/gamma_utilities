@@ -90,6 +90,7 @@ def parse_commandLine_args():
             "static_rewards",
             "frontend_revenue_stats",
             "returns",
+            "latest_returns",
             "global_reports",
         ],
         help="feed database",
