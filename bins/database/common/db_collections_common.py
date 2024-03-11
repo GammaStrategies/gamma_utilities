@@ -956,6 +956,17 @@ class database_local(db_collections_common):
                     },
                     "multi_indexes": [],
                 },
+                "latest_hypervisor_returns": {
+                    "mono_indexes": {
+                        "id": True,
+                        "address": False,
+                        "ini_block": False,
+                        "end_block": False,
+                        "ini_timestamp": False,
+                        "end_timestamp": False,
+                    },
+                    "multi_indexes": [],
+                },
             }
 
         else:
