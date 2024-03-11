@@ -2,6 +2,28 @@ from bins.general.enums import Chain
 
 # https://docs.chain.link/data-feeds/price-feeds/addresses/
 CHAINLINK_USD_PRICE_FEEDS = {
+    Chain.ETHEREUM: {
+        "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2".lower(): {
+            "token": "WETH",
+            "address_feed": "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419".lower(),
+            "creation_block": 10606501,
+        },
+        "0xdac17f958d2ee523a2206206994597c13d831ec7".lower(): {
+            "token": "USDT",
+            "address_feed": "0x3E7d1eAB13ad0104d2750B8863b489D65364e32D".lower(),
+            "creation_block": 11870289,
+        },
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48".lower(): {
+            "token": "USDC",
+            "address_feed": "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6".lower(),
+            "creation_block": 11869355,
+        },
+        "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599".lower(): {
+            "token": "WBTC",
+            "address_feed": "0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c".lower(),
+            "creation_block": 10606501,
+        },
+    },
     Chain.ARBITRUM: {
         "0x82af49447d8a07e3bd95bd0d56f35241523fbab1".lower(): {
             "token": "WETH",
