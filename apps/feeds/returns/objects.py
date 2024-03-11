@@ -27,7 +27,7 @@ class time_location:
             if self.timestamp
             else None
         )
-    
+
     def to_dict(self) -> dict:
         return {
             "timestamp": self.timestamp,
@@ -596,14 +596,14 @@ class period_yield_data:
         # control var
         _ignore = False
         # when negative fees, quantify ( 0.0001 negative fee should not be a huge problem)
-        if self.fees.qtty.token0 > Decimal('-0.000001') and self.fees.qtty.token0 < 0:
+        if self.fees.qtty.token0 > Decimal("-0.000001") and self.fees.qtty.token0 < 0:
             logging.getLogger(__name__).warning(
                 f" Although hypervisor {self.address} has negative fee growth on token0, they are small enough to be zeroed. Fees: {self.fees.qtty.token0}"
             )
             self.fees.qtty.token0 = Decimal("0")
             _ignore = True
 
-        if self.fees.qtty.token1 > Decimal('-0.000001') and self.fees.qtty.token1 < 0:
+        if self.fees.qtty.token1 > Decimal("-0.000001") and self.fees.qtty.token1 < 0:
             logging.getLogger(__name__).warning(
                 f" Although hypervisor {self.address} has negative fee growth on token1, they are small enough to be zeroed. Fees:  {self.fees.qtty.token1}"
             )
@@ -800,14 +800,12 @@ class period_yield_data:
                     # add collected fees to control vars
                     lastperiod_fees_token0_collected += Decimal(
                         str(
-                            int(operation.qtty_token0)
-                            / (10**operation.decimals_token0)
+                            int(operation.qtty_token0) / (10**operation.decimals_token0)
                         )
                     )
                     lastperiod_fees_token1_collected += Decimal(
                         str(
-                            int(operation.qtty_token1)
-                            / (10**operation.decimals_token1)
+                            int(operation.qtty_token1) / (10**operation.decimals_token1)
                         )
                     )
 
@@ -1207,7 +1205,14 @@ class period_yield_data:
             "fees": self.fees.to_dict(),
             "fees_gamma": self.fees_gamma.to_dict(),
             "rewards": self.rewards.to_dict(),
-            "fees_collected_within": self.fees_collected_within.to_dict(),
+            "fees_collected_within": (
+                self.fees_collected_within.to_dict()
+                if self.fees_collected_within
+                else qtty_usd_yield(
+                    qtty=token_group(Decimal("0"), Decimal("0")),
+                    period_yield=Decimal("0"),
+                ).to_dict()
+            ),
         }
 
         return result
