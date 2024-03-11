@@ -1,3 +1,4 @@
+import logging
 from apps.checks.telegram_special.analytics import (
     telegram_checks as analytics_telegram_checks,
 )
@@ -71,6 +72,7 @@ def check_analytics_telegram():
             hypervisor_addresses = CONFIGURATION["_custom_"][
                 "cml_parameters"
             ].hypervisor_addresses
+            # override hypervisor addresses if specified in cml
             if CONFIGURATION["_custom_"]["cml_parameters"].hypervisor_address:
                 hypervisor_addresses = [
                     CONFIGURATION["_custom_"]["cml_parameters"].hypervisor_address
@@ -92,9 +94,15 @@ def check_analytics_telegram():
                     if len(protocols) == 0:
                         protocols = None
 
-            # telegram monitoring
-            analytics_telegram_checks(
-                chain=text_to_chain(network),
-                protocols=protocols,
-                hypervisor_addresses=hypervisor_addresses,
-            )
+            try:
+                # telegram monitoring
+                analytics_telegram_checks(
+                    chain=text_to_chain(network),
+                    protocols=protocols,
+                    hypervisor_addresses=hypervisor_addresses,
+                )
+            except Exception as e:
+                logging.getLogger(__name__).exception(
+                    f" Unexpected error while checking analytics for {network} chain. Error: {e}"
+                )
+                continue
