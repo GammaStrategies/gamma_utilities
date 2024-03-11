@@ -23,6 +23,16 @@ CHAINLINK_USD_PRICE_FEEDS = {
             "address_feed": "0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c".lower(),
             "creation_block": 10606501,
         },
+        "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984".lower(): {
+            "token": "UNI",
+            "address_feed": "0x553303d460EE0afB37EdFf9bE42922D8FF63220e".lower(),
+            "creation_block": 11317271,
+        },
+        "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9".lower(): {
+            "token": "AAVE",
+            "address_feed": "0x547a514d5e3769680Ce22B2361c10Ea13619e8a9".lower(),
+            "creation_block": 11179893,
+        },
     },
     Chain.ARBITRUM: {
         "0x82af49447d8a07e3bd95bd0d56f35241523fbab1".lower(): {
