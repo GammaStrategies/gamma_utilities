@@ -52,10 +52,11 @@ class monitor_hypervisor_analytics:
             # send telegram message
             send_to_telegram.error(
                 msg=[
-                    f"<pre>\n No analytics data for the period {self.period}</pre>",
-                    f"<pre>\n {self.chain.fantasy_name} {self.hypervisor_static['dex']}'s hype {self.hypervisor_static['address']} {self.hypervisor_static['symbol']} </pre>",
-                    f"<pre>\n Last database event-> {last_operation['topic']} at block {last_operation['blockNumber']} [{_days_since_last_operation} days ago ] txHash: {last_operation['transactionHash']}</pre>",
-                    f"<pre>\n Queued items-> {' '.join([f'{k}:{v}' for k, v in queued_operations.items()])} </pre>",
+                    f"<b>\n No analytics data for the period {self.period}</b>",
+                    f"<i>\n {self.chain.fantasy_name} {self.hypervisor_static['dex']}'s {self.hypervisor_static['symbol']} </i>",
+                    f"<code> {self.hypervisor_static['address']} </code>",
+                    f"<b>\n Last database event-></b> {last_operation['topic']} at block {last_operation['blockNumber']} [{_days_since_last_operation} days ago ] txHash: <code>{last_operation['transactionHash']}</code>",
+                    f"<b>\n Queued items-> </b> {' '.join([f'{k}:{v}' for k, v in queued_operations.items()])}",
                 ],
                 topic="analytics",
                 dtime=True,
@@ -73,10 +74,14 @@ class monitor_hypervisor_analytics:
         ):
 
             # inserts
-            messages.insert(0, f"<pre>\n Potential data errors </pre>")
+            messages.insert(0, f"<b>\n Potential data errors </b>")
             messages.insert(
                 1,
-                f"<pre>\n {self.chain.fantasy_name} {self.hypervisor_static['dex']}'s hype {self.hypervisor_static['address']} {self.hypervisor_static['symbol']}</pre>",
+                f"<i>\n {self.chain.fantasy_name} {self.hypervisor_static['dex']}'s hype {self.hypervisor_static['symbol']}</i>",
+            )
+            messages.insert(
+                1,
+                f"<pre> {self.hypervisor_static['address']} </pre>",
             )
 
             # send telegram message
