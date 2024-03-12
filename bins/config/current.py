@@ -86,4 +86,12 @@ MULTICALL3_ADDRESSES = {
         "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
         "block": 119222,
     },
+    Chain.ASTAR_ZKEVM: {
+        "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
+        "block": 183817,
+    },
+    Chain.IMMUTABLE_ZKEVM: {
+        "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
+        "block": 3680945,
+    },
 }

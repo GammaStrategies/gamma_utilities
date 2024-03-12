@@ -38,6 +38,8 @@ class Chain(str, Enum):
 
     ASTAR_ZKEVM = ("astar_zkevm", 3776, "astar_zkevm", "Astar zkEVM")
 
+    IMMUTABLE_ZKEVM = ("immutable_zkevm", 13371, "immutable_zkevm", "Immutable zkEVM")
+
     # extra properties
     id: int
     database_name: str

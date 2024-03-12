@@ -453,7 +453,11 @@ def build_hypervisor(
         )
     elif protocol == Protocol.QUICKSWAP:
         # QuickSwap has Algebra and Uniswap v3 pools:
-        if network in [Chain.MANTA.database_name, Chain.ASTAR_ZKEVM.database_name]:
+        if network in [
+            Chain.MANTA.database_name,
+            Chain.ASTAR_ZKEVM.database_name,
+            Chain.IMMUTABLE_ZKEVM.database_name,
+        ]:
             # uniswap v3 pool
             hypervisor = (
                 protocols.quickswap.hypervisor_univ3.gamma_hypervisor(
@@ -491,7 +495,11 @@ def build_hypervisor(
                     )
                 )
             )
-        else:
+        elif network in [
+            Chain.POLYGON.database_name,
+            Chain.POLYGON_ZKEVM.database_name,
+        ]:
+            # algebra pools
             hypervisor = (
                 protocols.quickswap.hypervisor.gamma_hypervisor(
                     address=hypervisor_address,
@@ -527,6 +535,10 @@ def build_hypervisor(
                         custom_web3Url=custom_web3Url,
                     )
                 )
+            )
+        else:
+            raise NotImplementedError(
+                f"QuickSwap hypervisor for {network} is not implemented"
             )
     elif protocol == Protocol.THENA:
         hypervisor = (
