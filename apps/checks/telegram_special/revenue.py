@@ -50,9 +50,9 @@ def telegram_checks_revenue():
         msg=[
             f"<b>\n Revenue at {calendar.month_name[last_month['month']]} {last_month['year']}: </b>",
             f"<i> ${millify(last_month['total_revenue'])}  [ {last_relative_revenue_vs_fees:,.2%} of fees  |  {last_relative_revenue_vs_volume:,.4%} of vol] </i>",
+            f"<i>\n ( revenue potential for {calendar.month_name[last_month['month']]} {last_month['year']}: ${millify(last_revenue['total_revenue_potential']/12)} )</i>",
             f"<b>\n Revenue in {last_month['year']}: </b>",
             f"<i> ${millify(last_revenue['total_revenue'])}  [ {total_relative_revenue_vs_fees:,.2%} of fees  |  {total_relative_revenue_vs_volume:,.4%} of vol] </i>",
-            f"<i>\n ( revenue potential for {last_month['year']}: ${millify(last_revenue['total_revenue_potential'])} )</i>",
             f" ",
             f" Revenue by exchange [{len(aggregated_values)}]:",
         ]
