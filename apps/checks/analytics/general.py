@@ -1,6 +1,6 @@
 import logging
 from apps.checks.telegram_special.analytics import (
-    telegram_checks as analytics_telegram_checks,
+    telegram_checks_analytics,
 )
 from bins.configuration import CONFIGURATION
 from bins.general.enums import Chain, text_to_chain, text_to_protocol
@@ -96,7 +96,7 @@ def check_analytics_telegram():
 
             try:
                 # telegram monitoring
-                analytics_telegram_checks(
+                telegram_checks_analytics(
                     chain=text_to_chain(network),
                     protocols=protocols,
                     hypervisor_addresses=hypervisor_addresses,

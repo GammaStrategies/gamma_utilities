@@ -96,7 +96,7 @@ class monitor_hypervisor_analytics:
             pass
 
 
-def telegram_checks(
+def telegram_checks_analytics(
     chain: Chain,
     protocols: list[Protocol] | None = None,
     hypervisor_addresses: list[str] | None = None,
