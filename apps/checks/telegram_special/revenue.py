@@ -1,7 +1,8 @@
-
+import calendar
 import logging
 
 from apps.checks.helpers.endpoint import get_revenue_data_from_endpoint
+from bins.general.general_utilities import millify
 from bins.log.telegram_logger import send_to_telegram
 
 
@@ -24,7 +25,6 @@ def telegram_checks_revenue():
         last_revenue["total_revenue"] / last_revenue["total_volume"]
     )
 
-    last_data_datetime = last_month["datetime"]
     last_relative_revenue_vs_fees = (
         last_month["total_revenue"] / last_month["total_fees"]
     )
@@ -32,15 +32,34 @@ def telegram_checks_revenue():
         last_month["total_revenue"] / last_month["total_volume"]
     )
 
+    # aggregate values
+    aggregated_values = {}
+    for itm in last_month["items"]:
+        if itm["exchange"] not in aggregated_values:
+            aggregated_values[itm["exchange"]] = {
+                "total_revenue": 0,
+                "total_fees": 0,
+                "total_volume": 0,
+            }
+        aggregated_values[itm["exchange"]]["total_revenue"] += itm["total_revenue"]
+        aggregated_values[itm["exchange"]]["total_fees"] += itm["total_fees"]
+        aggregated_values[itm["exchange"]]["total_volume"] += itm["total_volume"]
+
     # send information to telegram
     send_to_telegram.info(
         msg=[
-            f"<b>\n Revenue at {last_data_datetime} </b>",
-            f"<i>\n this month revenue: {last_month["total_revenue"]:,.0f}  this year revenue: {last_revenue["total_revenue"]:,.0f}   [ this year potential: {last_revenue["total_revenue_potential"]:,.0f}] </i>",
-            f"<b>\n this year revenue vs fees</b> : {total_relative_revenue_vs_fees:,.2%}       <b>this year revenue vs volume</b> : {total_relative_revenue_vs_volume:,.2%}",
-            f"<b>\n last month revenue vs fees</b> : {last_relative_revenue_vs_fees:,.2%}       <b>last month revenue vs volume</b> : {last_relative_revenue_vs_volume:,.2%}",
+            f"<b>\n Revenue at {calendar.month_name[last_month['month']]} {last_month['year']}: </b>",
+            f"<i> ${millify(last_month['total_revenue'])}  [ {last_relative_revenue_vs_fees:,.2%} of fees  |  {last_relative_revenue_vs_volume:,.4%} of vol] </i>",
+            f"<b>\n Revenue in {last_month['year']}: </b>",
+            f"<i> ${millify(last_revenue['total_revenue'])}  [ {total_relative_revenue_vs_fees:,.2%} of fees  |  {total_relative_revenue_vs_volume:,.4%} of vol] </i>",
+            f"<i>\n ( revenue potential for {last_month['year']}: ${millify(last_revenue['total_revenue_potential'])} )</i>",
             f" ",
-        ] + [f" <b><i>{itm['exchange']}</i></b> revenue: {itm["total_revenue"]:,.2f}   [ vs fees: {(itm["total_revenue"] / itm["total_fees"]):,.2%}  vs volume: {(itm["total_revenue"] / itm["total_volume"]):,.2%} ]" for itm in last_revenue["items"]],
+            f" Revenue by exchange [{len(aggregated_values)}]:",
+        ]
+        + [
+            f" <b><i>{exchange}</i></b>:  ${millify(values['total_revenue'])}  [ {(values['total_revenue'] / values['total_fees']):,.2%} of fees | {(values['total_revenue'] / values['total_volume']):,.4%} of vol]"
+            for exchange, values in aggregated_values.items()
+        ],
         topic="revenue",
         dtime=False,
     )
