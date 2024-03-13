@@ -29,6 +29,7 @@ class config_data:
     database: config_database
     abi_path: str = "data/abi"  # path to abi folder <relative to app>
     cache: config_cache = None
+    endpoint_urls: dict[str, str] = None
 
     def __post_init__(self):
         if isinstance(self.database, dict):

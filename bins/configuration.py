@@ -365,6 +365,7 @@ KNOWN_VALID_MASTERCHEFS = {
 
 
 USDC_TOKEN_ADDRESSES = {
+    Chain.ETHEREUM: ["0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48".lower()],
     Chain.ARBITRUM: [
         "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8".lower(),  # Bridged USDC (USDC.e)
         "0xaf88d065e77c8cc2239327c5edb3a432268e5831".lower(),  # USD Coin (USDC)
@@ -379,7 +380,6 @@ USDC_TOKEN_ADDRESSES = {
         "0x765DE816845861e75A25fCA122bb6898B8B1282a".lower(),
         "0x37f750b7cc259a2f741af45294f6a16572cf5cad".lower(),
     ],
-    Chain.ETHEREUM: ["0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48".lower()],
     Chain.FANTOM: ["0x04068da6c83afcfa0e13ba15a6696662335d5b75".lower()],
     Chain.LINEA: ["0x176211869ca2b568f2a7d4ee941e073a821ee1ff".lower()],
     Chain.MANTLE: ["0x09Bc4E0D864854c6aFB6eB9A9cdF58aC190D0dF9".lower()],

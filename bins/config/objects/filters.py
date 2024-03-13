@@ -40,6 +40,9 @@ class config_timeframe:
     start_time: str  # "2022-11-01T00:00:00"
     end_time: str  # 'now' can be used
 
+    # def __post_init__(self):
+    # TODO: change to datetime
+
 
 @dataclass
 class config_filters:
