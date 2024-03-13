@@ -435,3 +435,18 @@ def text_to_protocol(text: str) -> Protocol:
         ]:
             return protocol
     raise ValueError(f"Protocol with text {text} not found")
+
+
+def text_to_rewarderType(text: str) -> rewarderType:
+    """Text to rewarderType conversion
+
+    Args:
+        text (str): what to find
+
+    Returns:
+        rewarderType:
+    """
+    for protocol in rewarderType:
+        if text.lower() in [protocol.value.lower()]:
+            return protocol
+    raise ValueError(f"RewarderType with text {text} not found")
