@@ -509,3 +509,21 @@ from signal import signal, SIGINT
 
 def initializer():
     signal(SIGINT, lambda: None)
+
+
+# MATH UTILS
+import math
+
+millnames = ["", "k", "M", "B", "T"]
+
+
+def millify(n):
+    n = float(n)
+    millidx = max(
+        0,
+        min(
+            len(millnames) - 1, int(math.floor(0 if n == 0 else math.log10(abs(n)) / 3))
+        ),
+    )
+
+    return "{:.0f}{}".format(n / 10 ** (3 * millidx), millnames[millidx])
