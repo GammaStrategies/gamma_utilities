@@ -1,7 +1,7 @@
 from decimal import Decimal
 import logging
 from bins.general.enums import Chain
-from bins.general.net_utilities import get_response
+from bins.general.net_utilities import get_request, get_response
 
 
 def get_csv_analytics_data_from_endpoint(
@@ -51,3 +51,14 @@ def get_csv_analytics_data_from_endpoint(
             f" Unexpected error while getting analytics csv data"
         )
     return result
+
+
+def get_revenue_data_from_endpoint(
+    domain: str = "wire2.gamma.xyz",
+) -> list[dict] | None:
+    """Get revenue data from gamma endpoint"""
+
+    _url = f"https://{domain}/frontend/revenue_status/main_charts?yearly=true"
+    return get_request(
+        url=_url,
+    )
