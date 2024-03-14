@@ -520,39 +520,56 @@ def add_database_pools_to_paths(token_pools: dict, chain: Chain):
         # easy to acces vars
         token0_address = hype_pool["pool"]["token0"]
         token1_address = hype_pool["pool"]["token1"]
+        pool_tvl = 0
 
         if not token1_address in _prices or not token0_address in _prices:
-            logging.getLogger(__name__).error(
-                f" {chain.database_name} {hype_pool['symbol']} {hype_pool['address']} has no latest price!!. Skipping it."
-            )
-            continue
+            # there is no price for one of the tokens:
+            # that means that pool may be new or not active
+            if (
+                int(hype_pool["basePosition"]["liquidity"])
+                + int(hype_pool["limitPosition"]["liquidity"])
+                > 0
+            ):
+                # hype is active, lets include it
+                logging.getLogger(__name__).debug(
+                    f" {chain.database_name} {hype_pool['symbol']} {hype_pool['address']} has no latest price but has supply. Including it without checking tvl."
+                )
+                # hack to include it
+                pool_tvl = 50000
+            else:
+                # hype is not active, skip it
+                logging.getLogger(__name__).error(
+                    f" {chain.database_name} {hype_pool['symbol']} {hype_pool['address']} has no latest price and no supply. Skipping it."
+                )
+                continue
 
-        # Choose hypervisor position to calc liquidity usd value
-        if int(hype_pool["basePosition"]["liquidity"]):
-            # base position
-            base_usd = _prices[token0_address] * int(
-                hype_pool["basePosition"]["amount0"]
-            ) + _prices[token1_address] * int(hype_pool["basePosition"]["amount1"])
-            pool_tvl = (base_usd / int(hype_pool["basePosition"]["liquidity"])) * int(
-                hype_pool["pool"]["liquidity"]
-            )
-        elif int(hype_pool["limitPosition"]["liquidity"]):
-            # limit position
-            limit_usd = _prices[token0_address] * int(
-                hype_pool["limitPosition"]["amount0"]
-            ) + _prices[token1_address] * int(hype_pool["limitPosition"]["amount1"])
-            pool_tvl = (limit_usd / int(hype_pool["limitPosition"]["liquidity"])) * int(
-                hype_pool["pool"]["liquidity"]
-            )
-        else:
-            # no liquidity, skip pool
-            logging.getLogger(__name__).debug(
-                f" {chain.database_name} There is no liquidity in hype {hype_pool['symbol']} {hype_pool['address']}. Skipping it."
-            )
-            continue
+        if pool_tvl == 0:
+            # Choose hypervisor position to calc liquidity usd value
+            if int(hype_pool["basePosition"]["liquidity"]):
+                # base position
+                base_usd = _prices[token0_address] * int(
+                    hype_pool["basePosition"]["amount0"]
+                ) + _prices[token1_address] * int(hype_pool["basePosition"]["amount1"])
+                pool_tvl = (
+                    base_usd / int(hype_pool["basePosition"]["liquidity"])
+                ) * int(hype_pool["pool"]["liquidity"])
+            elif int(hype_pool["limitPosition"]["liquidity"]):
+                # limit position
+                limit_usd = _prices[token0_address] * int(
+                    hype_pool["limitPosition"]["amount0"]
+                ) + _prices[token1_address] * int(hype_pool["limitPosition"]["amount1"])
+                pool_tvl = (
+                    limit_usd / int(hype_pool["limitPosition"]["liquidity"])
+                ) * int(hype_pool["pool"]["liquidity"])
+            else:
+                # no liquidity, skip pool
+                logging.getLogger(__name__).debug(
+                    f" {chain.database_name} There is no liquidity in hype {hype_pool['symbol']} {hype_pool['address']}. Skipping it."
+                )
+                continue
 
         # skip pools with less than X USD TVL
-        if pool_tvl < 5000:
+        if pool_tvl < 1000:
             # skip this pool
             logging.getLogger(__name__).debug(
                 f" {chain.database_name} skipping pool {hype_pool['pool']['address']} because tvl= {pool_tvl:,.0f} USD "
