@@ -153,6 +153,7 @@ STATIC_REGISTRY_ADDRESSES = {
     "polygon_zkevm": {
         "hypervisors": {
             "quickswap": "0xD08B593eb3460B7aa5Ce76fFB0A3c5c938fd89b8".lower(),
+            "quickswap_uniswap": "0xf9adaa55014242c1005db307c4e41c541f26baaa".lower(),
         },
         "MasterChefV2Registry": {
             "quickswap": "0x5b8F58a33808222d1fF93C919D330cfA5c8e1B7d".lower(),

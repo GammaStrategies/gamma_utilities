@@ -663,7 +663,10 @@ REVENUE_FEE_OVERRIDE = {
         Protocol.CAMELOT.database_name: 0.623529,
     },
     Chain.POLYGON: {Protocol.QUICKSWAP.database_name: 0.5},
-    Chain.POLYGON_ZKEVM: {Protocol.QUICKSWAP.database_name: 0.5},
+    Chain.POLYGON_ZKEVM: {
+        Protocol.QUICKSWAP.database_name: 0.5,
+        Protocol.QUICKSWAP_UNISWAP.database_name: 0.5,
+    },
     Chain.MANTA: {Protocol.QUICKSWAP.database_name: 0.5},
     Chain.BASE: {Protocol.THICK.database_name: 0.2, Protocol.BASEX.database_name: 0.2},
     Chain.LINEA: {Protocol.LYNEX.database_name: 0.2},
