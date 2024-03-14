@@ -580,6 +580,29 @@ DEX_POOLS = {
             "min_block": 24671423,
         },
     },
+    Chain.OPBNB: {
+        "BTCB-WBNB": {
+            "protocol": Protocol.PANCAKESWAP,
+            "address": "0xde632a1481a8e01700cdf1818e89fb4c2a9acec6".lower(),
+            "token0": "0x7c6b91d9be155a6db01f749217d76ff02a7227f2".lower(),  # BTCB
+            "token1": "0x4200000000000000000000000000000000000006".lower(),  # WBNB
+            "min_block": 4420916,
+        },
+        "WETH-WBNB": {
+            "protocol": Protocol.PANCAKESWAP,
+            "address": "0xff00f4e09820dbbe8582f771800732dae7f002bd".lower(),
+            "token0": "0xe7798f023fc62146e8aa1b36da45fb70855a77ea".lower(),  # WETH
+            "token1": "0x4200000000000000000000000000000000000006".lower(),  # WBNB
+            "min_block": 4520463,
+        },
+        "USDT-WBNB": {
+            "protocol": Protocol.PANCAKESWAP,
+            "address": "0xc4f981189558682f15f60513158b699354b30204".lower(),
+            "token0": "0x9e5aac1ba1a2e6aed6b32689dfcf62a509ca96f3".lower(),  # USDT
+            "token1": "0x4200000000000000000000000000000000000006".lower(),  # WBNB
+            "min_block": 3352761,
+        },
+    },
 }
 
 
@@ -861,6 +884,13 @@ DEX_POOLS_PRICE_PATHS = {
         "0x78c1b0c915c4faa5fffa6cabf0219da63d7f4cb8".lower(): [
             (DEX_POOLS[Chain.MANTLE]["WETH-WMNT"], 0),
             (DEX_POOLS[Chain.MANTLE]["USDC-WETH"], 1),
+        ],
+    },
+    Chain.OPBNB: {
+        # BTCB
+        "0x7c6b91d9be155a6db01f749217d76ff02a7227f2".lower(): [
+            (DEX_POOLS[Chain.OPBNB]["BTCB-WBNB"], 0),
+            (DEX_POOLS[Chain.OPBNB]["USDT-WBNB"], 1),
         ],
     },
 }
