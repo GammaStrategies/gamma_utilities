@@ -159,4 +159,16 @@ CHAINLINK_USD_PRICE_FEEDS = {
             "address_feed": "0x8eCE1AbA32716FdDe8D6482bfd88E9a0ee01f565".lower(),
         },
     },
+    Chain.POLYGON_ZKEVM: {
+        "0x37eaa0ef3549a5bb7d431be78a3d99bd360d19e5".lower(): {
+            "token": "USDC.e",
+            "address_feed": "0x0167D934CB7240e65c35e347F00Ca5b12567523a".lower(),
+            "creation_block": 4931982,
+        },
+        "0xA8CE8aee21bC2A48a5EF670afCc9274C7bbbC035".lower(): {
+            "token": "USDC.e",
+            "address_feed": "0x0167D934CB7240e65c35e347F00Ca5b12567523a".lower(),
+            "creation_block": 4931982,
+        },
+    },
 }
