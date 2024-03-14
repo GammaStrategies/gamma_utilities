@@ -521,6 +521,12 @@ def add_database_pools_to_paths(token_pools: dict, chain: Chain):
         token0_address = hype_pool["pool"]["token0"]
         token1_address = hype_pool["pool"]["token1"]
 
+        if not token1_address in _prices or not token0_address in _prices:
+            logging.getLogger(__name__).error(
+                f" {chain.database_name} {hype_pool['symbol']} {hype_pool['address']} has no latest price!!. Skipping it."
+            )
+            continue
+
         # Choose hypervisor position to calc liquidity usd value
         if int(hype_pool["basePosition"]["liquidity"]):
             # base position
