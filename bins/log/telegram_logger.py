@@ -31,7 +31,9 @@ class LogstashFormatter(Formatter):
         super(LogstashFormatter, self).__init__()
 
     def format(self, record):
-        t = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        t = datetime.datetime.now(tz=datetime.timezone.utc).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
 
         return "<i>{datetime}</i><pre>\n{message}</pre>".format(
             message=record.msg, datetime=t
@@ -66,9 +68,7 @@ class send_to_telegram:
         # add header to message
         header_message = ""
         if dtime:
-            header_message = (
-                f"<i>{datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}</i>"
-            )
+            header_message = f"<i>{datetime.datetime.now(tz=datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}</i>"
         # add topic to header
         if topic:
             header_message += f"<b> :INFO: </b><i> {topic}</i>"
@@ -96,9 +96,7 @@ class send_to_telegram:
         # add header to message
         header_message = ""
         if dtime:
-            header_message = (
-                f"<i>{datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}</i>"
-            )
+            header_message = f"<i>{datetime.datetime.now(tz=datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}</i>"
         # add topic to header
         if topic:
             header_message += f"<b> :WARNING: </b><i> {topic}</i>"
@@ -125,9 +123,7 @@ class send_to_telegram:
         # add header to message
         header_message = ""
         if dtime:
-            header_message = (
-                f"<i>{datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}</i>"
-            )
+            header_message = f"<i>{datetime.datetime.now(tz=datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}</i>"
         # add topic to header
         if topic:
             header_message += f"<b> :ERROR: </b><i> {topic}</i>"
