@@ -2,7 +2,7 @@ import logging
 
 from apps.feeds.queue.queue_item import QueueItem
 
-from bins.configuration import CONFIGURATION
+from bins.configuration import CONFIGURATION, TOKEN_ADDRESS_EXCLUDE
 from bins.database.common.database_ids import (
     create_id_hypervisor_status,
     create_id_price,
@@ -200,11 +200,19 @@ def build_queue_items_from_hypervisor_status(
 
     # get a list of rewards_static rewardToken linked with hypervisor_address
     # make sure hype block is greater than static reward block
+    _tokens_excluded = []
+    try:
+        _tokens_excluded = list(TOKEN_ADDRESS_EXCLUDE.get(network, {}).keys())
+    except Exception as e:
+        logging.getLogger(__name__).error(
+            f" Can't get tokens excluded from {network} rewards_static queue items. Error: {e}"
+        )
     for reward_static in local_db.get_items_from_database(
         collection_name="rewards_static",
         find={
             "hypervisor_address": hypervisor_status["address"],
             "block": {"$lte": hypervisor_status["block"]},
+            "rewardToken": {"$nin": _tokens_excluded},
         },
     ):
         # check if end rewards is > hypervisor timestamp
