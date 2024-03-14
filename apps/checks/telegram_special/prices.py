@@ -92,7 +92,7 @@ def telegram_checks_tokens_without_price(chains: list[Chain] | None = None):
             f"<b> Token price check summary:</b>",
             f"<i> processed</i> <b> chains:</b> {total['chains']:,.0f}",
             f"<i> processed</i> <b> tokens:</b> {total['tokens']:,.0f}",
-            f"<b> found tokens without price:</b> {total['tokens_without_price']:,.0f}",
+            f"<b> found tokens without price:</b> {total['tokens_without_price']:,.0f} {total['tokens_without_price']/total['tokens'] if total['tokens'] else 0:.0%}",
         ],
         topic="prices",
         dtime=True,
