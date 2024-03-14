@@ -30,6 +30,10 @@ MULTICALL3_ADDRESSES = {
         "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
         "block": 25770160,
     },
+    Chain.POLYGON_ZKEVM: {
+        "address": "0xca11bde05977b3631167028862be2a173976ca11".lower(),
+        "block": 57746,
+    },
     Chain.AVALANCHE: {
         "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
         "block": 11907934,
