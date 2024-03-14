@@ -1,4 +1,5 @@
 from apps.checks.analytics.general import check_analytics, check_analytics_telegram
+from apps.checks.telegram_special.prices import telegram_checks_tokens_without_price
 from apps.checks.telegram_special.revenue import telegram_checks_revenue
 from bins.general.enums import Chain, Protocol
 
@@ -27,6 +28,8 @@ def main(option: str, **kwargs):
         check_analytics_telegram()
     if option == "revenue_telegram":
         telegram_checks_revenue()
+    if option == "prices_telegram":
+        telegram_checks_tokens_without_price()
 
 
 # check analytics

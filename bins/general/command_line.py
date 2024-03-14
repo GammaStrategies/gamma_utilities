@@ -129,6 +129,7 @@ def parse_commandLine_args():
             "operations",
             "analytics_telegram",
             "revenue_telegram",
+            "prices_telegram",
         ],
         help=" execute checks",
     )
