@@ -1,3 +1,4 @@
+from apps.feeds.latest.price.latest import create_latest_usd_prices_address_json
 from apps.feeds.price_paths import create_price_paths_json
 from apps.repair.blocks.general import repair_blocks
 from apps.repair.hypervisor.status import repair_hypervisor_status
@@ -49,6 +50,7 @@ def main(option: str, **kwargs):
         # reScrape_database_prices(
         #    network_limit=CONFIGURATION["_custom_"]["cml_parameters"].maximum
         # )
+        create_latest_usd_prices_address_json()
         create_price_paths_json()
     # else:
     #     raise NotImplementedError(
