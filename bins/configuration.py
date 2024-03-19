@@ -202,6 +202,7 @@ STATIC_REGISTRY_ADDRESSES = {
         },
         "MasterChefV2Registry": {
             "glacier": "0xF5BFA20F4A77933fEE0C7bB7F39E7642A070d599".lower(),
+            "uniswapv3": "0x7e55f975eb29DadE1B581FB2087A70188ED2Ecb8".lower(),
         },
         "uniproxy": {
             "glacier": "0xE64c62244c48F9d0AA70d411432b825e2F8B05B0".lower(),
@@ -350,7 +351,9 @@ STATIC_REGISTRY_ADDRESSES = {
         "hypervisors": {
             "blaster": "0xC27DDd78FC49875Fe6F844B72bbf31DFBB099881".lower(),
         },
-        "MasterChefV2Registry": {},
+        "MasterChefV2Registry": {
+            "blaster": "0x1E86A593E55215957C4755f1BE19a229AF3286f6".lower(),
+        },
         "uniproxy": {},
     },
 }
