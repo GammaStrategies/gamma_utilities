@@ -674,3 +674,13 @@ REVENUE_FEE_OVERRIDE = {
     Chain.IMMUTABLE_ZKEVM: {Protocol.QUICKSWAP.database_name: 0.5},
     Chain.BLAST: {Protocol.BLASTER.database_name: 0.2},
 }
+
+
+# Some campaigns are not conventrated liquidity and have a different campaign data abi. To avoid the errors poping up, we define here the campaigns that have a different abi.
+ANGLE_CAMPAIGN_IDS_EXCLUDE = {
+    Chain.ARBITRUM: [
+        "0xf91174d7b285d475714cfa66c5737f26ec79eac8a2972b935df962b0190428ee",
+        "0xdf068f1f8cdc3b4bbfedfba2e6dfb69f4bcfc166b189d10fdce4a7b091810b22",
+        "0x7fa081d64b9008f0070af7013f012f048b2ac4544873b1d8b19ab323794c4ee6",
+    ]
+}

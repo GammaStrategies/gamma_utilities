@@ -2,6 +2,7 @@ import logging
 from web3 import Web3
 from eth_abi import abi
 
+from bins.config.hardcodes import ANGLE_CAMPAIGN_IDS_EXCLUDE
 from bins.w3.helpers.multicaller import build_call_with_abi_part, execute_parse_calls
 from ....configuration import TOKEN_ADDRESS_EXCLUDE
 from ....general.enums import rewarderType, text_to_chain
@@ -297,6 +298,10 @@ class angle_merkle_distributor_creator(gamma_rewarder):
             "getCampaignsBetween", None, start, end, skip, first
         )[0]:
             try:
+                if f"0x{x[0].hex()}" in ANGLE_CAMPAIGN_IDS_EXCLUDE.get(
+                    self._network, []
+                ):
+                    continue
                 result.append(self.format_campaign(campaign_data=x))
             except Exception as e:
                 logging.getLogger(__name__).error(f" Error decoding campaign data: {e}")
@@ -454,7 +459,7 @@ class angle_merkle_distributor_creator(gamma_rewarder):
             }
         except Exception as e:
             raise ValueError(
-                f" Error decoding id {campaign_data[0].hex()} campaign data: {e}"
+                f" Error decoding {self._network} id 0x{campaign_data[0].hex()} campaign data [type:{campaign_data[4]}] : {e}"
             )
 
     def get_all_distributions(
@@ -640,7 +645,12 @@ class angle_merkle_distributor_creator(gamma_rewarder):
                         result.append(
                             self.format_campaign(
                                 campaign_data=[
-                                    itm["outputs"][i]["value"] for i in range(8)
+                                    itm["outputs"][i]["value"]
+                                    for i in range(8)
+                                    if f"0x{i[0].hex()}"
+                                    not in ANGLE_CAMPAIGN_IDS_EXCLUDE.get(
+                                        self._network, []
+                                    )
                                 ]
                             )
                         )
@@ -665,7 +675,12 @@ class angle_merkle_distributor_creator(gamma_rewarder):
                     itm = self.distributionList(i)
                     result.append(
                         self.format_campaign(
-                            campaign_data=[itm["outputs"][i]["value"] for i in range(8)]
+                            campaign_data=[
+                                itm["outputs"][i]["value"]
+                                for i in range(8)
+                                if f"0x{i[0].hex()}"
+                                not in ANGLE_CAMPAIGN_IDS_EXCLUDE.get(self._network, [])
+                            ]
                         )
                     )
                 except Exception as e:
