@@ -635,6 +635,17 @@ class period_yield_data:
                 message=f" Fees growth can't be negative and they are [0:{self.fees.qtty.token0} 1:{self.fees.qtty.token1}] for {network} hypervisor {self.address} ini block {self.timeframe.ini.block} end block {self.timeframe.end.block}.",
             )
 
+    def check_underlying_values(self):
+        # check if underlying values are set
+        if not self.status.ini.underlying.qtty.token0:
+            raise ValueError("Underlying value for token0 at ini not set")
+        if not self.status.ini.underlying.qtty.token1:
+            raise ValueError("Underlying value for token1 at ini not set")
+        if not self.status.end.underlying.qtty.token0:
+            raise ValueError("Underlying value for token0 at end not set")
+        if not self.status.end.underlying.qtty.token1:
+            raise ValueError("Underlying value for token1 at end not set")
+
     # SETUP FUNCTIONS
     def set_prices(
         self, token0_price: Decimal, token1_price: Decimal, position: str = "ini"
@@ -826,6 +837,9 @@ class period_yield_data:
         # end underlying ( including fees uncollected ) : can differ from ini tvl when asset prices or weights change
         self.status.end.underlying.qtty.token0 = _underlying_end.token0
         self.status.end.underlying.qtty.token1 = _underlying_end.token1
+
+        # check underlying values
+        self.check_underlying_values()
 
         # Yield percentage
         self.fees.period_yield = (
