@@ -28,4 +28,5 @@ from ..protocols import (
     aperture,
     thick,
     hercules,
+    blaster,
 )

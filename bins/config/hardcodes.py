@@ -672,4 +672,5 @@ REVENUE_FEE_OVERRIDE = {
     Chain.LINEA: {Protocol.LYNEX.database_name: 0.2},
     Chain.ASTAR_ZKEVM: {Protocol.QUICKSWAP.database_name: 0.5},
     Chain.IMMUTABLE_ZKEVM: {Protocol.QUICKSWAP.database_name: 0.5},
+    Chain.BLAST: {Protocol.BLASTER.database_name: 0.2},
 }

@@ -345,6 +345,13 @@ STATIC_REGISTRY_ADDRESSES = {
         "MasterChefV2Registry": {},
         "uniproxy": {},
     },
+    "blast": {
+        "hypervisors": {
+            "blaster": "0xC27DDd78FC49875Fe6F844B72bbf31DFBB099881".lower(),
+        },
+        "MasterChefV2Registry": {},
+        "uniproxy": {},
+    },
 }
 
 

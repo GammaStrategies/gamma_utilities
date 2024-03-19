@@ -17,6 +17,7 @@ class etherscan_helper:
         "linea": "https://api.lineascan.build",
         "avalanche": "https://api.snowtrace.io",
         "gnosis": "https://api.gnosisscan.io",
+        "blast": "https://api.blastscan.io",
     }
     # config key : network
     _key_network_matches = {
@@ -33,6 +34,7 @@ class etherscan_helper:
         "snowtrace": "avalanche",
         "celoscan": "celo",
         "gnosisscan": "gnosis",
+        "blastscan": "blast",
     }
 
     def __init__(self, api_keys: dict):

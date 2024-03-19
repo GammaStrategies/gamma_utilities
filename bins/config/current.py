@@ -98,4 +98,8 @@ MULTICALL3_ADDRESSES = {
         "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
         "block": 3680945,
     },
+    Chain.BLAST: {
+        "address": "0xcA11bde05977b3631167028862bE2a173976CA11".lower(),
+        "block": 88189,
+    },
 }

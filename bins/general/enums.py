@@ -40,6 +40,8 @@ class Chain(str, Enum):
 
     IMMUTABLE_ZKEVM = ("immutable_zkevm", 13371, "immutable_zkevm", "Immutable zkEVM")
 
+    BLAST = ("blast", 81457, "blast", "Blast")
+
     # extra properties
     id: int
     database_name: str
@@ -127,6 +129,8 @@ class Protocol(str, Enum):
 
     SWAPR = ("swapr", "swapr", "Swapr")  # gnosis
     THICK = ("thick", "thick", "Thick")
+
+    BLASTER = ("blaster", "blaster", "Blaster")
 
     # extra properties
     database_name: str
