@@ -8,6 +8,7 @@ import time
 import tqdm
 from apps.feeds.returns.builds import get_last_return_data_from_db
 from apps.feeds.returns.objects import period_yield_data
+from apps.feeds.status.rewards.general import create_reward_status_from_hype_status
 from apps.repair.prices.helpers import get_price
 from bins.configuration import CONFIGURATION
 from bins.database.common.db_collections_common import database_local
@@ -211,9 +212,21 @@ def feed_latest_hypervisor_returns_work(
             ini_hype_status["operations"] = []
             end_hype_status["operations"] = []
 
+            # get rewards ( when possible )
+            ini_rewards = create_rewards_adhoc(
+                chain=chain, hypervisor_status=ini_hype_status
+            )
+            end_rewards = create_rewards_adhoc(
+                chain=chain, hypervisor_status=end_hype_status
+            )
+
             # create period yield data
             if current_period := create_period_yield_data(
-                chain=chain, status_ini=ini_hype_status, status_end=end_hype_status
+                chain=chain,
+                status_ini=ini_hype_status,
+                status_end=end_hype_status,
+                ini_rewards=ini_rewards,
+                end_rewards=end_rewards,
             ):
                 period_yield_list.append(current_period)
         except Exception as e:
@@ -300,7 +313,11 @@ def create_blocks_to_process_list(
 
 
 def create_period_yield_data(
-    chain: Chain, status_ini: dict, status_end: dict
+    chain: Chain,
+    status_ini: dict,
+    status_end: dict,
+    ini_rewards: list[dict],
+    end_rewards: list[dict],
 ) -> period_yield_data:
     current_period = period_yield_data()
 
@@ -346,17 +363,44 @@ def create_period_yield_data(
     )
 
     # # fill rewards
-    # try:
-    #     current_period.fill_from_rewards_data(
-    #         ini_rewards=last_item["rewards_status"],
-    #         end_rewards=current_item["rewards_status"],
-    #     )
-    # except ProcessingError as e:
-    #     logging.getLogger(__name__).error(
-    #         f" Error while creating hype returns rewards. {e.message}"
-    #     )
+    try:
+        current_period.fill_from_rewards_data(
+            ini_rewards=ini_rewards,
+            end_rewards=end_rewards,
+        )
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            f" Error while creating hype returns rewards. {e}"
+        )
 
     return current_period
+
+
+def create_rewards_adhoc(chain: Chain, hypervisor_status: dict) -> list[dict]:
+
+    # get all rewards static and create reward status using the hypervisor status
+    rewards_status = []
+    rewards_static_list = get_from_localdb(
+        network=chain.database_name,
+        collection="rewards_static",
+        find={
+            "hypervisor_address": hypervisor_status["address"],
+            "end_rewards_timestamp": {"$gte": hypervisor_status["timestamp"]},
+            "start_rewards_timestamp": {"$lte": hypervisor_status["timestamp"]},
+        },
+    )
+    logging.getLogger(__name__).debug(
+        f" {chain.database_name} found {len(rewards_static_list)} static rewards for {hypervisor_status['address']} at timestamp {hypervisor_status['timestamp']}"
+    )
+    for reward_static in rewards_static_list:
+        if reward_status_list := create_reward_status_from_hype_status(
+            hypervisor_status=hypervisor_status,
+            rewarder_static=reward_static,
+            network=chain.database_name,
+        ):
+            rewards_status.extend(reward_status_list)
+
+    return rewards_status
 
 
 def save_latest_hypervisor_returns_to_database(
