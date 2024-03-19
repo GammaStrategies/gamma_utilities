@@ -415,43 +415,47 @@ class angle_merkle_distributor_creator(gamma_rewarder):
 
     def format_campaign(self, campaign_data: list) -> dict:
         # decode the campaign data field
-        _data_decoded = abi.decode(
-            [
-                "address",
-                "uint32",
-                "uint32",
-                "uint32",
-                "uint32",
-                "address",
-                "uint32",
-                "address[]",
-                "address[]",
-                "bytes",
-            ],
-            campaign_data[7],
-        )
-
-        return {
-            "campaignId": "0x" + campaign_data[0].hex(),
-            "creator": campaign_data[1].lower(),
-            "rewardToken": campaign_data[2].lower(),
-            "amount": campaign_data[3],
-            "campaignType": campaign_data[4],
-            "startTimestamp": campaign_data[5],
-            "duration": campaign_data[6],
-            "campaignData": {
-                "pool": _data_decoded[0].lower(),
-                "propFees": _data_decoded[1],
-                "propToken0": _data_decoded[2],
-                "propToken1": _data_decoded[3],
-                "isOutOfRangeIncentivized": _data_decoded[4],
-                "boostingAddress": _data_decoded[5].lower(),
-                "boostedReward": _data_decoded[6],
-                "whitelist": _data_decoded[7],
-                "blacklist": _data_decoded[8],
-                "extra": _data_decoded[9],
-            },
-        }
+        try:
+            _data_decoded = abi.decode(
+                [
+                    "address",
+                    "uint32",
+                    "uint32",
+                    "uint32",
+                    "uint32",
+                    "address",
+                    "uint32",
+                    "address[]",
+                    "address[]",
+                    "bytes",
+                ],
+                campaign_data[7],
+            )
+            return {
+                "campaignId": "0x" + campaign_data[0].hex(),
+                "creator": campaign_data[1].lower(),
+                "rewardToken": campaign_data[2].lower(),
+                "amount": campaign_data[3],
+                "campaignType": campaign_data[4],
+                "startTimestamp": campaign_data[5],
+                "duration": campaign_data[6],
+                "campaignData": {
+                    "pool": _data_decoded[0].lower(),
+                    "propFees": _data_decoded[1],
+                    "propToken0": _data_decoded[2],
+                    "propToken1": _data_decoded[3],
+                    "isOutOfRangeIncentivized": _data_decoded[4],
+                    "boostingAddress": _data_decoded[5].lower(),
+                    "boostedReward": _data_decoded[6],
+                    "whitelist": _data_decoded[7],
+                    "blacklist": _data_decoded[8],
+                    "extra": _data_decoded[9],
+                },
+            }
+        except Exception as e:
+            raise ValueError(
+                f" Error decoding id {campaign_data[0].hex()} campaign data: {e}"
+            )
 
     def get_all_distributions(
         self,
