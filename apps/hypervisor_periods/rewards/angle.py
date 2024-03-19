@@ -512,13 +512,13 @@ class hypervisor_periods_angleMerkl(hypervisor_periods_base):
 
         # check
         if (
-            campaign_data["campaignData"]["propFees"] / 10000
-            + campaign_data["campaignData"]["propToken0"] / 10000
-            + campaign_data["campaignData"]["propToken1"] / 10000
-            != 1
+            campaign_data["campaignData"]["propFees"]
+            + campaign_data["campaignData"]["propToken0"]
+            + campaign_data["campaignData"]["propToken1"]
+            != 10000
         ):
             raise ValueError(
-                f" {campaign_data['token']} Angle Merkl distribution data is not valid for hypervisor {hypervisor_status['address']} at block {hypervisor_status['block']}. 'prop___' fields must sum 1. {campaign_data}"
+                f" {campaign_data.get('rewardToken','')} Angle Merkl distribution data is not valid for hypervisor {hypervisor_status['address']} at block {hypervisor_status['block']}. 'prop___' fields must sum 1. {campaign_data}"
             )
 
         # reward x second
