@@ -15,7 +15,7 @@ class etherscan_helper:
         "fantomscan": "https://api.ftmscan.com",
         "base": "https://api.basescan.org",
         "linea": "https://api.lineascan.build",
-        "avalanche": "https://api.snowtrace.io",
+        "avalanche": "https://api.snowscan.xyz",
         "gnosis": "https://api.gnosisscan.io",
         "blast": "https://api.blastscan.io",
     }
@@ -32,6 +32,7 @@ class etherscan_helper:
         "basescan": "base",
         "lineascan": "linea",
         "snowtrace": "avalanche",
+        "snowscan": "avalanche",
         "celoscan": "celo",
         "gnosisscan": "gnosis",
         "blastscan": "blast",
