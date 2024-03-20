@@ -13,87 +13,119 @@ from bins.log.telegram_logger import send_to_telegram
 
 
 class monitor_hypervisor_analytics:
-    def __init__(self, chain: Chain, hypervisor_static: dict, period: int):
+    def __init__(self, chain: Chain, hypervisor_static: dict, periods: list[int]):
         self.chain = chain
         self.hypervisor_static = hypervisor_static
-        self.period = period
+        self.periods = periods
+        # sort periods from max to min
+        self.periods.sort(reverse=True)
 
     def __call__(self):
         """Monitor and sent do telegram any found inconsistency or error in hypervisor analytics data"""
-        # get csv data from endpoint
-        csv_data = get_csv_analytics_data_from_endpoint(
-            chain=self.chain,
-            hypervisor_address=self.hypervisor_static["address"],
-            period=self.period,
-        )
 
-        # 1) DATA NOT RETURNED ############################
-        if not csv_data:
-            # get last database operation/event known and telegram log it.
-            last_operation = get_last_operation(
-                chain=self.chain, hypervisor_address=self.hypervisor_static["address"]
+        # loop through periods from max to min
+        _checks_done = False
+        for period in self.periods:
+
+            # get csv data from endpoint
+            csv_data = get_csv_analytics_data_from_endpoint(
+                chain=self.chain,
+                hypervisor_address=self.hypervisor_static["address"],
+                period=period,
             )
 
-            # queued items exist waiting to be processed? ( search for operations)
-            queued_operations = {}
-            for qitm in get_hypervisor_related_operations(
-                chain=self.chain, hypervisor_address=self.hypervisor_static["address"]
-            ):
-                if not qitm["type"] in queued_operations:
-                    queued_operations[qitm["type"]] = 0
-                queued_operations[qitm["type"]] += 1
+            # 1) DATA NOT RETURNED ############################
+            if not csv_data:
+                # get last database operation/event known and telegram log it.
+                last_operation = get_last_operation(
+                    chain=self.chain,
+                    hypervisor_address=self.hypervisor_static["address"],
+                )
 
-            # days passed since last operation
-            _days_since_last_operation = (
-                datetime.now(timezone.utc)
-                - datetime.fromtimestamp(last_operation["timestamp"], tz=timezone.utc)
-            ).days
+                # queued items exist waiting to be processed? ( search for operations)
+                queued_operations = {}
+                for qitm in get_hypervisor_related_operations(
+                    chain=self.chain,
+                    hypervisor_address=self.hypervisor_static["address"],
+                ):
+                    if not qitm["type"] in queued_operations:
+                        queued_operations[qitm["type"]] = 0
+                    queued_operations[qitm["type"]] += 1
 
-            # send telegram message
-            send_to_telegram.error(
-                msg=[
-                    f"<b>\n No analytics data for the period {self.period}</b>",
-                    f"<i>\n {self.chain.fantasy_name} {self.hypervisor_static['dex']}'s {self.hypervisor_static['symbol']} </i>",
-                    f"<code> {self.hypervisor_static['address']} </code>",
-                    f"<b>\n Last database event-></b> {last_operation['topic']} at block {last_operation['blockNumber']} [{_days_since_last_operation} days ago ] txHash: <code>{last_operation['transactionHash']}</code>",
-                    f"<b>\n Queued items-> </b> {' '.join([f'{k}:{v}' for k, v in queued_operations.items()])}",
-                ],
-                topic="analytics",
-                dtime=True,
-            )
+                if not last_operation:
+                    # send telegram message
+                    send_to_telegram.error(
+                        msg=[
+                            f"<b>\n No analytics data for the period {period}</b>",
+                            f"<i>\n {self.chain.fantasy_name} {self.hypervisor_static['dex']}'s {self.hypervisor_static['symbol']} </i>",
+                            f"<code> {self.hypervisor_static['address']} </code>",
+                            f"<b>\n Last database event-></b> No database event found",
+                            (
+                                f"<b>\n Queued items-> </b> {' '.join([f'{k}:{v}' for k, v in queued_operations.items()])}"
+                                if queued_operations
+                                else ""
+                            ),
+                        ],
+                        topic="analytics",
+                        dtime=True,
+                    )
+                    return
 
-            # exit this hypervisor period check
-            return
+                # days passed since last operation
+                _days_since_last_operation = (
+                    datetime.now(timezone.utc)
+                    - datetime.fromtimestamp(
+                        last_operation["timestamp"], tz=timezone.utc
+                    )
+                ).days
 
-        # 2) DATA CONSISTENCY  ############################
-        if messages := analyze_csv(
-            chain=self.chain,
-            hypervisor_address=self.hypervisor_static["address"],
-            period=self.period,
-            csv_data=csv_data,
-        ):
+                # send telegram message
+                send_to_telegram.error(
+                    msg=[
+                        f"<b>\n No analytics data for the period {period}</b>",
+                        f"<i>\n {self.chain.fantasy_name} {self.hypervisor_static['dex']}'s {self.hypervisor_static['symbol']} </i>",
+                        f"<code> {self.hypervisor_static['address']} </code>",
+                        f"<b>\n Last database event-></b> {last_operation['topic']} at block {last_operation['blockNumber']} [{_days_since_last_operation} days ago ] txHash: <code>{last_operation['transactionHash']}</code>",
+                        f"<b>\n Queued items-> </b> {' '.join([f'{k}:{v}' for k, v in queued_operations.items()])}",
+                    ],
+                    topic="analytics",
+                    dtime=True,
+                )
 
-            # inserts
-            messages.insert(0, f"<b>\n Potential data errors </b>")
-            messages.insert(
-                1,
-                f"<i>\n {self.chain.fantasy_name} {self.hypervisor_static['dex']}'s hype {self.hypervisor_static['symbol']}</i>",
-            )
-            messages.insert(
-                1,
-                f"<pre> {self.hypervisor_static['address']} </pre>",
-            )
+                # exit this hypervisor period check
+                return
 
-            # send telegram message
-            send_to_telegram.warning(
-                msg=messages,
-                topic="analytics",
-                dtime=True,
-            )
+            if not _checks_done:
+                # 2) DATA CONSISTENCY  ############################
+                if messages := analyze_csv(
+                    chain=self.chain,
+                    hypervisor_address=self.hypervisor_static["address"],
+                    period=period,
+                    csv_data=csv_data,
+                ):
+                    # inserts
+                    messages.insert(0, f"<b>\n Potential data errors </b>")
+                    messages.insert(
+                        1,
+                        f"<i>\n {self.chain.fantasy_name} {self.hypervisor_static['dex']}'s hype {self.hypervisor_static['symbol']}</i>",
+                    )
+                    messages.insert(
+                        1,
+                        f"<pre> {self.hypervisor_static['address']} </pre>",
+                    )
 
-        else:
-            # analytic data seems fine
-            pass
+                    # send telegram message
+                    send_to_telegram.warning(
+                        msg=messages,
+                        topic="analytics",
+                        dtime=True,
+                    )
+
+                else:
+                    # analytic data seems fine
+                    pass
+                # set checks done
+                _checks_done = True
 
 
 def telegram_checks_analytics(
@@ -134,12 +166,11 @@ def telegram_checks_analytics(
     #
     for hypervisor_static in hypervisor_static_list:
 
-        for period in periods:
-            # create monitor
-            monitor = monitor_hypervisor_analytics(
-                chain=chain,
-                hypervisor_static=hypervisor_static,
-                period=period,
-            )
-            # call it
-            monitor()
+        # create monitor
+        monitor = monitor_hypervisor_analytics(
+            chain=chain,
+            hypervisor_static=hypervisor_static,
+            periods=periods,
+        )
+        # call it
+        monitor()

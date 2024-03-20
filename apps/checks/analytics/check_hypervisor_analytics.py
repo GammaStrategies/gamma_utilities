@@ -43,6 +43,9 @@ def check_hypervisors_analytics(
         f" Testing {len(hypervisors_static_list)} hypervisors for {chain.fantasy_name} chain"
     )
     for hypervisor in hypervisors_static_list:
+        # we should only analyze csv of the highest period available
+        # so that no warning messages are repeated
+        _highest_period = 1
         for period in periods:
             # get csv data
             csv_data = get_csv_analytics_data_from_endpoint(
@@ -54,15 +57,18 @@ def check_hypervisors_analytics(
                     f"      ERROR: No csv data found for hypervisor {hypervisor['address']}"
                 )
                 continue
-            # analyze
-            for message in analyze_csv(
-                chain=chain,
-                hypervisor_address=hypervisor["address"],
-                period=period,
-                csv_data=csv_data,
-            ):
-                # log messages
-                logging.getLogger(__name__).info(message)
+
+            _highest_period = max(_highest_period, period)
+
+        # analyze the highest period
+        for message in analyze_csv(
+            chain=chain,
+            hypervisor_address=hypervisor["address"],
+            period=_highest_period,
+            csv_data=csv_data,
+        ):
+            # log messages
+            logging.getLogger(__name__).info(message)
 
 
 # CHECK ####################################################################################################################
@@ -107,9 +113,11 @@ def analyze_csv(
     for idx, row in enumerate(csv_data[1:]):
         if idx + 1 < len(csv_data):
             # price analysis
-            messages += check_prices(row1=row, row2=csv_data[idx + 1], threshold=0.15)
+            messages += check_prices(row1=row, row2=csv_data[idx + 1], threshold=0.5)
             # weights analysis
-            messages += check_weights(row1=row, row2=csv_data[idx + 1], threshold=10)
+            messages += check_weights(row1=row, row2=csv_data[idx + 1], threshold=15)
+            # divergence analysis
+            messages += check_divergence(row=row, threshold=1200.0)
             # rebalance analysis
             if row["block"] in rebalances:
                 messages.append(
@@ -134,6 +142,14 @@ def check_prices(row1: dict, row2: dict, threshold: float = 0.3) -> list[str]:
     datetime_ini2 = datetime.fromtimestamp(row2["timestamp_from"])
     datetime_end2 = datetime.fromtimestamp(row2["timestamp"])
 
+    # TODO: divide price variations by the number of seconds passed and compare with threshold
+    seconds_passed_1 = row1["timestamp"] - row1["timestamp_from"]
+    if seconds_passed_1 > 3600 * 24 * 4:
+        logging.getLogger(__name__).info(
+            f"  -> {datetime_ini1} to {datetime_end1} has {seconds_passed_1} seconds. Skipping"
+        )
+        return messages
+
     # check if initial and end prices within a row have a great difference
     change_token0_within_period = (
         row1["status.end.prices.token0"] - row1["status.ini.prices.token0"]
@@ -149,6 +165,14 @@ def check_prices(row1: dict, row2: dict, threshold: float = 0.3) -> list[str]:
         messages.append(
             f" PRICE: token1 has changed by {change_token1_within_period:,.1%} within the period from {datetime_ini1} [${row1['status.ini.prices.token1']:,.2f}] to {datetime_end2} [${row1['status.end.prices.token1']:,.2f}]"
         )
+
+    # TODO: divide price variations by the number of seconds passed and compare with threshold
+    seconds_passed_2 = row2["timestamp"] - row2["timestamp_from"]
+    if seconds_passed_2 > 3600 * 24 * 4:
+        logging.getLogger(__name__).info(
+            f"  -> {datetime_ini2} to {datetime_end2} has {seconds_passed_2} seconds. Skipping"
+        )
+        return messages
 
     # check if initial and end prices between rows have a great difference ( ini vs ini, end vs end)
     change_token0_between_ini_rows = (
@@ -195,6 +219,21 @@ def check_weights(row1: dict, row2: dict, threshold: float = 0.3) -> list[str]:
     datetime_ini2 = datetime.fromtimestamp(row2["timestamp_from"])
     datetime_end2 = datetime.fromtimestamp(row2["timestamp"])
 
+    # TODO: divide price variations by the number of seconds passed and compare with threshold
+    seconds_passed_1 = row1["timestamp"] - row1["timestamp_from"]
+    if seconds_passed_1 > 3600 * 24 * 4:
+        logging.getLogger(__name__).info(
+            f"  -> {datetime_ini1} to {datetime_end1} has {seconds_passed_1} seconds. Skipping"
+        )
+        return messages
+
+    seconds_passed_2 = row2["timestamp"] - row2["timestamp_from"]
+    if seconds_passed_2 > 3600 * 24 * 4:
+        logging.getLogger(__name__).info(
+            f"  -> {datetime_ini2} to {datetime_end2} has {seconds_passed_2} seconds. Skipping"
+        )
+        return messages
+
     # define tvls
     token0_ini1 = (
         row1["status.ini.prices.token0"] * row1["status.ini.underlying.qtty.token0"]
@@ -225,6 +264,18 @@ def check_weights(row1: dict, row2: dict, threshold: float = 0.3) -> list[str]:
     tvl_ini2 = token0_ini2 + token1_ini2
     tvl_end2 = token0_end2 + token1_end2
 
+    if not tvl_ini1 or not tvl_end1:
+        messages.append(
+            f" TVL is zero in timestamps from {datetime_ini1} to {datetime_end1}"
+        )
+    if not tvl_ini2 or not tvl_end2:
+        messages.append(
+            f" TVL is zero in timestamps from {datetime_ini2} to {datetime_end2}"
+        )
+
+    if not tvl_ini1 or not tvl_end1 or not tvl_ini2 or not tvl_end2:
+        return messages
+
     # define weights
     weight_token0_ini1 = token0_ini1 / tvl_ini1
     weight_token1_ini1 = token1_ini1 / tvl_ini1
@@ -237,11 +288,15 @@ def check_weights(row1: dict, row2: dict, threshold: float = 0.3) -> list[str]:
 
     # check if initial weights within a row have a great difference
     change_weight_token0_within_period = (
-        weight_token0_end1 - weight_token0_ini1
-    ) / weight_token0_ini1
+        ((weight_token0_end1 - weight_token0_ini1) / weight_token0_ini1)
+        if weight_token0_ini1 != 0
+        else 0
+    )
     change_weight_token1_within_period = (
-        weight_token1_end1 - weight_token1_ini1
-    ) / weight_token1_ini1
+        ((weight_token1_end1 - weight_token1_ini1) / weight_token1_ini1)
+        if weight_token1_ini1 != 0
+        else 0
+    )
     if abs(change_weight_token0_within_period) >= threshold:
         messages.append(
             f" WEIGHT token0 has changed by {change_weight_token0_within_period:,.1%} within the period from {datetime_ini1} [{weight_token0_ini1:,.2f}] to {datetime_end1} [{weight_token0_end1:,.2f}]"
@@ -253,11 +308,15 @@ def check_weights(row1: dict, row2: dict, threshold: float = 0.3) -> list[str]:
 
     # check if initial weights between rows have a great difference ( ini vs ini, end vs end)
     change_weight_token0_between_ini_rows = (
-        weight_token0_ini2 - weight_token0_ini1
-    ) / weight_token0_ini1
+        ((weight_token0_ini2 - weight_token0_ini1) / weight_token0_ini1)
+        if weight_token0_ini1 != 0
+        else 0
+    )
     change_weight_token1_between_ini_rows = (
-        weight_token1_ini2 - weight_token1_ini1
-    ) / weight_token1_ini1
+        ((weight_token1_ini2 - weight_token1_ini1) / weight_token1_ini1)
+        if weight_token1_ini1 != 0
+        else 0
+    )
     if abs(change_weight_token0_between_ini_rows) >= threshold:
         messages.append(
             f" WEIGHT token0 has changed by {change_weight_token0_between_ini_rows:,.1%} within 2 periods between {datetime_ini1} [{weight_token0_ini1:,.2f}] and {datetime_ini2} [{weight_token0_ini2:,.2f}]"
@@ -267,11 +326,15 @@ def check_weights(row1: dict, row2: dict, threshold: float = 0.3) -> list[str]:
             f" WEIGHT token1 has changed by {change_weight_token1_between_ini_rows:,.1%} within 2 periods between {datetime_ini1} [{weight_token1_ini1:,.2f}] and {datetime_ini2} [{weight_token1_ini2:,.2f}]"
         )
     change_weight_token0_between_end_rows = (
-        weight_token0_end2 - weight_token0_end1
-    ) / weight_token0_end1
+        ((weight_token0_end2 - weight_token0_end1) / weight_token0_end1)
+        if weight_token0_end1 != 0
+        else 0
+    )
     change_weight_token1_between_end_rows = (
-        weight_token1_end2 - weight_token1_end1
-    ) / weight_token1_end1
+        ((weight_token1_end2 - weight_token1_end1) / weight_token1_end1)
+        if weight_token1_end1 != 0
+        else 0
+    )
     if abs(change_weight_token0_between_end_rows) >= threshold:
         messages.append(
             f" WEIGHT token0 has changed by {change_weight_token0_between_end_rows:,.1%} within 2 periods between {datetime_end1} [{weight_token0_end1:,.2f}] and {datetime_end2} [{weight_token0_end2:,.2f}]"
@@ -280,6 +343,43 @@ def check_weights(row1: dict, row2: dict, threshold: float = 0.3) -> list[str]:
         messages.append(
             f" WEIGHT token1 has changed by {change_weight_token1_between_end_rows:,.1%} within 2 periods between {datetime_end1} [{weight_token1_end1:,.2f}] and {datetime_end2} [{weight_token1_end2:,.2f}]"
         )
+
+    # return result
+    return messages
+
+
+def check_divergence(row: dict, threshold: float = 1200.0) -> list[str]:
+    """Check if divergence within the period is too high.
+    Compare it with price divergence."""
+
+    messages = []
+
+    # get initial and end datetimes
+    datetime_ini = datetime.fromtimestamp(row["timestamp_from"])
+    datetime_end = datetime.fromtimestamp(row["timestamp"])
+
+    # check if initial and end prices within a row have a great difference
+    try:
+        # sum of price divergences to be comparable to the position divergence ( its not the same thing, but can be used as a reference)
+        price_divergence = (
+            row["status.end.prices.token0"] - row["status.ini.prices.token0"]
+        ) / row["status.ini.prices.token0"] + (
+            row["status.end.prices.token1"] - row["status.ini.prices.token1"]
+        ) / row[
+            "status.ini.prices.token1"
+        ]
+    except ZeroDivisionError:
+        messages.append(
+            f" Initial prices are zero in timestamps from {datetime_ini} to {datetime_end}"
+        )
+        return messages
+
+    # compare price divergence with position divergence
+    if price_divergence:
+        if abs(row["divergence.point.yield"] / price_divergence) >= threshold:
+            messages.append(
+                f" DIRECT TRANSFER: position divergence is too high compared to price divergence from {datetime_ini} to {datetime_end}"
+            )
 
     # return result
     return messages
