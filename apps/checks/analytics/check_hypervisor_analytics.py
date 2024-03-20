@@ -115,7 +115,7 @@ def analyze_csv(
             # price analysis
             messages += check_prices(row1=row, row2=csv_data[idx + 1], threshold=0.5)
             # weights analysis
-            messages += check_weights(row1=row, row2=csv_data[idx + 1], threshold=15)
+            # messages += check_weights(row1=row, row2=csv_data[idx + 1], threshold=15)
             # divergence analysis
             messages += check_divergence(row=row, threshold=1200.0)
             # rebalance analysis
