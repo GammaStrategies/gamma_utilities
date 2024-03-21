@@ -224,7 +224,13 @@ class etherscan_helper:
         # return result
         return result
 
-    def get_wallet_erc20_transactions(self, network: str, wallet_address: str) -> list:
+    def get_wallet_erc20_transactions(
+        self,
+        network: str,
+        wallet_address: str,
+        startblock: int = 0,
+        endblock: int = 999999999999,
+    ) -> list:
         """Get all erc20 transactions for a given address
 
         Args:
@@ -263,8 +269,8 @@ class etherscan_helper:
                         module="account",
                         action="tokentx",
                         address=wallet_address,
-                        startblock=0,
-                        endblock=99999999,
+                        startblock=startblock,
+                        endblock=endblock,
                         page=page,
                         offset=offset,
                         sort="asc",
