@@ -54,7 +54,7 @@ class monitor_hypervisor_analytics:
 
                 if not last_operation:
                     # send telegram message
-                    send_to_telegram.error(
+                    response = send_to_telegram.error(
                         msg=[
                             f"<b>\n No analytics data for the period {period}</b>",
                             f"<i>\n {self.chain.fantasy_name} {self.hypervisor_static['dex']}'s {self.hypervisor_static['symbol']} </i>",
@@ -69,7 +69,7 @@ class monitor_hypervisor_analytics:
                         topic="analytics",
                         dtime=True,
                     )
-                    return
+                    continue
 
                 # days passed since last operation
                 _days_since_last_operation = (
@@ -80,7 +80,7 @@ class monitor_hypervisor_analytics:
                 ).days
 
                 # send telegram message
-                send_to_telegram.error(
+                response = send_to_telegram.error(
                     msg=[
                         f"<b>\n No analytics data for the period {period}</b>",
                         f"<i>\n {self.chain.fantasy_name} {self.hypervisor_static['dex']}'s {self.hypervisor_static['symbol']} </i>",
@@ -93,7 +93,7 @@ class monitor_hypervisor_analytics:
                 )
 
                 # exit this hypervisor period check
-                return
+                continue
 
             if not _checks_done:
                 # 2) DATA CONSISTENCY  ############################
@@ -115,7 +115,7 @@ class monitor_hypervisor_analytics:
                     )
 
                     # send telegram message
-                    send_to_telegram.warning(
+                    response = send_to_telegram.warning(
                         msg=messages,
                         topic="analytics",
                         dtime=True,
