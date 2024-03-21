@@ -144,28 +144,35 @@ class send_to_telegram:
             requests.Response | None:
         """
         # include utc header time
+        response = None
         if not TELEGRAM_ENABLED:
             logging.getLogger(__name__).debug(
                 "Telegram is not enabled. Can't send message"
             )
             return
 
-        # add message lines
-        message = header + "\n" + "\n".join(message_lines)
-
-        # create payload
-        payload = {
-            "chat_id": TELEGRAM_CHAT_ID,
-            "text": message,
-            "parse_mode": "HTML",
-        }
         if TELEGRAM_TOKEN != "" and TELEGRAM_CHAT_ID != "":
-            return requests.post(
-                "https://api.telegram.org/bot{token}/sendMessage".format(
-                    token=TELEGRAM_TOKEN
-                ),
-                data=payload,
-            ).content
+            # add message lines
+            message = header + "\n" + "\n".join(message_lines)
+            # split the message into a max of 4096 characters
+            for msg in [message[i : i + 4096] for i in range(0, len(message), 4096)]:
+
+                # create payload
+                payload = {
+                    "chat_id": TELEGRAM_CHAT_ID,
+                    "text": msg,
+                    "parse_mode": "HTML",
+                }
+
+                response = requests.post(
+                    "https://api.telegram.org/bot{token}/sendMessage".format(
+                        token=TELEGRAM_TOKEN
+                    ),
+                    data=payload,
+                ).content
+                logging.getLogger(__name__).debug(response)
+
+        return response
 
 
 # TEST
