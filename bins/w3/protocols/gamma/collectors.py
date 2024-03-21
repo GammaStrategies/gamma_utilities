@@ -718,6 +718,227 @@ class rewardPaid_collector(data_collector):
         return itm
 
 
+class generic_transfer_collector(data_collector):
+    # SETUP
+    def __init__(
+        self,
+        network: str,
+        from_addresses: list[str],
+        to_addresses: list[str],
+    ):
+        self.network = network
+        self.from_addresses = from_addresses
+        self.to_addresses = to_addresses
+        self._progress_callback = None  # log purp
+        # univ3_pool helpers simulating contract functionality just to be able to use the tokenX decimal part
+        self._token_helpers = dict()
+        # all data retrieved will be saved here. { <contract_address>: {<topic>: <topic defined content> } }
+        self._data = dict()
+
+        # define helper
+        self._web3_helper = (
+            bep20(address="0x0000000000000000000000000000000000000000", network=network)
+            if network == "binance"
+            else erc20(
+                address="0x0000000000000000000000000000000000000000", network=network
+            )
+        )
+
+    def _create_transfer_topics(
+        self, from_addresses: list[str] | None, to_addresses: list[str] | None
+    ) -> list[str]:
+        """Create topics to look for transfers from to the addresses defined
+
+        Returns:
+            list[str]: topic list filter
+        """
+        self.transfer_abi = Web3.sha3(text="Transfer(address,address,uint256)").hex()
+        addresses_from = self.format_addresses(from_addresses)
+        addresses_to = self.format_addresses(to_addresses)
+
+        # create topics
+        self._topics = [
+            Web3.sha3(text="Transfer(address,address,uint256)").hex(),
+            addresses_from,
+            addresses_to,
+        ]
+        return self._topics
+
+    def operations_generator(
+        self,
+        block_ini: int,
+        block_end: int | None = None,
+        contract_addresses: list[str] = None,
+        max_blocks: int = 5000,
+    ):
+        """operation item generator
+
+        Args:
+            block_ini (int):
+            block_end (int):
+            contract_addresses (list[str], optional): List of contracts firing the event. Defaults to Any.
+            max_blocks (int, optional): . Defaults to 5000.
+
+        Returns:
+            dict: includes topic operation transfers...
+
+        Yields:
+            Iterator[dict]:
+        """
+
+        if not block_end or block_end == 0:
+            block_end = self._web3_helper._getBlockData(block="latest")["number"]
+
+        # create event filter
+        if contract_addresses:
+            event_filter = {
+                "fromBlock": block_ini,
+                "toBlock": block_end,
+                "address": contract_addresses,
+                "topics": self._create_transfer_topics(
+                    from_addresses=self.from_addresses, to_addresses=self.to_addresses
+                ),
+            }
+        else:
+            event_filter = {
+                "fromBlock": block_ini,
+                "toBlock": block_end,
+                "topics": self._create_transfer_topics(
+                    from_addresses=self.from_addresses, to_addresses=self.to_addresses
+                ),
+            }
+
+        # get a list of events
+        filter_chunks = self._web3_helper.create_eventFilter_chunks(
+            eventfilter=event_filter,
+            max_blocks=max_blocks,
+        )
+
+        for filter in filter_chunks:
+            entries = []
+            # try catch processing error too many blocks to lower the chunk size
+            try:
+                # fill entries
+                entries = self._web3_helper.get_all_entries(
+                    filter=filter, rpcKey_names=["private", "public"]
+                )
+            except ProcessingError as e:
+                if e.identity == error_identity.TOO_MANY_BLOCKS_TO_QUERY:
+                    # lower the chunk size to 1000 per query
+                    logging.getLogger(__name__).warning(
+                        f" Too many blocks in filter error query. Lowering this chunk size item from {max_blocks} to 1000 "
+                    )
+                    sub_filter_chunks = self._web3_helper.create_eventFilter_chunks(
+                        eventfilter=filter,
+                        max_blocks=1000,
+                    )
+                    # fill entries
+                    for sub_chunk in sub_filter_chunks:
+                        entries += self._web3_helper.get_all_entries(
+                            filter=sub_chunk, rpcKey_names=["private", "public"]
+                        )
+
+            if entries:
+                chunk_result = []
+                for event in entries:
+                    # get topic name found
+                    topic = "transfer"
+                    # first topic is topic id
+                    custom_abi_data = ["uint256"]
+                    # decode:
+                    try:
+                        data = abi.decode(custom_abi_data, HexBytes(event.data))
+                    except exceptions.InsufficientDataBytes:
+                        # probably a transfer of a non ERC20 token ( veNFT ? )
+                        data = None
+                    except Exception as e:
+                        logging.getLogger(__name__).error(
+                            f" Error decoding data of event at block {event.blockNumber}  event:{event}"
+                        )
+                        raise
+
+                    # show progress
+                    if self._progress_callback:
+                        self._progress_callback(
+                            text="processing {} at block:{}".format(
+                                topic, event.blockNumber
+                            ),
+                            remaining=block_end - event.blockNumber,
+                            total=block_end - block_ini,
+                        )
+
+                    # convert data
+                    result_item = self._convert_topic(topic, event, data)
+                    # add topic to result item
+                    result_item["topic"] = "transfer"
+                    result_item["logIndex"] = event.logIndex
+
+                    chunk_result.append(result_item)
+
+                # yield when there is data
+                if chunk_result:
+                    yield chunk_result
+
+            elif self._progress_callback:
+                # no data found at current filter
+                self._progress_callback(
+                    text=f" no match from {filter['fromBlock']} to {filter['toBlock']}",
+                    total=block_end - block_ini,
+                    remaining=block_end - filter["toBlock"],
+                )
+
+    # HELPERS
+    def format_addresses(self, addresses: list[str] | None) -> list[str] | None:
+        """Format addresses to be included in the filter
+
+        Args:
+            addresses (list[str]):
+
+        Returns:
+            list[str]:
+        """
+        if not addresses:
+            return None
+        result = []
+        for address in addresses:
+            # create address to
+            address_to = Web3.toBytes(hexstr=Web3.toChecksumAddress(address))
+            # left pad address to 32 bytes
+            address_to = "0x" + (bytes(32 - len(address_to)) + address_to).hex()
+            # add to topics
+            result.append(address_to)
+        return result
+
+    def _convert_topic(self, topic: str, event, data) -> dict:
+        # init result
+        itm = dict()
+
+        # common vars
+        itm["transactionHash"] = event.transactionHash.hex()
+        itm["blockHash"] = event.blockHash.hex()
+        itm["blockNumber"] = event.blockNumber
+        itm["address"] = event.address.lower()
+
+        # itm["timestamp"] = ""
+        # itm["decimals_token0"] = ""
+        # itm["decimals_token1"] = ""
+        # itm["decimals_contract"] = ""
+
+        # specific vars
+        if topic in ["transfer"]:
+            itm["src"] = event.topics[1][-20:].hex().lower()
+            itm["dst"] = event.topics[2][-20:].hex().lower()
+            # when DATA is None, consider it a transfer of a non ERC20 token
+            itm["qtty"] = str(data[0]) if data else "1"
+
+        else:
+            logging.getLogger(__name__).warning(
+                f" Can't find topic [{topic}] converter. Discarding  event [{event}]  with data [{data}] "
+            )
+
+        return itm
+
+
 def create_data_collector(network: str) -> data_collector:
     """Create a data collector class
 
