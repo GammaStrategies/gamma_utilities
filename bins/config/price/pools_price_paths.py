@@ -811,6 +811,11 @@ DEX_POOLS_PRICE_PATHS = {
             (DEX_POOLS[Chain.MOONBEAM]["xcDOT-WGLMR"], 0),
             (DEX_POOLS[Chain.MOONBEAM]["USDC-WGLMR_STELLA"], 0),
         ],
+        # xcDOT
+        "0xffffffff1fcacbd218edc0eba20fc2308c778080".lower(): [
+            (DEX_POOLS[Chain.MOONBEAM]["xcDOT-WGLMR"], 0),
+            (DEX_POOLS[Chain.MOONBEAM]["USDC-WGLMR_STELLA"], 0),
+        ],
     },
     Chain.BASE: {
         # SYNTH
