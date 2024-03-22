@@ -152,7 +152,7 @@ def save_hypervisor_returns_to_database(
     period_yield_list: list[dict],
 ):
     # convert to Decimal128 and check basic consistency
-
+    to_save = []
     for i in range(len(period_yield_list)):
         if (
             not period_yield_list[i]["status"]["end"]["underlying"]["qtty"]["token1"]
@@ -161,8 +161,9 @@ def save_hypervisor_returns_to_database(
             logging.getLogger(__name__).error(
                 f" ABORT SAVE: Missing end underlying qtty for {chain.database_name} {period_yield_list[i]['address']} {period_yield_list[i]['timeframe']['ini']['block']} -> not saved"
             )
-            # ABORT ALL -> not saved
-            return
+            # ABORT ALL till this point, so next time ( exit for loop)
+            break
+
         elif (
             not period_yield_list[i]["status"]["end"]["prices"]["token1"]
             or not period_yield_list[i]["status"]["end"]["prices"]["token0"]
@@ -171,21 +172,27 @@ def save_hypervisor_returns_to_database(
                 f" ABORT SAVE: Missing end prices for {chain.database_name} {period_yield_list[i]['address']} {period_yield_list[i]['timeframe']['ini']['block']} -> not saved"
             )
             # ABORT ALL -> not saved
-            return
+            break
         period_yield_list[i] = database_local.convert_decimal_to_d128(
             period_yield_list[i]
         )
+        to_save.append(period_yield_list[i])
 
-    # save all at once
-    if db_return := get_default_localdb(
-        network=chain.database_name
-    ).set_hypervisor_return_bulk(data=period_yield_list):
-        logging.getLogger(__name__).debug(
-            f"     {chain.database_name} saved returns -> del: {db_return.deleted_count}  ins: {db_return.inserted_count}  mod: {db_return.modified_count}  ups: {db_return.upserted_count} matched: {db_return.matched_count}"
-        )
+    if to_save:
+        # save all at once
+        if db_return := get_default_localdb(
+            network=chain.database_name
+        ).set_hypervisor_return_bulk(data=period_yield_list):
+            logging.getLogger(__name__).debug(
+                f"     {chain.database_name} saved returns -> del: {db_return.deleted_count}  ins: {db_return.inserted_count}  mod: {db_return.modified_count}  ups: {db_return.upserted_count} matched: {db_return.matched_count}"
+            )
+        else:
+            logging.getLogger(__name__).error(
+                f"  database did not return anything while trying to save hypervisor returns to database for {chain.database_name}"
+            )
     else:
         logging.getLogger(__name__).error(
-            f"  database did not return anything while trying to save hypervisor returns to database for {chain.database_name}"
+            f"  No hypervisor returns to save ( check errors above)"
         )
 
 

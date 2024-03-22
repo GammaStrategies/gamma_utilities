@@ -144,6 +144,7 @@ def parse_commandLine_args():
             "queue",
             "reward_status",
             "operations",
+            "returns",
             "special",
         ],
         help=" execute repairs",

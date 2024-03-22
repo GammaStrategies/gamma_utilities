@@ -6,6 +6,7 @@ from apps.repair.operations.general import repair_operations
 from apps.repair.prices.general import repair_prices
 from apps.repair.queue.general import repair_queue
 from apps.repair.queue.locked import repair_queue_locked_items
+from apps.repair.returns.general import repair_hypervisor_returns
 from apps.repair.rewards.general import repair_rewards_status
 
 
@@ -29,6 +30,8 @@ def repair_all():
     # TODO: this is too time intensive right now. Need to find a better way to do it
     # repair_rewards_status()
 
+    repair_hypervisor_returns()
+
 
 def main(option: str, **kwargs):
     if option == "prices":
@@ -45,6 +48,8 @@ def main(option: str, **kwargs):
         repair_rewards_status()
     if option == "operations":
         repair_operations()
+    if option == "returns":
+        repair_hypervisor_returns()
     if option == "special":
         # used to check for special cases
         # reScrape_database_prices(

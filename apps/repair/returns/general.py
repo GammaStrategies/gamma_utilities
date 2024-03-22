@@ -1,9 +1,34 @@
 from datetime import datetime
 import logging
+from apps.feeds.returns.builds import (
+    force_build_period_yield,
+    save_hypervisor_returns_to_database,
+)
+from bins.configuration import CONFIGURATION
 from bins.database.helpers import get_default_localdb, get_from_localdb
-from bins.general.enums import Chain
+from bins.general.enums import Chain, text_to_chain
 
 
+def repair_hypervisor_returns():
+    """Repair hypervisor returns"""
+    #
+    # override networks if specified in cml
+    for chain in [
+        text_to_chain(x)
+        for x in (
+            CONFIGURATION["_custom_"]["cml_parameters"].networks
+            or CONFIGURATION["script"]["protocols"]["gamma"]["networks"]
+        )
+    ]:
+
+        # repair null values
+        repair_null_values(chain=chain, collection="hypervisor_returns", remove=True)
+        repair_null_values(
+            chain=chain, collection="latest_hypervisor_returns", remove=True
+        )
+
+
+# HELPERS
 def remove_direct_transfers(chain: Chain, hypervisor_address: str, before_block: int):
     """
     Remove all hypervisor return items before a block related to a direct gamma transfer to fix token weights. ( sporadically done at the initial stage of a hypervisor life)
@@ -44,3 +69,102 @@ def remove_direct_transfers(chain: Chain, hypervisor_address: str, before_block:
         data=data_to_remove,
     )
     logging.getLogger(__name__).info(f" Removed {db_return.deleted_count} items ")
+
+
+def repair_null_values(
+    chain: Chain, collection: str = "hypervisor_returns", remove: bool = False
+):
+    """Get all hypervisors with null underlying values or prices and try to repair them by recreating and saving them to the database
+
+    Args:
+        chain (Chain):
+        collection (str, optional): "hypervisor_returns" or "latest_hypervisor_returns". Defaults to "hypervisor_returns".
+        remove (bool, optional): Should remove item when not repaired?. Defaults to False.
+    """
+    logging.getLogger(__name__).info(
+        f" {chain.database_name} repairing null values from {collection} by recreating them"
+    )
+
+    wrong_items = get_from_localdb(
+        network=chain,
+        collection=collection,
+        aggregate=[
+            {
+                "$match": {
+                    "$or": [
+                        {"status.end.prices.token1": None},
+                        {"status.end.underlying.qtty.token1": None},
+                        {"status.end.prices.token0": None},
+                        {"status.end.underlying.qtty.token0": None},
+                        {"status.ini.prices.token1": None},
+                        {"status.ini.underlying.qtty.token1": None},
+                        {"status.ini.prices.token0": None},
+                        {"status.ini.underlying.qtty.token0": None},
+                    ]
+                }
+            }
+        ],
+    )
+
+    logging.getLogger(__name__).info(
+        f" {chain.database_name} found {len(wrong_items)} items"
+    )
+    for item in wrong_items:
+
+        # try repairing
+        if repaired := force_build_period_yield(
+            chain=chain,
+            hypervisor_address=item["address"],
+            block_ini=item["timeframe"]["ini"]["block"],
+            block_end=item["timeframe"]["end"]["block"],
+        ):
+
+            _todict = [x.to_dict() for x in repaired]
+
+            # make sure its not equal to the original
+            if (
+                not repaired[0].status.end.underlying.qtty.token0
+                or not repaired[0].status.end.underlying.qtty.token1
+                or not repaired[0].status.ini.underlying.qtty.token0
+                or not repaired[0].status.ini.underlying.qtty.token1
+            ):
+                logging.getLogger(__name__).error(
+                    f" {chain.database_name} could not repair {item['id']} -> underlying qtty is zero. hype: {item['address']} blocks from {item['timeframe']['ini']['block']} to {item['timeframe']['end']['block']}"
+                )
+                if remove:
+                    db_return = get_default_localdb(
+                        network=chain.database_name
+                    ).delete_items(data=_todict, collection_name=collection)
+                    logging.getLogger(__name__).info(
+                        f" Removed {db_return.deleted_count} items "
+                    )
+                continue
+
+            elif (
+                not repaired[0].status.end.prices.token0
+                or not repaired[0].status.end.prices.token1
+                or not repaired[0].status.ini.prices.token0
+                or not repaired[0].status.ini.prices.token1
+            ):
+                logging.getLogger(__name__).error(
+                    f" {chain.database_name} could not repair {item['id']} -> prices are zero. hype: {item['address']} blocks from {item['timeframe']['ini']['block']} to {item['timeframe']['end']['block']}"
+                )
+                if remove:
+                    db_return = get_default_localdb(
+                        network=chain.database_name
+                    ).delete_items(data=_todict, collection_name=collection)
+                    logging.getLogger(__name__).info(
+                        f" Removed {db_return.deleted_count} items "
+                    )
+                continue
+
+            # save converted to dict results to database
+            save_hypervisor_returns_to_database(
+                chain=chain,
+                period_yield_list=_todict,
+            )
+
+        else:
+            logging.getLogger(__name__).error(
+                f" {chain.database_name} could not repair {item['id']} -> underlying qtty and/or price are zero. hype: {item['address']} blocks from {item['timeframe']['ini']['block']} to {item['timeframe']['end']['block']}"
+            )
