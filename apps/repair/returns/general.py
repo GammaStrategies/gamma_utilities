@@ -106,7 +106,7 @@ def repair_null_values(
         ],
     )
 
-    logging.getLogger(__name__).info(
+    logging.getLogger(__name__).debug(
         f" {chain.database_name} found {len(wrong_items)} items"
     )
     for item in wrong_items:
@@ -132,12 +132,16 @@ def repair_null_values(
                     f" {chain.database_name} could not repair {item['id']} -> underlying qtty is zero. hype: {item['address']} blocks from {item['timeframe']['ini']['block']} to {item['timeframe']['end']['block']}"
                 )
                 if remove:
-                    db_return = get_default_localdb(
+                    if db_return := get_default_localdb(
                         network=chain.database_name
-                    ).delete_items(data=_todict, collection_name=collection)
-                    logging.getLogger(__name__).info(
-                        f" Removed {db_return.deleted_count} items "
-                    )
+                    ).delete_item(data=item, collection_name=collection):
+                        logging.getLogger(__name__).info(
+                            f" Removed {db_return.deleted_count} items "
+                        )
+                    else:
+                        logging.getLogger(__name__).error(
+                            f" {chain.database_name} could not remove {item['id']} -> underlying qtty is zero. hype: {item['address']} blocks from {item['timeframe']['ini']['block']} to {item['timeframe']['end']['block']}"
+                        )
                 continue
 
             elif (
@@ -150,12 +154,16 @@ def repair_null_values(
                     f" {chain.database_name} could not repair {item['id']} -> prices are zero. hype: {item['address']} blocks from {item['timeframe']['ini']['block']} to {item['timeframe']['end']['block']}"
                 )
                 if remove:
-                    db_return = get_default_localdb(
+                    if db_return := get_default_localdb(
                         network=chain.database_name
-                    ).delete_items(data=_todict, collection_name=collection)
-                    logging.getLogger(__name__).info(
-                        f" Removed {db_return.deleted_count} items "
-                    )
+                    ).delete_item(data=item, collection_name=collection):
+                        logging.getLogger(__name__).info(
+                            f" Removed {db_return.deleted_count} items "
+                        )
+                    else:
+                        logging.getLogger(__name__).error(
+                            f" {chain.database_name} could not remove {item['id']} -> prices are zero. hype: {item['address']} blocks from {item['timeframe']['ini']['block']} to {item['timeframe']['end']['block']}"
+                        )
                 continue
 
             # save converted to dict results to database
