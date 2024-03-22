@@ -18,59 +18,6 @@ class token_group_object:
         }
 
 
-class dict_to_object_old(object):
-    """Turns a dictionary into an object"""
-
-    def __init__(self, dictionary: dict):
-        # convert dictionary to object
-        self._convert_to_object(obj=dictionary)
-        # execute post init
-        self.post_init()
-
-    def post_init(self):
-        pass
-
-    # def __repr__(self):
-    #     """"""
-    #     attrs = str([x for x in self.__dict__])
-    #     return "<dict_to_object: %s=" ">" % attrs
-
-    def _convert_to_object(self, obj, key: str | None = None, filter: callable = None):
-        """Converts a dictionary to an object if it is a dictionary"""
-
-        if isinstance(obj, dict):
-            data = {}
-            for k, v in obj.items():
-                data[k] = dict_to_object(dictionary=v)
-            return data
-        elif hasattr(obj, "__iter__") and not isinstance(obj, str):
-            return [self._convert_to_object(obj=v, key=key, filter=filter) for v in obj]
-        elif hasattr(obj, "__dict__"):
-            data = dict(
-                [
-                    (key, self._convert_to_object(obj=value, key=key, filter=filter))
-                    for key, value in obj.__dict__.items()
-                    if not callable(value) and not key.startswith("_")
-                ]
-            )
-            if key is not None and hasattr(obj, "__class__"):
-                data[key] = obj.__class__.__name__
-            return data
-        elif isinstance(obj, ObjectId):
-            # set attribute
-            return str(obj)
-        else:
-            if filter:
-                # apply filter
-                return filter(obj, key)
-
-            if key and obj:
-                # set attribute
-                setattr(self, key, obj[key])
-            else:
-                return obj
-
-
 def filter_mongodb(obj, key: str | None = None):
     """Object to dict filter for mongodb objects"""
 
