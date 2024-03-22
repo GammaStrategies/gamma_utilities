@@ -151,12 +151,35 @@ def save_hypervisor_returns_to_database(
     chain: Chain,
     period_yield_list: list[dict],
 ):
+    # convert to Decimal128 and check basic consistency
+
+    for i in range(len(period_yield_list)):
+        if (
+            not period_yield_list[i]["status"]["end"]["underlying"]["qtty"]["token1"]
+            or not period_yield_list[i]["status"]["end"]["underlying"]["qtty"]["token0"]
+        ):
+            logging.getLogger(__name__).error(
+                f" ABORT SAVE: Missing end underlying qtty for {chain.database_name} {period_yield_list[i]['address']} {period_yield_list[i]['timeframe']['ini']['block']} -> not saved"
+            )
+            # ABORT ALL -> not saved
+            return
+        elif (
+            not period_yield_list[i]["status"]["end"]["prices"]["token1"]
+            or not period_yield_list[i]["status"]["end"]["prices"]["token0"]
+        ):
+            logging.getLogger(__name__).error(
+                f" ABORT SAVE: Missing end prices for {chain.database_name} {period_yield_list[i]['address']} {period_yield_list[i]['timeframe']['ini']['block']} -> not saved"
+            )
+            # ABORT ALL -> not saved
+            return
+        period_yield_list[i] = database_local.convert_decimal_to_d128(
+            period_yield_list[i]
+        )
+
     # save all at once
     if db_return := get_default_localdb(
         network=chain.database_name
-    ).set_hypervisor_return_bulk(
-        data=[database_local.convert_decimal_to_d128(x) for x in period_yield_list]
-    ):
+    ).set_hypervisor_return_bulk(data=period_yield_list):
         logging.getLogger(__name__).debug(
             f"     {chain.database_name} saved returns -> del: {db_return.deleted_count}  ins: {db_return.inserted_count}  mod: {db_return.modified_count}  ups: {db_return.upserted_count} matched: {db_return.matched_count}"
         )
@@ -306,3 +329,73 @@ def get_last_return_data_from_db(
 
     # return
     return result
+
+
+def force_build_period_yield(
+    chain: Chain,
+    hypervisor_address: str,
+    block_ini: int,
+    block_end: int,
+    savetodb: bool = False,
+) -> list[period_yield_data] | None:
+    """Build one period yield for a hypervisor address and a block range
+        Make sure to use real db block_ini and block_end hype_return item.
+
+    Args:
+        chain (Chain):
+        hypervisor_address (str):
+        block_ini (int):
+        block_end (int):
+        savetodb (bool, optional): Save result to database. Defaults to False.
+
+    """
+
+    # find the real first block number of the period ( block_ini )
+    operations = get_from_localdb(
+        network=chain.database_name,
+        collection="operations",
+        find={
+            "address": hypervisor_address,
+            "blockNumber": {"$lt": block_ini},
+            "topic": {"$in": ["deposit", "withdraw", "zeroBurn"]},
+        },
+        sort=[("blockNumber", -1)],
+        projection={"blockNumber": 1},
+        limit=1,
+    )
+
+    if not operations:
+        logging.getLogger(__name__).error(
+            f" Could not find operations for {chain.database_name} {hypervisor_address} before block {block_ini}"
+        )
+        return None
+
+    block_ini_real = operations[0]["blockNumber"]
+
+    if period_yield_list := create_period_yields(
+        chain=chain,
+        hypervisor_address=hypervisor_address,
+        block_ini=block_ini_real,
+        block_end=block_end,
+        try_solve_errors=False,
+    ):
+        if savetodb:
+            # convert to dict and save
+            try:
+                _todict = [x.to_dict() for x in period_yield_list]
+                # save converted to dict results to database
+                save_hypervisor_returns_to_database(
+                    chain=chain,
+                    period_yield_list=_todict,
+                )
+            except AttributeError as e:
+                # AttributeError: 'NoneType' object has no attribute 'to_dict'
+                logging.getLogger(__name__).error(
+                    f" Could not convert yield result to dictionary, so not saved. Probably because of a previous hopefully solved error -> {e}"
+                )
+            except Exception as e:
+                logging.getLogger(__name__).exception(
+                    f" Could not convert yield result to dictionary, so not saved -> {e}"
+                )
+
+        return period_yield_list
