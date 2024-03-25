@@ -256,6 +256,8 @@ class coingecko_price_helper:
             "metis": "metis-andromeda",
             "manta": "manta-pacific",
             "gnosis": "xdai",
+            "astar_zkevm": "astar-zkevm",
+            "blast": "blast",
         }
 
         self.retries = retries
