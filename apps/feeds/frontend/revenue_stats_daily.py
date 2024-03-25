@@ -20,7 +20,7 @@ from datetime import datetime, timedelta, timezone
 import logging
 
 import tqdm
-from bins.config.hardcodes import REVENUE_FEE_OVERRIDE
+from bins.config.hardcodes import REVENUE_FEE_OVERWRITE
 from bins.configuration import CONFIGURATION
 from bins.database.common.database_ids import create_id_frontend_revenue_stats_daily
 from bins.database.common.db_collections_common import database_local
@@ -873,7 +873,7 @@ def addFields_usdvalue_revenue_query_part(chain: Chain) -> dict:
 
     # check if there are fee overrides to apply
     branches = []
-    for dex, fee_multiplier in REVENUE_FEE_OVERRIDE.get(chain, {}).items():
+    for dex, fee_multiplier in REVENUE_FEE_OVERWRITE.get(chain, {}).items():
         branches.append(
             {
                 "case": {"$eq": ["$dex", dex]},

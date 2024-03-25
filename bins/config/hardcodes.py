@@ -658,7 +658,7 @@ HYPERVISOR_NO_OPERATIONS_BEFORE = {
 # Sometimes, special agreements are made where Gamma collects 100% of a 'gross revenue' value but gets only a percentage of that.
 # Here we define the fee in a by chain dex basis.
 # chain:{ dex(protocol database name): fee multiplier }
-REVENUE_FEE_OVERRIDE = {
+REVENUE_FEE_OVERWRITE = {
     Chain.ARBITRUM: {
         Protocol.CAMELOT.database_name: 0.623529,
     },
