@@ -442,6 +442,9 @@ TOKEN_ADDRESS_EXCLUDE = {
     Chain.AVALANCHE: {
         "0xAAA940c5CF5ECa01931bD361F71E288485d3187A".lower(): "Escrowed Token (xToken) pharaoh",
     },
+    Chain.GNOSIS: {
+        "0x65a1dfb54cdec9011688b1818a27a8c687e6b1ed".lower(): "AglaMerkl",
+    },
 }
 
 

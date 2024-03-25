@@ -442,6 +442,40 @@ def olynx(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
         )
 
 
+def oath(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
+    # https://www.oath.eco/oath-v2-token-migration-guide/
+    # convert OATHv1 to OATHv2 at same price
+    if chain == Chain.ARBITRUM:
+        oathv1 = "0xa1150db5105987cec5fd092273d1e3cbb22b378b".lower()
+        oathv2 = "0x00e1724885473B63bCE08a9f0a52F35b0979e35A".lower()
+    elif chain == Chain.OPTIMISM:
+        oathv1 = "0x39fde572a18448f8139b7788099f0a0740f51205".lower()
+        oathv2 = "0x00e1724885473B63bCE08a9f0a52F35b0979e35A".lower()
+    elif chain == Chain.ETHEREUM:
+        oathv1 = "0x6f9c26fa731c7ea4139fa669962cf8f1ce6c8b0b".lower()
+        oathv2 = "0xd20523b39fAF1D6e9023a4D6085f87B7b0DE7926".lower()
+    elif chain == Chain.POLYGON:
+        oathv1 = "0xc2c52ff5134596f5ff1b1204d3304228f2432836".lower()
+        oathv2 = "0x7c603C3C0C97a565cf202c94AB5298bF8510f7dc".lower()
+    elif chain == Chain.AVALANCHE:
+        oathv1 = "0x2c69095d81305f1e3c6ed372336d407231624cea".lower()
+        oathv2 = "0xAD090976CE846935DCfF1dEd852668beeD912916".lower()
+    elif chain == Chain.BSC:
+        oathv1 = "0xd3c6ceedd1cc7bd4304f72b011d53441d631e662".lower()
+        oathv2 = "0x73f4C95AF5C2892253c068850B8C9a753636f58d".lower()
+    else:
+        return None
+
+    if address.lower() == oathv1:
+        return NoPricedToken_conversion(
+            original=NoPricedToken_item(token_address=oathv1, chain=chain, block=block),
+            converted=NoPricedToken_item(
+                token_address=oathv2, chain=chain, block=block
+            ),
+            conversion_rate=1,
+        )
+
+
 # ####
 def esPLS(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
     # Escrowed PLS: Plutus DAO token not convertable (as far as known now)
@@ -453,12 +487,16 @@ TOKEN_ADDRESS_CONVERSION = {
     Chain.ETHEREUM: {
         # xGamma--Gamma
         "0x26805021988F1a45dC708B5FB75Fc75F21747D8c".lower(): xgamma,
+        # OATHv1--OATHv2
+        "0x6f9c26fa731c7ea4139fa669962cf8f1ce6c8b0b".lower(): oath,
     },
     Chain.ARBITRUM: {
         # xRAM--RAM
         "0xaaa1ee8dc1864ae49185c368e8c64dd780a50fb7".lower(): xram,
         # xGRAIL--GRAIL
         "0x3caae25ee616f2c8e13c74da0813402eae3f496b".lower(): xgrail,
+        # OATHv1--OATHv2
+        "0xa1150db5105987cec5fd092273d1e3cbb22b378b".lower(): oath,
     },
     Chain.POLYGON: {
         # oRETRO--RETRO
@@ -467,14 +505,20 @@ TOKEN_ADDRESS_CONVERSION = {
         "0x900f717ea076e1e7a484ad9dd2db81ceec60ebf1".lower(): angle,
         # CSUSHI (cToken) -> ethereum
         "0x26aa9b3d8a49a2ed849ac66ea9aa37ee36bc6b24".lower(): csushi,
+        # OATHv1--OATHv2
+        "0xc2c52ff5134596f5ff1b1204d3304228f2432836".lower(): oath,
     },
     Chain.OPTIMISM: {
         # ANGLE -> ethereum
         "0x58441e37255b09f9f545e9dc957f1c41658ff665".lower(): angle,
+        # OATHv1--OATHv2
+        "0x39fde572a18448f8139b7788099f0a0740f51205".lower(): oath,
     },
     Chain.AVALANCHE: {
         # xPHAR--PHAR
         "0xaaae58986b24e422740c8f22b3efb80bcbd68159".lower(): xphar,
+        # OATHv1--OATHv2
+        "0x2c69095d81305f1e3c6ed372336d407231624cea".lower(): oath,
     },
     Chain.LINEA: {
         # oLYNEX--LYNEX(or configured token)
@@ -483,6 +527,10 @@ TOKEN_ADDRESS_CONVERSION = {
     Chain.MANTLE: {
         # xCLEO--CLEO
         "0xAAAE58986b24e422740C8F22B3efB80BCbD68159".lower(): xcleo,
+    },
+    Chain.BSC: {
+        # OATHv1--OATHv2
+        "0xd3c6ceedd1cc7bd4304f72b011d53441d631e662".lower(): oath,
     },
 }
 

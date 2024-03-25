@@ -51,6 +51,20 @@ DEX_POOLS = {
             "address": "0x68f5c0a2de713a54991e01858fd27a3832401849".lower(),
             "min_block": 6516111,
         },
+        "OATH_ERN": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0xcf215e62a2e0c840d52ed4edad7d8f0881159da4".lower(),
+            "token0": "0x00e1724885473b63bce08a9f0a52f35b0979e35a".lower(),
+            "token1": "0xc5b001dc33727f8f26880b184090d3e252470d45".lower(),
+            "min_block": 111688323,
+        },
+        "ERN_USDC": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0x4ce4a1a593ea9f2e6b2c05016a00a2d300c9ffd8".lower(),
+            "token0": "0xc5b001dc33727f8f26880b184090d3e252470d45".lower(),  # ERN
+            "token1": "0x7f5c764cbc14f9669b88837ca1490cca17c31607".lower(),
+            "min_block": 88991910,
+        },
     },
     Chain.POLYGON: {
         "WMATIC_USDC": {
@@ -487,48 +501,55 @@ DEX_POOLS = {
             "address": "0xd7f09148eb22686cb5dcbdd0cf27d04123d14c74".lower(),
             "token0": "0xb73603c5d87fa094b7314c74ace2e64d165016fb".lower(),  # USDC
             "token1": "0x0dc808adce2099a9f62aa87d9670745aba741746".lower(),  # WETH
-            "min_block": 700000,
+            "min_block": 600000,
         },
         "QUICK-USDC": {
             "protocol": Protocol.UNISWAPv3,
             "address": "0xeab583e16df26c670c047260710ed172aade45a0".lower(),
             "token0": "0xe22e3d44ea9fb0a87ea3f7a8f41d869c677f0020".lower(),  # QUICK
             "token1": "0xb73603c5d87fa094b7314c74ace2e64d165016fb".lower(),  # USDC
-            "min_block": 700000,
+            "min_block": 600000,
         },
         "STONE-WETH": {
             "protocol": Protocol.UNISWAPv3,
             "address": "0xa5101d48355d5d731c2bedd273aa0eb7ed55d0c7".lower(),
             "token0": "0xec901da9c68e90798bbbb74c11406a32a70652c3".lower(),  # STONE
             "token1": "0x0dc808adce2099a9f62aa87d9670745aba741746".lower(),
-            "min_block": 700000,
+            "min_block": 600000,
         },
         "WBTC-WETH": {
             "protocol": Protocol.UNISWAPv3,
             "address": "0xfc9ffc1c6e0ebf7be3ce93245b309f4d3b593101".lower(),
             "token0": "0x305e88d809c9dc03179554bfbf85ac05ce8f18d6".lower(),  # WBTC
             "token1": "0x0dc808adce2099a9f62aa87d9670745aba741746".lower(),
-            "min_block": 700000,
+            "min_block": 600000,
         },
         "wstETH-WETH": {
             "protocol": Protocol.UNISWAPv3,
             "address": "0x578ef5f3a3d34949a590ae7719e5bd69a3720865".lower(),
             "token0": "0x2fe3ad97a60eb7c79a976fc18bb5ffd07dd94ba5".lower(),  # wstETH
             "token1": "0x0dc808adce2099a9f62aa87d9670745aba741746".lower(),
-            "min_block": 700000,
+            "min_block": 600000,
         },
         "USDC-USDT": {
             "protocol": Protocol.UNISWAPv3,
             "address": "0x462609c41ca27bd4240778c53c0908542b59b972".lower(),
             "token0": "0xb73603c5d87fa094b7314c74ace2e64d165016fb".lower(),  # USDC
             "token1": "0xf417f5a458ec102b90352f697d6e2ac3a3d2851f".lower(),  # USDT
-            "min_block": 700000,
+            "min_block": 600000,
         },
         "MATIC-USDC": {
             "protocol": Protocol.UNISWAPv3,
             "address": "0xbf11176eb2b7b14aec32acbfe1085bf55798d138".lower(),
             "token0": "0x0f52a51287f9b3894d73df05164d0ee2533ccbb4".lower(),  # MATIC
             "token1": "0xb73603c5d87fa094b7314c74ace2e64d165016fb".lower(),  # USDC
+            "min_block": 700000,
+        },
+        "wUSDM-STONE": {
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0x1a6378383258a5d8ae40d383200ae29c53e85af9".lower(),
+            "token0": "0xbdad407f77f44f7da6684b416b1951eca461fb07".lower(),  # wUSDM
+            "token1": "0xec901da9c68e90798bbbb74c11406a32a70652c3".lower(),  #
             "min_block": 700000,
         },
     },
@@ -603,6 +624,50 @@ DEX_POOLS = {
             "min_block": 3352761,
         },
     },
+    Chain.ASTAR_ZKEVM: {
+        "USDT-USDC": {
+            "protocol": Protocol.UNISWAPv3,  # quickswap
+            "address": "0x9331b844a67accddcc103b6a84237a589f8c1d96".lower(),
+            "token0": "0x1e4a5963abfd975d8c9021ce480b42188849d41d".lower(),  # USDT
+            "token1": "0xa8ce8aee21bc2a48a5ef670afcc9274c7bbbc035".lower(),  # USDC
+            "min_block": 281220,
+        },
+        "wstETH-WETH": {
+            "protocol": Protocol.UNISWAPv3,  # quickswap
+            "address": "0xca573c6a2d08fb5181f5992a626fa907fa97cc3d".lower(),
+            "token0": "0x5d8cff95d7a57c0bf50b30b43c7cc0d52825d4a9".lower(),  # wstETH
+            "token1": "0xe9cc37904875b459fa5d0fe37680d36f1ed55e38".lower(),  # WETH
+            "min_block": 281505,
+        },
+        "vASTR-ASTR": {
+            "protocol": Protocol.UNISWAPv3,  # quickswap
+            "address": "0x5a20cbccfd256100546ca70e368d102ad7bdcdd1".lower(),
+            "token0": "0x7746ef546d562b443ae4b4145541a3b1a3d75717".lower(),  # vASTR
+            "token1": "0xdf41220c7e322bfef933d85d01821ad277f90172".lower(),  # ASTR
+            "min_block": 382080,
+        },
+        "ASTR-WBTC": {
+            "protocol": Protocol.UNISWAPv3,  # quickswap
+            "address": "0xdc014394c439e152394e92ab013ece1f91c718d7".lower(),
+            "token0": "0xdf41220c7e322bfef933d85d01821ad277f90172".lower(),  # ASTR
+            "token1": "0xea034fb02eb1808c2cc3adbc15f447b93cbe08e1".lower(),  # WBTC
+            "min_block": 300263,
+        },
+        "USDC-WETH": {
+            "protocol": Protocol.UNISWAPv3,  # quickswap
+            "address": "0x47d7b9510ae2835c7c293825641a5427226d34cb".lower(),
+            "token0": "0xa8ce8aee21bc2a48a5ef670afcc9274c7bbbc035".lower(),  #
+            "token1": "0xe9cc37904875b459fa5d0fe37680d36f1ed55e38".lower(),  #
+            "min_block": 245691,
+        },
+        "ASTR-USDC": {
+            "protocol": Protocol.UNISWAPv3,  # quickswap
+            "address": "0x8bcbd2b0240c3e54d803e33ba944fa98267312ff".lower(),
+            "token0": "0xdf41220c7e322bfef933d85d01821ad277f90172".lower(),  #
+            "token1": "0xa8ce8aee21bc2a48a5ef670afcc9274c7bbbc035".lower(),  #
+            "min_block": 403386,
+        },
+    },
 }
 
 
@@ -647,6 +712,11 @@ DEX_POOLS_PRICE_PATHS = {
         "0x601e471de750cdce1d5a2b8e6e671409c8eb2367".lower(): [
             (DEX_POOLS[Chain.OPTIMISM]["WETH_OP"], 0),
             (DEX_POOLS[Chain.OPTIMISM]["WETH_USDC"], 1),
+        ],
+        # OATH
+        "0x00e1724885473b63bce08a9f0a52f35b0979e35a".lower(): [
+            (DEX_POOLS[Chain.OPTIMISM]["OATH_ERN"], 1),
+            (DEX_POOLS[Chain.OPTIMISM]["ERN_USDC"], 1),
         ],
     },
     Chain.POLYGON: {
@@ -873,6 +943,12 @@ DEX_POOLS_PRICE_PATHS = {
         "0x0f52a51287f9b3894d73df05164d0ee2533ccbb4".lower(): [
             (DEX_POOLS[Chain.MANTA]["MATIC-USDC"], 1),
         ],
+        # wUSDM
+        "0xbdad407f77f44f7da6684b416b1951eca461fb07".lower(): [
+            (DEX_POOLS[Chain.MANTA]["wUSDM-STONE"], 0),
+            (DEX_POOLS[Chain.MANTA]["STONE-WETH"], 0),
+            (DEX_POOLS[Chain.MANTA]["USDC-WETH"], 0),
+        ],
     },
     Chain.MANTLE: {
         # WETH
@@ -896,6 +972,35 @@ DEX_POOLS_PRICE_PATHS = {
         "0x7c6b91d9be155a6db01f749217d76ff02a7227f2".lower(): [
             (DEX_POOLS[Chain.OPBNB]["BTCB-WBNB"], 0),
             (DEX_POOLS[Chain.OPBNB]["USDT-WBNB"], 1),
+        ],
+    },
+    Chain.ASTAR_ZKEVM: {
+        # USDT
+        "0x1e4a5963abfd975d8c9021ce480b42188849d41d".lower(): [
+            (DEX_POOLS[Chain.ASTAR_ZKEVM]["USDT-USDC"], 1),
+        ],
+        # wstETH
+        "0x5d8cff95d7a57c0bf50b30b43c7cc0d52825d4a9".lower(): [
+            (DEX_POOLS[Chain.ASTAR_ZKEVM]["wstETH-WETH"], 0),
+            (DEX_POOLS[Chain.ASTAR_ZKEVM]["USDC-WETH"], 0),
+        ],
+        # vASTR
+        "0x7746ef546d562b443ae4b4145541a3b1a3d75717".lower(): [
+            (DEX_POOLS[Chain.ASTAR_ZKEVM]["vASTR-ASTR"], 0),
+            (DEX_POOLS[Chain.ASTAR_ZKEVM]["ASTR-USDC"], 0),
+        ],
+        # ASTR
+        "0xdf41220c7e322bfef933d85d01821ad277f90172".lower(): [
+            (DEX_POOLS[Chain.ASTAR_ZKEVM]["ASTR-USDC"], 0),
+        ],
+        # WBTC
+        "0xea034fb02eb1808c2cc3adbc15f447b93cbe08e1".lower(): [
+            (DEX_POOLS[Chain.ASTAR_ZKEVM]["ASTR-WBTC"], 0),
+            (DEX_POOLS[Chain.ASTAR_ZKEVM]["ASTR-USDC"], 0),
+        ],
+        # ETH
+        "0xe9cc37904875b459fa5d0fe37680d36f1ed55e38".lower(): [
+            (DEX_POOLS[Chain.ASTAR_ZKEVM]["USDC-WETH"], 0),
         ],
     },
 }
