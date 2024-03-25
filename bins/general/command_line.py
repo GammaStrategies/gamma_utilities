@@ -90,8 +90,14 @@ def parse_commandLine_args():
             "static_rewards",
             "frontend_revenue_stats",
             "returns",
-            "latest_returns",
             "global_reports",
+            # latest
+            "latest_returns",
+            "latest_prices",
+            "latest_multifeedistributor",
+            "create_json_prices",
+            "create_price_paths_json",
+            ##
         ],
         help="feed database",
     )

@@ -2,6 +2,7 @@ import logging
 from apps.checks.base_objects import analysis_item, base_analyzer_object
 from bins.database.helpers import get_from_localdb
 from bins.general.enums import Chain, queueItemType
+from bins.mixed.price_utilities import price_scraper
 
 
 class queue_analyzer(base_analyzer_object):
@@ -21,7 +22,7 @@ class queue_analyzer(base_analyzer_object):
 
         # get a list of hypervisor addresses
         hypervisor_addresses = {
-            x["adddress"]
+            x["address"]
             for x in get_from_localdb(
                 network=chain.database_name,
                 collection="static",
@@ -114,8 +115,8 @@ class queue_analyzer(base_analyzer_object):
             log_message += f" {itm_type}:\n"
             telegram_message += f"<i> {itm_type}</i>:\n"
             # sort by count (ascending)
-            for item in sorted(values.keys()):
-                log_message += f"      {item['count']} -> {item['qtty']} items\n"
+            for k in sorted(values.keys()):
+                log_message += f"      {k} -> {values[k]} items\n"
                 telegram_message += (
                     f"      <i>{item['count']}</i> -> {item['qtty']} items\n"
                 )
@@ -129,3 +130,62 @@ class queue_analyzer(base_analyzer_object):
                 telegram_message=telegram_message,
             )
         )
+
+    # check prices not configured correctly
+    def check_price_configuration(self, chain: Chain):
+        """Check if all tokens left in queue can be priced correctly
+
+        Args:
+            chains (list[Chain] | None, optional): list of chains to process. Defaults to All.
+        """
+        # get tokens from static collection
+        grouped_queued_prices = get_from_localdb(
+            network=chain.database_name,
+            collection="queue",
+            aggregate=[
+                {"$match": {"type": queueItemType.PRICE}},
+                {
+                    "$group": {
+                        "_id": "$address",
+                        "count": {"$sum": 1},
+                        "items": {"$push": "$$ROOT"},
+                    }
+                },
+                {"$sort": {"count": 1}},
+            ],
+        )
+
+        if not grouped_queued_prices:
+            logging.getLogger(__name__).debug(
+                f" No tokens found in {chain.database_name} queue collection"
+            )
+            return
+
+        # try get prices for all those at current block
+        price_helper = price_scraper(thegraph=False)
+
+        for queue_item in grouped_queued_prices:
+
+            try:
+                _tmpPrice, _tmpSource = price_helper.get_price(
+                    network=chain.database_name,
+                    token_id=queue_item["_id"],
+                    block=0,
+                )
+                if not _tmpPrice:
+                    self.items.append(
+                        analysis_item(
+                            name="missing_price",
+                            data={
+                                "network": chain.database_name,
+                                "address": queue_item["_id"],
+                            },
+                            log_message=f" {chain.fantasy_name} token is not getting the price correctly {queue_item['_id']}",
+                            telegram_message=f"<b> {chain.fantasy_name} token is not getting the price correctly </b><pre>{queue_item['_id']}</pre>",
+                        )
+                    )
+
+            except Exception as e:
+                logging.getLogger(__name__).exception(
+                    f" Error getting price for {chain.database_name} {queue_item['_id']} -> {e}"
+                )
