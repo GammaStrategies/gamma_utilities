@@ -266,6 +266,13 @@ DEX_POOLS = {
             "token1": "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d".lower(),
             "min_block": 26972126,
         },
+        # "ETSa-BUSD":{
+        #     "protocol": Protocol.THENA,
+        #     "address": "0xb23a34cc853e47d8bfd148baf066b6f1541571c9".lower(),
+        #     "token0": "0x5b852898cd47d2be1d77d30377b3642290f5ec75".lower(),
+        #     "token1": "0xe9e7cea3dedca5984780bafc599bd69add087d56".lower(),
+        #     "min_block": ,
+        # },
     },
     Chain.AVALANCHE: {
         "PHAR_WAVAX": {
@@ -353,6 +360,13 @@ DEX_POOLS = {
             "token0": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1".lower(),
             "token1": "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8".lower(),
             "min_block": 100909,
+        },
+        "pxETH-WETH": {
+            "protocol": Protocol.CAMELOT,
+            "address": "0x1d9e8e0a4b445ceff9b8673ed5b219ccb38a4117".lower(),
+            "token0": "0x300d2c875c6fb8ce4bf5480b4d34b7c9ea8a33a4".lower(),
+            "token1": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1".lower(),
+            "min_block": 187054712,
         },
     },
     Chain.MOONBEAM: {
@@ -865,6 +879,11 @@ DEX_POOLS_PRICE_PATHS = {
         # CAKE
         "0x1b896893dfc86bb67cf57767298b9073d2c1ba2c".lower(): [
             (DEX_POOLS[Chain.ARBITRUM]["CAKE-WETH"], 1),
+            (DEX_POOLS[Chain.ARBITRUM]["WETH-USDC"], 1),
+        ],
+        # pxETH
+        "0x4e0f3385c7f4a0f6e5e2f2d6b1f3a3f0f9c1f6a".lower(): [
+            (DEX_POOLS[Chain.ARBITRUM]["pxETH-WETH"], 1),
             (DEX_POOLS[Chain.ARBITRUM]["WETH-USDC"], 1),
         ],
     },

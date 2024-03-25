@@ -61,6 +61,48 @@ def get_from_localdb(network: str, collection: str, **kwargs) -> list:
             raise e
 
 
+# HYPERVISOR HELPERS
+
+
+def get_hypervisor_status_from_db(
+    chain: Chain, address: str, block: int | None = None, last: bool = False
+) -> dict:
+    """Returns only one hypervisor status item from the database
+
+    Args:
+        chain (Chain):
+        address (str):
+        block (int | None, optional): . Defaults to None.
+        last (bool, optional): . Defaults to False.
+
+    Returns:
+        dict: hypervisor status item
+    """
+
+    find = {"address": address}
+    if block:
+        find["block"] = block
+    if last:
+        dbitem = get_from_localdb(
+            network=chain.database_name,
+            collection="status",
+            find=find,
+            sort=[("block", -1)],
+            limit=1,
+        )
+    else:
+        dbitem = get_from_localdb(
+            network=chain.database_name, collection="status", find=find, limit=1
+        )
+
+    if not dbitem:
+        logging.getLogger(__name__).warning(
+            f" {chain.database_name} hypervisor {address} not found in the status collection"
+        )
+    # return the first item
+    return dbitem[0]
+
+
 # PRICE HELPERS
 
 

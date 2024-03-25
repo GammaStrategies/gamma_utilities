@@ -143,9 +143,12 @@ def transformer_clean_all(value, key: str):
 
 
 class hypervisor_status_object(dict_to_object):
+
+    # Configuration
     def post_init(self):
         pass
 
+    # Information
     def get_share_price(self, token0_price: Decimal, token1_price: Decimal) -> float:
         """Return share price, including uncollected fees
             (excluding gamma uncollected fees)

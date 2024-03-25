@@ -195,7 +195,7 @@ class price_analyzer(base_analyzer_object):
             analysis_item(
                 name="summary",
                 data=total,
-                log_message=f" Token price check summary:\n processed chains: {total['chains']:,.0f}\n processed tokens: {total['tokens']:,.0f}\n found tokens without price: {total['tokens_without_price']:,.0f} {total['tokens_without_price']/total['tokens'] if total['tokens'] else 0:.0%}",
-                telegram_message=f"<b> Token price check summary:</b>\n<i> processed</i> <b> chains:</b> {total['chains']:,.0f}\n<i> processed</i> <b> tokens:</b> {total['tokens']:,.0f}\n<b> found tokens without price:</b> {total['tokens_without_price']:,.0f} {total['tokens_without_price']/total['tokens'] if total['tokens'] else 0:.0%}",
+                log_message=f" Token price check summary:\n processed chains: {total['chains']:,.0f}\n processed tokens: {total['tokens']:,.0f} {chains[0].fantasy_name if len(chains) == 1 else ''}\n found tokens without price: {total['tokens_without_price']:,.0f} {total['tokens_without_price']/total['tokens'] if total['tokens'] else 0:.0%}",
+                telegram_message=f"<b> Token price check summary:</b>\n<i> processed</i> <b> chains:</b> {total['chains']:,.0f} {chains[0].fantasy_name if len(chains) == 1 else ''}\n<i> processed</i> <b> tokens:</b> {total['tokens']:,.0f}\n<b> found tokens without price:</b> {total['tokens_without_price']:,.0f} {total['tokens_without_price']/total['tokens'] if total['tokens'] else 0:.0%}",
             )
         )

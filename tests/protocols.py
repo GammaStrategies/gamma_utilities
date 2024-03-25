@@ -94,3 +94,15 @@ def test_protocols(
             logging.getLogger(__name__).info(
                 f"     error list: {result['error_address_list']}"
             )
+
+
+# test configuration:
+#   yaml
+#   multicallv3
+
+# test static hypervisors
+# test token prices
+# test rewards static
+# test status
+
+# test operations gathering
