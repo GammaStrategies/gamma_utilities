@@ -227,7 +227,7 @@ def oretro(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
 
     if address.lower() == oretro_token:
         # the contract was deployed in block 45556777, so no data before that
-        if chain == Chain.POLYGON and block < 45556777:
+        if chain == Chain.POLYGON and block > 0 and block < 45556777:
             logging.getLogger(__name__).warning(
                 f" No data for {chain.fantasy_name} oRETRO before block 45556777"
             )
@@ -405,7 +405,7 @@ def olynx(chain: Chain, address: str, block: int) -> NoPricedToken_conversion:
 
     if address.lower() == olynx_token:
         # check block and chain
-        if chain == Chain.LINEA and block < 2207782:
+        if chain == Chain.LINEA and block > 0 and block < 2207782:
             logging.getLogger(__name__).warning(
                 f" No data for {chain.fantasy_name} oLYNEX before block 2207782"
             )
