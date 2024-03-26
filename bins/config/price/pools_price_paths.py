@@ -443,13 +443,6 @@ DEX_POOLS = {
             "token1": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca".lower(),
             "min_block": 3571306,
         },
-        "WETH-SYNTH": {
-            "protocol": Protocol.ALGEBRAv3,
-            "address": "0xac5af1706cc42a7c398c274c3b8ecf735e7ecb28".lower(),
-            "token0": "0x4200000000000000000000000000000000000006".lower(),
-            "token1": "0xbd2dbb8ecea9743ca5b16423b4eaa26bdcfe5ed2".lower(),
-            "min_block": 2014951,
-        },
         "WETH-USDbC": {
             "protocol": Protocol.UNISWAPv3,
             "address": "0x4c36388be6f416a29c8d8eee81c771ce6be14b18".lower(),
@@ -930,11 +923,6 @@ DEX_POOLS_PRICE_PATHS = {
         ],
     },
     Chain.BASE: {
-        # SYNTH
-        "0xbd2dbb8ecea9743ca5b16423b4eaa26bdcfe5ed2".lower(): [
-            (DEX_POOLS[Chain.BASE]["WETH-SYNTH"], 0),
-            (DEX_POOLS[Chain.BASE]["WETH-USDbC"], 1),
-        ],
         # TBTC
         "0x236aa50979d5f3de3bd1eeb40e81137f22ab794b".lower(): [
             (DEX_POOLS[Chain.BASE]["TBTC-WETH"], 0),
