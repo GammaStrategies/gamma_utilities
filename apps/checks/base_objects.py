@@ -12,5 +12,5 @@ class analysis_item:
 
 
 class base_analyzer_object:
-    def __init__(self, items: list[analysis_item] = []):
-        self.items = items
+    def __init__(self):
+        self.items = []
