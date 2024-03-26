@@ -41,6 +41,9 @@ class geckoterminal_price_helper:
             "kava": "kava",
             "metis": "metis",
             "manta": "manta-pacific",
+            # "astar_zkevm": "",
+            # "blast": "",
+            # "immutable_zkevm": "",
         }
 
         self.dexids = {
