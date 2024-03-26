@@ -1,6 +1,8 @@
 import logging
 
+from apps.errors.actions import process_error
 from apps.feeds.utils import add_apr_process01
+from bins.errors.general import ProcessingError
 from bins.w3.protocols.lynex.rewarder import lynex_gauge_v2
 
 
@@ -31,6 +33,11 @@ def create_rewards_status_lynex(
                 )
                 # add to result
                 result.append(reward)
+            except ProcessingError as e:
+                logging.getLogger(__name__).error(
+                    f" Lynex Rewards-> {network}'s {rewarder_static['rewardToken']} price at block {hypervisor_status['block']} could not be calculated. {e.identity}. Trying to address it."
+                )
+                process_error(e)
             except Exception as e:
                 logging.getLogger(__name__).exception(
                     f" Lynex Rewards-> {network}'s {rewarder_static['rewardToken']} price at block {hypervisor_status['block']} could not be calculated. Error: {e}"

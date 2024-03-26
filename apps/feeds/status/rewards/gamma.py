@@ -1,6 +1,8 @@
 import logging
+from apps.errors.actions import process_error
 from apps.feeds.utils import add_apr_process01
 
+from bins.errors.general import ProcessingError
 from bins.general.enums import rewarderType, text_to_chain
 from bins.w3.builders import build_erc20_helper
 from bins.w3.protocols.gamma.rewarder import gamma_masterchef_rewarder
@@ -62,6 +64,11 @@ def create_rewards_status_gamma(
             reward_data=reward_data,
         )
         result.append(reward_data)
+    except ProcessingError as e:
+        logging.getLogger(__name__).error(
+            f" Gamma Rewards-> {network}'s {rewarder_static['rewardToken']} price at block {hypervisor_status['block']} could not be calculated. {e.identity}. Trying to address it."
+        )
+        process_error(e)
     except Exception as e:
         logging.getLogger(__name__).exception(
             f" Gamma Rewards-> {network}'s {rewarder_static['rewardToken']} price at block {hypervisor_status['block']} could not be calculated. Error: {e}"
