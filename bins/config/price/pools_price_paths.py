@@ -682,6 +682,29 @@ DEX_POOLS = {
             "min_block": 403386,
         },
     },
+    Chain.IMMUTABLE_ZKEVM: {
+        "GOG-WIMX": {
+            "protocol": Protocol.UNISWAPv3,  # quickswap
+            "address": "0x6faec9c84d319ef037d0c3ce4a15502f1c1e4306".lower(),
+            "token0": "0xb00ed913aaff8280c17bff33cce82fe6d79e85e8".lower(),  # GOG
+            "token1": "0x3a0c2ba54d6cbd3121f01b96dfd20e99d1696c9d".lower(),  # WIMX
+            "min_block": 3753850,
+        },
+        "WIMX-USDC": {
+            "protocol": Protocol.UNISWAPv3,  # quickswap
+            "address": "0x5f5664979ed0f8124e9910f9476b12304ed85e61".lower(),
+            "token0": "0x3a0c2ba54d6cbd3121f01b96dfd20e99d1696c9d".lower(),  # WIMX
+            "token1": "0x6de8acc0d406837030ce4dd28e7c08c5a96a30d2".lower(),  # USDC
+            "min_block": 3772535,
+        },
+        "ETH-USDC": {
+            "protocol": Protocol.UNISWAPv3,  # quickswap
+            "address": "0x647638891606f98ea6900d51011f0f24e040ad95".lower(),
+            "token0": "0x52a6c53869ce09a731cd772f245b97a4401d3348".lower(),  # ETH
+            "token1": "0x6de8acc0d406837030ce4dd28e7c08c5a96a30d2".lower(),  # USDC
+            "min_block": 3846867,
+        },
+    },
 }
 
 
@@ -1020,6 +1043,21 @@ DEX_POOLS_PRICE_PATHS = {
         # ETH
         "0xe9cc37904875b459fa5d0fe37680d36f1ed55e38".lower(): [
             (DEX_POOLS[Chain.ASTAR_ZKEVM]["USDC-WETH"], 0),
+        ],
+    },
+    Chain.IMMUTABLE_ZKEVM: {
+        # GOG
+        "0xb00ed913aaff8280c17bff33cce82fe6d79e85e8".lower(): [
+            (DEX_POOLS[Chain.IMMUTABLE_ZKEVM]["GOG-WIMX"], 0),
+            (DEX_POOLS[Chain.IMMUTABLE_ZKEVM]["WIMX-USDC"], 1),
+        ],
+        # WIMX
+        "0x3a0c2ba54d6cbd3121f01b96dfd20e99d1696c9d".lower(): [
+            (DEX_POOLS[Chain.IMMUTABLE_ZKEVM]["WIMX-USDC"], 1),
+        ],
+        # ETH
+        "0x52a6c53869ce09a731cd772f245b97a4401d3348".lower(): [
+            (DEX_POOLS[Chain.IMMUTABLE_ZKEVM]["ETH-USDC"], 1),
         ],
     },
 }
