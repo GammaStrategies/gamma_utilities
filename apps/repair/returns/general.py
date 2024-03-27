@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from apps.feeds.returns.builds import (
     force_build_period_yield,
@@ -26,6 +26,8 @@ def repair_hypervisor_returns():
         repair_null_values(
             chain=chain, collection="latest_hypervisor_returns", remove=True
         )
+        # remove old latest hypervisor returns
+        remove_old_latest_hypervisor_returns(chain=chain)
 
 
 # HELPERS
@@ -176,3 +178,38 @@ def repair_null_values(
             logging.getLogger(__name__).error(
                 f" {chain.database_name} could not repair {item['id']} -> underlying qtty and/or price are zero. hype: {item['address']} blocks from {item['timeframe']['ini']['block']} to {item['timeframe']['end']['block']}"
             )
+
+
+def remove_old_latest_hypervisor_returns(
+    chain: Chain, hypervisor_address: str | None = None, max_period=365
+):
+    """Remove old latest hypervisor returns from the database
+
+    Args:
+        chain (Chain):
+        hypervisor_address (str | None, optional): . Defaults to all.
+        max_period (int, optional): maximum days from utc now to be kept in database. Defaults to 365.
+    """
+
+    min_timestamp = datetime.now(tz=timezone.utc).timestamp() - (
+        max_period * 24 * 60 * 60
+    )
+
+    _find = {"timeframe.ini.block": {"$lt": min_timestamp}}
+    if hypervisor_address:
+        _find["address"] = hypervisor_address
+
+    if items := get_from_localdb(
+        network=chain.database_name,
+        collection="latest_hypervisor_returns",
+        find=_find,
+        sort={"timeframe.ini.block": -1},
+    ):
+        logging.getLogger(__name__).info(
+            f" Removing {len(items)} items from {chain.database_name} latest_hypervisor_returns older than {max_period} days [ {datetime.fromtimestamp(min_timestamp,tz=timezone.utc)} ]"
+        )
+        db_return = get_default_localdb(network=chain.database_name).delete_items(
+            collection_name="latest_hypervisor_returns",
+            data=items,
+        )
+        logging.getLogger(__name__).debug(f" Removed {db_return.deleted_count} items ")

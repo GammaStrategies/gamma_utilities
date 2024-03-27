@@ -81,7 +81,7 @@ def telegram_checks_analytics(
             )
 
             # NO DATA RETURNED
-            if not csv_data:
+            if not csv_data or (len(csv_data) == 1 and "No data found" in csv_data[0]):
                 # get last database operation/event known and telegram log it.
                 last_operation = get_last_operation(
                     chain=chain,

@@ -58,6 +58,33 @@ def repair_prices_analytic_returns(
             "timeframe.end.block": {"$gte": block_ini, "$lte": block_end},
         },
     )
+
+    # Check if errors are within latest hypervisor returns items, and remove them
+    hypervisor_returns_latest = get_from_localdb(
+        network=chain.database_name,
+        collection="latest_hypervisor_returns",
+        find={
+            "address": {"$in": list(hypervisor_static_list.keys())},
+            "timeframe.end.block": {"$gte": block_ini, "$lte": block_end},
+        },
+    )
+    if hypervisor_returns_latest:
+        # TODO: rescrape prices for these items and check if they are different from original. Remove if no difference / Update item when differentS
+        logging.getLogger(__name__).info(
+            f" Removing {len(hypervisor_returns_latest)} latest hypervisor returns with the token address {token_address} from block {block_ini} to {block_end}"
+        )
+        db_return = get_default_localdb(network=chain.database_name).delete_items(
+            collection_name="latest_hypervisor_returns",
+            data=hypervisor_returns_latest,
+        )
+        logging.getLogger(__name__).debug(f" {db_return.deleted_count} items removed")
+
+    if not hypervisor_returns:
+        logging.getLogger(__name__).warning(
+            f" No hypervisor returns found with the token address {token_address} from block {block_ini} to {block_end}"
+        )
+        return
+
     logging.getLogger(__name__).debug(
         f" Found {len(hypervisor_returns)} hypervisor returns matching the token criteria specified"
     )
@@ -142,7 +169,11 @@ def rescrape_prices_for_token(
     price_items_db = get_default_globaldb().get_items_from_database(
         collection_name="usd_prices", find=find, sort=sort, limit=limit
     )
-
+    if not price_items_db:
+        logging.getLogger(__name__).warning(
+            f" No prices found for {chain.fantasy_name} chain find criteria specified: {find}"
+        )
+        return
     with tqdm.tqdm(total=len(price_items_db)) as progress_bar:
         # prepare arguments
         _fails = 0

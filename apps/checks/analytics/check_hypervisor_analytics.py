@@ -226,7 +226,12 @@ class analytics_analyzer(base_analyzer_object):
             self.items.append(
                 analysis_item(
                     name="price",
-                    data=row1,
+                    data={
+                        "row1": row1,
+                        "token": token1_address,
+                        "block_ini": row1["block"],
+                        "block_end": row2["block"],
+                    },
                     log_message=f" PRICE: {token0_name} has changed by {change_token0_within_period:,.1%} within the period from {datetime_ini1} [${row1['status.ini.prices.token0']:,.2f}] to {datetime_end2} [${row1['status.end.prices.token0']:,.2f}]. blocks: {row1['block']} to {row2['block']}  {token0_address}",
                     telegram_message=f" <b>PRICE</b>: {token0_name} has changed by {change_token0_within_period:,.1%} within the period from {datetime_ini1} [${row1['status.ini.prices.token0']:,.2f}] to {datetime_end2} [${row1['status.end.prices.token0']:,.2f}]. blocks: {row1['block']} to {row2['block']}  {token0_address}",
                 )
@@ -238,7 +243,12 @@ class analytics_analyzer(base_analyzer_object):
             self.items.append(
                 analysis_item(
                     name="price",
-                    data=row1,
+                    data={
+                        "row1": row1,
+                        "token": token1_address,
+                        "block_ini": row1["block"],
+                        "block_end": row2["block"],
+                    },
                     log_message=f" PRICE: {token1_name} has changed by {change_token1_within_period:,.1%} within the period from {datetime_ini1} [${row1['status.ini.prices.token1']:,.2f}] to {datetime_end2} [${row1['status.end.prices.token1']:,.2f}] blocks: {row1['block']} to {row2['block']}  {token1_address}",
                     telegram_message=f" <b>PRICE</b>: {token1_name} has changed by {change_token1_within_period:,.1%} within the period from {datetime_ini1} [${row1['status.ini.prices.token1']:,.2f}] to {datetime_end2} [${row1['status.end.prices.token1']:,.2f}] blocks: {row1['block']} to {row2['block']}  {token1_address}",
                 )
@@ -273,7 +283,13 @@ class analytics_analyzer(base_analyzer_object):
             self.items.append(
                 analysis_item(
                     name="price",
-                    data={"row1": row1, "row2": row2},
+                    data={
+                        "row1": row1,
+                        "row2": row2,
+                        "token": token1_address,
+                        "block_ini": row1["block"],
+                        "block_end": row2["block"],
+                    },
                     log_message=f" PRICE: {token0_name} has changed by {change_token0_between_ini_rows:,.1%} within 2 periods between {datetime_ini1} [${row1['status.ini.prices.token0']:,.2f}] and {datetime_ini2} [${row2['status.ini.prices.token0']:,.2f}] blocks: {row1['block']} to {row2['block']}  {token0_address}",
                     telegram_message=f" <b>PRICE</b>: {token0_name} has changed by {change_token0_between_ini_rows:,.1%} within 2 periods between {datetime_ini1} [${row1['status.ini.prices.token0']:,.2f}] and {datetime_ini2} [${row2['status.ini.prices.token0']:,.2f}] blocks: {row1['block']} to {row2['block']}  {token0_address}",
                 )
@@ -285,7 +301,13 @@ class analytics_analyzer(base_analyzer_object):
             self.items.append(
                 analysis_item(
                     name="price",
-                    data={"row1": row1, "row2": row2},
+                    data={
+                        "row1": row1,
+                        "row2": row2,
+                        "token": token1_address,
+                        "block_ini": row1["block"],
+                        "block_end": row2["block"],
+                    },
                     log_message=f" PRICE: {token1_name} has changed by {change_token1_between_ini_rows:,.1%} within 2 periods between {datetime_ini1} [${row1['status.ini.prices.token1']:,.2f}] and {datetime_ini2} [${row2['status.ini.prices.token1']:,.2f}] blocks: {row1['block']} to {row2['block']}  {token1_address}",
                     telegram_message=f" <b>PRICE</b>: {token1_name} has changed by {change_token1_between_ini_rows:,.1%} within 2 periods between {datetime_ini1} [${row1['status.ini.prices.token1']:,.2f}] and {datetime_ini2} [${row2['status.ini.prices.token1']:,.2f}] blocks: {row1['block']} to {row2['block']}  {token1_address}",
                 )
@@ -316,7 +338,13 @@ class analytics_analyzer(base_analyzer_object):
             self.items.append(
                 analysis_item(
                     name="price",
-                    data={"row1": row1, "row2": row2},
+                    data={
+                        "row1": row1,
+                        "row2": row2,
+                        "token": token1_address,
+                        "block_ini": row1["block"],
+                        "block_end": row2["block"],
+                    },
                     log_message=f" PRICE: {token0_name} has changed by {change_token0_between_end_rows:,.1%} within 2 periods between {datetime_end1} [${row1['status.end.prices.token0']:,.2f}] and {datetime_end2} [${row2['status.end.prices.token0']:,.2f}] blocks: {row1['block']} to {row2['block']}  {token0_address}",
                     telegram_message=f" <b>PRICE</b>: {token0_name} has changed by {change_token0_between_end_rows:,.1%} within 2 periods between {datetime_end1} [${row1['status.end.prices.token0']:,.2f}] and {datetime_end2} [${row2['status.end.prices.token0']:,.2f}] blocks: {row1['block']} to {row2['block']}  {token0_address}",
                 )
@@ -328,7 +356,13 @@ class analytics_analyzer(base_analyzer_object):
             self.items.append(
                 analysis_item(
                     name="price",
-                    data={"row1": row1, "row2": row2},
+                    data={
+                        "row1": row1,
+                        "row2": row2,
+                        "token": token1_address,
+                        "block_ini": row1["block"],
+                        "block_end": row2["block"],
+                    },
                     log_message=f" PRICE: {token1_name} has changed by {change_token1_between_end_rows:,.1%} within 2 periods between {datetime_end1} [${row1['status.end.prices.token1']:,.2f}] and {datetime_end2} [${row2['status.end.prices.token1']:,.2f}] blocks: {row1['block']} to {row2['block']} {token1_address}",
                     telegram_message=f" <b>PRICE</b>: {token1_name} has changed by {change_token1_between_end_rows:,.1%} within 2 periods between {datetime_end1} [${row1['status.end.prices.token1']:,.2f}] and {datetime_end2} [${row2['status.end.prices.token1']:,.2f}] blocks: {row1['block']} to {row2['block']} {token1_address}",
                 )
@@ -688,7 +722,12 @@ class analytics_analyzer(base_analyzer_object):
                     self.items.append(
                         analysis_item(
                             name="direct_transfer",
-                            data={"row1": row1, "row2": row2},
+                            data={
+                                "row1": row1,
+                                "row2": row2,
+                                "hypervisor": row1["address"],
+                                "before_block": row2["block"],
+                            },
                             log_message=f" DIRECT TRANSFER: Found {len(direct_transfers_filtered)} transfers from {wallet_address}. Remove items before timestamp {row2['timestamp']}",
                             telegram_message=f" <b>DIRECT TRANSFER</b>: Found {len(direct_transfers_filtered)} transfers from {wallet_address}. Remove items before timestamp {row2['timestamp']}",
                         )
