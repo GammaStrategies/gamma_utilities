@@ -1,5 +1,6 @@
 import logging
 from apps.errors.actions import process_error
+from apps.feeds.status.rewards.helpers import _create_dummy_reward_status_zero
 from apps.feeds.utils import add_apr_process01
 
 from bins.errors.general import ProcessingError
@@ -25,11 +26,14 @@ def create_rewards_status_gamma(
         filter=True,
     )
     if not rewards:
-        logging.getLogger(__name__).info(
-            f"           No active rewards found for {network} hype {rewarder_static['hypervisor_address']} rewarder {rewarder_static['rewarder_address']} at block {hypervisor_status['block']} pids {rewarder_static['rewarder_refIds']}"
+        # logging.getLogger(__name__).info(
+        #     f"           No active rewards found for {network} hype {rewarder_static['hypervisor_address']} rewarder {rewarder_static['rewarder_address']} at block {hypervisor_status['block']} pids {rewarder_static['rewarder_refIds']}"
+        # )
+        # Return REWARDSxSEC=0 when no rewards are found
+        logging.getLogger(__name__).debug(
+            f" There are no {rewarder_static['rewardToken_symbol']} rewards for {network} {hypervisor_status['address']} at block {hypervisor_status['block']}"
         )
-        # consider returning list of one item with rewards=0. But all references to this func shall be checked (like reScrape...).
-        return []
+        return [_create_dummy_reward_status_zero(hypervisor_status, rewarder_static)]
 
     if len(rewards) > 1:
         logging.getLogger(__name__).error(

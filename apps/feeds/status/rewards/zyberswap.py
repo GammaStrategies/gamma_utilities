@@ -1,5 +1,6 @@
 import logging
 from apps.errors.actions import process_error
+from apps.feeds.status.rewards.helpers import _create_dummy_reward_status_zero
 from apps.feeds.utils import add_apr_process01
 
 from bins.errors.general import ProcessingError
@@ -25,11 +26,19 @@ def create_rewards_status_zyberswap(
 
     result = []
     # get rewards onchain status
-    for reward_data in zyberswap_masterchef.get_rewards(
+    reward_data_list = zyberswap_masterchef.get_rewards(
         hypervisor_addresses=[rewarder_static["hypervisor_address"]],
         pids=rewarder_static["rewarder_refIds"],
         convert_bint=True,
-    ):
+    )
+
+    if not reward_data_list:
+        logging.getLogger(__name__).debug(
+            f" There are no {rewarder_static['rewardToken_symbol']} rewards for {network} {hypervisor_status['address']} at block {hypervisor_status['block']}"
+        )
+        return [_create_dummy_reward_status_zero(hypervisor_status, rewarder_static)]
+
+    for reward_data in reward_data_list:
         try:
             # add prices and APR to onchain status
             reward_data = add_apr_process01(

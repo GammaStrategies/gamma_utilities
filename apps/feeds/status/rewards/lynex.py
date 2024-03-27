@@ -1,6 +1,7 @@
 import logging
 
 from apps.errors.actions import process_error
+from apps.feeds.status.rewards.helpers import _create_dummy_reward_status_zero
 from apps.feeds.utils import add_apr_process01
 from bins.errors.general import ProcessingError
 from bins.w3.protocols.lynex.rewarder import lynex_gauge_v2
@@ -45,5 +46,12 @@ def create_rewards_status_lynex(
                 logging.getLogger(__name__).debug(
                     f" Lynex Rewards last err debug data -> rewarder_static {rewarder_static}           hype status {hypervisor_status}"
                 )
+
+    else:
+        # Return REWARDSxSEC=0 when no rewards are found
+        logging.getLogger(__name__).debug(
+            f" There are no {rewarder_static['rewardToken_symbol']} rewards for {network} {hypervisor_status['address']} at block {hypervisor_status['block']}"
+        )
+        return [_create_dummy_reward_status_zero(hypervisor_status, rewarder_static)]
 
     return result
