@@ -39,6 +39,13 @@ DEX_POOLS = {
             "token1": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2".lower(),
             "min_block": 13682876,
         },
+        "renBTC-WETH":{
+            "protocol": Protocol.UNISWAPv3,
+            "address": "0x3cb75142bdae2bef3eb119affb288aeb0599dc4f".lower(),
+            "token0": "0xeb4c2781e4eba804ce9a9803c67d0893436bb27d".lower(),
+            "token1": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2".lower(),
+            "min_block": 12377251,
+        },
     },
     Chain.OPTIMISM: {
         "WETH_USDC": {
@@ -729,6 +736,11 @@ DEX_POOLS_PRICE_PATHS = {
         # BABEL
         "0xf4dc48d260c93ad6a96c5ce563e70ca578987c74".lower(): [
             (DEX_POOLS[Chain.ETHEREUM]["BABEL_WETH"], 0),
+            (DEX_POOLS[Chain.ETHEREUM]["USDC_WETH"], 0),
+        ],
+        # renBTC
+        "0xeb4c2781e4eba804ce9a9803c67d0893436bb27d".lower(): [
+            (DEX_POOLS[Chain.ETHEREUM]["renBTC-WETH"], 0),
             (DEX_POOLS[Chain.ETHEREUM]["USDC_WETH"], 0),
         ],
     },
