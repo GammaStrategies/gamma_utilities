@@ -673,6 +673,10 @@ REVENUE_FEE_OVERWRITE = {
     Chain.ASTAR_ZKEVM: {Protocol.QUICKSWAP.database_name: 0.5},
     Chain.IMMUTABLE_ZKEVM: {Protocol.QUICKSWAP.database_name: 0.5},
     Chain.BLAST: {Protocol.BLASTER.database_name: 0.2},
+    Chain.BSC: {
+        # approx 0.07 + spNFT ( not accurate )
+        Protocol.THENA.database_name: 0.068
+    },
 }
 
 

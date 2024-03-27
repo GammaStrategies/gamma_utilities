@@ -77,13 +77,13 @@ def create_revenue_addresses(
     if revenue_address_type == "hypervisors":
         # merge feeRecipient addresses from hypes static
         for hype_static in hypervisors_static_list:
-            # Thenas feeRecipient is not controlled by Gamma so should not be included in the list
-            if text_to_protocol(hype_static["dex"]) == Protocol.THENA:
-                # skip this hype
-                logging.getLogger(__name__).debug(
-                    f" Skipping feeRecipient address from Thena hypes"
-                )
-                continue
+            # # Thenas feeRecipient is not controlled by Gamma so should not be included in the list
+            # if text_to_protocol(hype_static["dex"]) == Protocol.THENA:
+            #     # skip this hype
+            #     logging.getLogger(__name__).debug(
+            #         f" Skipping feeRecipient address from Thena hypes"
+            #     )
+            #     continue
 
             if hype_static.get("feeRecipient", None):
                 # check if it is a valid address ( 0x000 means not set )
