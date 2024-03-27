@@ -246,6 +246,8 @@ class databaseSource(str, Enum):
     MANUAL = "manual"
     AVERAGE = "average"
 
+    ONEINCH = "oneinch"
+
     # TODO: implement database_name and ...
 
 

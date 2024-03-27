@@ -19,6 +19,7 @@ def get_price(
             source_order=[
                 databaseSource.CHAINLINK,
                 databaseSource.ONCHAIN,
+                databaseSource.ONEINCH,
                 databaseSource.COINGECKO,
                 databaseSource.GECKOTERMINAL,
             ],
@@ -32,6 +33,7 @@ def get_price(
             source_order=[
                 databaseSource.CHAINLINK,
                 databaseSource.ONCHAIN,
+                databaseSource.ONEINCH,
                 databaseSource.GECKOTERMINAL,
                 databaseSource.COINGECKO,
             ],

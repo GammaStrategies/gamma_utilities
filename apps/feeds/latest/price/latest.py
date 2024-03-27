@@ -34,6 +34,7 @@ def feed_latest_usd_prices(threaded: bool = True):
             source_order=[
                 databaseSource.CHAINLINK,
                 databaseSource.ONCHAIN,
+                databaseSource.ONEINCH,
                 databaseSource.COINGECKO,
                 databaseSource.GECKOTERMINAL,
             ],
@@ -47,6 +48,7 @@ def feed_latest_usd_prices(threaded: bool = True):
             source_order=[
                 databaseSource.CHAINLINK,
                 databaseSource.ONCHAIN,
+                databaseSource.ONEINCH,
                 databaseSource.GECKOTERMINAL,
                 databaseSource.COINGECKO,
             ],

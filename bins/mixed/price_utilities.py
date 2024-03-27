@@ -5,6 +5,8 @@ import time
 
 from ratelimit.exception import RateLimitException
 from bins.config.price.chainlink_feeds import CHAINLINK_USD_PRICE_FEEDS
+from bins.config.price.oneinch_contracts import ONEINCH_SPOT_PRICE_CONTRACTS
+
 from bins.config.price.no_priced_tokens import (
     NoPricedToken_conversion,
     no_priced_token_conversions,
@@ -15,6 +17,7 @@ from bins.w3.protocols.chainlink.chainlink_helper import (
     chainlink_connector,
     chainlink_connector_multicall,
 )
+from bins.w3.protocols.oneinch.spot import oneinch_spot_price_aggregator
 from ..cache import cache_utilities
 from ..apis import thegraph_utilities, coingecko_utilities
 from ..apis.geckoterminal_helper import geckoterminal_price_helper
@@ -31,7 +34,7 @@ from ..formulas.tick_math import sqrtPriceX96_to_price_float
 
 from ..general import file_utilities
 from ..general.enums import Chain, Protocol, databaseSource, text_to_chain
-from ..w3.builders import build_protocol_pool
+from ..w3.builders import build_erc20_helper, build_protocol_pool
 
 
 LOG_NAME = "price"
@@ -50,6 +53,7 @@ class price_scraper:
         geckoterminal_sleepNretry: bool = False,
         thegraph: bool = True,
         chainlink: bool = True,
+        oneinch: bool = True,
         source_order: list[databaseSource] | None = None,
     ):
         cache_folderName = CONFIGURATION["cache"]["save_path"]
@@ -67,6 +71,7 @@ class price_scraper:
         self.thegraph = thegraph
         self.onchain = onchain
         self.chainlink = chainlink
+        self.oneinch = oneinch
 
         self.source_order = source_order
 
@@ -115,6 +120,10 @@ class price_scraper:
         # onchain is the first option
         if self.onchain:
             result.append(databaseSource.ONCHAIN)
+
+        # one inch
+        if self.oneinch:
+            result.append(databaseSource.ONEINCH)
 
         # coingecko with api key
         if self.coingecko and CONFIGURATION.get("sources", {}).get(
@@ -242,6 +251,12 @@ class price_scraper:
 
             elif source == databaseSource.CHAINLINK:
                 _price, _source = self._get_price_from_chainlink(
+                    network=search_chain.database_name,
+                    token_id=search_token_id,
+                    block=search_block,
+                )
+            elif source == databaseSource.ONEINCH:
+                _price, _source = self._get_price_from_oneinch(
                     network=search_chain.database_name,
                     token_id=search_token_id,
                     block=search_block,
@@ -556,6 +571,27 @@ class price_scraper:
         except Exception as e:
             logging.getLogger(LOG_NAME).exception(
                 f"Error while getting chainlink price {e}"
+            )
+
+        return _price, _source
+
+    def _get_price_from_oneinch(
+        self, network: str, token_id: str, block: int
+    ) -> tuple[float, databaseSource]:
+        _price = 0
+        _source = databaseSource.ONEINCH
+        try:
+            # convert network string to chain enum
+            chain = text_to_chain(network)
+            # get price
+            _price_helper = oneinch_price_scraper()
+            _price = _price_helper.get_price(
+                chain=chain, token_address=token_id, block=block
+            )
+
+        except Exception as e:
+            logging.getLogger(LOG_NAME).exception(
+                f"Error while getting 1inch price {e}"
             )
 
         return _price, _source
@@ -881,6 +917,65 @@ class chainlink_price_scraper:
                 logging.getLogger(__name__).debug(
                     f" token {token_address} not found in chainlink feeds. Cant get chainlink price"
                 )
+
+        except ProcessingError as e:
+            # do nothing at this level
+            # raise error again
+            raise e
+
+        except Exception as e:
+            logging.getLogger(__name__).exception(
+                f"Error while getting onchain price for token {token_address} on chain {chain}. Error: {e}"
+            )
+
+        return None
+
+
+class oneinch_price_scraper:
+
+    def __init__(self):
+        pass
+
+    def get_price(
+        self, chain: Chain, token_address: str, block: int | None = None
+    ) -> float | None:
+        try:
+
+            oracle_address = ONEINCH_SPOT_PRICE_CONTRACTS.get(chain, {}).get(
+                "oracle", None
+            )
+            if not oracle_address:
+                logging.getLogger(__name__).debug(
+                    f" No 1inch oracle found for chain {chain}. Cant use 1inch to get price"
+                )
+                return None
+
+            # get usdc address
+            usdc_address = USDC_TOKEN_ADDRESSES.get(chain, None)
+            if not usdc_address:
+                logging.getLogger(__name__).debug(
+                    f" No USDC address found for chain {chain}. Cant use 1inch to get price"
+                )
+                return None
+            usdc_address = usdc_address[0]
+
+            erchelper_denominator = build_erc20_helper(
+                chain=chain, address=usdc_address
+            )
+            erchelper_numerator = build_erc20_helper(chain=chain, address=token_address)
+
+            _numerator_d = 10**erchelper_numerator.decimals
+            _denominator_d = 10**erchelper_denominator.decimals
+
+            # create helper
+            _helper = oneinch_spot_price_aggregator(
+                address=oracle_address, network=chain.database_name, block=block
+            )
+            # get price
+            if price := _helper.getRate(
+                srcToken=token_address, dstToken=usdc_address, useWrappers=False
+            ):
+                return price * (_numerator_d / _denominator_d) / 1e18
 
         except ProcessingError as e:
             # do nothing at this level

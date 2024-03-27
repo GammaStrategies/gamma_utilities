@@ -88,6 +88,7 @@ def feed_prices(
                 [
                     databaseSource.CHAINLINK,
                     databaseSource.ONCHAIN,
+                    databaseSource.ONEINCH,
                     databaseSource.COINGECKO,
                     databaseSource.GECKOTERMINAL,
                 ]

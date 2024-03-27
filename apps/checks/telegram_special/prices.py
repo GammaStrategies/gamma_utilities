@@ -4,7 +4,6 @@ from apps.checks.prices.general import price_analyzer
 from bins.database.helpers import get_from_localdb
 from bins.general.enums import Chain
 from bins.log.telegram_logger import send_to_telegram
-from bins.mixed.price_utilities import price_scraper
 
 
 def telegram_checks_tokens_without_price():
